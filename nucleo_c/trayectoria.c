@@ -8,8 +8,9 @@
  *  2. direccion_entre() dice en qué dirección va de un punto al siguiente.
  *  3. validar_ruta() revisa TODA la ruta antes de calcular nada.
  *  4. giro_grados() da el giro entre dos direcciones, de -180 a 180.
- *  5. trayectoria_calcular() recorre la ruta, junta tramos de la misma
+ *  5. trayectoria_calcular_desde() recorre la ruta, junta tramos de la misma
  *     dirección y escribe primero el GIRAR y luego el AVANZAR de cada tramo.
+ *     (trayectoria_calcular() es el caso en que el carro empieza mirando hacia arriba.)
  *  Todo es entero y de tamaño fijo: no hay malloc ni math.h.
  */
 
@@ -124,8 +125,16 @@ int trayectoria_calcular(const Punto *puntos, int n_puntos,
                          Paso *pasos, int capacidad, int *n_pasos,
                          int *indice_error)
 {
+    return trayectoria_calcular_desde(ORIENTACION_INICIAL, puntos, n_puntos,
+                                      pasos, capacidad, n_pasos, indice_error);
+}
+
+int trayectoria_calcular_desde(int orientacion_inicial, const Punto *puntos, int n_puntos,
+                               Paso *pasos, int capacidad, int *n_pasos,
+                               int *indice_error)
+{
     int indice_local = 0;
-    int orientacion  = ORIENTACION_INICIAL;
+    int orientacion  = orientacion_inicial;
     int codigo;
     int i;
 
@@ -137,7 +146,8 @@ int trayectoria_calcular(const Punto *puntos, int n_puntos,
         *n_pasos = 0;
     }
     if (puntos == NULL || pasos == NULL || n_pasos == NULL ||
-        n_puntos < 1 || capacidad < 1) {
+        n_puntos < 1 || capacidad < 1 ||
+        orientacion_inicial < 0 || orientacion_inicial > 7) {
         return TRAY_ERR_ARGUMENTO;
     }
     if (n_puntos > MAX_PUNTOS) {

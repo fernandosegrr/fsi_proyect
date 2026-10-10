@@ -17,12 +17,13 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
   `docs/pruebas_control.md`).
 - `nucleo_c/` — módulos en C estándar (sin librerías) para usar desde Android: trayectoria
   (`trayectoria.c/.h`, `calibracion.h` con valores de ejemplo que hay que medir) y detector de obstáculos
-  por color de piso (`obstaculos.c/.h`, ver `docs/obstaculos.md`), cada uno con sus pruebas.
+  por color de piso (`obstaculos.c/.h`, ver `docs/obstaculos.md`) y navegador del modo semiautónomo
+  (`navegador.c/.h` y un simulador de carro para las pruebas, ver `docs/navegador.md`), cada uno con sus pruebas.
 - `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una
   ruta con el dedo en una cuadrícula y el botón "Calcular" muestra los pasos. Llama por JNI
   (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.
   Trae la pantalla de control (`ControlActivity`: botones + WebSocket) y el benchmark del detector de objetos (`BenchmarkActivity`, modelo en `app/src/main/assets/`).
-- `docs/` — `obstaculos.md` (detector de obstáculos por color de piso), `pruebas_control.md` (pruebas de la pantalla de control), `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
+- `docs/` — `navegador.md` (modo semiautónomo: estados, parámetros y límites), `obstaculos.md` (detector de obstáculos por color de piso), `pruebas_control.md` (pruebas de la pantalla de control), `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
   `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
   original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
 - `original_backup/` — el código y el PDF originales. No se modifica y **no se publica en GitHub**
@@ -78,9 +79,10 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 4. `firmware_carro/firmware_carro.ino` — la parte C++ que conecta WiFi y WebSocket con `carro.c`.
 5. `pruebas_firmware/pruebas_carro.c` — ejemplos ejecutables de cada comportamiento.
 6. `nucleo_c/trayectoria.h`, `trayectoria.c` y `pruebas_trayectoria.c` — el módulo de rutas; después
-   `obstaculos.h`, `obstaculos.c` y `pruebas_obstaculos.c` — el detector de obstáculos.
+   `obstaculos.h`, `obstaculos.c` y `pruebas_obstaculos.c` — el detector de obstáculos; y por último
+   `navegador.h`, `navegador.c` y `pruebas_navegador.c` — el navegador que los une.
 7. `app_android/app/src/main/cpp/puente.c`, luego `TrayectoriaNativa.kt`, `CuadriculaView.kt` y
-   `MainActivity.kt` — cómo la app llama al módulo en C.
+   `MainActivity.kt` — cómo la app llama al módulo en C; después `ModoSemiautonomo.kt` y `NavegadorNativa.kt`.
 8. `docs/pendientes_firmware.md` — lo que falta verificar o mejorar.
 
 ## Comandos del carro (protocolo por WebSocket, texto plano, sin parámetros)

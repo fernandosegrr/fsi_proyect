@@ -56,3 +56,8 @@
 - Hecho: `nucleo_c/obstaculos.h/.c` (C estándar, solo enteros), `pruebas_obstaculos.c` (32 casos, todos pasan; `make test` corre también las de trayectoria), puente JNI (`ObstaculosNativa`), benchmark en el Huawei y `docs/obstaculos.md`.
 - Huawei: las 4 imágenes generadas dan el resultado esperado; un cuadro completo (decodificar + convertir + analizar) tarda 1.36 ms de media (1.24 a 1.60 ms, p95 hasta 2.03 ms); solo el análisis en C, 0.59 ms. Unas 30 veces más rápido que el modelo (43.4 ms).
 - Pendiente: probar con la cámara real y una foto real de pasillo, calibrar umbrales, y decidir cómo combinarlo con el modelo y con el control del carro.
+
+## TRABAJO 11: navegador del modo semiautónomo
+- Hecho: `nucleo_c/navegador.c/.h` (máquina de estados con los 7 estados pedidos), `simulador_navegador.c/.h` y `pruebas_navegador.c` (41 casos, todos pasan; con trayectoria 28 y obstáculos 32 son 101 en `nucleo_c`), `trayectoria_calcular_desde`, puente JNI (`NavegadorNativa`), `ModoSemiautonomo` y modo "Semiautónomo" en `ControlActivity` (cuadrado y zigzag, Iniciar/Cancelar, obstáculos simulados).
+- Huawei + servidor falso: cuadrado y zigzag completos, esquivar (FORWARD, STOP, LEFT, FORWARD, RIGHT, continúa), cancelar, segundo plano y caída del servidor mandan/mantienen STOP. Retraso obstáculo→STOP: mediana 128 ms en la app y 131 ms en el servidor (107 a 142 ms).
+- Pendiente: carro real (calibración, deriva), WiFi real, cámara real conectada al detector y al navegador. Detalle en `docs/navegador.md`.

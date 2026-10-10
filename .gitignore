@@ -15,3 +15,5 @@ pruebas_firmware/.venv/
 __pycache__/
 nucleo_c/pruebas_obstaculos
 nucleo_c/pruebas_obstaculos.exe
+nucleo_c/pruebas_navegador
+nucleo_c/pruebas_navegador.exe

@@ -41,7 +41,14 @@
         android:layout_marginTop="6dp"
         android:textSize="18sp" />
 
+    <Button
+        android:id="@+id/boton_modo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/modo_manual" />
+
     <LinearLayout
+        android:id="@+id/panel_manual"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -107,6 +114,89 @@
                 android:text="▼"
                 android:textSize="40sp" />
             <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Modo semiautónomo: ruta de prueba, iniciar/cancelar y obstáculos simulados (no hay cámara aún). -->
+    <LinearLayout
+        android:id="@+id/panel_semi"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/texto_nav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/boton_ruta_cuadrado"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/ruta_cuadrado" />
+            <Button
+                android:id="@+id/boton_ruta_zigzag"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/ruta_zigzag" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/boton_iniciar_ruta"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/boton_iniciar_ruta" />
+            <Button
+                android:id="@+id/boton_cancelar_ruta"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/boton_cancelar_ruta"
+                android:textColor="#B71C1C" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/simular_titulo"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/boton_obstaculo_izquierda"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+            <Button
+                android:id="@+id/boton_obstaculo_centro"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+            <Button
+                android:id="@+id/boton_obstaculo_derecha"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
         </LinearLayout>
     </LinearLayout>
 

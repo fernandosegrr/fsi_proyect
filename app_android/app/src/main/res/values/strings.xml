@@ -17,4 +17,16 @@
     <string name="estado_reconectando">Reconectando</string>
     <string name="estado_con_latencia">%1$s · latencia PING/PONG: %2$s</string>
     <string name="boton_benchmark_obstaculos">Benchmark de obstáculos (color de piso)</string>
+    <string name="modo_manual">Modo: Manual (tocar para Semiautónomo)</string>
+    <string name="modo_semi">Modo: Semiautónomo (tocar para Manual)</string>
+    <string name="ruta_cuadrado">Ruta: Cuadrado</string>
+    <string name="ruta_zigzag">Ruta: Zigzag</string>
+    <string name="boton_iniciar_ruta">Iniciar</string>
+    <string name="boton_cancelar_ruta">Cancelar</string>
+    <string name="simular_titulo">Simular obstáculo (no hay cámara aún); tocar para poner o quitar:</string>
+    <string name="obstaculo_izquierda">Izq: %1$s</string>
+    <string name="obstaculo_centro">Centro: %1$s</string>
+    <string name="obstaculo_derecha">Der: %1$s</string>
+    <string name="si">SÍ</string>
+    <string name="no">no</string>
 </resources>

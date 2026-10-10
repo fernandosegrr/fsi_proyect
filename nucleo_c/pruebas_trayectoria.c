@@ -250,6 +250,31 @@ static void prueba_limites(void)
                     zigzag, MAX_PUNTOS + 1, TRAY_ERR_DEMASIADOS_PUNTOS, 0);
 }
 
+/* Planificar desde un rumbo distinto de "arriba" (lo usa el navegador al reincorporarse). */
+static void prueba_orientacion_inicial(void)
+{
+    Paso pasos[MAX_PASOS];
+    int n = -1, indice = 0, codigo;
+    const Punto hacia_derecha[] = { {0, 2}, {1, 2}, {2, 2} };
+
+    codigo = trayectoria_calcular_desde(2, hacia_derecha, 3, pasos, MAX_PASOS, &n, &indice);
+    caso("desde mirando a la derecha, ir a la derecha: sin giro, solo avanzar 40 cm",
+         codigo == TRAY_OK && n == 1 && pasos[0].tipo == PASO_AVANZAR && pasos[0].valor == 2 * CELDA_CM);
+
+    codigo = trayectoria_calcular_desde(0, hacia_derecha, 3, pasos, MAX_PASOS, &n, &indice);
+    caso("desde mirando arriba (como trayectoria_calcular): giro +90 y avanzar",
+         codigo == TRAY_OK && n == 2 && pasos[0].tipo == PASO_GIRAR && pasos[0].valor == 90);
+
+    codigo = trayectoria_calcular_desde(6, hacia_derecha, 3, pasos, MAX_PASOS, &n, &indice);
+    caso("desde mirando a la izquierda, ir a la derecha: media vuelta (+180)",
+         codigo == TRAY_OK && n == 2 && pasos[0].tipo == PASO_GIRAR && pasos[0].valor == 180);
+
+    caso("orientacion 8 invalida: TRAY_ERR_ARGUMENTO",
+         trayectoria_calcular_desde(8, hacia_derecha, 3, pasos, MAX_PASOS, &n, &indice) == TRAY_ERR_ARGUMENTO);
+    caso("orientacion negativa invalida: TRAY_ERR_ARGUMENTO",
+         trayectoria_calcular_desde(-1, hacia_derecha, 3, pasos, MAX_PASOS, &n, &indice) == TRAY_ERR_ARGUMENTO);
+}
+
 int main(void)
 {
     prueba_linea_recta();
@@ -261,6 +286,7 @@ int main(void)
     prueba_giros_extremos();
     prueba_errores();
     prueba_limites();
+    prueba_orientacion_inicial();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

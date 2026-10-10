@@ -61,6 +61,14 @@ int trayectoria_calcular(const Punto *puntos, int n_puntos,
                          Paso *pasos, int capacidad, int *n_pasos,
                          int *indice_error);
 
+/* Igual que trayectoria_calcular, pero el carro empieza mirando hacia `orientacion_inicial`
+ * (índice de dirección 0 a 7: 0 = arriba, 1 = arriba-derecha, 2 = derecha...). Sirve para
+ * replanificar desde la posición y el rumbo en que el carro ya está (ver navegador.c).
+ * trayectoria_calcular equivale a usar ORIENTACION_INICIAL. */
+int trayectoria_calcular_desde(int orientacion_inicial, const Punto *puntos, int n_puntos,
+                               Paso *pasos, int capacidad, int *n_pasos,
+                               int *indice_error);
+
 /* Texto corto en español para un código de retorno (para mostrar al usuario). */
 const char *trayectoria_texto_error(int codigo);
 

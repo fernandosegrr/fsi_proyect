@@ -38,6 +38,11 @@
 - `nucleo_c/obstaculos.c/.h` (32 pruebas en PC, todas pasan), puente JNI y benchmark en el Huawei: un cuadro completo tarda 1.36 ms de media (p95 hasta 2.03 ms; solo el análisis en C 0.59 ms), unas 30 veces menos que el modelo (43.4 ms). Resultado correcto en las 4 imágenes generadas. Detalle en `docs/obstaculos.md` y al final de `docs/benchmark_ELS-NX9.md`.
 - Pendiente: cámara real de la ESP32-CAM, foto real de pasillo, calibrar umbrales.
 
+## TRABAJO 11: navegador del modo semiautónomo (hecho)
+- `nucleo_c/navegador.c/.h` + simulador de carro: 41 pruebas en PC (101 en total en `nucleo_c`), todas pasan. En el Huawei con el servidor falso: cuadrado, zigzag, esquivar (STOP, giro, avance, giro, continúa), cancelar, segundo plano y caída del servidor.
+- Retraso obstáculo simulado → STOP: mediana 128 ms en la app y 131 ms en el servidor (107 a 142 ms, 8 pruebas). Detalle, estados, parámetros y límites en `docs/navegador.md`.
+- Pendiente para el carro: calibrar `MS_POR_CM` y `MS_POR_GRADO`, medir deriva y patinaje, WiFi real y cámara real.
+
 ## Pendiente / para decidir
 - Medir captura, WiFi y comando con la ESP32-CAM para cerrar el presupuesto de 300 ms, y repetir el benchmark en el OnePlus y la tableta.
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.

@@ -118,6 +118,19 @@ class ControlLogica(
         }
     }
 
+    /**
+     * Orden del modo semiautónomo (ModoSemiautonomo): se llama solo cuando el comando CAMBIA.
+     * STOP se envía al instante y deja de repetirse; cualquier otro se envía al instante y se
+     * repite cada 250 ms (heartbeat), igual que si se mantuviera presionado un botón.
+     */
+    fun ordenAutomatica(comando: String) {
+        if (comando == "STOP") {
+            parar()
+        } else {
+            presionar(comando)
+        }
+    }
+
     /** Dejar de repetir el comando y enviar STOP. */
     fun parar() {
         comandoActivo = null
