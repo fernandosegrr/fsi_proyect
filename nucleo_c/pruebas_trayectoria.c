@@ -139,11 +139,18 @@ static void prueba_diagonales(void)
         verificar_ruta("diagonal: una celda = celda*1414/1000", una, 2, esp_una, 2);
     }
 
-    /* Tres diagonales se calculan sobre el total: 3*20*1414/1000 = 84 (no 3*28). */
+    /* Tres diagonales se calculan sobre el total: 3*20*1414/1000 = 84. */
     {
         const Punto tres[] = { {0, 3}, {1, 2}, {2, 1}, {3, 0} };
         const Paso esp_tres[] = { girar(45), avanzar(3 * CELDA_CM * DIAGONAL_CM_MIL / 1000) };
         verificar_ruta("diagonal: tres celdas, redondeo sobre el total", tres, 4, esp_tres, 2);
+    }
+
+    /* Cinco diagonales: 5*20*1414/1000 = 141 cm (celda por celda serían 140). */
+    {
+        const Punto cinco[] = { {0, 5}, {1, 4}, {2, 3}, {3, 2}, {4, 1}, {5, 0} };
+        const Paso esp_cinco[] = { girar(45), avanzar(141) };
+        verificar_ruta("diagonal: cinco celdas = 141 cm (redondeo sobre el total)", cinco, 6, esp_cinco, 2);
     }
 
     /* Recta, luego diagonal hacia abajo-derecha: de arriba a abajo-derecha = +135. */
