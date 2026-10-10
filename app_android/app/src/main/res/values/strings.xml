@@ -6,4 +6,6 @@
     <string name="boton_calcular">Calcular</string>
     <string name="boton_borrar">Borrar</string>
     <string name="resultado_inicial">Aquí aparecerán los pasos.</string>
+    <string name="boton_benchmark">Benchmark del detector</string>
+    <string name="boton_benchmark_iniciar">Iniciar benchmark</string>
 </resources>

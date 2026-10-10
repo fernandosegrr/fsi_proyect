@@ -7,10 +7,12 @@
  *  3. "Calcular" le pasa los puntos al código en C (TrayectoriaNativa) y muestra
  *     el texto que devuelve; Kotlin no interpreta nada.
  *  4. "Borrar" limpia la ruta y el resultado.
+ *  5. "Benchmark del detector" abre BenchmarkActivity (mide el detector de objetos).
  */
 package com.fsi.carro
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -32,6 +34,9 @@ class MainActivity : Activity() {
         cuadricula.alCambiarRuta = { mostrarContador() }
         findViewById<Button>(R.id.boton_calcular).setOnClickListener { calcular() }
         findViewById<Button>(R.id.boton_borrar).setOnClickListener { borrar() }
+        findViewById<Button>(R.id.boton_benchmark).setOnClickListener {
+            startActivity(Intent(this, BenchmarkActivity::class.java))
+        }
 
         mostrarContador()
     }

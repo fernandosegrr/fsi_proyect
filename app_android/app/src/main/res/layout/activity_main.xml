@@ -51,6 +51,12 @@
             android:text="@string/boton_borrar" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/boton_benchmark"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/boton_benchmark" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"

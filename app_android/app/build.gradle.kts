@@ -2,7 +2,10 @@
 //  - minSdk 26: Android 8.0 o más nuevo.
 //  - compileSdk 37: la plataforma instalada en este equipo.
 //  - externalNativeBuild: compila el código C con CMake (ver src/main/cpp/CMakeLists.txt).
-//  - No hay dependencias externas: solo la Activity clásica de Android.
+//  - abiFilters: solo arm64-v8a (los teléfonos y tabletas reales de hoy); así el APK
+//    no carga las bibliotecas de TensorFlow Lite de 4 arquitecturas.
+//  - dependencies: TensorFlow Lite "puro" (sin servicios de Google Play, el Huawei no
+//    los tiene) para el benchmark del detector de objetos.
 
 plugins {
     id("com.android.application")
@@ -19,7 +22,11 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1"
+        versionName = "0.2"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     externalNativeBuild {
@@ -33,4 +40,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    implementation("org.tensorflow:tensorflow-lite:2.17.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu-api:2.17.0")
 }

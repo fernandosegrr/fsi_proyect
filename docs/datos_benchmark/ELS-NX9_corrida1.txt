@@ -1,0 +1,160 @@
+BENCH|INICIO|modelo_archivo=efficientdet_lite0.tflite|calentamiento=20|mediciones=200|jpeg_calidad=70
+BENCH|dispositivo|fabricante=HUAWEI
+BENCH|dispositivo|modelo=ELS-NX9
+BENCH|dispositivo|dispositivo=HWELS
+BENCH|dispositivo|android=10 (API 29)
+BENCH|dispositivo|hardware=kirin990
+BENCH|dispositivo|placa=ELS
+BENCH|dispositivo|nucleos=8
+BENCH|dispositivo|abi=arm64-v8a,armeabi-v7a,armeabi
+BENCH|dispositivo|cpuinfo_Hardware=vendor Kirin990
+BENCH|dispositivo|cpu_part_por_nucleo=0xd05,0xd05,0xd05,0xd05,0xd40,0xd40,0xd40,0xd40
+BENCH|dispositivo|frecuencia_max_mhz_por_nucleo=1954,1954,1954,1954,2360,2360,2861,2861
+BENCH|dispositivo|estado_inicial=termico=0 bateria=26.0C enchufado=true
+BENCH|imagen|origen=foto copiada con adb (bench_fuente.jpg)
+BENCH|modelo|etiquetas=90
+BENCH|config=CPU-1-hilo|apertura_ms=24.48|tensores=entrada: UINT8 1x320x320x3; salida 0: StatefulPartitionedCall:3 FLOAT32 1x25x4; salida 1: StatefulPartitionedCall:2 FLOAT32 1x25; salida 2: StatefulPartitionedCall:1 FLOAT32 1x25; salida 3: StatefulPartitionedCall:0 FLOAT32 1
+BENCH|config=CPU-1-hilo|inicio|termico=0 bateria=26.0C enchufado=true
+BENCH|config=CPU-1-hilo|entrada=640x480|jpeg_bytes=65399|n=200|etapa=decodificar|media_ms=2.71|mediana_ms=2.70|p95_ms=2.80|min_ms=2.61|max_ms=3.10
+BENCH|config=CPU-1-hilo|entrada=640x480|jpeg_bytes=65399|n=200|etapa=preparar|media_ms=3.59|mediana_ms=3.58|p95_ms=3.73|min_ms=3.44|max_ms=5.49
+BENCH|config=CPU-1-hilo|entrada=640x480|jpeg_bytes=65399|n=200|etapa=inferencia|media_ms=39.07|mediana_ms=39.06|p95_ms=39.27|min_ms=38.67|max_ms=39.87
+BENCH|config=CPU-1-hilo|entrada=640x480|jpeg_bytes=65399|n=200|etapa=postproceso|media_ms=0.04|mediana_ms=0.04|p95_ms=0.04|min_ms=0.03|max_ms=0.07
+BENCH|config=CPU-1-hilo|entrada=640x480|jpeg_bytes=65399|n=200|etapa=total|media_ms=45.40|mediana_ms=45.38|p95_ms=45.64|min_ms=44.96|max_ms=48.12|fps_posibles=22.02
+BENCH|config=CPU-1-hilo|entrada=640x480|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.54
+BENCH|deteccion|config=CPU-1-hilo|entrada=640x480|clase=person|confianza=0.48
+BENCH|config=CPU-1-hilo|entrada=320x240|jpeg_bytes=21210|n=200|etapa=decodificar|media_ms=0.86|mediana_ms=0.85|p95_ms=0.90|min_ms=0.82|max_ms=0.96
+BENCH|config=CPU-1-hilo|entrada=320x240|jpeg_bytes=21210|n=200|etapa=preparar|media_ms=3.44|mediana_ms=3.44|p95_ms=3.52|min_ms=3.35|max_ms=3.64
+BENCH|config=CPU-1-hilo|entrada=320x240|jpeg_bytes=21210|n=200|etapa=inferencia|media_ms=39.05|mediana_ms=39.06|p95_ms=39.25|min_ms=38.74|max_ms=39.40
+BENCH|config=CPU-1-hilo|entrada=320x240|jpeg_bytes=21210|n=200|etapa=postproceso|media_ms=0.02|mediana_ms=0.02|p95_ms=0.03|min_ms=0.02|max_ms=0.06
+BENCH|config=CPU-1-hilo|entrada=320x240|jpeg_bytes=21210|n=200|etapa=total|media_ms=43.38|mediana_ms=43.38|p95_ms=43.57|min_ms=43.09|max_ms=43.71|fps_posibles=23.05
+BENCH|config=CPU-1-hilo|entrada=320x240|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.74
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.72
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.69
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.57
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-1-hilo|entrada=320x240|clase=person|confianza=0.41
+BENCH|config=CPU-1-hilo|fin|termico=0 bateria=26.0C enchufado=true
+BENCH|config=CPU-2-hilos|apertura_ms=12.58|tensores=entrada: UINT8 1x320x320x3; salida 0: StatefulPartitionedCall:3 FLOAT32 1x25x4; salida 1: StatefulPartitionedCall:2 FLOAT32 1x25; salida 2: StatefulPartitionedCall:1 FLOAT32 1x25; salida 3: StatefulPartitionedCall:0 FLOAT32 1
+BENCH|config=CPU-2-hilos|inicio|termico=0 bateria=26.0C enchufado=true
+BENCH|config=CPU-2-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=decodificar|media_ms=2.74|mediana_ms=2.73|p95_ms=2.83|min_ms=2.63|max_ms=4.04
+BENCH|config=CPU-2-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=preparar|media_ms=3.60|mediana_ms=3.57|p95_ms=3.73|min_ms=3.45|max_ms=5.04
+BENCH|config=CPU-2-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=inferencia|media_ms=39.26|mediana_ms=38.90|p95_ms=39.17|min_ms=38.64|max_ms=97.53
+BENCH|config=CPU-2-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=postproceso|media_ms=0.02|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.04
+BENCH|config=CPU-2-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=total|media_ms=45.62|mediana_ms=45.23|p95_ms=45.60|min_ms=44.83|max_ms=104.08|fps_posibles=21.92
+BENCH|config=CPU-2-hilos|entrada=640x480|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.54
+BENCH|deteccion|config=CPU-2-hilos|entrada=640x480|clase=person|confianza=0.48
+BENCH|config=CPU-2-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=decodificar|media_ms=1.04|mediana_ms=1.05|p95_ms=1.12|min_ms=0.83|max_ms=1.15
+BENCH|config=CPU-2-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=preparar|media_ms=4.09|mediana_ms=4.10|p95_ms=4.22|min_ms=3.40|max_ms=4.25
+BENCH|config=CPU-2-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=inferencia|media_ms=46.73|mediana_ms=46.80|p95_ms=47.19|min_ms=38.70|max_ms=52.69
+BENCH|config=CPU-2-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.04
+BENCH|config=CPU-2-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=total|media_ms=51.88|mediana_ms=51.98|p95_ms=52.37|min_ms=43.05|max_ms=57.97|fps_posibles=19.28
+BENCH|config=CPU-2-hilos|entrada=320x240|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.74
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.72
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.69
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.57
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-2-hilos|entrada=320x240|clase=person|confianza=0.41
+BENCH|config=CPU-2-hilos|fin|termico=0 bateria=26.0C enchufado=true
+BENCH|config=CPU-4-hilos|apertura_ms=15.55|tensores=entrada: UINT8 1x320x320x3; salida 0: StatefulPartitionedCall:3 FLOAT32 1x25x4; salida 1: StatefulPartitionedCall:2 FLOAT32 1x25; salida 2: StatefulPartitionedCall:1 FLOAT32 1x25; salida 3: StatefulPartitionedCall:0 FLOAT32 1
+BENCH|config=CPU-4-hilos|inicio|termico=0 bateria=26.0C enchufado=true
+BENCH|config=CPU-4-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=decodificar|media_ms=3.27|mediana_ms=3.27|p95_ms=3.36|min_ms=3.14|max_ms=3.51
+BENCH|config=CPU-4-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=preparar|media_ms=4.20|mediana_ms=4.19|p95_ms=4.32|min_ms=4.07|max_ms=4.55
+BENCH|config=CPU-4-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=inferencia|media_ms=46.75|mediana_ms=46.73|p95_ms=47.27|min_ms=46.09|max_ms=52.32
+BENCH|config=CPU-4-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.05
+BENCH|config=CPU-4-hilos|entrada=640x480|jpeg_bytes=65399|n=200|etapa=total|media_ms=54.23|mediana_ms=54.23|p95_ms=54.64|min_ms=53.49|max_ms=59.92|fps_posibles=18.44
+BENCH|config=CPU-4-hilos|entrada=640x480|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.71
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.54
+BENCH|deteccion|config=CPU-4-hilos|entrada=640x480|clase=person|confianza=0.48
+BENCH|config=CPU-4-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=decodificar|media_ms=1.05|mediana_ms=1.05|p95_ms=1.12|min_ms=0.96|max_ms=1.32
+BENCH|config=CPU-4-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=preparar|media_ms=4.11|mediana_ms=4.10|p95_ms=4.22|min_ms=3.97|max_ms=5.03
+BENCH|config=CPU-4-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=inferencia|media_ms=47.04|mediana_ms=46.83|p95_ms=48.88|min_ms=46.04|max_ms=52.69
+BENCH|config=CPU-4-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.04
+BENCH|config=CPU-4-hilos|entrada=320x240|jpeg_bytes=21210|n=200|etapa=total|media_ms=52.21|mediana_ms=51.96|p95_ms=54.61|min_ms=51.17|max_ms=57.98|fps_posibles=19.15
+BENCH|config=CPU-4-hilos|entrada=320x240|detecciones=7|umbral=0.4
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.74
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.72
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.69
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.57
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=CPU-4-hilos|entrada=320x240|clase=person|confianza=0.41
+BENCH|config=CPU-4-hilos|fin|termico=0 bateria=26.0C enchufado=true
+BENCH|config=GPU|apertura_ms=1050.16|tensores=entrada: UINT8 1x320x320x3; salida 0: StatefulPartitionedCall:3 FLOAT32 1x25x4; salida 1: StatefulPartitionedCall:2 FLOAT32 1x25; salida 2: StatefulPartitionedCall:1 FLOAT32 1x25; salida 3: StatefulPartitionedCall:0 FLOAT32 1
+BENCH|config=GPU|inicio|termico=0 bateria=26.0C enchufado=true
+BENCH|config=GPU|entrada=640x480|jpeg_bytes=65399|n=200|etapa=decodificar|media_ms=5.13|mediana_ms=5.14|p95_ms=5.33|min_ms=4.39|max_ms=6.87
+BENCH|config=GPU|entrada=640x480|jpeg_bytes=65399|n=200|etapa=preparar|media_ms=6.36|mediana_ms=6.50|p95_ms=6.69|min_ms=4.25|max_ms=7.72
+BENCH|config=GPU|entrada=640x480|jpeg_bytes=65399|n=200|etapa=inferencia|media_ms=137.44|mediana_ms=136.33|p95_ms=155.17|min_ms=116.48|max_ms=174.29
+BENCH|config=GPU|entrada=640x480|jpeg_bytes=65399|n=200|etapa=postproceso|media_ms=0.02|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.04
+BENCH|config=GPU|entrada=640x480|jpeg_bytes=65399|n=200|etapa=total|media_ms=148.95|mediana_ms=147.67|p95_ms=166.92|min_ms=128.04|max_ms=186.07|fps_posibles=6.71
+BENCH|config=GPU|entrada=640x480|detecciones=7|umbral=0.4
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.72
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.72
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.70
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.63
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.54
+BENCH|deteccion|config=GPU|entrada=640x480|clase=person|confianza=0.48
+BENCH|config=GPU|entrada=320x240|jpeg_bytes=21210|n=200|etapa=decodificar|media_ms=1.60|mediana_ms=1.60|p95_ms=1.68|min_ms=1.05|max_ms=2.16
+BENCH|config=GPU|entrada=320x240|jpeg_bytes=21210|n=200|etapa=preparar|media_ms=6.40|mediana_ms=6.45|p95_ms=6.71|min_ms=4.10|max_ms=9.31
+BENCH|config=GPU|entrada=320x240|jpeg_bytes=21210|n=200|etapa=inferencia|media_ms=133.49|mediana_ms=133.44|p95_ms=163.48|min_ms=85.96|max_ms=183.46
+BENCH|config=GPU|entrada=320x240|jpeg_bytes=21210|n=200|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.02|min_ms=0.01|max_ms=0.04
+BENCH|config=GPU|entrada=320x240|jpeg_bytes=21210|n=200|etapa=total|media_ms=141.51|mediana_ms=141.55|p95_ms=171.64|min_ms=94.68|max_ms=191.48|fps_posibles=7.07
+BENCH|config=GPU|entrada=320x240|detecciones=6|umbral=0.4
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.72
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.70
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.67
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.54
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.48
+BENCH|deteccion|config=GPU|entrada=320x240|clase=person|confianza=0.43
+BENCH|config=GPU|fin|termico=0 bateria=28.0C enchufado=true
+BENCH|config=NNAPI|apertura_ms=535.92|tensores=entrada: UINT8 1x320x320x3; salida 0: StatefulPartitionedCall:3 FLOAT32 1x25x4; salida 1: StatefulPartitionedCall:2 FLOAT32 1x25; salida 2: StatefulPartitionedCall:1 FLOAT32 1x25; salida 3: StatefulPartitionedCall:0 FLOAT32 1
+BENCH|config=NNAPI|inicio|termico=0 bateria=28.0C enchufado=true
+BENCH|config=NNAPI|entrada=640x480|jpeg_bytes=65399|n=20|etapa=decodificar|media_ms=3.10|mediana_ms=3.10|p95_ms=3.13|min_ms=3.07|max_ms=3.13
+BENCH|config=NNAPI|entrada=640x480|jpeg_bytes=65399|n=20|etapa=preparar|media_ms=3.97|mediana_ms=3.96|p95_ms=4.00|min_ms=3.93|max_ms=4.06
+BENCH|config=NNAPI|entrada=640x480|jpeg_bytes=65399|n=20|etapa=inferencia|media_ms=55.46|mediana_ms=55.41|p95_ms=55.72|min_ms=55.34|max_ms=55.84
+BENCH|config=NNAPI|entrada=640x480|jpeg_bytes=65399|n=20|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.01|min_ms=0.01|max_ms=0.01
+BENCH|config=NNAPI|entrada=640x480|jpeg_bytes=65399|n=20|etapa=total|media_ms=62.54|mediana_ms=62.51|p95_ms=62.75|min_ms=62.41|max_ms=62.92|fps_posibles=15.99
+BENCH|config=NNAPI|entrada=640x480|detecciones=7|umbral=0.4
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.70
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.70
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.70
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.65
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.54
+BENCH|deteccion|config=NNAPI|entrada=640x480|clase=person|confianza=0.48
+BENCH|config=NNAPI|entrada=320x240|jpeg_bytes=21210|n=20|etapa=decodificar|media_ms=0.95|mediana_ms=0.95|p95_ms=0.97|min_ms=0.93|max_ms=1.00
+BENCH|config=NNAPI|entrada=320x240|jpeg_bytes=21210|n=20|etapa=preparar|media_ms=3.93|mediana_ms=3.93|p95_ms=3.97|min_ms=3.86|max_ms=3.98
+BENCH|config=NNAPI|entrada=320x240|jpeg_bytes=21210|n=20|etapa=inferencia|media_ms=55.60|mediana_ms=55.58|p95_ms=55.77|min_ms=55.46|max_ms=55.87
+BENCH|config=NNAPI|entrada=320x240|jpeg_bytes=21210|n=20|etapa=postproceso|media_ms=0.01|mediana_ms=0.01|p95_ms=0.01|min_ms=0.01|max_ms=0.01
+BENCH|config=NNAPI|entrada=320x240|jpeg_bytes=21210|n=20|etapa=total|media_ms=60.49|mediana_ms=60.48|p95_ms=60.70|min_ms=60.31|max_ms=60.74|fps_posibles=16.53
+BENCH|config=NNAPI|entrada=320x240|detecciones=7|umbral=0.4
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.74
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.72
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.69
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.57
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.43
+BENCH|deteccion|config=NNAPI|entrada=320x240|clase=person|confianza=0.41
+BENCH|config=NNAPI|fin|termico=0 bateria=28.0C enchufado=true
+BENCH|FIN

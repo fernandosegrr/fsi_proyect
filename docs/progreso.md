@@ -42,3 +42,7 @@
 
 ## TRABAJO 6 (cierre): publicado
 - Hecho: autores reescritos al correo noreply, historial verificado, `git push -u origin main` sin `--force` aceptado y comprobado con `git ls-remote origin`. Repositorio: https://github.com/fernandosegrr/fsi_proyect
+
+## TRABAJO 8: benchmark del detector en el Huawei
+- Hecho: `BenchmarkActivity` (botón en la pantalla principal y `--ez bench_auto true` por adb), detector EfficientDet-Lite0 con TensorFlow Lite, mediciones por etapa y reporte en `docs/benchmark_ELS-NX9.md`.
+- Resultado: la mejor configuración es CPU con 1 hilo: 45.4 ms por cuadro con JPEG 640x480 (43.4 ms con 320x240), unos 22 cuadros por segundo; quedan ~255 ms de los 300 ms para captura, WiFi y comando. GPU 149 ms y NNAPI 63 ms por cuadro.

@@ -18,7 +18,9 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una
   ruta con el dedo en una cuadrícula y el botón "Calcular" muestra los pasos. Llama por JNI
   (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.
-- `docs/` — `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
+  También trae el benchmark del detector de objetos (`BenchmarkActivity`, modelo en `app/src/main/assets/`).
+- `docs/` — `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
+  `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
   original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
 - `original_backup/` — el código y el PDF originales. No se modifica y **no se publica en GitHub**
   (está en `.gitignore`) porque contienen la contraseña del WiFi; solo existe en el equipo local.

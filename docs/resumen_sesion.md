@@ -22,7 +22,16 @@
 - La captura muestra la pantalla completa: cuadrícula de 12x8, "Puntos: 0 / 64", botones Calcular y Borrar.
 - Prueba de punta a punta con eventos táctiles de `adb`: ruta de 3 celdas arriba y 4 a la derecha (8 puntos); Calcular devolvió AVANZAR 60 cm (3000 ms), GIRAR +90 grados (900 ms), AVANZAR 80 cm (4000 ms), total 7900 ms. Correcto con la calibración de ejemplo.
 
+## TRABAJO 8: benchmark del detector en el Huawei (hecho)
+- Reporte completo: `docs/benchmark_ELS-NX9.md` (datos crudos de dos corridas en `docs/datos_benchmark/`). Se lanzó todo con `adb` (`am start ... --ez bench_auto true`), sin tocar el teléfono.
+- Detector: EfficientDet-Lite0 (ejemplos oficiales de TensorFlow Lite, 4.5 MB, SHA-256 en la bitácora) con TensorFlow Lite 2.17.0 sin Play services. El modelo de MediaPipe se descartó porque no trae postproceso y no permitía medirlo.
+- Mejor configuración: **CPU con 1 hilo**. Un cuadro completo tarda **45.4 ms con JPEG 640x480** (decodificar 2.7 + preparar 3.6 + inferencia 39.1 + postproceso 0.04) y **43.4 ms con 320x240**; unos 22 cuadros por segundo. Es el 15 % de los 300 ms: **quedan ~255 ms** para captura, WiFi y comando (no medidos aún).
+- Otras configuraciones: 2 y 4 hilos no mejoran (hasta 54 ms), GPU 149 ms (abre en 1.05 s), NNAPI 63 ms. La GPU y NNAPI funcionan sin errores. Las dos corridas coinciden.
+- El modelo funciona: detecta 7 personas en la foto de prueba (CC0 de Wikimedia Commons, no está en git); no detectó sillas ni mochilas con confianza de 0.4 o más.
+- Recomendación: enviar JPEG de 320x240 (21 KB contra 65 KB, casi el mismo tiempo de cómputo). Para repetir en el OnePlus y la tableta, ver la última sección del reporte.
+
 ## Pendiente / para decidir
+- Medir captura, WiFi y comando con la ESP32-CAM para cerrar el presupuesto de 300 ms, y repetir el benchmark en el OnePlus y la tableta.
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.
 - Probar el firmware en la placa y atacar de uno en uno los puntos de `docs/pendientes_firmware.md`.
 - Si cambias la contraseña del WiFi, edítala solo en `firmware_carro/secretos.h`.
