@@ -16,6 +16,12 @@
         android:layout_height="wrap_content"
         android:text="@string/boton_benchmark_iniciar" />
 
+    <Button
+        android:id="@+id/boton_iniciar_obstaculos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/boton_benchmark_obstaculos" />
+
     <TextView
         android:id="@+id/estado"
         android:layout_width="match_parent"

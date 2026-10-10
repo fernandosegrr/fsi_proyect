@@ -13,3 +13,5 @@ original_backup/
 firmware_carro/secretos.h
 pruebas_firmware/.venv/
 __pycache__/
+nucleo_c/pruebas_obstaculos
+nucleo_c/pruebas_obstaculos.exe

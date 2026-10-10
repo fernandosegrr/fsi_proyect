@@ -51,3 +51,8 @@
 - Hecho: `pruebas_firmware/servidor_falso.py` (+ prueba propia de 9 casos) y, en la app, `ControlActivity` con OkHttp WebSocket, botones con heartbeat de 250 ms, PING cada 800 ms, reintento cada 2 s, estado y latencia; lógica separada en `ControlLogica` y `Enlace`.
 - Probado en el Huawei con `adb reverse`: conexión, comandos al presionar (cada 251 ms de media), STOP al soltar, PING/PONG (latencia por USB: media 7,6 ms, mediana 7, p95 9, 75 muestras), reconexión y STOP al ir a segundo plano. Detalle en `docs/pruebas_control.md`.
 - Pendiente con el carro: `bindProcessToNetwork`, Wi-Fi+ del Huawei y `ws://192.168.4.1/ws` real.
+
+## TRABAJO 10: detector de obstáculos por color de piso
+- Hecho: `nucleo_c/obstaculos.h/.c` (C estándar, solo enteros), `pruebas_obstaculos.c` (32 casos, todos pasan; `make test` corre también las de trayectoria), puente JNI (`ObstaculosNativa`), benchmark en el Huawei y `docs/obstaculos.md`.
+- Huawei: las 4 imágenes generadas dan el resultado esperado; un cuadro completo (decodificar + convertir + analizar) tarda 1.36 ms de media (1.24 a 1.60 ms, p95 hasta 2.03 ms); solo el análisis en C, 0.59 ms. Unas 30 veces más rápido que el modelo (43.4 ms).
+- Pendiente: probar con la cámara real y una foto real de pasillo, calibrar umbrales, y decidir cómo combinarlo con el modelo y con el control del carro.

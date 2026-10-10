@@ -16,4 +16,5 @@
     <string name="estado_desconectado">Desconectado</string>
     <string name="estado_reconectando">Reconectando</string>
     <string name="estado_con_latencia">%1$s · latencia PING/PONG: %2$s</string>
+    <string name="boton_benchmark_obstaculos">Benchmark de obstáculos (color de piso)</string>
 </resources>

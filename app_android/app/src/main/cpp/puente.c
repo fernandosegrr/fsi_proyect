@@ -9,6 +9,8 @@
  *  3. Se llama a trayectoria_calcular() (C puro, en nucleo_c).
  *  4. La salida es un TEXTO listo para mostrar: la lista de pasos o un mensaje
  *     de error claro. Kotlin no interpreta nada, solo lo muestra.
+ *  5. Más abajo, ObstaculosNativa.analizar() llama al detector de obstáculos por color de
+ *     piso (obstaculos.c): recibe la imagen RGB de 320x240 y devuelve 10 enteros.
  *  Todo con arreglos de tamaño fijo: no hay malloc.
  */
 
@@ -16,6 +18,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "trayectoria.h"
+#include "obstaculos.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -146,4 +149,62 @@ Java_com_fsi_carro_TrayectoriaNativa_maxPuntos(JNIEnv *env, jobject objeto)
     (void)env;
     (void)objeto;
     return (jint)MAX_PUNTOS;
+}
+
+/* ── Detector de obstáculos por color de piso ──────────────────────────── */
+
+#define ENTEROS_RESULTADO_OBSTACULOS 10
+
+/* Analiza una imagen RGB de 320x240 (320*240*3 bytes). Devuelve 10 enteros:
+ *   [0] código (0 = bien, negativo = error, ver obstaculos.h)
+ *   [1] hay obstáculo a la izquierda   [2] cercanía izquierda (0 a 3)
+ *   [3] hay obstáculo al centro        [4] cercanía centro
+ *   [5] hay obstáculo a la derecha     [6] cercanía derecha
+ *   [7], [8], [9] color de referencia del piso (R, G, B) */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteArray rgb, jint ancho, jint alto)
+{
+    ResultadoObstaculos resultado;
+    jint salida[ENTEROS_RESULTADO_OBSTACULOS];
+    jintArray arreglo;
+    int codigo;
+    int i;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_OBSTACULOS; i++) {
+        salida[i] = 0;
+    }
+
+    if (rgb == NULL) {
+        codigo = OBS_ERR_IMAGEN_NULA;
+    } else if ((*env)->GetArrayLength(env, rgb) < OBS_ANCHO * OBS_ALTO * 3) {
+        codigo = OBS_ERR_TAMANO;   /* el arreglo es más chico que una imagen de 320x240 */
+    } else {
+        /* Acceso directo al arreglo (sin copiarlo) mientras se analiza. */
+        void *datos = (*env)->GetPrimitiveArrayCritical(env, rgb, NULL);
+
+        if (datos == NULL) {
+            codigo = OBS_ERR_IMAGEN_NULA;
+        } else {
+            codigo = obstaculos_analizar((const unsigned char *)datos, ancho, alto, &resultado);
+            (*env)->ReleasePrimitiveArrayCritical(env, rgb, datos, JNI_ABORT);   /* no se modificó */
+        }
+    }
+
+    salida[0] = codigo;
+    if (codigo == OBS_OK) {
+        for (i = 0; i < OBS_ZONAS; i++) {
+            salida[1 + 2 * i] = resultado.zona[i].hay_obstaculo;
+            salida[2 + 2 * i] = resultado.zona[i].cercania;
+        }
+        salida[7] = resultado.ref_r;
+        salida[8] = resultado.ref_g;
+        salida[9] = resultado.ref_b;
+    }
+
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_OBSTACULOS);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_OBSTACULOS, salida);
+    }
+    return arreglo;
 }

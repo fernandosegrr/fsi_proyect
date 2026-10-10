@@ -174,3 +174,52 @@ Las medias de las dos corridas coinciden en menos de 1 ms en todas las configura
 - Resultados: `adb logcat -d -s BENCH:I` o `adb pull /sdcard/Android/data/com.fsi.carro/files/bench_resultados.txt`.
 - Si el telefono no es arm64, cambiar `abiFilters` en `app/build.gradle.kts`.
 
+
+## Comparacion: detector de obstaculos por color de piso (en C)
+
+Alternativa al modelo para objetos que COCO no conoce (cajas, paredes): compara el color de cada celda de 10x10 pixeles con el del piso de abajo. Detalle de como funciona en `docs/obstaculos.md`. Se midio en el mismo telefono, con la pantalla `BenchmarkActivity` (`--es bench_modo obstaculos`), con el mismo metodo que arriba: 20 pasadas de calentamiento y 200 mediciones, JPEG de 320x240 calidad 70, y la cadena completa decodificar el JPEG, convertir a bytes RGB y analizar en C.
+
+### Conclusion
+
+- **Es unas 30 veces mas rapido que el modelo**: un cuadro completo tarda **1.36 ms de media** (entre 1.24 y 1.60 ms segun la imagen; p95 de hasta 2.03 ms; el maximo medido fue 4.04 ms), contra **43.38 ms** del EfficientDet-Lite0 con CPU de 1 hilo y JPEG de 320x240. Solo el analisis en C tarda **0.59 ms** de media, contra 39.05 ms de la inferencia del modelo.
+- Consume menos del 1 % del presupuesto de 300 ms (unos 1.36 ms): casi no quita tiempo a captura, WiFi y comando, y se puede ejecutar en cada cuadro junto con el modelo.
+- En las 4 imagenes generadas el resultado fue el esperado (todas OK) en las dos corridas.
+- Limites: son imagenes sinteticas y NO se probo con una foto real de pasillo ni con la camara de la ESP32-CAM (ver `docs/obstaculos.md`). Las imagenes sinteticas comprimen a JPEG de 2 a 4 KB; una foto real pesa mas y decodificarla tarda algo mas (con la foto real del benchmark del modelo, 320x240 tardaba 0.85 ms en decodificar).
+
+### Resultados por imagen (corrida 1, en ms)
+
+- piso-con-ruido: piso liso con ruido (no debe haber obstaculos). JPEG de 3685 bytes. Resultado correcto (cercania izquierda, centro, derecha = 0,0,0).
+  - Decodificar el JPEG: media 0.59, mediana 0.55, p95 0.85, minimo 0.50, maximo 1.20
+  - Convertir a bytes RGB (getPixels y empaquetado): media 0.41, mediana 0.39, p95 0.49, minimo 0.38, maximo 1.22
+  - Analizar en C (llamada JNI + obstaculos_analizar): media 0.60, mediana 0.56, p95 0.75, minimo 0.55, maximo 2.36
+  - TOTAL por cuadro: media 1.60, mediana 1.51, p95 2.03, minimo 1.43, maximo 3.40, **625.10 cuadros por segundo posibles**
+- baldosas-caja-centro: baldosas de dos tonos y una caja roja al centro (esperado: centro, cercania 2). JPEG de 3112 bytes. Resultado correcto (cercania izquierda, centro, derecha = 0,2,0).
+  - Decodificar el JPEG: media 0.54, mediana 0.51, p95 0.66, minimo 0.48, maximo 1.32
+  - Convertir a bytes RGB (getPixels y empaquetado): media 0.17, mediana 0.16, p95 0.19, minimo 0.16, maximo 0.36
+  - Analizar en C (llamada JNI + obstaculos_analizar): media 0.59, mediana 0.56, p95 0.67, minimo 0.55, maximo 2.33
+  - TOTAL por cuadro: media 1.29, mediana 1.24, p95 1.50, minimo 1.20, maximo 3.02, **777.02 cuadros por segundo posibles**
+- degradado-dos-objetos: degradado de luz, una caja a la izquierda y un circulo a la derecha (esperado: izquierda y derecha, cercania 3). JPEG de 3577 bytes. Resultado correcto (cercania izquierda, centro, derecha = 3,0,3).
+  - Decodificar el JPEG: media 0.53, mediana 0.52, p95 0.63, minimo 0.49, maximo 1.09
+  - Convertir a bytes RGB (getPixels y empaquetado): media 0.16, mediana 0.16, p95 0.18, minimo 0.16, maximo 0.55
+  - Analizar en C (llamada JNI + obstaculos_analizar): media 0.60, mediana 0.57, p95 0.69, minimo 0.57, maximo 2.40
+  - TOTAL por cuadro: media 1.30, mediana 1.25, p95 1.45, minimo 1.22, maximo 4.04, **771.99 cuadros por segundo posibles**
+- pared: pared que llena toda la imagen menos la franja de abajo (esperado: las tres zonas, cercania 3). JPEG de 2419 bytes. Resultado correcto (cercania izquierda, centro, derecha = 3,3,3).
+  - Decodificar el JPEG: media 0.49, mediana 0.49, p95 0.54, minimo 0.46, maximo 0.91
+  - Convertir a bytes RGB (getPixels y empaquetado): media 0.16, mediana 0.16, p95 0.17, minimo 0.15, maximo 0.20
+  - Analizar en C (llamada JNI + obstaculos_analizar): media 0.58, mediana 0.58, p95 0.60, minimo 0.57, maximo 0.92
+  - TOTAL por cuadro: media 1.24, mediana 1.23, p95 1.29, minimo 1.19, maximo 1.66, **809.25 cuadros por segundo posibles**
+
+### Repeticion (corrida 2)
+
+- piso-con-ruido: total medio 1.58 ms (corrida 1: 1.60 ms); analisis en C 0.58 ms (corrida 1: 0.60 ms).
+- baldosas-caja-centro: total medio 1.32 ms (corrida 1: 1.29 ms); analisis en C 0.59 ms (corrida 1: 0.59 ms).
+- degradado-dos-objetos: total medio 1.28 ms (corrida 1: 1.30 ms); analisis en C 0.58 ms (corrida 1: 0.60 ms).
+- pared: total medio 1.26 ms (corrida 1: 1.24 ms); analisis en C 0.59 ms (corrida 1: 0.58 ms).
+
+Datos crudos: `docs/datos_benchmark/ELS-NX9_obstaculos_corrida1.txt` y `..._corrida2.txt`. Condiciones: telefono conectado por USB, estado termico 0, bateria a 28 C.
+
+### Como repetirlo
+
+- `adb shell am start -n com.fsi.carro/.BenchmarkActivity --ez bench_auto true --es bench_modo obstaculos` (o el boton "Benchmark de obstaculos" de la pantalla del benchmark). Dura unos segundos.
+- Resultados: `adb logcat -d -s BENCH:I` o `adb pull /sdcard/Android/data/com.fsi.carro/files/bench_obstaculos.txt`.
+- Para incluir una foto real: copiarla como `bench_pasillo.jpg` a `/sdcard/Android/data/com.fsi.carro/files/` con `adb push` antes de lanzarlo (no se sube a git).

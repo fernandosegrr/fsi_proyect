@@ -4,7 +4,8 @@
  * GUÍA DE LECTURA
  *  1. Se abre con el botón de la pantalla principal o con adb:
  *       adb shell am start -n com.fsi.carro/.BenchmarkActivity --ez bench_auto true
- *     (con bench_auto corre solo al abrirse).
+ *     (con bench_auto corre solo al abrirse). Con --es bench_modo obstaculos mide el
+ *     detector de obstáculos por color de piso (BenchmarkObstaculos) en vez del modelo.
  *  2. ejecutar() es lo principal: para cada configuración (CPU 1/2/4 hilos, GPU, NNAPI)
  *     abre el detector y mide con dos imágenes JPEG (640x480 y 320x240).
  *  3. medirEntrada() repite: decodificar → preparar → inferir → postprocesar, cada una
@@ -30,6 +31,10 @@ class BenchmarkActivity : Activity() {
     companion object {
         const val ETIQUETA = "BENCH"
         const val EXTRA_AUTO = "bench_auto"
+        const val EXTRA_MODO = "bench_modo"            // "detector" (por defecto) u "obstaculos"
+        const val MODO_DETECTOR = "detector"
+        const val MODO_OBSTACULOS = "obstaculos"
+        const val ARCHIVO_OBSTACULOS = "bench_obstaculos.txt"
         const val ARCHIVO_RESULTADOS = "bench_resultados.txt"
         const val CALENTAMIENTO = 20   // pasadas que no cuentan
         const val MEDICIONES = 200     // pasadas que sí cuentan
@@ -40,6 +45,7 @@ class BenchmarkActivity : Activity() {
     private class Entrada(val nombre: String, val ancho: Int, val alto: Int, val jpeg: ByteArray)
 
     private lateinit var boton: Button
+    private lateinit var botonObstaculos: Button
     private lateinit var estado: TextView
     private lateinit var registro: TextView
     private lateinit var desplazamiento: ScrollView
@@ -52,25 +58,28 @@ class BenchmarkActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         boton = findViewById(R.id.boton_iniciar)
+        botonObstaculos = findViewById(R.id.boton_iniciar_obstaculos)
         estado = findViewById(R.id.estado)
         registro = findViewById(R.id.registro)
         desplazamiento = findViewById(R.id.desplazamiento)
 
-        boton.setOnClickListener { iniciar() }
+        boton.setOnClickListener { iniciar(MODO_DETECTOR) }
+        botonObstaculos.setOnClickListener { iniciar(MODO_OBSTACULOS) }
         if (intent.getBooleanExtra(EXTRA_AUTO, false)) {
-            iniciar()
+            iniciar(intent.getStringExtra(EXTRA_MODO) ?: MODO_DETECTOR)
         }
     }
 
-    /** Arranca el benchmark en un hilo aparte (si no hay uno corriendo). */
-    private fun iniciar() {
+    /** Arranca el benchmark del modo dado en un hilo aparte (si no hay uno corriendo). */
+    private fun iniciar(modo: String) {
         if (corriendo) {
             return
         }
         corriendo = true
         boton.isEnabled = false
+        botonObstaculos.isEnabled = false
         registro.text = ""
-        Thread { ejecutar() }.start()
+        Thread { if (modo == MODO_OBSTACULOS) ejecutarObstaculos() else ejecutar() }.start()
     }
 
     // ── Salida ────────────────────────────────────────────────────────────
@@ -129,7 +138,28 @@ class BenchmarkActivity : Activity() {
             mostrarEstado("Error: ${e.message}")
         } finally {
             corriendo = false
-            runOnUiThread { boton.isEnabled = true }
+            runOnUiThread { boton.isEnabled = true; botonObstaculos.isEnabled = true }
+        }
+    }
+
+    /** Benchmark del detector de obstáculos por color de piso (en C). */
+    private fun ejecutarObstaculos() {
+        try {
+            archivo = File(getExternalFilesDir(null), ARCHIVO_OBSTACULOS).also { it.writeText("") }
+            anotar("BENCH|INICIO|modo=obstaculos")
+            for (linea in InfoDispositivo.texto(this)) {
+                anotar("BENCH|dispositivo|$linea")
+            }
+            mostrarEstado("Midiendo obstáculos...")
+            BenchmarkObstaculos(this) { anotar(it) }.ejecutar()
+            anotar("BENCH|FIN")
+            mostrarEstado("Terminado. Resultados en $ARCHIVO_OBSTACULOS")
+        } catch (e: Throwable) {
+            anotar("BENCH|ERROR_GENERAL|${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
+            mostrarEstado("Error: ${e.message}")
+        } finally {
+            corriendo = false
+            runOnUiThread { boton.isEnabled = true; botonObstaculos.isEnabled = true }
         }
     }
 

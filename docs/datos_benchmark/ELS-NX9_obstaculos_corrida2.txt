@@ -1,0 +1,35 @@
+BENCH|INICIO|modo=obstaculos
+BENCH|dispositivo|fabricante=HUAWEI
+BENCH|dispositivo|modelo=ELS-NX9
+BENCH|dispositivo|dispositivo=HWELS
+BENCH|dispositivo|android=10 (API 29)
+BENCH|dispositivo|hardware=kirin990
+BENCH|dispositivo|placa=ELS
+BENCH|dispositivo|nucleos=8
+BENCH|dispositivo|abi=arm64-v8a,armeabi-v7a,armeabi
+BENCH|dispositivo|cpuinfo_Hardware=vendor Kirin990
+BENCH|dispositivo|cpu_part_por_nucleo=0xd05,0xd05,0xd05,0xd05,0xd40,0xd40,0xd40,0xd40
+BENCH|dispositivo|frecuencia_max_mhz_por_nucleo=1954,1954,1954,1954,2360,2360,2861,2861
+BENCH|dispositivo|estado_inicial=termico=0 bateria=28.0C enchufado=true
+BENCH|obstaculos|imagenes=4|foto_real=false|calentamiento=20|mediciones=200|jpeg_calidad=70
+BENCH|obstaculos|imagen=piso-con-ruido|jpeg_bytes=3685|n=200|etapa=decodificar|media_ms=0.58|mediana_ms=0.56|p95_ms=0.75|min_ms=0.50|max_ms=1.19
+BENCH|obstaculos|imagen=piso-con-ruido|jpeg_bytes=3685|n=200|etapa=convertir_rgb|media_ms=0.41|mediana_ms=0.39|p95_ms=0.48|min_ms=0.38|max_ms=1.30
+BENCH|obstaculos|imagen=piso-con-ruido|jpeg_bytes=3685|n=200|etapa=analizar_en_c|media_ms=0.58|mediana_ms=0.55|p95_ms=0.67|min_ms=0.55|max_ms=1.47
+BENCH|obstaculos|imagen=piso-con-ruido|jpeg_bytes=3685|n=200|etapa=total|media_ms=1.58|mediana_ms=1.52|p95_ms=2.05|min_ms=1.44|max_ms=2.83|fps_posibles=632.50
+BENCH|obstaculos|imagen=piso-con-ruido|jpeg_bytes=3685|n=200|resultado|codigo=0|cercania_izq_centro_der=0,0,0|esperado=0,0,0|veredicto=OK|piso_rgb=120,104,89
+BENCH|obstaculos|imagen=baldosas-caja-centro|jpeg_bytes=3112|n=200|etapa=decodificar|media_ms=0.56|mediana_ms=0.52|p95_ms=0.78|min_ms=0.48|max_ms=1.28
+BENCH|obstaculos|imagen=baldosas-caja-centro|jpeg_bytes=3112|n=200|etapa=convertir_rgb|media_ms=0.17|mediana_ms=0.16|p95_ms=0.21|min_ms=0.16|max_ms=0.55
+BENCH|obstaculos|imagen=baldosas-caja-centro|jpeg_bytes=3112|n=200|etapa=analizar_en_c|media_ms=0.59|mediana_ms=0.56|p95_ms=0.77|min_ms=0.55|max_ms=1.31
+BENCH|obstaculos|imagen=baldosas-caja-centro|jpeg_bytes=3112|n=200|etapa=total|media_ms=1.32|mediana_ms=1.24|p95_ms=1.71|min_ms=1.20|max_ms=2.24|fps_posibles=759.05
+BENCH|obstaculos|imagen=baldosas-caja-centro|jpeg_bytes=3112|n=200|resultado|codigo=0|cercania_izq_centro_der=0,2,0|esperado=0,2,0|veredicto=OK|piso_rgb=122,106,91
+BENCH|obstaculos|imagen=degradado-dos-objetos|jpeg_bytes=3577|n=200|etapa=decodificar|media_ms=0.53|mediana_ms=0.52|p95_ms=0.58|min_ms=0.50|max_ms=0.86
+BENCH|obstaculos|imagen=degradado-dos-objetos|jpeg_bytes=3577|n=200|etapa=convertir_rgb|media_ms=0.16|mediana_ms=0.16|p95_ms=0.17|min_ms=0.16|max_ms=0.26
+BENCH|obstaculos|imagen=degradado-dos-objetos|jpeg_bytes=3577|n=200|etapa=analizar_en_c|media_ms=0.58|mediana_ms=0.57|p95_ms=0.62|min_ms=0.57|max_ms=0.93
+BENCH|obstaculos|imagen=degradado-dos-objetos|jpeg_bytes=3577|n=200|etapa=total|media_ms=1.28|mediana_ms=1.26|p95_ms=1.42|min_ms=1.22|max_ms=1.65|fps_posibles=783.16
+BENCH|obstaculos|imagen=degradado-dos-objetos|jpeg_bytes=3577|n=200|resultado|codigo=0|cercania_izq_centro_der=3,0,3|esperado=3,0,3|veredicto=OK|piso_rgb=116,100,85
+BENCH|obstaculos|imagen=pared|jpeg_bytes=2419|n=200|etapa=decodificar|media_ms=0.51|mediana_ms=0.50|p95_ms=0.58|min_ms=0.48|max_ms=1.48
+BENCH|obstaculos|imagen=pared|jpeg_bytes=2419|n=200|etapa=convertir_rgb|media_ms=0.16|mediana_ms=0.16|p95_ms=0.18|min_ms=0.16|max_ms=0.23
+BENCH|obstaculos|imagen=pared|jpeg_bytes=2419|n=200|etapa=analizar_en_c|media_ms=0.59|mediana_ms=0.58|p95_ms=0.61|min_ms=0.57|max_ms=0.84
+BENCH|obstaculos|imagen=pared|jpeg_bytes=2419|n=200|etapa=total|media_ms=1.26|mediana_ms=1.24|p95_ms=1.38|min_ms=1.21|max_ms=2.23|fps_posibles=791.96
+BENCH|obstaculos|imagen=pared|jpeg_bytes=2419|n=200|resultado|codigo=0|cercania_izq_centro_der=3,3,3|esperado=3,3,3|veredicto=OK|piso_rgb=120,104,89
+BENCH|FIN

@@ -34,6 +34,10 @@
 - `pruebas_firmware/servidor_falso.py` imita al carro (comandos, PONG, watchdog de 1000 ms) y `app_android` tiene `ControlActivity` (botones, heartbeat 250 ms, PING 800 ms, reintento 2 s). Probado en el Huawei con `adb reverse`; detalle y resultados en `docs/pruebas_control.md`.
 - Latencia PING/PONG por USB: media 7,6 ms, p95 9 ms (no es WiFi). Pendiente con el carro: `bindProcessToNetwork`, Wi-Fi+ del Huawei y `ws://192.168.4.1/ws` real; el firmware aún no contesta `PONG`.
 
+## TRABAJO 10: detector de obstáculos por color de piso (hecho)
+- `nucleo_c/obstaculos.c/.h` (32 pruebas en PC, todas pasan), puente JNI y benchmark en el Huawei: un cuadro completo tarda 1.36 ms de media (p95 hasta 2.03 ms; solo el análisis en C 0.59 ms), unas 30 veces menos que el modelo (43.4 ms). Resultado correcto en las 4 imágenes generadas. Detalle en `docs/obstaculos.md` y al final de `docs/benchmark_ELS-NX9.md`.
+- Pendiente: cámara real de la ESP32-CAM, foto real de pasillo, calibrar umbrales.
+
 ## Pendiente / para decidir
 - Medir captura, WiFi y comando con la ESP32-CAM para cerrar el presupuesto de 300 ms, y repetir el benchmark en el OnePlus y la tableta.
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.
