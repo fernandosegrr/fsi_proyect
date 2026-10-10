@@ -40,3 +40,5 @@
 - TRABAJO 7: el teléfono aparece como `unauthorized`; no se instaló nada.
 - TRABAJO 7: la prueba táctil se hizo con `adb shell input motionevent` (DOWN/MOVE/UP) y un `input tap` en Calcular; la captura se guardó solo en la carpeta temporal, no en el repositorio.
 - TRABAJO 6: `gh` no está instalado (`which gh` vacío), así que no se pudo obtener id y login con `gh api user`. Según lo acordado, se pregunta solo el usuario de GitHub.
+- TRABAJO 6: git configurado SOLO en este repositorio (`git config --local`): `user.name` = `fernandosegrr` (el login de GitHub, no el nombre real) y `user.email` = correo noreply de GitHub (id 223138626, obtenido de la API pública de GitHub porque `gh` no está instalado). La configuración global no se tocó.
+- TRABAJO 6: historial local reescrito con `git filter-branch --env-filter` (9 commits, mensajes y fechas conservados) para que autor y committer sean ese nombre y correo; no queda ningún otro correo como autor en ningún commit. Los mensajes conservan la línea `Co-Authored-By` con la dirección `noreply@anthropic.com`.
