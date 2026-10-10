@@ -12,7 +12,7 @@
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.
 - Probar el firmware en la placa y atacar de uno en uno los puntos de `docs/pendientes_firmware.md`.
 - Probar la app en el Huawei con la guía. Si es HarmonyOS NEXT, no ejecuta APK.
-- Cambiar SSID y contraseña (`config.h`) antes de publicar el repositorio.
+- Poner el nombre y la contraseña reales del WiFi solo en `firmware_carro/secretos.h` (ignorado por git).
 - Siguiente paso natural de la app: WebSocket hacia el carro y reproducir los pasos (AVANZAR/GIRAR) enviando `FORWARD`/`LEFT`/`RIGHT`/`STOP` con los tiempos calculados. Ojo: el watchdog del firmware frena a los 1000 ms sin comando, así que habrá que repetir el comando cada 250 ms como hace la página web.
 
 ## Bloqueos

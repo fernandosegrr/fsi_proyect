@@ -31,3 +31,7 @@
 - TRABAJO 5: no se probó en teléfono ni emulador. Se verificó con `gradlew assembleDebug` y, además, el puente C se ejecutó en el PC con un JNIEnv falso (U, salto, vacío, impar, zigzag de 64 puntos = 126 pasos, 65 puntos).
 - TRABAJO 5: HarmonyOS NEXT no ejecuta APK; anotado en la guía del Huawei.
 - La consola de la herramienta falla con varios heredocs largos; se usó la herramienta de escritura de archivos para el código.
+- TRABAJO 6: el nombre y la contraseña del WiFi salen de `config.h` hacia `firmware_carro/secretos.h` (en .gitignore, con los valores de hoy) y `secretos.ejemplo.h` (versionado, valores de ejemplo). `config.h` usa `__has_include` para elegir; con `secretos.h` el firmware queda idéntico (mismo tamaño de binario, 969402 bytes, y mismos valores de SSID y contraseña al preprocesar).
+- TRABAJO 6: `original_backup/` deja de versionarse (se añade a .gitignore y se quita de todo el historial) porque `codigo_Carrito.ino` y el PDF contienen la contraseña del WiFi. Los archivos siguen intactos en el disco (se comprobó su SHA-256 antes y después).
+- TRABAJO 6: el historial local se reescribe (aún no publicado) en un clon temporal con `git filter-branch` y luego se actualiza la rama local sin tocar el directorio de trabajo, para que filter-branch no borre `original_backup/` del disco. Se conservan los mensajes de commit.
+- TRABAJO 6: revisados patrones (password, token, secret, key, correos, claves privadas) en todo el historial. Rutas con el usuario de Windows en `docs/instalar_app_huawei.md`: solo se reportan.

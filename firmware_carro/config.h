@@ -8,11 +8,22 @@
 #define CONFIG_H
 
 /* ── WiFi ─────────────────────────────────────────────────────────────────
- * ATENCIÓN: cambiar SSID y contraseña ANTES de subir este repositorio a un
- * lugar público (GitHub, etc.). Estos son los valores del prototipo.
+ * El nombre (WIFI_SSID) y la contraseña (WIFI_PASSWORD) NO están en este
+ * archivo, porque el repositorio es público. Viven en:
+ *   - secretos.h          : los valores reales. Está en .gitignore y NO se
+ *                           sube a GitHub. Se crea copiando secretos.ejemplo.h.
+ *   - secretos.ejemplo.h  : valores de ejemplo, sí versionado. Se usa solo si
+ *                           no existe secretos.h (así el proyecto compila).
  */
-#define WIFI_SSID      "NombreDeMiCarro"
-#define WIFI_PASSWORD  "cambia_esta_clave"
+#if defined(__has_include)
+#  if __has_include("secretos.h")
+#    include "secretos.h"
+#  else
+#    include "secretos.ejemplo.h"
+#  endif
+#else
+#  include "secretos.ejemplo.h"
+#endif
 
 /* El ESP32 crea su propia red; su IP por defecto es 192.168.4.1 (no se fija
  * en el código). Servidor HTTP en el puerto 80, WebSocket en la ruta /ws. */

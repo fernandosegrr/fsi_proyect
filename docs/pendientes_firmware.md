@@ -56,8 +56,10 @@ Hacer cada cambio por separado y probarlo en la placa antes del siguiente.
 - La interfaz muestra "ONLINE" mientras el socket esté abierto; el ESP32
   nunca responde nada, así que la página no detecta un enlace roto.
 - Pines de motor flotantes entre el encendido y `ledcAttach` (milisegundos).
-- SSID y contraseña del prototipo (en `config.h`): **cambiarlos antes de
-  subir el repositorio a un lugar público.**
+- El nombre y la contraseña del WiFi ya no están en el repositorio: viven en
+  `firmware_carro/secretos.h` (ignorado por git). Con `secretos.ejemplo.h` el carro
+  crea una red distinta a la de hoy; ver el README. Conviene usar una contraseña
+  propia y no reutilizar la del prototipo.
 - `docs`/PDF: `WALL-E_Documentacion_v2.pdf` está desactualizado (describe una
   rampa de aceleración que ya no existe).
 

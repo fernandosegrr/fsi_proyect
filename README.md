@@ -9,7 +9,8 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - `firmware_carro/` — el sketch de Arduino (la carpeta se llama igual que el `.ino`).
   - `firmware_carro.ino`: único C++; WiFi, servidor, WebSocket, `setup()` y `loop()`.
   - `carro.c` / `carro.h`: la lógica en C estándar (comandos, motores, parada automática, keep-alive).
-  - `config.h`: pines, tiempos, velocidad, SSID y contraseña (cambiarlos antes de publicar).
+  - `config.h`: pines, tiempos y velocidad. El nombre y la contraseña del WiFi están en `secretos.h`
+    (no se sube a GitHub; se crea copiando `secretos.ejemplo.h`).
   - `pagina.h`: la página web de control (HTML/JS), sin cambios respecto al original.
 - `pruebas_firmware/` — pruebas en PC de `carro.c` con hardware falso, y comparación con el código original.
 - `nucleo_c/` — módulo de trayectoria (C estándar, sin librerías) para usar luego desde Android:
@@ -19,7 +20,8 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
   (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.
 - `docs/` — `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
   original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
-- `original_backup/` — el código y el PDF originales. No se modifica.
+- `original_backup/` — el código y el PDF originales. No se modifica y **no se publica en GitHub**
+  (está en `.gitignore`) porque contienen la contraseña del WiFi; solo existe en el equipo local.
 
 ## Cómo correr las pruebas (en PC, sin placa; requiere `gcc` y `make`)
 
@@ -38,6 +40,10 @@ Cada caso imprime `OK` o `FALLO` y al final el número de casos y fallos.
 ## Cómo compilar el firmware (requiere `arduino-cli`, core esp32 3.3.12)
 
 Librerías: Async TCP y ESP Async WebServer.
+
+Antes de compilar, copia `firmware_carro/secretos.ejemplo.h` como `firmware_carro/secretos.h` y pon ahí el
+nombre y la contraseña del WiFi del carro (`secretos.h` no se sube a GitHub). Sin ese archivo el proyecto
+compila igual, pero con el nombre y la clave de ejemplo.
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:esp32 firmware_carro

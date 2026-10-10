@@ -9,3 +9,5 @@ app_android/app/.cxx/
 app_android/local.properties
 app_android/.kotlin/
 *.apk
+original_backup/
+firmware_carro/secretos.h
