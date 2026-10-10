@@ -2,3 +2,10 @@ pruebas_firmware/pruebas_carro
 pruebas_firmware/pruebas_carro.exe
 nucleo_c/pruebas_trayectoria
 nucleo_c/pruebas_trayectoria.exe
+app_android/.gradle/
+app_android/build/
+app_android/app/build/
+app_android/app/.cxx/
+app_android/local.properties
+app_android/.kotlin/
+*.apk

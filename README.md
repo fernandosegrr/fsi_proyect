@@ -14,7 +14,10 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - `pruebas_firmware/` — pruebas en PC de `carro.c` con hardware falso, y comparación con el código original.
 - `nucleo_c/` — módulo de trayectoria (C estándar, sin librerías) para usar luego desde Android:
   `trayectoria.c/.h`, `calibracion.h` (valores de ejemplo, hay que medirlos) y sus pruebas.
-- `docs/` — `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
+- `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una
+  ruta con el dedo en una cuadrícula y el botón "Calcular" muestra los pasos. Llama por JNI
+  (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.
+- `docs/` — `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
   original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
 - `original_backup/` — el código y el PDF originales. No se modifica.
 
@@ -42,6 +45,20 @@ arduino-cli compile --fqbn esp32:esp32:esp32 firmware_carro
 
 Para subirlo hace falta la placa (`arduino-cli upload`); todavía no se ha probado en hardware.
 
+## Cómo compilar la app Android (requiere Android Studio y el SDK; ver docs/instalar_app_huawei.md)
+
+```powershell
+cd app_android
+```
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+```
+
+```powershell
+.\gradlew.bat assembleDebug
+```
+
 ## En qué orden leer el código
 
 1. `firmware_carro/config.h` — los números del carro.
@@ -50,7 +67,9 @@ Para subirlo hace falta la placa (`arduino-cli upload`); todavía no se ha proba
 4. `firmware_carro/firmware_carro.ino` — la parte C++ que conecta WiFi y WebSocket con `carro.c`.
 5. `pruebas_firmware/pruebas_carro.c` — ejemplos ejecutables de cada comportamiento.
 6. `nucleo_c/trayectoria.h`, `trayectoria.c` y `pruebas_trayectoria.c` — el módulo de rutas.
-7. `docs/pendientes_firmware.md` — lo que falta verificar o mejorar.
+7. `app_android/app/src/main/cpp/puente.c`, luego `TrayectoriaNativa.kt`, `CuadriculaView.kt` y
+   `MainActivity.kt` — cómo la app llama al módulo en C.
+8. `docs/pendientes_firmware.md` — lo que falta verificar o mejorar.
 
 ## Comandos del carro (protocolo por WebSocket, texto plano, sin parámetros)
 

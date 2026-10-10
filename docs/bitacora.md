@@ -19,3 +19,15 @@
 - La ruta se valida completa antes de calcular, para que un error no deje salida a medias.
 - TRABAJO 4: MAX_PASOS pasa de 100 a 2 * MAX_PUNTOS (128). Razón: cada tramo da a lo más un GIRAR y un AVANZAR y hay a lo más MAX_PUNTOS-1 tramos, así que una ruta válida nunca desborda; con 100 un zigzag de 64 puntos (126 pasos) daba error aunque la ruta fuera correcta.
 - TRABAJO 4: el error TRAY_ERR_DEMASIADOS_PASOS se conserva (por si el llamador da un arreglo menor que MAX_PASOS) y se prueba con capacidad 10.
+- TRABAJO 5: el JDK de Android Studio es Java 25, que Gradle 8.13 (el único local) no soporta. Se usó Gradle 9.8.1 (última estable) con AGP 9.4.1 (última estable en Google Maven). Se descargó el zip oficial a la carpeta temporal de la sesión, se comprobó su SHA-256 contra el publicado y solo se usó para generar el wrapper (`gradlew`); el wrapper deja su distribución en ~/.gradle (caché de Gradle, no instalación global).
+- TRABAJO 5: `JAVA_HOME` solo definido dentro de cada comando de la sesión (jbr de Android Studio); no se tocó PATH ni variables globales.
+- TRABAJO 5: se fijaron versiones ya instaladas en el SDK (compileSdk 37, build-tools 36.0.0, NDK 30.0.16248370, CMake 4.1.2) para que Gradle no instale nada en el SDK.
+- TRABAJO 5: targetSdk 35 y `fitsSystemWindows` en el layout, para que en Android 15+ el contenido no quede bajo la barra de estado; minSdk 26 como se pidió.
+- TRABAJO 5: la Activity hereda de `android.app.Activity` (no AppCompat) con tema `Theme.DeviceDefault.Light.NoActionBar`: así no hay librerías externas. Kotlin agrega su biblioteca estándar automáticamente (kotlin-stdlib); no se puede evitar con Kotlin.
+- TRABAJO 5: AGP 9 trae Kotlin incluido, por eso no se aplica el plugin `org.jetbrains.kotlin.android`.
+- TRABAJO 5: el puente JNI recibe `IntArray` y devuelve un texto; añadí `maxPuntos()` nativo para que Kotlin no repita la constante 64 (una sola fuente de verdad en trayectoria.h).
+- TRABAJO 5: al tocar la cuadrícula se empieza una ruta NUEVA (borra la anterior); así no hay rutas con saltos entre dos toques. Si el dedo salta celdas se rellenan en pasos de 8 vecinos (diagonal primero).
+- TRABAJO 5: pantalla fija en vertical para que la cuadrícula y el resultado quepan siempre.
+- TRABAJO 5: no se probó en teléfono ni emulador. Se verificó con `gradlew assembleDebug` y, además, el puente C se ejecutó en el PC con un JNIEnv falso (U, salto, vacío, impar, zigzag de 64 puntos = 126 pasos, 65 puntos).
+- TRABAJO 5: HarmonyOS NEXT no ejecuta APK; anotado en la guía del Huawei.
+- La consola de la herramienta falla con varios heredocs largos; se usó la herramienta de escritura de archivos para el código.

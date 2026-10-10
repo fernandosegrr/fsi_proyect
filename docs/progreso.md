@@ -20,3 +20,9 @@
 ## TRABAJO 4: ajuste de MAX_PASOS
 - Hecho: `MAX_PASOS = 2 * MAX_PUNTOS` en trayectoria.h; pruebas actualizadas con un zigzag de 64 puntos (126 pasos, antes error).
 - `make test` en nucleo_c: 23 casos, 0 fallos. Razón en la bitácora.
+
+## TRABAJO 5: esqueleto de la app Android (app_android)
+- Hecho: proyecto Gradle (AGP 9.4.1, Gradle 9.8.1), una Activity clásica en Kotlin, `CuadriculaView` (12x8, dedo → celdas de 8 vecinos, Borrar), botón Calcular, y NDK/CMake que compila `puente.c` + `../nucleo_c/trayectoria.c` sin copiarlo.
+- `gradlew assembleDebug`: BUILD SUCCESSFUL; el APK trae `libcarro_nativo.so` para arm64-v8a, armeabi-v7a, x86 y x86_64, con las funciones JNI exportadas.
+- Puente C probado en PC con un JNIEnv falso (rutas válidas, salto, vacío, impar y límites).
+- Guía: `docs/instalar_app_huawei.md`. Sin probar en teléfono.
