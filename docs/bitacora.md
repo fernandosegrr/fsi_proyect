@@ -38,3 +38,5 @@
 - TRABAJO 6: detenido antes del push por la regla del correo: los 8 commits llevan un correo personal (Gmail) que se haría público; los commits los hice yo con el correo de la cuenta de la sesión y no con tu configuración de git (que tiene otro correo). Queda a tu decisión.
 - TRABAJO 6: `git branch -M main` y `git remote add origin` ya hechos (no publican nada); el remoto sigue vacío.
 - TRABAJO 7: el teléfono aparece como `unauthorized`; no se instaló nada.
+- TRABAJO 7: la prueba táctil se hizo con `adb shell input motionevent` (DOWN/MOVE/UP) y un `input tap` en Calcular; la captura se guardó solo en la carpeta temporal, no en el repositorio.
+- TRABAJO 6: `gh` no está instalado (`which gh` vacío), así que no se pudo obtener id y login con `gh api user`. Según lo acordado, se pregunta solo el usuario de GitHub.

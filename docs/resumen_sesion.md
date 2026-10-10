@@ -15,13 +15,14 @@
 - Rama `main` y remoto `origin` configurados; el remoto sigue vacío. **No se hizo push.**
 - **Detenido por la regla del correo**: los 8 commits tienen como autor y committer un correo personal de Gmail, y quedaría público. Tu configuración de git trae otro correo (el del colegio). Falta que decidas cuál usar (ver "Pendiente").
 
-## TRABAJO 7: probar la app en el teléfono (sin completar)
-- `adb devices` ve un teléfono, pero con estado `unauthorized`. No se instaló nada.
-- Qué hacer en el teléfono: desbloquéalo, desconecta y vuelve a conectar el cable, y en el cuadro **¿Permitir depuración USB?** pulsa **Permitir** (marca "Permitir siempre desde este equipo"). Si el cuadro no aparece: Ajustes → Sistema y actualizaciones → Opciones de desarrollador → **Revocar autorizaciones de depuración USB**, y vuelve a conectar. Luego avísame y repito la instalación (`adb install -r`, abrir la app y captura de pantalla).
+## TRABAJO 7: probar la app en el teléfono (HECHO)
+- `adb devices` mostró el Huawei (modelo ELS-NX9, Android 10) como `device`.
+- `adb install -r` terminó con `Success`; `am start` abrió `com.fsi.carro/.MainActivity` (arranque en frío de 251 ms) y no hubo errores en logcat.
+- La captura muestra la pantalla completa: cuadrícula de 12x8, "Puntos: 0 / 64", botones Calcular y Borrar.
+- Prueba de punta a punta en el teléfono: se dibujó una ruta (3 celdas hacia arriba y 4 a la derecha, 8 puntos) con eventos táctiles de `adb` y se pulsó Calcular. Respuesta del código en C: AVANZAR 60 cm (3000 ms), GIRAR +90 grados (900 ms), AVANZAR 80 cm (4000 ms), total 7900 ms. Correcto con los valores de calibración de ejemplo.
 
 ## Pendiente / para decidir
-- **Correo de los commits** (necesario antes del push). Opciones: (a) dejar el de Gmail; (b) reescribir los autores a la dirección privada de GitHub (`<id>+<usuario>@users.noreply.github.com`, la ves en GitHub → Settings → Emails); (c) usar el correo de tu configuración de git. Con (b) o (c) se reescribe otra vez el historial local, que sigue sin publicarse.
-- Autorizar la depuración USB en el Huawei y repetir el TRABAJO 7.
+- **Correo de los commits**: elegida la opción (b) (correo noreply de GitHub). Falta el usuario de GitHub para armarlo: `gh` no está instalado en este equipo (ver bitácora).
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.
 - Probar el firmware en la placa y atacar de uno en uno los puntos de `docs/pendientes_firmware.md`.
 - Si el Huawei usa HarmonyOS NEXT, no ejecuta APK.

@@ -33,3 +33,9 @@
 
 ## TRABAJO 7: probar en el teléfono
 - `adb devices` muestra el teléfono como `unauthorized`; no se instaló. Pasos para autorizarlo en `docs/resumen_sesion.md`.
+
+## TRABAJO 7 (repetido): probar en el teléfono
+- Hecho: instalación con `adb install -r` (Success), la app abre y carga, y una ruta dibujada y calculada en el Huawei da AVANZAR 60 cm, GIRAR +90, AVANZAR 80 cm (7900 ms). Sin errores en logcat.
+
+## TRABAJO 6 (continuación)
+- Elegida la opción (b). `gh` no está instalado: falta el usuario de GitHub para armar el correo noreply y reescribir autores. Sin push todavía.
