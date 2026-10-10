@@ -29,7 +29,7 @@
 
 ## TRABAJO 6: publicar en GitHub
 - Hecho: pruebas y compilación OK, WiFi movido a `secretos.h` (ignorado) con `secretos.ejemplo.h`, `original_backup/` fuera de git, historial local limpio y verificado, remoto vacío confirmado.
-- Detenido antes del push: los commits llevan un correo personal de Gmail; esperar decisión (ver `docs/resumen_sesion.md`).
+- Detenido antes del push: los commits llevan un correo personal de Gmail; esperar decisión (ver `docs/resumen_sesion.md`). [RESUELTO: ver "TRABAJO 6 (cierre)" más abajo.]
 
 ## TRABAJO 7: probar en el teléfono
 - `adb devices` muestra el teléfono como `unauthorized`; no se instaló. Pasos para autorizarlo en `docs/resumen_sesion.md`.

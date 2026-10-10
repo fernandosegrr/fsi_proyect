@@ -15,6 +15,7 @@
 - Autor y committer de todos los commits: `fernandosegrr <223138626+fernandosegrr@users.noreply.github.com>` (configurado solo en este repositorio; la configuración global no se tocó). Mensajes y fechas conservados.
 - Push con `git push -u origin main` (sin `--force`): aceptado. `git ls-remote origin` muestra `main` y `HEAD` en el mismo commit que el local. Los cambios posteriores (solo documentación) se subieron con un push normal.
 - Nota: los mensajes de commit llevan la línea `Co-Authored-By` con `noreply@anthropic.com`.
+- Verificación independiente sobre un clon nuevo del remoto: 12 commits, todos con autor y committer `fernandosegrr` (correo noreply); sin contraseña, claves ni otros correos (solo el noreply de GitHub y el `noreply@anthropic.com` de las líneas `Co-Authored-By`); `secretos.h` y `original_backup/` no están en ningún commit remoto (solo `secretos.ejemplo.h`).
 
 ## TRABAJO 7: probar la app en el teléfono (hecho)
 - `adb devices` mostró el Huawei (ELS-NX9, Android 10) como `device`; `adb install -r` dio `Success`; `am start` abrió `com.fsi.carro/.MainActivity` (arranque en frío de 251 ms) y no hubo errores en logcat.
