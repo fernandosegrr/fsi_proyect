@@ -65,4 +65,9 @@
 ## TRABAJO 12: cámara del Huawei como fuente de obstáculos y ajuste de umbrales en vivo
 - Hecho: `ConfigObstaculos` en C (51 pruebas del detector; 120 en `nucleo_c` con trayectoria 28 y navegador 41), JNI `analizarConfig`, `CamaraObstaculos` (Camera2), `VistaDeteccion` y `VisionActivity` (superposición, fps/ms, barras con SharedPreferences, guardar cuadro, permiso en ejecución), interruptor "Obstáculos: botones / cámara" en el modo semiautónomo.
 - Medido en el Huawei (60 s): 24.9 fps (el ritmo de la cámara) y 6.85 ms por cuadro de media (p95 8.18 ms) entre conversión y análisis; sin errores. Al ir a segundo plano la cámara se cierra y se envía STOP.
-- Pendiente: la prueba física sobre un piso real (procedimiento de 6 pasos en `docs/vision_huawei.md`).
+- Pendiente: la prueba física sobre un piso real (procedimiento de 7 pasos en `docs/vision_huawei.md`).
+
+## TRABAJO 13: ignorar filas lejanas (FILA_MINIMA)
+- Hecho: campo `fila_minima` en `ConfigObstaculos` (por defecto 12 = mitad inferior, mismo comportamiento), `OBS_ERR_CONFIG` si está fuera de 0 a 23; la cercanía sigue saliendo de la fila más baja. 20 pruebas nuevas (71 del detector; 140 en `nucleo_c` con trayectoria 28 y navegador 41). JNI con 7 enteros, tercera barra en `VisionActivity` (guardada en SharedPreferences y usada también por el modo semiautónomo), filas ignoradas en gris y línea blanca en el límite.
+- Huawei, 33 s seguidos sin errores: 25.0 fps y 6.50 ms por cuadro (antes 24.9 y 6.85), así que no empeoró.
+- Pendiente: ajustar inclinación y FILA_MINIMA con el cuarto real (paso 2 de `docs/vision_huawei.md`).

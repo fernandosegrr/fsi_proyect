@@ -45,7 +45,10 @@
 
 ## TRABAJO 12: cámara del Huawei y ajuste de umbrales en vivo (hecho)
 - Pantalla "Visión" (cámara + detector con superposición, fps/ms, barras de UMBRAL_COLOR y MIN_CELDAS que se guardan, "Guardar cuadro") e interruptor "Obstáculos: botones / cámara" en el modo semiautónomo. Medido: 24.9 fps y 6.85 ms por cuadro (60 s, sin errores); la cámara se cierra y se envía STOP al ir a segundo plano.
-- Te toca la prueba física sobre un piso real: `docs/vision_huawei.md` (6 pasos y qué anotar).
+- Te toca la prueba física sobre un piso real: `docs/vision_huawei.md` (7 pasos y qué anotar).
+
+## TRABAJO 13: ignorar filas lejanas (hecho)
+- `fila_minima` en el detector (por defecto la mitad inferior), barra FILA_MINIMA en la pantalla de visión y filas ignoradas en gris con una línea blanca. 25.0 fps y 6.50 ms por cuadro en 33 s sin errores. Procedimiento actualizado en `docs/vision_huawei.md` (paso 2).
 
 ## Pendiente / para decidir
 - Medir captura, WiFi y comando con la ESP32-CAM para cerrar el presupuesto de 300 ms, y repetir el benchmark en el OnePlus y la tableta.

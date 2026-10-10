@@ -38,13 +38,14 @@ object ObstaculosNativa {
     const val INICIO_MASCARA = 10
     const val ENTEROS_DETALLE = INICIO_MASCARA + FILAS * COLUMNAS
 
-    // Posiciones dentro de la configuración (6 enteros).
+    // Posiciones dentro de la configuración (7 enteros).
     const val CFG_UMBRAL_COLOR = 0
     const val CFG_MIN_CELDAS = 1
     const val CFG_REF_COLUMNAS = 2
     const val CFG_REF_FILAS = 3
     const val CFG_REF_COLUMNA_INICIAL = 4
     const val CFG_REF_FILA_INICIAL = 5
+    const val CFG_FILA_MINIMA = 6   // primera fila (desde arriba) de la zona de avance; las de arriba se ignoran
 
     // Códigos de error de obstaculos.h.
     const val ERR_IMAGEN_NULA = -1

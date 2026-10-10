@@ -8,8 +8,8 @@
  *  3. es_piso(): decide si el color de una celda es piso (ver el comentario de la función).
  *  4. marcar_candidatas() y confirmar_celdas(): marca las celdas "no piso" y descarta las
  *     aisladas (ruido).
- *  5. resumir_zonas(): cuenta las celdas por zona (izquierda, centro, derecha) en la
- *     mitad inferior y calcula la cercanía.
+ *  5. resumir_zonas(): cuenta las celdas por zona (izquierda, centro, derecha) desde la fila
+ *     mínima (por defecto la mitad inferior) hacia abajo y calcula la cercanía.
  *  6. obstaculos_analizar_con() junta todo en ese orden con una ConfigObstaculos (los parámetros
  *     que se ajustan); obstaculos_analizar() es lo mismo con la configuración por defecto.
  *  Solo enteros y arreglos de tamaño fijo: sin malloc, sin recursión.
@@ -213,15 +213,16 @@ static int cercania_por_fila(int fila_mas_baja)
     return 1;
 }
 
-/* Cuenta las celdas confirmadas de cada zona (tercios de ancho, mitad inferior). Una zona
- * tiene obstáculo si tiene al menos `min_celdas` celdas. */
+/* Cuenta las celdas confirmadas de cada zona (tercios de ancho) desde la fila `fila_minima`
+ * hacia abajo; las filas de arriba se ignoran. Una zona tiene obstáculo si tiene al menos
+ * `min_celdas` celdas. La cercanía sale de la fila más baja que alcanza el obstáculo. */
 static void resumir_zonas(unsigned char confirmadas[OBS_FILAS][OBS_COLUMNAS], int min_celdas,
-                          ResultadoObstaculos *resultado)
+                          int fila_minima, ResultadoObstaculos *resultado)
 {
     int fila_mas_baja[OBS_ZONAS] = { -1, -1, -1 };
     int fila, columna, zona;
 
-    for (fila = OBS_FILA_INICIAL_ZONAS; fila < OBS_FILAS; fila++) {
+    for (fila = fila_minima; fila < OBS_FILAS; fila++) {
         for (columna = 0; columna < OBS_COLUMNAS; columna++) {
             if (confirmadas[fila][columna]) {
                 zona = columna * OBS_ZONAS / OBS_COLUMNAS;   /* 0, 1 o 2 */
@@ -271,6 +272,7 @@ void obstaculos_config_defecto(ConfigObstaculos *config)
     config->ref_filas = OBS_REF_FILAS;
     config->ref_columna_inicial = OBS_REF_COLUMNA_INICIAL;
     config->ref_fila_inicial = OBS_REF_FILA_INICIAL;
+    config->fila_minima = OBS_FILA_INICIAL_ZONAS;
 }
 
 /* La configuración es válida si los umbrales están en rango y la franja cabe en la imagen. */
@@ -281,7 +283,8 @@ static int config_es_valida(const ConfigObstaculos *config)
            config->ref_columnas >= 1 && config->ref_filas >= 1 &&
            config->ref_columna_inicial >= 0 && config->ref_fila_inicial >= 0 &&
            config->ref_columna_inicial + config->ref_columnas <= OBS_COLUMNAS &&
-           config->ref_fila_inicial + config->ref_filas <= OBS_FILAS;
+           config->ref_fila_inicial + config->ref_filas <= OBS_FILAS &&
+           config->fila_minima >= 0 && config->fila_minima < OBS_FILAS;
 }
 
 int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char *rgb,
@@ -317,7 +320,7 @@ int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char 
 
     marcar_candidatas(celdas, referencia, config->umbral_color, candidatas);
     confirmar_celdas(candidatas, resultado->no_piso);
-    resumir_zonas(resultado->no_piso, config->min_celdas, resultado);
+    resumir_zonas(resultado->no_piso, config->min_celdas, config->fila_minima, resultado);
     return OBS_OK;
 }
 

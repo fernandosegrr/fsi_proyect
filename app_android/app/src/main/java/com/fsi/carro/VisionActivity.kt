@@ -46,8 +46,10 @@ class VisionActivity : Activity() {
     private lateinit var textoStats: TextView
     private lateinit var textoUmbral: TextView
     private lateinit var textoMinCeldas: TextView
+    private lateinit var textoFilaMinima: TextView
     private lateinit var barraUmbral: SeekBar
     private lateinit var barraMinCeldas: SeekBar
+    private lateinit var barraFilaMinima: SeekBar
     private lateinit var camara: CamaraObstaculos
 
     private val principal = Handler(Looper.getMainLooper())
@@ -69,13 +71,17 @@ class VisionActivity : Activity() {
         textoMinCeldas = findViewById(R.id.texto_min_celdas)
         barraUmbral = findViewById(R.id.barra_umbral)
         barraMinCeldas = findViewById(R.id.barra_min_celdas)
+        textoFilaMinima = findViewById(R.id.texto_fila_minima)
+        barraFilaMinima = findViewById(R.id.barra_fila_minima)
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
+        barraFilaMinima.max = ConfigVision.FILA_MINIMA_MAXIMA   // el progreso es la fila (0 = toda la imagen)
         mostrarValoresDeBarras()
 
         barraUmbral.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.umbralColor = valor })
         barraMinCeldas.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.minCeldas = valor + 1 })
+        barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinima = valor })
         findViewById<Button>(R.id.boton_guardar_cuadro).setOnClickListener { guardarCuadro() }
         findViewById<Button>(R.id.boton_restablecer).setOnClickListener {
             configuracion.restablecer()
@@ -178,6 +184,8 @@ class VisionActivity : Activity() {
         barraMinCeldas.progress = (configuracion.minCeldas - 1).coerceIn(0, ConfigVision.MIN_CELDAS_MAXIMO - 1)
         textoUmbral.text = getString(R.string.texto_umbral, configuracion.umbralColor)
         textoMinCeldas.text = getString(R.string.texto_min_celdas, configuracion.minCeldas)
+        barraFilaMinima.progress = configuracion.filaMinima
+        textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinima)
     }
 
     /** Un escuchador de barra que guarda el valor al moverla (solo si lo movió la persona). */

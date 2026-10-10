@@ -5,8 +5,9 @@
  *  1. Es una vista propia (View). mostrar() recibe el último CuadroAnalizado y pide redibujar.
  *  2. onDraw() dibuja, en este orden: la imagen de 320x240 (lo que realmente ve el detector,
  *     así que sirve de "vista previa"), la cuadrícula de celdas, las celdas "no piso" en rojo
- *     semitransparente, la franja de referencia del piso en azul, y las tres zonas (izquierda,
- *     centro, derecha) con su estado y su cercanía.
+ *     semitransparente, las filas IGNORADAS en gris (arriba de FILA_MINIMA) con una línea blanca
+ *     en el límite, la franja de referencia del piso en azul, y las tres zonas (izquierda,
+ *     centro, derecha, de la fila mínima hacia abajo) con su estado y su cercanía.
  *  3. La zona es verde si está libre y roja si tiene obstáculo; el número es la cercanía
  *     (1 = lejos, 2 = media, 3 = muy cerca).
  */
@@ -30,6 +31,8 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
 
     private val pincelImagen = Paint().apply { isFilterBitmap = true }
     private val pincelRojo = Paint().apply { color = Color.argb(120, 255, 0, 0) }
+    private val pincelGris = Paint().apply { color = Color.argb(170, 110, 110, 110) }
+    private val pincelLimite = Paint().apply { color = Color.WHITE; strokeWidth = 5f }
     private val pincelAzul = Paint().apply { color = Color.argb(110, 0, 90, 255) }
     private val pincelRejilla = Paint().apply { color = Color.argb(70, 255, 255, 255); strokeWidth = 1f }
     private val pincelBorde = Paint().apply { style = Paint.Style.STROKE; strokeWidth = 4f }
@@ -77,13 +80,6 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
         val resultado = cuadroActual.resultado
         val config = cuadroActual.config
 
-        // Franja de referencia del piso (azul).
-        val colRef = config[ObstaculosNativa.CFG_REF_COLUMNA_INICIAL]
-        val filaRef = config[ObstaculosNativa.CFG_REF_FILA_INICIAL]
-        lienzo.drawRect(izquierda + colRef * celdaAncho, arriba + filaRef * celdaAlto,
-            izquierda + (colRef + config[ObstaculosNativa.CFG_REF_COLUMNAS]) * celdaAncho,
-            arriba + (filaRef + config[ObstaculosNativa.CFG_REF_FILAS]) * celdaAlto, pincelAzul)
-
         // Celdas "no piso" (rojo).
         if (resultado[ObstaculosNativa.CODIGO] == 0) {
             for (f in 0 until ObstaculosNativa.FILAS) {
@@ -96,11 +92,26 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
             }
         }
 
-        // Las tres zonas, en la mitad inferior.
+        // Filas ignoradas (arriba de FILA_MINIMA) en gris y una línea blanca en el límite.
+        val filaMinima = config[ObstaculosNativa.CFG_FILA_MINIMA].coerceIn(0, ObstaculosNativa.FILAS)
+        val yLimite = arriba + filaMinima * celdaAlto
+        if (filaMinima > 0) {
+            lienzo.drawRect(izquierda, arriba, izquierda + ancho, yLimite, pincelGris)
+            lienzo.drawLine(izquierda, yLimite, izquierda + ancho, yLimite, pincelLimite)
+        }
+
+        // Franja de referencia del piso (azul).
+        val colRef = config[ObstaculosNativa.CFG_REF_COLUMNA_INICIAL]
+        val filaRef = config[ObstaculosNativa.CFG_REF_FILA_INICIAL]
+        lienzo.drawRect(izquierda + colRef * celdaAncho, arriba + filaRef * celdaAlto,
+            izquierda + (colRef + config[ObstaculosNativa.CFG_REF_COLUMNAS]) * celdaAncho,
+            arriba + (filaRef + config[ObstaculosNativa.CFG_REF_FILAS]) * celdaAlto, pincelAzul)
+
+        // Las tres zonas, de la fila mínima hacia abajo.
         val nombres = arrayOf("IZQ", "CENTRO", "DER")
         val hay = intArrayOf(resultado[ObstaculosNativa.HAY_IZQUIERDA], resultado[ObstaculosNativa.HAY_CENTRO], resultado[ObstaculosNativa.HAY_DERECHA])
         val cercania = intArrayOf(resultado[ObstaculosNativa.CERCANIA_IZQUIERDA], resultado[ObstaculosNativa.CERCANIA_CENTRO], resultado[ObstaculosNativa.CERCANIA_DERECHA])
-        val mitad = arriba + alto / 2f
+        val mitad = yLimite
         // El texto cabe en el ancho de una zona (la etiqueta más larga tiene unos 20 caracteres).
         pincelTexto.textSize = Math.max(12f, Math.min(alto / 14f, ancho / 3f / 11f))
         for (zona in 0..2) {
@@ -110,7 +121,8 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
             lienzo.drawRect(x0 + 3f, mitad + 3f, x1 - 3f, arriba + alto - 3f, pincelBorde)
             val etiqueta = if (resultado[ObstaculosNativa.CODIGO] != 0) "${nombres[zona]}: ?" else
                 if (hay[zona] != 0) "${nombres[zona]}: OBSTACULO ${cercania[zona]}" else "${nombres[zona]}: libre"
-            val yTexto = mitad + pincelTexto.textSize * 1.3f
+            // La etiqueta va arriba de la zona, pero sin salirse por abajo si la zona es muy baja.
+            val yTexto = Math.min(mitad + pincelTexto.textSize * 1.3f, arriba + alto - 12f)
             val mitadAncho = pincelTexto.measureText(etiqueta) / 2f + 8f
             lienzo.drawRect((x0 + x1) / 2f - mitadAncho, yTexto - pincelTexto.textSize, (x0 + x1) / 2f + mitadAncho, yTexto + 8f, pincelFondoTexto)
             lienzo.drawText(etiqueta, (x0 + x1) / 2f, yTexto, pincelTexto)

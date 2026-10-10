@@ -9,7 +9,7 @@
  *  3. La imagen se divide en celdas de 10x10 píxeles (32 x 24 celdas).
  *  4. El color del piso se toma de una franja de celdas abajo y al centro (se asume libre).
  *  5. Una celda es "no piso" si su color se aleja de ese color (ver UMBRAL_COLOR, etc.).
- *  6. Se mira la mitad inferior en tres zonas (izquierda, centro, derecha) y cada una
+ *  6. Se mira la zona de avance (por defecto la mitad inferior) en tres zonas (izquierda, centro, derecha) y cada una
  *     dice si hay obstáculo y qué tan cerca está (0 a 3).
  *  Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
  *
@@ -38,7 +38,9 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define OBS_REF_COLUMNA_INICIAL  ((OBS_COLUMNAS - OBS_REF_COLUMNAS) / 2)   /* 13 */
 #define OBS_REF_FILA_INICIAL     (OBS_FILAS - OBS_REF_FILAS)               /* 22 */
 
-/* Solo se buscan obstáculos en la mitad inferior de la imagen (filas 12 a 23). */
+/* Solo se buscan obstáculos en la zona de avance: de FILA_MINIMA hacia abajo. Las filas de
+ * arriba (el fondo del cuarto, paredes lejanas) se ignoran. Valor POR DEFECTO: la mitad inferior
+ * de la imagen (filas 12 a 23); se puede cambiar con ConfigObstaculos.fila_minima. */
 #define OBS_FILA_INICIAL_ZONAS   (OBS_FILAS / 2)
 
 /* ── Parámetros a calibrar ─────────────────────────────────────────────────
@@ -106,6 +108,8 @@ typedef struct {
     int ref_filas;              /* alto de la franja de referencia, en celdas */
     int ref_columna_inicial;    /* primera columna de la franja (0 a 31) */
     int ref_fila_inicial;       /* primera fila de la franja (0 a 23) */
+    int fila_minima;            /* primera fila (contando desde arriba, 0 a 23) que es zona de avance;
+                                   las filas de arriba se ignoran. Por defecto 12 (mitad inferior) */
 } ConfigObstaculos;
 
 /* Códigos de retorno de obstaculos_analizar. */

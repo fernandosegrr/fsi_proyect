@@ -452,6 +452,81 @@ static void pruebas_configuracion(void)
     }
 }
 
+/* FILA_MINIMA: las filas de arriba de esa fila se ignoran; la cercanía sigue saliendo de la fila más baja. */
+static void pruebas_fila_minima(void)
+{
+    ConfigObstaculos config;
+    ResultadoObstaculos r;
+
+    obstaculos_config_defecto(&config);
+    caso("config por defecto: fila_minima = mitad inferior (12)",
+         config.fila_minima == OBS_FILA_INICIAL_ZONAS && config.fila_minima == 12);
+
+    /* Un objeto lejano, todo por encima de la fila minima (filas 4 a 8). */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(13, 4, 18, 8, CAJA);
+    caso("fila_minima 12 (defecto): objeto en filas 4-8 se ignora", verificar_con(&config, 0, 0, 0));
+    config.fila_minima = 4;
+    caso("fila_minima 4: el mismo objeto SI se detecta (cercania 1: fila baja 8)", verificar_con(&config, 0, 1, 0));
+    config.fila_minima = 9;
+    caso("fila_minima 9: objeto en filas 4-8 se ignora (una fila por encima del limite)", verificar_con(&config, 0, 0, 0));
+    config.fila_minima = 8;
+    caso("fila_minima 8: la fila 8 es la limite y solo ella cuenta (6 celdas): SI se detecta",
+         verificar_con(&config, 0, 1, 0));
+    config.fila_minima = 4;
+    obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+    caso("fila_minima 4: se cuentan las 30 celdas del objeto", r.zona[ZONA_CENTRO].celdas == 30);
+    obstaculos_config_defecto(&config);
+
+    /* Objeto justo en la fila limite (filas 12 y 13). */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(13, 12, 18, 13, CAJA);
+    caso("objeto en las filas 12-13 con fila_minima 12: cuenta (justo en la fila limite)",
+         verificar_con(&config, 0, 1, 0));
+    config.fila_minima = 13;
+    caso("fila_minima 13: queda solo la fila 13 (6 celdas): sigue contando", verificar_con(&config, 0, 1, 0));
+    config.fila_minima = 14;
+    caso("fila_minima 14: las filas 12-13 quedan arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
+    obstaculos_config_defecto(&config);
+
+    /* La cercania sigue saliendo de la fila MAS BAJA del objeto, sea cual sea fila_minima. */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(13, 6, 18, 21, CAJA);   /* objeto alto: de la fila 6 a la 21 */
+    caso("objeto alto (filas 6-21), fila_minima 12: cercania 3 (fila baja 21)", verificar_con(&config, 0, 3, 0));
+    config.fila_minima = 0;
+    caso("fila_minima 0: cercania 3 igual", verificar_con(&config, 0, 3, 0));
+    config.fila_minima = 18;
+    caso("fila_minima 18: cercania 3 igual (la fila mas baja no cambia)", verificar_con(&config, 0, 3, 0));
+    config.fila_minima = 22;
+    caso("fila_minima 22: el objeto acaba en la fila 21, queda arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
+    obstaculos_config_defecto(&config);
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(13, 6, 18, 14, CAJA);   /* objeto que acaba en la fila 14 (media distancia: 1) */
+    caso("objeto filas 6-14: cercania 1 (fila baja 14 < 16)", verificar_con(&config, 0, 1, 0));
+    config.fila_minima = 14;
+    caso("fila_minima 14: solo cuenta la fila 14 (6 celdas), cercania 1", verificar_con(&config, 0, 1, 0));
+    obstaculos_config_defecto(&config);
+
+    /* Valores validos en los extremos y no validos. */
+    rellenar(PISO);
+    config.fila_minima = 0;
+    caso("fila_minima 0 es valida", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_OK);
+    config.fila_minima = OBS_FILAS - 1;
+    caso("fila_minima 23 (ultima fila) es valida", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_OK);
+    config.fila_minima = -1;
+    caso("fila_minima -1: OBS_ERR_CONFIG", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+    config.fila_minima = OBS_FILAS;
+    caso("fila_minima 24: OBS_ERR_CONFIG", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+    config.fila_minima = 1000;
+    caso("fila_minima 1000: OBS_ERR_CONFIG y resultado en ceros",
+         obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG && r.zona[1].celdas == 0);
+}
+
 int main(void)
 {
     pruebas_piso_libre();
@@ -461,6 +536,7 @@ int main(void)
     pruebas_errores();
     pruebas_repetibilidad();
     pruebas_configuracion();
+    pruebas_fila_minima();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

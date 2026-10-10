@@ -342,9 +342,9 @@ class CamaraObstaculos(
         if (ahora - inicioVentanaMs >= 1000) {
             fps = cuadrosVentana * 1000.0 / (ahora - inicioVentanaMs)
             msPorCuadro = sumaMsVentana / cuadrosVentana
-            Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d umbral=%d min_celdas=%d codigo=%d",
+            Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d umbral=%d min_celdas=%d fila_minima=%d codigo=%d",
                 fps, msPorCuadro, cuadro.msConversion, cuadro.msAnalisis, contadorCuadros,
-                cuadro.config[ObstaculosNativa.CFG_UMBRAL_COLOR], cuadro.config[ObstaculosNativa.CFG_MIN_CELDAS],
+                cuadro.config[ObstaculosNativa.CFG_UMBRAL_COLOR], cuadro.config[ObstaculosNativa.CFG_MIN_CELDAS], cuadro.config[ObstaculosNativa.CFG_FILA_MINIMA],
                 cuadro.resultado[ObstaculosNativa.CODIGO]))
             inicioVentanaMs = ahora
             cuadrosVentana = 0

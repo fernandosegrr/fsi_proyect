@@ -37,23 +37,25 @@ que hay algo y de qué lado.
    muy oscura o de otro color.
 5. **Ruido**: una celda "no piso" sin ninguna vecina "no piso" (en las 8 de alrededor) se
    descarta. Un reflejo suelto o un pixel malo no cuenta.
-6. **Zonas**: solo la mitad inferior de la imagen (filas 12 a 23), en tres tercios de ancho:
-   `ZONA_IZQUIERDA`, `ZONA_CENTRO` y `ZONA_DERECHA`. Una zona tiene obstáculo si hay al menos
-   `MIN_CELDAS` celdas "no piso" confirmadas.
-7. **Cercanía** (0 a 3) según la fila más baja que alcanza el obstáculo: 0 = no hay;
+6. **Zonas**: solo la zona de avance, de la fila `fila_minima` hacia abajo (por defecto la mitad
+   inferior de la imagen, filas 12 a 23); las filas de arriba (el fondo del cuarto, paredes
+   lejanas) se ignoran. Se divide en tres tercios de ancho: `ZONA_IZQUIERDA`, `ZONA_CENTRO` y
+   `ZONA_DERECHA`. Una zona tiene obstáculo si hay al menos `MIN_CELDAS` celdas "no piso"
+   confirmadas desde esa fila hacia abajo.
+7. **Cercanía** (0 a 3) según la fila más baja que alcanza el obstáculo (no depende de `fila_minima`): 0 = no hay;
    1 = lejos (filas 12 a 15); 2 = media (filas 16 a 19); 3 = muy cerca (filas 20 a 23).
 
 El resultado (`ResultadoObstaculos`) trae las tres zonas (hay obstáculo, cercanía y número de
 celdas), el color de referencia del piso y una máscara de 24x32 con las celdas "no piso" (sirve
 para dibujar o depurar). Los errores son códigos: `OBS_ERR_IMAGEN_NULA`, `OBS_ERR_TAMANO`
-(la imagen no es de 320x240) y `OBS_ERR_REFERENCIA`.
+(la imagen no es de 320x240), `OBS_ERR_REFERENCIA` y `OBS_ERR_CONFIG`.
 
 ## Parámetros a calibrar con el carro real
 
 Todos están en `nucleo_c/obstaculos.h`. Los valores actuales son de partida, pensados para
 imágenes sintéticas; hay que ajustarlos con la cámara y el piso reales.
 
-**Se pueden cambiar en vivo**: `UMBRAL_COLOR`, `MIN_CELDAS` y la franja de referencia viajan en una
+**Se pueden cambiar en vivo**: `UMBRAL_COLOR`, `MIN_CELDAS`, la franja de referencia y `fila_minima` viajan en una
 estructura `ConfigObstaculos` (`obstaculos_config_defecto` da los valores por defecto y
 `obstaculos_analizar_con` la usa; `obstaculos_analizar` equivale a usar la configuración por defecto).
 La pantalla de visión de la app los ajusta con barras sin recompilar (ver `docs/vision_huawei.md`).
@@ -73,16 +75,26 @@ Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen
 - `OBS_FILA_MEDIA` = 16 y `OBS_FILA_CERCA` = 20: dónde cambian las cercanías. Hay que
   relacionarlas con la distancia real (por ejemplo, a cuántos cm del carro está la fila 20) y
   con la distancia de frenado del carro.
-- Geometría: franja de referencia (`OBS_REF_COLUMNAS`, `OBS_REF_FILAS`) y mitad inferior
-  (`OBS_FILA_INICIAL_ZONAS`). Dependen de cómo quede montada la cámara.
+- `fila_minima` (FILA_MINIMA) = 12 (`OBS_FILA_INICIAL_ZONAS`): primera fila de celdas, contando desde
+  arriba (0 a 23), que cuenta como zona de avance. Las filas de arriba se ignoran, aunque tengan
+  celdas "no piso" (la máscara `no_piso` sigue mostrándolas, para dibujar). Súbela si el fondo del
+  cuarto (una pared lejana, un mueble) da falsas alarmas; bájala si la cámara apunta muy abajo y
+  se pierde piso útil. Ajusta primero la inclinación del teléfono o la cámara y después esta fila,
+  hasta que el fondo del cuarto quede en la parte gris de la pantalla de visión. Como la
+  cercanía usa la fila más baja del obstáculo, no cambia al mover `fila_minima`. Un valor fuera
+  de 0 a 23 da `OBS_ERR_CONFIG`. Para que un objeto cuente, al menos `MIN_CELDAS` de sus celdas
+  confirmadas deben estar en `fila_minima` o más abajo (el filtro de celdas aisladas mira también
+  las vecinas de arriba).
+- Geometría: franja de referencia (`OBS_REF_COLUMNAS`, `OBS_REF_FILAS`). Depende de cómo quede
+  montada la cámara.
 
 ## Pruebas hechas
 
-- **En PC** (`cd nucleo_c; make test`): 51 casos, todos pasan (32 del detector y 19 de la configuración). Piso liso, con ruido leve y
+- **En PC** (`cd nucleo_c; make test`): 71 casos, todos pasan (32 del detector, 19 de la configuración y 20 de `fila_minima`). Piso liso, con ruido leve y
   fuerte, cambio de luz global (+30), degradado de luz, caja al centro, a la izquierda y a la
   derecha, caja lejos y a media distancia, caja entre dos zonas, objeto oscuro del mismo tono,
   pared que ocupa todo, celda aislada, celdas sueltas dispersas, objeto pequeño, objeto solo en
-  la mitad superior, imagen nula, tamaño inválido, referencia contaminada y repetibilidad. Se
+  la mitad superior, imagen nula, tamaño inválido, referencia contaminada y repetibilidad. Para `fila_minima`: un objeto por encima del límite se ignora, uno justo en la fila límite cuenta, una fila por encima no cuenta, cambiar el valor cambia el resultado, la cercanía no cambia y los valores -1, 24 y 1000 dan `OBS_ERR_CONFIG`. Se
   comprobó con mutaciones (quitar el filtro de celdas aisladas y quitar la condición de tono)
   que las pruebas fallan cuando el código se rompe.
 - **En el Huawei** (`docs/benchmark_ELS-NX9.md`): con 4 imágenes generadas por código y JPEG de

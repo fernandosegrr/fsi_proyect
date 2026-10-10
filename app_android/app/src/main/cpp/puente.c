@@ -157,7 +157,7 @@ Java_com_fsi_carro_TrayectoriaNativa_maxPuntos(JNIEnv *env, jobject objeto)
 /* ── Detector de obstáculos por color de piso ──────────────────────────── */
 
 #define ENTEROS_RESULTADO_OBSTACULOS 10
-#define ENTEROS_CONFIG_OBSTACULOS     6
+#define ENTEROS_CONFIG_OBSTACULOS     7
 #define ENTEROS_DETALLE_OBSTACULOS   (ENTEROS_RESULTADO_OBSTACULOS + OBS_FILAS * OBS_COLUMNAS)
 
 /* Revisa el arreglo de bytes y llama al detector con la configuración dada (NULL = por
@@ -236,8 +236,8 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
 }
 
 /* Igual, pero con una configuración que se puede cambiar en vivo y con el detalle de las
- * celdas. `config` son 6 enteros: [umbralColor, minCeldas, refColumnas, refFilas,
- * refColumnaInicial, refFilaInicial]. Devuelve 10 + 24*32 enteros: los 10 de arriba y después
+ * celdas. `config` son 7 enteros: [umbralColor, minCeldas, refColumnas, refFilas,
+ * refColumnaInicial, refFilaInicial, filaMinima]. Devuelve 10 + 24*32 enteros: los 10 de arriba y después
  * la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 10 + fila * 32 + columna). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
@@ -263,6 +263,7 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         cfg.ref_filas = (int)datos_config[3];
         cfg.ref_columna_inicial = (int)datos_config[4];
         cfg.ref_fila_inicial = (int)datos_config[5];
+        cfg.fila_minima = (int)datos_config[6];
         puntero_config = &cfg;
     } else {
         /* Sin configuración: se pide a analizar_arreglo una configuración no válida. */
@@ -272,6 +273,7 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         cfg.ref_filas = 0;
         cfg.ref_columna_inicial = 0;
         cfg.ref_fila_inicial = 0;
+        cfg.fila_minima = -1;
         puntero_config = &cfg;
     }
     codigo = analizar_arreglo(env, rgb, ancho, alto, puntero_config, &resultado);
@@ -291,7 +293,7 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
     return arreglo;
 }
 
-/* Configuración por defecto del detector (6 enteros, mismo orden que en analizarConfig). Así los
+/* Configuración por defecto del detector (7 enteros, mismo orden que en analizarConfig). Así los
  * valores por defecto viven solo en el código en C (obstaculos.h). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
@@ -308,6 +310,7 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
     salida[3] = cfg.ref_filas;
     salida[4] = cfg.ref_columna_inicial;
     salida[5] = cfg.ref_fila_inicial;
+    salida[6] = cfg.fila_minima;
     arreglo = (*env)->NewIntArray(env, ENTEROS_CONFIG_OBSTACULOS);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_CONFIG_OBSTACULOS, salida);
