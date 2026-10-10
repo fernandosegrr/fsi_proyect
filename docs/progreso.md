@@ -16,3 +16,7 @@
 ## TRABAJO 3: cierre
 - Hecho: `README.md` en la raíz (carpetas, cómo correr pruebas y compilar, orden de lectura).
 - Verificación final: pruebas de nucleo_c (20/20) y pruebas_firmware (44/44) pasan; el firmware compila (73 % flash); `pagina.h` sigue idéntico al original; `original_backup/` sin cambios.
+
+## TRABAJO 4: ajuste de MAX_PASOS
+- Hecho: `MAX_PASOS = 2 * MAX_PUNTOS` en trayectoria.h; pruebas actualizadas con un zigzag de 64 puntos (126 pasos, antes error).
+- `make test` en nucleo_c: 23 casos, 0 fallos. Razón en la bitácora.

@@ -202,19 +202,50 @@ static void prueba_errores(void)
          trayectoria_calcular(salto, 2, p, 0, &n, NULL) == TRAY_ERR_ARGUMENTO);
 }
 
-static void prueba_exceso_de_limites(void)
+/* Zigzag de n puntos: arriba-derecha / abajo-derecha alternados. */
+static void armar_zigzag(Punto *zigzag, int n)
 {
-    Punto zigzag[MAX_PUNTOS + 1];
     int i;
 
-    /* Zigzag arriba-derecha / abajo-derecha: cada tramo es un paso y cada
-     * cambio de dirección otro: 63 avances + 63 giros > MAX_PASOS. */
-    for (i = 0; i < MAX_PUNTOS + 1; i++) {
+    for (i = 0; i < n; i++) {
         zigzag[i].columna = i;
         zigzag[i].fila    = (i % 2 == 0) ? 1 : 0;
     }
-    verificar_error("exceso de MAX_PASOS: TRAY_ERR_DEMASIADOS_PASOS",
-                    zigzag, MAX_PUNTOS, TRAY_ERR_DEMASIADOS_PASOS, 0);
+}
+
+static void prueba_limites(void)
+{
+    Punto zigzag[MAX_PUNTOS + 1];
+    Paso  pasos[MAX_PASOS];
+    int   n = -1;
+    int   indice = -1;
+    int   codigo;
+    int   ok;
+
+    armar_zigzag(zigzag, MAX_PUNTOS + 1);
+
+    /* Peor caso: 64 puntos en zigzag dan 63 AVANZAR + 63 GIRAR = 126 pasos.
+     * Antes (MAX_PASOS = 100) daba error; con 2 * MAX_PUNTOS cabe siempre. */
+    codigo = trayectoria_calcular(zigzag, MAX_PUNTOS, pasos, MAX_PASOS, &n, &indice);
+    caso("zigzag de MAX_PUNTOS puntos: cabe (OK, 126 pasos)",
+         codigo == TRAY_OK && n == 2 * (MAX_PUNTOS - 1));
+
+    ok = n == 2 * (MAX_PUNTOS - 1) &&
+         pasos_iguales(&pasos[0], &(Paso){ PASO_GIRAR, 45, 45 * MS_POR_GRADO }) &&
+         pasos[1].tipo == PASO_AVANZAR && pasos[1].valor == CELDA_CM * DIAGONAL_CM_MIL / 1000 &&
+         pasos[2].tipo == PASO_GIRAR && pasos[2].valor == 90 &&
+         pasos[4].tipo == PASO_GIRAR && pasos[4].valor == -90 &&
+         pasos[n - 1].tipo == PASO_AVANZAR;
+    caso("zigzag: giros +45, +90, -90... y termina en AVANZAR", ok);
+
+    caso("MAX_PASOS es 2 * MAX_PUNTOS", MAX_PASOS == 2 * MAX_PUNTOS);
+
+    /* El error por falta de espacio sigue existiendo si el llamador da un
+     * arreglo más chico que MAX_PASOS. */
+    codigo = trayectoria_calcular(zigzag, MAX_PUNTOS, pasos, 10, &n, &indice);
+    caso("capacidad menor que lo necesario: TRAY_ERR_DEMASIADOS_PASOS y 0 pasos",
+         codigo == TRAY_ERR_DEMASIADOS_PASOS && n == 0);
+
     verificar_error("exceso de MAX_PUNTOS: TRAY_ERR_DEMASIADOS_PUNTOS",
                     zigzag, MAX_PUNTOS + 1, TRAY_ERR_DEMASIADOS_PUNTOS, 0);
 }
@@ -229,7 +260,7 @@ int main(void)
     prueba_diagonales();
     prueba_giros_extremos();
     prueba_errores();
-    prueba_exceso_de_limites();
+    prueba_limites();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

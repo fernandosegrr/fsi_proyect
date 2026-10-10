@@ -17,3 +17,5 @@
 - MAX_PUNTOS = 64 y MAX_PASOS = 100: con 64 puntos el peor caso (zigzag) da 126 pasos, así que el límite de pasos se puede probar y puede dispararse en rutas reales muy quebradas.
 - Si un tramo no cabe en la salida, se devuelve error y `n_pasos` = 0 (no se entrega una ruta parcial, que haría que el carro avance a medias).
 - La ruta se valida completa antes de calcular, para que un error no deje salida a medias.
+- TRABAJO 4: MAX_PASOS pasa de 100 a 2 * MAX_PUNTOS (128). Razón: cada tramo da a lo más un GIRAR y un AVANZAR y hay a lo más MAX_PUNTOS-1 tramos, así que una ruta válida nunca desborda; con 100 un zigzag de 64 puntos (126 pasos) daba error aunque la ruta fuera correcta.
+- TRABAJO 4: el error TRAY_ERR_DEMASIADOS_PASOS se conserva (por si el llamador da un arreglo menor que MAX_PASOS) y se prueba con capacidad 10.

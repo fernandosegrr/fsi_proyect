@@ -17,7 +17,9 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define CELDA_CM            20    /* lado de una celda de la cuadrícula, en cm */
 #define DIAGONAL_CM_MIL   1414    /* raíz de 2 por 1000: diagonal = celda*1414/1000 */
 #define MAX_PUNTOS          64    /* puntos máximos de una ruta */
-#define MAX_PASOS          100    /* pasos máximos de salida */
+/* Pasos máximos de salida. Cada tramo da a lo más un GIRAR y un AVANZAR y hay
+ * a lo más MAX_PUNTOS-1 tramos, así que una ruta válida nunca desborda. */
+#define MAX_PASOS  (2 * MAX_PUNTOS)
 
 /* Dirección inicial del carro: índice de dirección (0 = "arriba"). */
 #define ORIENTACION_INICIAL  0
