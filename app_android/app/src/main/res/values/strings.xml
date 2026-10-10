@@ -8,4 +8,12 @@
     <string name="resultado_inicial">Aquí aparecerán los pasos.</string>
     <string name="boton_benchmark">Benchmark del detector</string>
     <string name="boton_benchmark_iniciar">Iniciar benchmark</string>
+    <string name="boton_control">Control del carro</string>
+    <string name="boton_conectar">Conectar</string>
+    <string name="boton_stop">STOP</string>
+    <string name="direccion_por_defecto">ws://192.168.4.1/ws</string>
+    <string name="estado_conectado">Conectado</string>
+    <string name="estado_desconectado">Desconectado</string>
+    <string name="estado_reconectando">Reconectando</string>
+    <string name="estado_con_latencia">%1$s · latencia PING/PONG: %2$s</string>
 </resources>

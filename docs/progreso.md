@@ -46,3 +46,8 @@
 ## TRABAJO 8: benchmark del detector en el Huawei
 - Hecho: `BenchmarkActivity` (botón en la pantalla principal y `--ez bench_auto true` por adb), detector EfficientDet-Lite0 con TensorFlow Lite, mediciones por etapa y reporte en `docs/benchmark_ELS-NX9.md`.
 - Resultado: la mejor configuración es CPU con 1 hilo: 45.4 ms por cuadro con JPEG 640x480 (43.4 ms con 320x240), unos 22 cuadros por segundo; quedan ~255 ms de los 300 ms para captura, WiFi y comando. GPU 149 ms y NNAPI 63 ms por cuadro.
+
+## TRABAJO 9: pantalla de control y servidor falso
+- Hecho: `pruebas_firmware/servidor_falso.py` (+ prueba propia de 9 casos) y, en la app, `ControlActivity` con OkHttp WebSocket, botones con heartbeat de 250 ms, PING cada 800 ms, reintento cada 2 s, estado y latencia; lógica separada en `ControlLogica` y `Enlace`.
+- Probado en el Huawei con `adb reverse`: conexión, comandos al presionar (cada 251 ms de media), STOP al soltar, PING/PONG (latencia por USB: media 7,6 ms, mediana 7, p95 9, 75 muestras), reconexión y STOP al ir a segundo plano. Detalle en `docs/pruebas_control.md`.
+- Pendiente con el carro: `bindProcessToNetwork`, Wi-Fi+ del Huawei y `ws://192.168.4.1/ws` real.

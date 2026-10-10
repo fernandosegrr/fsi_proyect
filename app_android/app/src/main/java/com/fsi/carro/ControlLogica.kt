@@ -1,0 +1,184 @@
+/*
+ * ControlLogica.kt — La "cabeza" del control: qué comando enviar y cuándo. Sin pantalla.
+ *
+ * GUÍA DE LECTURA
+ *  1. Los tiempos son los mismos que usa la página web del carro (pagina.h):
+ *       - mientras un botón está presionado se repite su comando cada 250 ms (heartbeat),
+ *         porque el carro frena solo si pasan 1000 ms sin comandos;
+ *       - al soltar se envía STOP;
+ *       - PING cada 800 ms para mantener viva la conexión.
+ *  2. presionar() / soltar() / parar() son lo que llama la pantalla.
+ *  3. iniciar() abre la conexión; detener() (la pantalla pasa a segundo plano) envía STOP y cierra.
+ *  4. Si la conexión se cae, se reintenta cada 2 s. Al caerse se deja de repetir el comando:
+ *     para volver a mover el carro hay que soltar y volver a presionar (más seguro).
+ *  5. La latencia es el tiempo entre enviar PING y recibir PONG. El carro real todavía no
+ *     contesta PONG (solo el servidor falso), así que con el carro real se verá "—".
+ *  Todo ocurre en el hilo principal (los avisos del Enlace ya llegan ahí).
+ */
+package com.fsi.carro
+
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+
+class ControlLogica(
+    private val enlace: Enlace,
+    private val alCambiar: () -> Unit   // la pantalla se redibuja cuando cambia el estado
+) : EscuchaEnlace {
+
+    companion object {
+        const val HEARTBEAT_MS = 250L
+        const val PING_MS = 800L
+        const val REINTENTO_MS = 2000L
+    }
+
+    enum class Conexion { DESCONECTADO, CONECTADO, RECONECTANDO }
+
+    var conexion = Conexion.DESCONECTADO
+        private set
+    var latenciaMs: Long? = null   // null = todavía no hay medición
+        private set
+
+    private val manejador = Handler(Looper.getMainLooper())
+    private var url = ""
+    private var activo = false              // true entre iniciar() y detener()
+    private var comandoActivo: String? = null   // el botón que se mantiene presionado
+    private var pingEnviadoNs = 0L
+    private var esperandoPong = false
+
+    // ── Temporizadores ────────────────────────────────────────────────────
+
+    /** Repite el comando del botón presionado cada 250 ms. */
+    private val tareaHeartbeat = object : Runnable {
+        override fun run() {
+            val comando = comandoActivo ?: return
+            enviar(comando)
+            manejador.postDelayed(this, HEARTBEAT_MS)
+        }
+    }
+
+    /** Envía PING cada 800 ms mientras haya conexión. */
+    private val tareaPing = object : Runnable {
+        override fun run() {
+            if (conexion == Conexion.CONECTADO) {
+                pingEnviadoNs = System.nanoTime()
+                esperandoPong = true
+                enviar("PING")
+            }
+            manejador.postDelayed(this, PING_MS)
+        }
+    }
+
+    /** Vuelve a conectar (se programa 2 s después de una caída). */
+    private val tareaReintento = Runnable {
+        if (activo) {
+            Log.i(EnlaceOkHttp.ETIQUETA, "reintentando conexión")
+            enlace.conectar(url)
+        }
+    }
+
+    // ── Lo que llama la pantalla ──────────────────────────────────────────
+
+    /** Abre (o reabre) la conexión con la dirección dada. */
+    fun iniciar(direccion: String) {
+        detenerTemporizadores()
+        enlace.escucha = this
+        url = direccion
+        activo = true
+        cambiarEstado(Conexion.DESCONECTADO)
+        enlace.conectar(url)
+    }
+
+    /** La pantalla pasa a segundo plano: STOP y cierre de la conexión. */
+    fun detener() {
+        if (activo) {
+            Log.i(EnlaceOkHttp.ETIQUETA, "pausa: STOP y cierre de la conexión")
+            enviar("STOP")
+        }
+        activo = false
+        detenerTemporizadores()
+        comandoActivo = null
+        enlace.cerrar()
+        latenciaMs = null
+        cambiarEstado(Conexion.DESCONECTADO)
+    }
+
+    /** Un botón de movimiento se presionó: enviar su comando ya y repetirlo cada 250 ms. */
+    fun presionar(comando: String) {
+        comandoActivo = comando
+        enviar(comando)
+        manejador.removeCallbacks(tareaHeartbeat)
+        manejador.postDelayed(tareaHeartbeat, HEARTBEAT_MS)
+    }
+
+    /** Se soltó un botón: si era el que estaba activo, parar. (Soltar otro botón no hace nada.) */
+    fun soltar(comando: String) {
+        if (comandoActivo == comando) {
+            parar()
+        }
+    }
+
+    /** Dejar de repetir el comando y enviar STOP. */
+    fun parar() {
+        comandoActivo = null
+        manejador.removeCallbacks(tareaHeartbeat)
+        enviar("STOP")
+    }
+
+    // ── Lo que avisa el Enlace ────────────────────────────────────────────
+
+    override fun alAbrir() {
+        Log.i(EnlaceOkHttp.ETIQUETA, "conexión abierta")
+        manejador.removeCallbacks(tareaReintento)
+        esperandoPong = false
+        cambiarEstado(Conexion.CONECTADO)
+        manejador.removeCallbacks(tareaPing)
+        manejador.post(tareaPing)   // primer PING ya, luego cada 800 ms
+    }
+
+    override fun alMensaje(texto: String) {
+        if (texto == "PONG" && esperandoPong) {
+            esperandoPong = false
+            latenciaMs = Math.round((System.nanoTime() - pingEnviadoNs) / 1.0e6)
+            Log.i(EnlaceOkHttp.ETIQUETA, "latencia_ms=$latenciaMs")
+            alCambiar()
+        }
+    }
+
+    override fun alCerrar() {
+        manejador.removeCallbacks(tareaPing)
+        manejador.removeCallbacks(tareaHeartbeat)
+        comandoActivo = null
+        esperandoPong = false
+        latenciaMs = null
+        if (activo) {
+            Log.i(EnlaceOkHttp.ETIQUETA, "conexión perdida: se reintenta en ${REINTENTO_MS / 1000} s")
+            cambiarEstado(Conexion.RECONECTANDO)
+            manejador.removeCallbacks(tareaReintento)
+            manejador.postDelayed(tareaReintento, REINTENTO_MS)
+        } else {
+            cambiarEstado(Conexion.DESCONECTADO)
+        }
+    }
+
+    // ── Ayudas ────────────────────────────────────────────────────────────
+
+    private fun enviar(texto: String) {
+        val enviado = enlace.enviar(texto)
+        Log.i(EnlaceOkHttp.ETIQUETA, "enviado=$texto ok=$enviado")
+    }
+
+    private fun detenerTemporizadores() {
+        manejador.removeCallbacks(tareaHeartbeat)
+        manejador.removeCallbacks(tareaPing)
+        manejador.removeCallbacks(tareaReintento)
+    }
+
+    private fun cambiarEstado(nuevo: Conexion) {
+        if (conexion != nuevo) {
+            Log.i(EnlaceOkHttp.ETIQUETA, "estado=$nuevo")
+        }
+        conexion = nuevo
+        alCambiar()
+    }
+}

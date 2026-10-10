@@ -30,6 +30,10 @@
 - El modelo funciona: detecta 7 personas en la foto de prueba (CC0 de Wikimedia Commons, no está en git); no detectó sillas ni mochilas con confianza de 0.4 o más.
 - Recomendación: enviar JPEG de 320x240 (21 KB contra 65 KB, casi el mismo tiempo de cómputo). Para repetir en el OnePlus y la tableta, ver la última sección del reporte.
 
+## TRABAJO 9: pantalla de control y servidor falso (hecho)
+- `pruebas_firmware/servidor_falso.py` imita al carro (comandos, PONG, watchdog de 1000 ms) y `app_android` tiene `ControlActivity` (botones, heartbeat 250 ms, PING 800 ms, reintento 2 s). Probado en el Huawei con `adb reverse`; detalle y resultados en `docs/pruebas_control.md`.
+- Latencia PING/PONG por USB: media 7,6 ms, p95 9 ms (no es WiFi). Pendiente con el carro: `bindProcessToNetwork`, Wi-Fi+ del Huawei y `ws://192.168.4.1/ws` real; el firmware aún no contesta `PONG`.
+
 ## Pendiente / para decidir
 - Medir captura, WiFi y comando con la ESP32-CAM para cerrar el presupuesto de 300 ms, y repetir el benchmark en el OnePlus y la tableta.
 - Medir `MS_POR_CM` y `MS_POR_GRADO` con el carro real.

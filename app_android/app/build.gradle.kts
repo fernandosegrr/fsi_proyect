@@ -6,6 +6,7 @@
 //    no carga las bibliotecas de TensorFlow Lite de 4 arquitecturas.
 //  - dependencies: TensorFlow Lite "puro" (sin servicios de Google Play, el Huawei no
 //    los tiene) para el benchmark del detector de objetos.
+//  - OkHttp: cliente WebSocket de la pantalla de control.
 
 plugins {
     id("com.android.application")
@@ -46,4 +47,5 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite:2.17.0")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
     implementation("org.tensorflow:tensorflow-lite-gpu-api:2.17.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")   // WebSocket hacia el carro
 }

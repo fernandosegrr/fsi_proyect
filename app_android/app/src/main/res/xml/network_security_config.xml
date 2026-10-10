@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: el carro habla WebSocket SIN cifrar (ws://, puerto 80), así que Android
+  tiene que permitir tráfico "cleartext". Se permite para toda la app porque el carro es una
+  red WiFi propia sin Internet. Más adelante se puede limitar a la dirección del carro
+  (192.168.4.1) con <domain-config>.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

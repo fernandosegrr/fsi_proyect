@@ -13,13 +13,15 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
     (no se sube a GitHub; se crea copiando `secretos.ejemplo.h`).
   - `pagina.h`: la página web de control (HTML/JS), sin cambios respecto al original.
 - `pruebas_firmware/` — pruebas en PC de `carro.c` con hardware falso, y comparación con el código original.
+  También `servidor_falso.py` (imita al carro por WebSocket para probar la app sin el carro; ver
+  `docs/pruebas_control.md`).
 - `nucleo_c/` — módulo de trayectoria (C estándar, sin librerías) para usar luego desde Android:
   `trayectoria.c/.h`, `calibracion.h` (valores de ejemplo, hay que medirlos) y sus pruebas.
 - `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una
   ruta con el dedo en una cuadrícula y el botón "Calcular" muestra los pasos. Llama por JNI
   (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.
-  También trae el benchmark del detector de objetos (`BenchmarkActivity`, modelo en `app/src/main/assets/`).
-- `docs/` — `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
+  Trae la pantalla de control (`ControlActivity`: botones + WebSocket) y el benchmark del detector de objetos (`BenchmarkActivity`, modelo en `app/src/main/assets/`).
+- `docs/` — `pruebas_control.md` (pruebas de la pantalla de control), `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
   `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
   original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
 - `original_backup/` — el código y el PDF originales. No se modifica y **no se publica en GitHub**
