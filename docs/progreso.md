@@ -26,3 +26,10 @@
 - `gradlew assembleDebug`: BUILD SUCCESSFUL; el APK trae `libcarro_nativo.so` para arm64-v8a, armeabi-v7a, x86 y x86_64, con las funciones JNI exportadas.
 - Puente C probado en PC con un JNIEnv falso (rutas válidas, salto, vacío, impar y límites).
 - Guía: `docs/instalar_app_huawei.md`. Sin probar en teléfono.
+
+## TRABAJO 6: publicar en GitHub
+- Hecho: pruebas y compilación OK, WiFi movido a `secretos.h` (ignorado) con `secretos.ejemplo.h`, `original_backup/` fuera de git, historial local limpio y verificado, remoto vacío confirmado.
+- Detenido antes del push: los commits llevan un correo personal de Gmail; esperar decisión (ver `docs/resumen_sesion.md`).
+
+## TRABAJO 7: probar en el teléfono
+- `adb devices` muestra el teléfono como `unauthorized`; no se instaló. Pasos para autorizarlo en `docs/resumen_sesion.md`.

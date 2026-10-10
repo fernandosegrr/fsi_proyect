@@ -35,3 +35,6 @@
 - TRABAJO 6: `original_backup/` deja de versionarse (se añade a .gitignore y se quita de todo el historial) porque `codigo_Carrito.ino` y el PDF contienen la contraseña del WiFi. Los archivos siguen intactos en el disco (se comprobó su SHA-256 antes y después).
 - TRABAJO 6: el historial local se reescribe (aún no publicado) en un clon temporal con `git filter-branch` y luego se actualiza la rama local sin tocar el directorio de trabajo, para que filter-branch no borre `original_backup/` del disco. Se conservan los mensajes de commit.
 - TRABAJO 6: revisados patrones (password, token, secret, key, correos, claves privadas) en todo el historial. Rutas con el usuario de Windows en `docs/instalar_app_huawei.md`: solo se reportan.
+- TRABAJO 6: detenido antes del push por la regla del correo: los 8 commits llevan un correo personal (Gmail) que se haría público; los commits los hice yo con el correo de la cuenta de la sesión y no con tu configuración de git (que tiene otro correo). Queda a tu decisión.
+- TRABAJO 6: `git branch -M main` y `git remote add origin` ya hechos (no publican nada); el remoto sigue vacío.
+- TRABAJO 7: el teléfono aparece como `unauthorized`; no se instaló nada.
