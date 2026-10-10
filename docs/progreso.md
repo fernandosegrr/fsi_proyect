@@ -39,3 +39,6 @@
 
 ## TRABAJO 6 (continuación)
 - Elegida la opción (b). `gh` no está instalado: falta el usuario de GitHub para armar el correo noreply y reescribir autores. Sin push todavía.
+
+## TRABAJO 6 (cierre): publicado
+- Hecho: autores reescritos al correo noreply, historial verificado, `git push -u origin main` sin `--force` aceptado y comprobado con `git ls-remote origin`. Repositorio: https://github.com/fernandosegrr/fsi_proyect
