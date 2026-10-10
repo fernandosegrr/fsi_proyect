@@ -11,7 +11,11 @@
  *  4. onResume abre la conexión; onPause envía STOP y la cierra.
  *  5. El botón de arriba cambia entre Manual (los botones) y Semiautónomo (una ruta de prueba
  *     que sigue el navegador en C, con obstáculos simulados; ver ModoSemiautonomo).
- *  6. Para pruebas se puede abrir por adb con otra dirección:
+ *  6. En el modo Semiautónomo, el interruptor "Obstáculos: botones / cámara" elige de dónde salen
+ *     los obstáculos: botones simulados o la cámara del teléfono (CamaraObstaculos, con los
+ *     umbrales que se ajustaron en VisionActivity). Al salir de la pantalla se cancela la ruta
+ *     (STOP) y se cierra la cámara.
+ *  7. Para pruebas se puede abrir por adb con otra dirección:
  *       adb shell am start -n com.fsi.carro/.ControlActivity --es direccion ws://localhost:8080/ws
  */
 package com.fsi.carro
@@ -21,6 +25,8 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.Manifest
+import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
@@ -36,6 +42,8 @@ class ControlActivity : Activity() {
     private lateinit var panelSemi: View
     private lateinit var textoNav: TextView
     private lateinit var botonModo: Button
+    private lateinit var camara: CamaraObstaculos
+    private var fuenteCamara = false
     private var modoSemi = false
     private var rutaElegida = ModoSemiautonomo.RUTA_CUADRADO
     private var nombreRuta = "Cuadrado"
@@ -51,6 +59,9 @@ class ControlActivity : Activity() {
 
         logica = ControlLogica(EnlaceOkHttp()) { mostrarEstado() }
         semi = ModoSemiautonomo(logica) { mostrarEstado() }
+        val configVision = ConfigVision(this)
+        camara = CamaraObstaculos(this, { configVision.comoArreglo() })
+        findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
         panelManual = findViewById(R.id.panel_manual)
         panelSemi = findViewById(R.id.panel_semi)
         textoNav = findViewById(R.id.texto_nav)
@@ -95,12 +106,58 @@ class ControlActivity : Activity() {
         // salga por el WiFi del carro (192.168.4.1) aunque esa red no tenga Internet y el
         // teléfono prefiera los datos móviles. Se programa y prueba con el carro real.
         logica.iniciar(campoDireccion.text.toString().trim())
+        if (fuenteCamara) {
+            abrirCamaraSiHayPermiso()   // se cerró en onPause: se vuelve a abrir
+        }
     }
 
     override fun onPause() {
         semi.cancelar("Pantalla en segundo plano")   // STOP inmediato y fin de la ruta
+        camara.cerrar()                               // la cámara también se libera al salir
         logica.detener()                              // STOP y cierre de la conexión
         super.onPause()
+    }
+
+    /** Elige la fuente de obstáculos: false = botones simulados, true = cámara del teléfono. */
+    private fun cambiarFuente(usarCamara: Boolean) {
+        semi.cancelar("Cambio de fuente de obstáculos")
+        fuenteCamara = usarCamara
+        if (usarCamara) {
+            abrirCamaraSiHayPermiso()
+        } else {
+            camara.cerrar()
+            semi.camara = null
+        }
+        Log.i("NAV", "fuente_obstaculos=${if (usarCamara) "CAMARA" else "BOTONES"}")
+        mostrarEstado()
+    }
+
+    /** Abre la cámara (pidiendo el permiso si falta) y se la entrega al modo semiautónomo. */
+    private fun abrirCamaraSiHayPermiso() {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), VisionActivity.PEDIDO_PERMISO_CAMARA)
+            return
+        }
+        semi.camara = camara
+        if (!camara.abrir()) {
+            semi.camara = null
+            fuenteCamara = false
+            semi.cancelar(camara.error)
+        }
+        mostrarEstado()
+    }
+
+    override fun onRequestPermissionsResult(codigo: Int, permisos: Array<out String>, resultados: IntArray) {
+        super.onRequestPermissionsResult(codigo, permisos, resultados)
+        if (codigo == VisionActivity.PEDIDO_PERMISO_CAMARA) {
+            if (resultados.isNotEmpty() && resultados[0] == PackageManager.PERMISSION_GRANTED) {
+                abrirCamaraSiHayPermiso()
+            } else {
+                fuenteCamara = false
+                semi.camara = null
+                mostrarEstado()
+            }
+        }
     }
 
     /** Cambia entre Manual y Semiautónomo (al cambiar se cancela cualquier ruta en marcha). */
@@ -151,11 +208,13 @@ class ControlActivity : Activity() {
         findViewById<Button>(R.id.boton_obstaculo_centro).text = getString(R.string.obstaculo_centro, if (semi.obstaculoSimulado[1]) si else no)
         findViewById<Button>(R.id.boton_obstaculo_derecha).text = getString(R.string.obstaculo_derecha, if (semi.obstaculoSimulado[2]) si else no)
         findViewById<Button>(R.id.boton_iniciar_ruta).isEnabled = !semi.activo
+        findViewById<Button>(R.id.boton_fuente).text = getString(if (fuenteCamara) R.string.fuente_camara else R.string.fuente_botones)
         val e = NavegadorNativa.estado()
         textoNav.text = "Ruta: $nombreRuta\n" +
             "Estado: ${NavegadorNativa.textoEstado(e[NavegadorNativa.E_ESTADO])}\n" +
             "Comando: ${NavegadorNativa.textoComando(e[NavegadorNativa.E_COMANDO])}\n" +
             "Punto: ${e[NavegadorNativa.E_OBJETIVO]} de ${e[NavegadorNativa.E_PUNTOS] - 1}   Esquivadas: ${e[NavegadorNativa.E_ESQUIVADAS]}\n" +
+            (if (fuenteCamara) "Cámara: ${if (camara.abierta) "ABIERTA" else "cerrada"}  ${"%.1f".format(java.util.Locale.US, camara.fps)} fps\n" else "") +
             "Posición estimada: x=${e[NavegadorNativa.E_X_MM] / 10} cm  y=${e[NavegadorNativa.E_Y_MM] / 10} cm  rumbo=${e[NavegadorNativa.E_RUMBO]}°\n" +
             semi.mensaje
     }

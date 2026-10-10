@@ -61,3 +61,8 @@
 - Hecho: `nucleo_c/navegador.c/.h` (máquina de estados con los 7 estados pedidos), `simulador_navegador.c/.h` y `pruebas_navegador.c` (41 casos, todos pasan; con trayectoria 28 y obstáculos 32 son 101 en `nucleo_c`), `trayectoria_calcular_desde`, puente JNI (`NavegadorNativa`), `ModoSemiautonomo` y modo "Semiautónomo" en `ControlActivity` (cuadrado y zigzag, Iniciar/Cancelar, obstáculos simulados).
 - Huawei + servidor falso: cuadrado y zigzag completos, esquivar (FORWARD, STOP, LEFT, FORWARD, RIGHT, continúa), cancelar, segundo plano y caída del servidor mandan/mantienen STOP. Retraso obstáculo→STOP: mediana 128 ms en la app y 131 ms en el servidor (107 a 142 ms).
 - Pendiente: carro real (calibración, deriva), WiFi real, cámara real conectada al detector y al navegador. Detalle en `docs/navegador.md`.
+
+## TRABAJO 12: cámara del Huawei como fuente de obstáculos y ajuste de umbrales en vivo
+- Hecho: `ConfigObstaculos` en C (51 pruebas del detector; 120 en `nucleo_c` con trayectoria 28 y navegador 41), JNI `analizarConfig`, `CamaraObstaculos` (Camera2), `VistaDeteccion` y `VisionActivity` (superposición, fps/ms, barras con SharedPreferences, guardar cuadro, permiso en ejecución), interruptor "Obstáculos: botones / cámara" en el modo semiautónomo.
+- Medido en el Huawei (60 s): 24.9 fps (el ritmo de la cámara) y 6.85 ms por cuadro de media (p95 8.18 ms) entre conversión y análisis; sin errores. Al ir a segundo plano la cámara se cierra y se envía STOP.
+- Pendiente: la prueba física sobre un piso real (procedimiento de 6 pasos en `docs/vision_huawei.md`).

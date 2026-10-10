@@ -7,8 +7,9 @@
  *  3. "Calcular" le pasa los puntos al código en C (TrayectoriaNativa) y muestra
  *     el texto que devuelve; Kotlin no interpreta nada.
  *  4. "Borrar" limpia la ruta y el resultado.
- *  5. "Control del carro" abre ControlActivity (botones + WebSocket hacia el carro).
- *  6. "Benchmark del detector" abre BenchmarkActivity (mide el detector de objetos).
+ *  5. "Visión" abre VisionActivity (cámara + detector de obstáculos con umbrales ajustables).
+ *  6. "Control del carro" abre ControlActivity (botones + WebSocket hacia el carro).
+ *  7. "Benchmark del detector" abre BenchmarkActivity (mide el detector de objetos).
  */
 package com.fsi.carro
 
@@ -35,6 +36,9 @@ class MainActivity : Activity() {
         cuadricula.alCambiarRuta = { mostrarContador() }
         findViewById<Button>(R.id.boton_calcular).setOnClickListener { calcular() }
         findViewById<Button>(R.id.boton_borrar).setOnClickListener { borrar() }
+        findViewById<Button>(R.id.boton_vision).setOnClickListener {
+            startActivity(Intent(this, VisionActivity::class.java))
+        }
         findViewById<Button>(R.id.boton_control).setOnClickListener {
             startActivity(Intent(this, ControlActivity::class.java))
         }

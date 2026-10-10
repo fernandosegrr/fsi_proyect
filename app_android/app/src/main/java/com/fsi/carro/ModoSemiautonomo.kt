@@ -6,9 +6,11 @@
  *  1. iniciar() carga una ruta en el navegador (NavegadorNativa) y arranca el ciclo.
  *  2. Cada 50 ms, tick() hace tres cosas: arma el "cuadro" de obstáculos, llama a
  *     NavegadorNativa.tick() y, si el comando cambió, se lo manda a ControlLogica.
- *  3. Por ahora NO hay cámara: los obstáculos son simulados con tres interruptores
- *     (izquierda, centro, derecha) que pone la pantalla. Más adelante aquí se pondrá el
- *     resultado de ObstaculosNativa.analizar() de la cámara real.
+ *  3. Los obstáculos pueden venir de dos fuentes: tres interruptores simulados (izquierda,
+ *     centro, derecha) que pone la pantalla, o la cámara del teléfono (CamaraObstaculos): si
+ *     `camara` no es null, cada tick usa el último cuadro NUEVO analizado por el detector.
+ *     Si la cámara deja de entregar cuadros más de TIMEOUT_CAMARA_MS, se cancela la ruta (sin
+ *     ojos no se avanza). Más adelante aquí irá la ESP32-CAM.
  *  4. ControlLogica ya repite el comando cada 250 ms (heartbeat) y manda STOP al instante
  *     cuando el comando pasa a STOP; aquí solo se avisa cuando CAMBIA.
  *  5. El temporizador de los tramos (cuánto dura cada avance o giro) está en el código en C
@@ -31,6 +33,7 @@ class ModoSemiautonomo(
     companion object {
         const val ETIQUETA = "NAV"
         const val TICK_MS = 50L
+        const val TIMEOUT_CAMARA_MS = 1000L   // sin cuadros nuevos durante este tiempo: se cancela la ruta
 
         // Rutas de prueba: [columna0, fila0, columna1, fila1, ...], cada punto vecino del anterior.
         // Cuadrado de 2 celdas por lado (40 cm) y zigzag de escalones de 1 celda.
@@ -41,8 +44,14 @@ class ModoSemiautonomo(
     private val manejador = Handler(Looper.getMainLooper())
     private var ultimoComando = NavegadorNativa.CMD_STOP
 
-    /** Obstáculos simulados (no hay cámara todavía): izquierda, centro, derecha. */
+    /** Obstáculos simulados (se usan si `camara` es null): izquierda, centro, derecha. */
     val obstaculoSimulado = BooleanArray(3)
+
+    /** Si no es null, los obstáculos salen de esta cámara en vez de los interruptores. */
+    var camara: CamaraObstaculos? = null
+
+    private var ultimoCuadroMs = 0L
+    private var ultimoEstadoCentro = -1
 
     /** true mientras el ciclo de 50 ms está corriendo. */
     var activo = false
@@ -76,6 +85,12 @@ class ModoSemiautonomo(
             alCambiar()
             return false
         }
+        val fuente = camara
+        if (fuente != null && (!fuente.abierta || fuente.ultimoCuadro == null)) {
+            mensaje = "La cámara todavía no entrega imágenes"
+            alCambiar()
+            return false
+        }
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
         if (codigoRuta != 0) {
             mensaje = "Ruta no válida (código $codigoRuta)"
@@ -91,6 +106,8 @@ class ModoSemiautonomo(
         Log.i(ETIQUETA, "ruta iniciada (${ruta.size / 2} puntos)")
         mensaje = ""
         ultimoComando = NavegadorNativa.CMD_STOP
+        ultimoCuadroMs = SystemClock.elapsedRealtime()
+        ultimoEstadoCentro = -1
         activo = true
         manejador.post(tarea)
         alCambiar()
@@ -127,7 +144,22 @@ class ModoSemiautonomo(
             cancelar("Conexión perdida")
             return
         }
-        val comando = NavegadorNativa.tick(SystemClock.elapsedRealtime(), true, armarCuadro())
+        val ahora = SystemClock.elapsedRealtime()
+        val fuente = camara
+        val cuadro: IntArray?
+        if (fuente != null) {
+            cuadro = fuente.tomarCuadroNuevo()
+            if (cuadro != null) {
+                ultimoCuadroMs = ahora
+                registrarCambioDeCamara(cuadro)
+            } else if (ahora - ultimoCuadroMs > TIMEOUT_CAMARA_MS) {
+                cancelar("Cámara sin imágenes")
+                return
+            }
+        } else {
+            cuadro = armarCuadro()
+        }
+        val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
 
         if (comando != ultimoComando) {
@@ -142,6 +174,15 @@ class ModoSemiautonomo(
             Log.i(ETIQUETA, "fin: $mensaje")
         }
         alCambiar()
+    }
+
+    /** Anota en logcat cuando cambia lo que la cámara ve al frente (solo los cambios, no cada cuadro). */
+    private fun registrarCambioDeCamara(cuadro: IntArray) {
+        val estadoCentro = cuadro[ObstaculosNativa.HAY_CENTRO] * 10 + cuadro[ObstaculosNativa.CERCANIA_CENTRO]
+        if (estadoCentro != ultimoEstadoCentro) {
+            ultimoEstadoCentro = estadoCentro
+            Log.i(ETIQUETA, "camara centro_hay=${cuadro[ObstaculosNativa.HAY_CENTRO]} cercania=${cuadro[ObstaculosNativa.CERCANIA_CENTRO]} codigo=${cuadro[ObstaculosNativa.CODIGO]}")
+        }
     }
 
     /** Arma los 10 enteros que espera el navegador con los obstáculos simulados (cercanía 3 = muy cerca). */

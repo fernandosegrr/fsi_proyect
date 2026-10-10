@@ -23,10 +23,20 @@
     <string name="ruta_zigzag">Ruta: Zigzag</string>
     <string name="boton_iniciar_ruta">Iniciar</string>
     <string name="boton_cancelar_ruta">Cancelar</string>
-    <string name="simular_titulo">Simular obstáculo (no hay cámara aún); tocar para poner o quitar:</string>
+    <string name="simular_titulo">Obstáculo simulado (solo con la fuente «botones»); tocar para poner o quitar:</string>
     <string name="obstaculo_izquierda">Izq: %1$s</string>
     <string name="obstaculo_centro">Centro: %1$s</string>
     <string name="obstaculo_derecha">Der: %1$s</string>
     <string name="si">SÍ</string>
     <string name="no">no</string>
+    <string name="boton_vision">Visión: cámara y detector de obstáculos</string>
+    <string name="boton_guardar_cuadro">Guardar cuadro</string>
+    <string name="boton_restablecer">Valores por defecto</string>
+    <string name="texto_umbral">UMBRAL_COLOR: %1$d</string>
+    <string name="texto_min_celdas">MIN_CELDAS: %1$d</string>
+    <string name="sin_cuadro">Todavía no hay ningún cuadro</string>
+    <string name="cuadro_guardado">Guardado: %1$s</string>
+    <string name="ayuda_vision">Teléfono en horizontal, con el piso cerca del carro abajo en la imagen. Azul = franja del piso de referencia. Rojo = celdas que no parecen piso. Verde/rojo abajo = estado de cada zona.</string>
+    <string name="fuente_botones">Obstáculos: botones</string>
+    <string name="fuente_camara">Obstáculos: cámara</string>
 </resources>

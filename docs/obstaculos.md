@@ -53,6 +53,12 @@ para dibujar o depurar). Los errores son códigos: `OBS_ERR_IMAGEN_NULA`, `OBS_E
 Todos están en `nucleo_c/obstaculos.h`. Los valores actuales son de partida, pensados para
 imágenes sintéticas; hay que ajustarlos con la cámara y el piso reales.
 
+**Se pueden cambiar en vivo**: `UMBRAL_COLOR`, `MIN_CELDAS` y la franja de referencia viajan en una
+estructura `ConfigObstaculos` (`obstaculos_config_defecto` da los valores por defecto y
+`obstaculos_analizar_con` la usa; `obstaculos_analizar` equivale a usar la configuración por defecto).
+La pantalla de visión de la app los ajusta con barras sin recompilar (ver `docs/vision_huawei.md`).
+Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen siendo constantes.
+
 - `UMBRAL_COLOR` = 60 (suma de diferencias por canal, 0 a 765). Súbelo si el piso limpio da
   falsas alarmas; bájalo si no ve cajas parecidas al piso.
 - `UMBRAL_CROMA` = 30 y `UMBRAL_BRILLO` = 150: controlan cuánto cambio de luz se tolera.
@@ -72,7 +78,7 @@ imágenes sintéticas; hay que ajustarlos con la cámara y el piso reales.
 
 ## Pruebas hechas
 
-- **En PC** (`cd nucleo_c; make test`): 32 casos, todos pasan. Piso liso, con ruido leve y
+- **En PC** (`cd nucleo_c; make test`): 51 casos, todos pasan (32 del detector y 19 de la configuración). Piso liso, con ruido leve y
   fuerte, cambio de luz global (+30), degradado de luz, caja al centro, a la izquierda y a la
   derecha, caja lejos y a media distancia, caja entre dos zonas, objeto oscuro del mismo tono,
   pared que ocupa todo, celda aislada, celdas sueltas dispersas, objeto pequeño, objeto solo en

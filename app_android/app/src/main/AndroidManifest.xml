@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Guía de lectura: declara la app y sus pantallas (MainActivity, ControlActivity, BenchmarkActivity).
-  Permiso: solo INTERNET (WebSocket hacia el carro). networkSecurityConfig permite ws:// sin cifrar.
+  Permisos: INTERNET (WebSocket hacia el carro) y CAMARA (detector de obstáculos). networkSecurityConfig permite ws:// sin cifrar.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Necesario para el WebSocket hacia el carro (ControlActivity). -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Cámara del teléfono como fuente de obstáculos (VisionActivity y modo semiautónomo). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:allowBackup="false"
@@ -30,6 +34,12 @@
             android:name=".ControlActivity"
             android:exported="true"
             android:screenOrientation="portrait" />
+
+        <!-- Pantalla de visión: cámara + detector de obstáculos con umbrales ajustables (en horizontal). -->
+        <activity
+            android:name=".VisionActivity"
+            android:exported="true"
+            android:screenOrientation="landscape" />
 
         <!-- Benchmark del detector de objetos; se puede abrir con adb (ver BenchmarkActivity.kt). -->
         <activity

@@ -31,7 +31,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define OBS_COLUMNAS     (OBS_ANCHO / OBS_LADO_CELDA)   /* 32 */
 #define OBS_FILAS        (OBS_ALTO / OBS_LADO_CELDA)    /* 24 */
 
-/* Franja de referencia del piso: 6 celdas de ancho x 2 de alto, abajo y centrada. */
+/* Franja de referencia del piso: 6 celdas de ancho x 2 de alto, abajo y centrada.
+ * Estos son los valores POR DEFECTO; se pueden cambiar con ConfigObstaculos (más abajo). */
 #define OBS_REF_COLUMNAS         6
 #define OBS_REF_FILAS            2
 #define OBS_REF_COLUMNA_INICIAL  ((OBS_COLUMNAS - OBS_REF_COLUMNAS) / 2)   /* 13 */
@@ -53,7 +54,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  *      UMBRAL_BRILLO. Esto tolera degradados de luz, pero no una caja muy oscura.
  * Si no cumple ninguna, la celda es NO PISO.
  */
-#define UMBRAL_COLOR      60   /* suma |dR|+|dG|+|dB|, de 0 a 765 */
+#define UMBRAL_COLOR      60   /* suma |dR|+|dG|+|dB|, de 0 a 765 (valor POR DEFECTO, ver ConfigObstaculos) */
 #define UMBRAL_CROMA      30   /* suma de diferencias del color normalizado, de 0 a 512 */
 #define UMBRAL_BRILLO    150   /* |(R+G+B) - (R+G+B de referencia)|, de 0 a 765 */
 #define SUMA_MIN_CROMA    90   /* debajo de este R+G+B el color normalizado no es confiable */
@@ -65,7 +66,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 
 /* Una zona tiene obstáculo si hay al menos MIN_CELDAS celdas "no piso" confirmadas.
  * Una celda "no piso" aislada (sin ninguna vecina "no piso") se descarta como ruido. */
-#define MIN_CELDAS          6
+#define MIN_CELDAS          6   /* valor POR DEFECTO, ver ConfigObstaculos */
 
 /* Cercanía según la fila más baja (la más cercana al carro) que alcanza el obstáculo:
  *   fila >= OBS_FILA_CERCA  → 3 (muy cerca)
@@ -95,16 +96,37 @@ typedef struct {
     unsigned char no_piso[OBS_FILAS][OBS_COLUMNAS];
 } ResultadoObstaculos;
 
+/* ── Configuración ajustable ───────────────────────────────────────────────
+ * Los parámetros que más se ajustan al probar con la cámara y el piso reales. Los demás
+ * (UMBRAL_CROMA, UMBRAL_BRILLO...) siguen siendo constantes. La app los cambia en vivo. */
+typedef struct {
+    int umbral_color;           /* ver UMBRAL_COLOR; de 0 a 765 */
+    int min_celdas;             /* ver MIN_CELDAS; al menos 1 */
+    int ref_columnas;           /* ancho de la franja de referencia, en celdas */
+    int ref_filas;              /* alto de la franja de referencia, en celdas */
+    int ref_columna_inicial;    /* primera columna de la franja (0 a 31) */
+    int ref_fila_inicial;       /* primera fila de la franja (0 a 23) */
+} ConfigObstaculos;
+
 /* Códigos de retorno de obstaculos_analizar. */
 #define OBS_OK                   0
 #define OBS_ERR_IMAGEN_NULA     -1   /* la imagen o el resultado son NULL */
 #define OBS_ERR_TAMANO          -2   /* la imagen no es de 320x240 */
 #define OBS_ERR_REFERENCIA      -3   /* la franja de referencia no es uniforme (¿hay un objeto?) */
+#define OBS_ERR_CONFIG          -4   /* la configuración no es válida (franja fuera de la imagen, etc.) */
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
 
-/* Analiza la imagen RGB (ancho x alto x 3 bytes; debe ser 320x240) y llena el resultado.
- * Devuelve OBS_OK o un código de error; con un error el resultado queda en ceros. */
+/* Llena la configuración con los valores por defecto (los de las constantes de arriba). */
+void obstaculos_config_defecto(ConfigObstaculos *config);
+
+/* Analiza la imagen RGB (ancho x alto x 3 bytes; debe ser 320x240) con la configuración dada
+ * y llena el resultado. Devuelve OBS_OK o un código de error; con un error el resultado
+ * queda en ceros. */
+int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char *rgb,
+                            int ancho, int alto, ResultadoObstaculos *resultado);
+
+/* Igual que obstaculos_analizar_con pero con la configuración por defecto. */
 int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, ResultadoObstaculos *resultado);
 
 /* Texto corto en español para un código de retorno. */

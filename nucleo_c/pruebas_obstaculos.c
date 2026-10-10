@@ -145,6 +145,29 @@ static int verificar(int cercania_izq, int cercania_centro, int cercania_der)
     return ok;
 }
 
+/* Igual que verificar(), pero con una configuración distinta de la de por defecto. */
+static int verificar_con(const ConfigObstaculos *config, int cercania_izq, int cercania_centro, int cercania_der)
+{
+    ResultadoObstaculos r;
+    int esperado[3];
+    int codigo, z, ok;
+
+    esperado[ZONA_IZQUIERDA] = cercania_izq;
+    esperado[ZONA_CENTRO]    = cercania_centro;
+    esperado[ZONA_DERECHA]   = cercania_der;
+
+    codigo = obstaculos_analizar_con(config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+    ok = (codigo == OBS_OK);
+    for (z = 0; z < OBS_ZONAS; z++) {
+        ok = ok && r.zona[z].cercania == esperado[z] && r.zona[z].hay_obstaculo == (esperado[z] > 0);
+    }
+    if (!ok) {
+        printf("      codigo=%d  celdas izq=%d centro=%d der=%d  esperado cercanias=%d,%d,%d\n", codigo,
+               r.zona[0].celdas, r.zona[1].celdas, r.zona[2].celdas, cercania_izq, cercania_centro, cercania_der);
+    }
+    return ok;
+}
+
 /* Código de retorno de analizar la imagen actual. */
 static int codigo_de_analisis(void)
 {
@@ -335,6 +358,100 @@ static void pruebas_repetibilidad(void)
     caso("analizar dos veces la misma imagen da lo mismo", memcmp(&a, &b, sizeof a) == 0);
 }
 
+/* La configuración (ConfigObstaculos) cambia el resultado. */
+static void pruebas_configuracion(void)
+{
+    ConfigObstaculos config;
+    ResultadoObstaculos por_defecto, con_config;
+    static const unsigned char SUTIL[3] = { 130, 100, 70 };   /* casi del color del piso (110,100,90) */
+
+    obstaculos_config_defecto(&config);
+    caso("config por defecto: umbral_color = UMBRAL_COLOR y min_celdas = MIN_CELDAS",
+         config.umbral_color == UMBRAL_COLOR && config.min_celdas == MIN_CELDAS &&
+         config.ref_columnas == OBS_REF_COLUMNAS && config.ref_filas == OBS_REF_FILAS &&
+         config.ref_columna_inicial == OBS_REF_COLUMNA_INICIAL && config.ref_fila_inicial == OBS_REF_FILA_INICIAL);
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(12, 14, 19, 20, CAJA);
+    obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &por_defecto);
+    obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &con_config);
+    caso("obstaculos_analizar equivale a analizar_con la config por defecto", memcmp(&por_defecto, &con_config, sizeof por_defecto) == 0);
+
+    /* MIN_CELDAS: un objeto de 4 celdas (2x2) se detecta si se baja el minimo y no si se sube. */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(14, 16, 15, 17, CAJA);
+    caso("min_celdas 6 (defecto): objeto de 4 celdas no cuenta", verificar_con(&config, 0, 0, 0));
+    config.min_celdas = 3;
+    caso("min_celdas 3: el mismo objeto de 4 celdas SI cuenta", verificar_con(&config, 0, 2, 0));
+    obstaculos_config_defecto(&config);
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(13, 16, 15, 18, CAJA);   /* 9 celdas */
+    caso("min_celdas 6 (defecto): objeto de 9 celdas cuenta", verificar_con(&config, 0, 2, 0));
+    config.min_celdas = 12;
+    caso("min_celdas 12: el mismo objeto de 9 celdas YA NO cuenta", verificar_con(&config, 0, 0, 0));
+    obstaculos_config_defecto(&config);
+
+    /* UMBRAL_COLOR: un objeto de color casi igual al piso solo se ve con un umbral bajo. */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(12, 14, 19, 20, SUTIL);
+    caso("umbral_color 60 (defecto): objeto de color casi igual al piso pasa como piso", verificar_con(&config, 0, 0, 0));
+    config.umbral_color = 30;
+    caso("umbral_color 30: el mismo objeto SI se detecta", verificar_con(&config, 0, 3, 0));
+    obstaculos_config_defecto(&config);
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(12, 14, 19, 20, CAJA);
+    config.umbral_color = 765;
+    caso("umbral_color 765 (maximo): hasta la caja roja se toma por piso (no detecta nada)", verificar_con(&config, 0, 0, 0));
+    obstaculos_config_defecto(&config);
+
+    /* Franja de referencia: si un objeto tapa la franja por defecto, se puede usar otra. */
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(12, 20, 15, 23, CAJA);   /* la caja tapa la mitad de la franja central de abajo */
+    caso("la caja tapa parte de la franja por defecto: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+    config.ref_columna_inicial = 0;     /* otra franja: abajo a la izquierda, que esta libre */
+    config.ref_columnas = 6;
+    {
+        ResultadoObstaculos r;
+        int codigo = obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+        caso("con la franja de referencia en otra parte (libre) se detecta la caja del centro",
+             codigo == OBS_OK && r.zona[ZONA_CENTRO].hay_obstaculo == 1 && r.zona[ZONA_CENTRO].cercania == 3 &&
+             r.ref_r >= 107 && r.ref_r <= 113);
+    }
+    obstaculos_config_defecto(&config);
+
+    /* Configuraciones no validas. */
+    {
+        ResultadoObstaculos r;
+        ConfigObstaculos mala;
+
+        rellenar(PISO);
+        caso("config NULL: OBS_ERR_CONFIG", obstaculos_analizar_con(NULL, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.min_celdas = 0;
+        caso("min_celdas 0: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.umbral_color = -1;
+        caso("umbral_color negativo: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_columna_inicial = 30;
+        caso("franja que se sale por la derecha: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_fila_inicial = 23; mala.ref_filas = 2;
+        caso("franja que se sale por abajo: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_filas = 0;
+        caso("franja de alto cero: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        caso("config valida pero imagen de otro tamano: OBS_ERR_TAMANO primero",
+             obstaculos_analizar_con(&config, imagen, 100, 100, &r) == OBS_ERR_TAMANO);
+        caso("con OBS_ERR_CONFIG el resultado queda en ceros",
+             (mala.ref_filas = 0, obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG) &&
+             r.zona[1].celdas == 0 && r.ref_r == 0);
+    }
+}
+
 int main(void)
 {
     pruebas_piso_libre();
@@ -343,6 +460,7 @@ int main(void)
     pruebas_ruido_y_limites();
     pruebas_errores();
     pruebas_repetibilidad();
+    pruebas_configuracion();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

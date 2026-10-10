@@ -10,7 +10,8 @@
  *     aisladas (ruido).
  *  5. resumir_zonas(): cuenta las celdas por zona (izquierda, centro, derecha) en la
  *     mitad inferior y calcula la cercanía.
- *  6. obstaculos_analizar() junta todo en ese orden.
+ *  6. obstaculos_analizar_con() junta todo en ese orden con una ConfigObstaculos (los parámetros
+ *     que se ajustan); obstaculos_analizar() es lo mismo con la configuración por defecto.
  *  Solo enteros y arreglos de tamaño fijo: sin malloc, sin recursión.
  */
 
@@ -93,16 +94,17 @@ static void leer_celda(MapaColores celdas, int fila, int columna, int color[3])
     color[2] = celdas[fila][columna][2];
 }
 
-/* Promedia las celdas de la franja de referencia. Devuelve OBS_OK, u OBS_ERR_REFERENCIA
- * si alguna celda de la franja se aleja demasiado del promedio (franja contaminada). */
-static int calcular_referencia(MapaColores celdas, int referencia[3])
+/* Promedia las celdas de la franja de referencia (la que indica la configuración). Devuelve
+ * OBS_OK, u OBS_ERR_REFERENCIA si alguna celda de la franja se aleja demasiado del promedio
+ * (franja contaminada). */
+static int calcular_referencia(MapaColores celdas, const ConfigObstaculos *config, int referencia[3])
 {
     int suma[3] = { 0, 0, 0 };
-    int cuantas = OBS_REF_COLUMNAS * OBS_REF_FILAS;
+    int cuantas = config->ref_columnas * config->ref_filas;
     int fila, columna, c;
 
-    for (fila = OBS_REF_FILA_INICIAL; fila < OBS_REF_FILA_INICIAL + OBS_REF_FILAS; fila++) {
-        for (columna = OBS_REF_COLUMNA_INICIAL; columna < OBS_REF_COLUMNA_INICIAL + OBS_REF_COLUMNAS; columna++) {
+    for (fila = config->ref_fila_inicial; fila < config->ref_fila_inicial + config->ref_filas; fila++) {
+        for (columna = config->ref_columna_inicial; columna < config->ref_columna_inicial + config->ref_columnas; columna++) {
             for (c = 0; c < 3; c++) {
                 suma[c] += celdas[fila][columna][c];
             }
@@ -112,8 +114,8 @@ static int calcular_referencia(MapaColores celdas, int referencia[3])
         referencia[c] = suma[c] / cuantas;
     }
 
-    for (fila = OBS_REF_FILA_INICIAL; fila < OBS_REF_FILA_INICIAL + OBS_REF_FILAS; fila++) {
-        for (columna = OBS_REF_COLUMNA_INICIAL; columna < OBS_REF_COLUMNA_INICIAL + OBS_REF_COLUMNAS; columna++) {
+    for (fila = config->ref_fila_inicial; fila < config->ref_fila_inicial + config->ref_filas; fila++) {
+        for (columna = config->ref_columna_inicial; columna < config->ref_columna_inicial + config->ref_columnas; columna++) {
             int color[3];
 
             leer_celda(celdas, fila, columna, color);
@@ -128,13 +130,13 @@ static int calcular_referencia(MapaColores celdas, int referencia[3])
 /* ── Paso 3: ¿esta celda es piso? ──────────────────────────────────────── */
 
 /* Devuelve 1 si el color de la celda es piso:
- *   A) casi igual al de referencia (suma de diferencias <= UMBRAL_COLOR), o
+ *   A) casi igual al de referencia (suma de diferencias <= umbral_color), o
  *   B) mismo tono pero distinta luz: color normalizado parecido (<= UMBRAL_CROMA) y
  *      brillo que no difiere más de UMBRAL_BRILLO. B solo se usa si ambos colores
  *      tienen brillo suficiente (SUMA_MIN_CROMA); en la oscuridad el tono no es confiable. */
-static int es_piso(const int color[3], const int referencia[3])
+static int es_piso(const int color[3], const int referencia[3], int umbral_color)
 {
-    if (distancia_color(color, referencia) <= UMBRAL_COLOR) {
+    if (distancia_color(color, referencia) <= umbral_color) {
         return 1;
     }
     if (brillo(color) >= SUMA_MIN_CROMA && brillo(referencia) >= SUMA_MIN_CROMA &&
@@ -148,7 +150,7 @@ static int es_piso(const int color[3], const int referencia[3])
 /* ── Paso 4: celdas "no piso" y filtro de ruido ────────────────────────── */
 
 /* Marca con 1 las celdas que no parecen piso. */
-static void marcar_candidatas(MapaColores celdas, const int referencia[3],
+static void marcar_candidatas(MapaColores celdas, const int referencia[3], int umbral_color,
                               unsigned char candidatas[OBS_FILAS][OBS_COLUMNAS])
 {
     int fila, columna;
@@ -158,7 +160,7 @@ static void marcar_candidatas(MapaColores celdas, const int referencia[3],
             int color[3];
 
             leer_celda(celdas, fila, columna, color);
-            candidatas[fila][columna] = (unsigned char)(es_piso(color, referencia) ? 0 : 1);
+            candidatas[fila][columna] = (unsigned char)(es_piso(color, referencia, umbral_color) ? 0 : 1);
         }
     }
 }
@@ -211,8 +213,10 @@ static int cercania_por_fila(int fila_mas_baja)
     return 1;
 }
 
-/* Cuenta las celdas confirmadas de cada zona (tercios de ancho, mitad inferior). */
-static void resumir_zonas(unsigned char confirmadas[OBS_FILAS][OBS_COLUMNAS], ResultadoObstaculos *resultado)
+/* Cuenta las celdas confirmadas de cada zona (tercios de ancho, mitad inferior). Una zona
+ * tiene obstáculo si tiene al menos `min_celdas` celdas. */
+static void resumir_zonas(unsigned char confirmadas[OBS_FILAS][OBS_COLUMNAS], int min_celdas,
+                          ResultadoObstaculos *resultado)
 {
     int fila_mas_baja[OBS_ZONAS] = { -1, -1, -1 };
     int fila, columna, zona;
@@ -227,7 +231,7 @@ static void resumir_zonas(unsigned char confirmadas[OBS_FILAS][OBS_COLUMNAS], Re
         }
     }
     for (zona = 0; zona < OBS_ZONAS; zona++) {
-        if (resultado->zona[zona].celdas >= MIN_CELDAS) {
+        if (resultado->zona[zona].celdas >= min_celdas) {
             resultado->zona[zona].hay_obstaculo = 1;
             resultado->zona[zona].cercania = cercania_por_fila(fila_mas_baja[zona]);
         }
@@ -256,7 +260,32 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
     }
 }
 
-int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, ResultadoObstaculos *resultado)
+void obstaculos_config_defecto(ConfigObstaculos *config)
+{
+    if (config == NULL) {
+        return;
+    }
+    config->umbral_color = UMBRAL_COLOR;
+    config->min_celdas = MIN_CELDAS;
+    config->ref_columnas = OBS_REF_COLUMNAS;
+    config->ref_filas = OBS_REF_FILAS;
+    config->ref_columna_inicial = OBS_REF_COLUMNA_INICIAL;
+    config->ref_fila_inicial = OBS_REF_FILA_INICIAL;
+}
+
+/* La configuración es válida si los umbrales están en rango y la franja cabe en la imagen. */
+static int config_es_valida(const ConfigObstaculos *config)
+{
+    return config->umbral_color >= 0 && config->umbral_color <= 765 &&
+           config->min_celdas >= 1 &&
+           config->ref_columnas >= 1 && config->ref_filas >= 1 &&
+           config->ref_columna_inicial >= 0 && config->ref_fila_inicial >= 0 &&
+           config->ref_columna_inicial + config->ref_columnas <= OBS_COLUMNAS &&
+           config->ref_fila_inicial + config->ref_filas <= OBS_FILAS;
+}
+
+int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char *rgb,
+                            int ancho, int alto, ResultadoObstaculos *resultado)
 {
     MapaColores celdas;
     unsigned char candidatas[OBS_FILAS][OBS_COLUMNAS];
@@ -273,9 +302,12 @@ int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, Resultado
     if (ancho != OBS_ANCHO || alto != OBS_ALTO) {
         return OBS_ERR_TAMANO;
     }
+    if (config == NULL || !config_es_valida(config)) {
+        return OBS_ERR_CONFIG;
+    }
 
     promediar_celdas(rgb, celdas);
-    codigo = calcular_referencia(celdas, referencia);
+    codigo = calcular_referencia(celdas, config, referencia);
     if (codigo != OBS_OK) {
         return codigo;
     }
@@ -283,10 +315,18 @@ int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, Resultado
     resultado->ref_g = referencia[1];
     resultado->ref_b = referencia[2];
 
-    marcar_candidatas(celdas, referencia, candidatas);
+    marcar_candidatas(celdas, referencia, config->umbral_color, candidatas);
     confirmar_celdas(candidatas, resultado->no_piso);
-    resumir_zonas(resultado->no_piso, resultado);
+    resumir_zonas(resultado->no_piso, config->min_celdas, resultado);
     return OBS_OK;
+}
+
+int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, ResultadoObstaculos *resultado)
+{
+    ConfigObstaculos config;
+
+    obstaculos_config_defecto(&config);
+    return obstaculos_analizar_con(&config, rgb, ancho, alto, resultado);
 }
 
 const char *obstaculos_texto_error(int codigo)
@@ -296,6 +336,7 @@ const char *obstaculos_texto_error(int codigo)
     case OBS_ERR_IMAGEN_NULA:   return "No hay imagen";
     case OBS_ERR_TAMANO:        return "La imagen debe ser de 320x240";
     case OBS_ERR_REFERENCIA:    return "El piso de referencia no es uniforme (hay un objeto debajo del carro?)";
+    case OBS_ERR_CONFIG:        return "La configuracion no es valida";
     default:                    return "Error desconocido";
     }
 }
