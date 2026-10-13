@@ -263,6 +263,8 @@ function Leer-Serie([string]$com, [int]$segundos, [bool]$mostrar) {
         $sp.RtsEnable = $false
         $fin = (Get-Date).AddSeconds($segundos)
         $resto = ''
+        $anterior = $null
+        $repetidas = 0
         while ((Get-Date) -lt $fin) {
             try {
                 $trozo = $sp.ReadExisting()
@@ -274,13 +276,22 @@ function Leer-Serie([string]$com, [int]$segundos, [bool]$mostrar) {
                     $l = $resto.Substring(0, $i).TrimEnd("`r")
                     $resto = $resto.Substring($i + 1)
                     $l = Ocultar $l
-                    $lineas.Add($l)
-                    if ($mostrar) { Write-Host ("  | " + $l) }
+                    if ($l -eq $anterior) {
+                        # Una linea que se repite sin parar (un error en bucle) se resume en una sola.
+                        $repetidas++
+                    } else {
+                        if ($repetidas -gt 0 -and $mostrar) { Write-Host ("  | (la linea anterior se repitio {0} veces mas)" -f $repetidas) }
+                        $repetidas = 0
+                        $anterior = $l
+                        $lineas.Add($l)
+                        if ($mostrar) { Write-Host ("  | " + $l) }
+                    }
                 }
             } else {
                 Start-Sleep -Milliseconds 100
             }
         }
+        if ($repetidas -gt 0 -and $mostrar) { Write-Host ("  | (la linea anterior se repitio {0} veces mas)" -f $repetidas) }
         if ($resto.Trim()) {
             $l = Ocultar $resto.Trim()
             $lineas.Add($l)

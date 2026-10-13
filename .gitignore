@@ -20,3 +20,4 @@ nucleo_c/pruebas_navegador.exe
 cuadro_*.jpg
 cuadros_prueba/
 scripts/placas.local.json
+camara_prueba/secretos.h
