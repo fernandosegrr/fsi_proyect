@@ -21,3 +21,11 @@ cuadro_*.jpg
 cuadros_prueba/
 scripts/placas.local.json
 camara_prueba/secretos.h
+nucleo_c/pruebas_calibracion
+nucleo_c/pruebas_calibracion.exe
+nucleo_c/pruebas_piso
+nucleo_c/pruebas_piso.exe
+nucleo_c/pruebas_trayectoria
+nucleo_c/pruebas_trayectoria.exe
+pruebas_firmware/pruebas_carro
+pruebas_firmware/pruebas_carro.exe

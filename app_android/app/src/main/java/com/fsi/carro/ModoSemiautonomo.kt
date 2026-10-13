@@ -53,6 +53,11 @@ class ModoSemiautonomo(
     private var ultimoCuadroMs = 0L
     private var ultimoEstadoCentro = -1
 
+    /** true si la ruta está en marcha Y el último comando mandado fue avanzar (lo lee el hilo de la cámara). */
+    @Volatile
+    var avanzando = false
+        private set
+
     /** true mientras el ciclo de 50 ms está corriendo. */
     var activo = false
         private set
@@ -125,6 +130,7 @@ class ModoSemiautonomo(
             logica.ordenAutomatica("STOP")
         }
         ultimoComando = NavegadorNativa.CMD_STOP
+        avanzando = false
         mensaje = if (estabaActivo) motivo else mensaje
         alCambiar()
     }
@@ -164,12 +170,14 @@ class ModoSemiautonomo(
 
         if (comando != ultimoComando) {
             ultimoComando = comando
+            avanzando = (comando == NavegadorNativa.CMD_FORWARD)
             val texto = NavegadorNativa.textoComando(comando)
             Log.i(ETIQUETA, "comando=$texto estado=${NavegadorNativa.textoEstado(estado)}")
             logica.ordenAutomatica(texto)
         }
         if (estado == NavegadorNativa.TERMINADO || estado == NavegadorNativa.ERROR || estado == NavegadorNativa.ESPERANDO) {
             activo = false
+            avanzando = false
             mensaje = NavegadorNativa.textoEstado(estado)
             Log.i(ETIQUETA, "fin: $mensaje")
         }

@@ -16,8 +16,8 @@ A esa velocidad, **cada 100 ms de retraso son 2 cm**.
    en C: 6.5 a 6.9 ms por cuadro; el análisis solo, ~0.6 ms). El modelo EfficientDet no entra en
    esta cadena (45 ms) porque el detector de color manda en seguridad.
 3. **Antirrebote del navegador** (`MS_CONFIRMAR_LEJOS` = 150 ms):
-   - obstáculo cerca (cercanía 3, o 2 en el centro): **0 ms**, se detiene con el primer cuadro;
-   - obstáculo lejano (cercanía 1): hay que verlo 150 ms y en 2 cuadros como mínimo. Con cuadros
+   - obstáculo cerca (cercanía 3 en cualquier zona, o 2 en el centro): **0 ms**, se detiene con el primer cuadro;
+   - obstáculo de cercanía 2 a un lado: hay que verlo 150 ms y en 2 cuadros como mínimo (cercanía 1: no frena). Con cuadros
      cada 80 ms se confirma al tercero (160 ms después del primero); cada 120 ms, 240 ms
      después (probado en `pruebas_navegador.c`).
 4. **Tick del navegador, envío por WebSocket y recepción: ~28 ms con USB.** Es lo que sobró
@@ -36,7 +36,7 @@ A esa velocidad, **cada 100 ms de retraso son 2 cm**.
 - **Obstáculo cerca (el caso que importa para frenar)**: 320 + 7 + 0 + 28 = **355 ms**
   → el carro avanza **7.1 cm** antes de recibir el STOP. Con WiFi real (suposición +15 ms)
   serían unos 370 ms = 7.4 cm.
-- **Obstáculo lejano** (cercanía 1, cuadros cada 80 ms): 355 + 160 = **515 ms** → 10.3 cm.
+- **Obstáculo de cercanía 2 a un lado** (cuadros cada 80 ms): 355 + 160 = **515 ms** → 10.3 cm.
   Con cuadros cada 120 ms: 355 + 240 = 595 ms → 11.9 cm. Como es lejano, hay margen: lo
   importante es que el STOP salga antes de llegar a él.
 - A todo eso se suman los **cm de frenado** (a medir).

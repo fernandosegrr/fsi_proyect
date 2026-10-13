@@ -417,8 +417,8 @@ void navegador_cancelar(Navegador *nav)
 
 /* ── Cuadros de obstáculos ─────────────────────────────────────────────── */
 
-/* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3), o
- * a media distancia (2) en la zona central. */
+/* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3) en cualquier
+ * zona, o a media distancia (2) en la zona central. */
 static int cuadro_es_inmediato(int zona, int cercania)
 {
     return cercania >= 3 || (cercania == 2 && zona == ZONA_CENTRO);
@@ -429,19 +429,24 @@ static int cuadro_es_inmediato(int zona, int cercania)
  * no cambia nada: ver bloqueo_confirmado() y libre_confirmado(). */
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
-    int z, bloqueado;
+    int z, bloqueado = 0, inmediato = 0;
 
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_hay[z] = obs->zona[z].hay_obstaculo;
         nav->zona_cercania[z] = obs->zona[z].cercania;
+        if (nav->zona_hay[z] && nav->zona_cercania[z] >= NAV_CERCANIA_MIN_DETENER) {
+            bloqueado = 1;                       /* un obstáculo cerca en cualquier zona bloquea */
+            if (cuadro_es_inmediato(z, nav->zona_cercania[z])) {
+                inmediato = 1;
+            }
+        }
     }
-    bloqueado = nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MIN_DETENER;
     if (bloqueado) {
         if (nav->frames_bloqueado == 0) {      /* empieza una racha con obstáculo */
             nav->t_bloqueo_ms = ahora_ms;
             nav->bloqueo_inmediato = 0;
         }
-        if (cuadro_es_inmediato(ZONA_CENTRO, nav->zona_cercania[ZONA_CENTRO])) {
+        if (inmediato) {
             nav->bloqueo_inmediato = 1;
         }
         nav->frames_bloqueado++;

@@ -34,16 +34,17 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_DT_MAX_MS            1000    /* tope del tiempo entre ticks (el firmware frena a los 1000 ms) */
 
 /* Antirrebote EN MILISEGUNDOS (no en cuadros): así el retraso es el mismo con 8, 12 o 30 cuadros
- * por segundo. Un obstáculo en la zona CENTRO cuenta si su cercanía (0 a 3) es al menos
- * NAV_CERCANIA_MIN_DETENER. Después hay dos casos:
- *   - INMEDIATO (con UN solo cuadro): cercanía 3, o cercanía 2 en la zona central (el obstáculo ya
- *     está cerca: no hay tiempo que perder).
- *   - LEJOS (cercanía 1): hay que verlo MS_CONFIRMAR_LEJOS milisegundos seguidos (y en al menos 2
- *     cuadros) antes de detenerse; así un cuadro de ruido lejano no frena el carro.
+ * por segundo. Un obstáculo en CUALQUIER zona frena el carro si su cercanía (0 a 3) es al menos
+ * NAV_CERCANIA_MIN_DETENER (2): un obstáculo realmente lejano (cercanía 1, por ejemplo una escalera al fondo)
+ * solo se informa, no frena. Después hay dos casos:
+ *   - INMEDIATO (con UN solo cuadro): cercanía 3 en cualquier zona, o cercanía 2 en la zona central
+ *     (el obstáculo ya está cerca y de frente: no hay tiempo que perder).
+ *   - A CONFIRMAR (cercanía 2 en una zona de los lados): hay que verlo MS_CONFIRMAR_LEJOS milisegundos
+ *     seguidos (y en al menos 2 cuadros) antes de detenerse; así un cuadro de ruido no frena el carro.
  * Para volver a avanzar, el frente debe verse libre MS_CONFIRMAR_LIBRE milisegundos seguidos. */
 #define MS_CONFIRMAR_LEJOS         150
 #define MS_CONFIRMAR_LIBRE         250
-#define NAV_CERCANIA_MIN_DETENER     1   /* pasar a 2 si los obstáculos lejanos no deben frenar */
+#define NAV_CERCANIA_MIN_DETENER     2   /* desde esta cercanía (en cualquier zona) se frena; 1 = lejos, solo se informa */
 #define NAV_CERCANIA_INMEDIATA       2   /* en el centro: desde esta cercanía se confirma con un cuadro */
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */

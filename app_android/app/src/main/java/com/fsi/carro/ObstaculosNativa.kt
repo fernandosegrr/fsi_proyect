@@ -9,8 +9,9 @@
  *     la divide en celdas de 10x10 píxeles; con 240x176 (el modo de la cámara real) son 24x17.
  *  3. analizar() usa la configuración por defecto y devuelve 10 enteros.
  *     analizarConfig() usa una configuración que se puede cambiar en vivo y devuelve además el
- *     tamaño de la rejilla, la franja de referencia y la máscara de celdas "no piso" (para
- *     dibujarlas). Los índices están más abajo.
+ *     tamaño de la rejilla, la franja de referencia, el estado del modelo del piso (varios
+ *     colores, aprendizaje, cambio de piso) y la máscara de celdas "no piso" (para dibujarlas).
+ *     Los índices están más abajo.
  *  4. Todo lo que depende del tamaño (franja de referencia, fila mínima) va como proporción en
  *     MILÉSIMAS (500 = 0.5), así la misma configuración vale para cualquier tamaño de imagen.
  */
@@ -58,10 +59,18 @@ object ObstaculosNativa {
     const val REF_NCOLUMNAS = 16
     const val REF_NFILAS = 17
 
-    /** Desde aquí viene la máscara: 1 = celda "no piso", fila por fila (índice INICIO_MASCARA + fila * columnas + columna). */
-    const val INICIO_MASCARA = 18
+    // Estado del modelo del piso (varios colores, aprendizaje continuo y cambio de piso).
+    const val GRUPOS_PISO = 18          // cuántos grupos de color del piso se están usando (1 a 4)
+    const val FRANJA_TAPADA = 19        // 1 = la franja de referencia estaba tapada: se usó lo aprendido
+    const val PISO_REAPRENDIDO = 20     // 1 = en este cuadro se reaprendió el piso (cambió el piso): avisar
+    const val APRENDIO = 21             // 1 = en este cuadro el modelo aprendió (carro avanzando y sin obstáculos)
+    const val CELDAS_BORDE = 22         // celdas marcadas solo por la señal de bordes
+    const val COLORES_GRUPOS = 23       // R, G, B de hasta 4 grupos del piso: 23..34
 
-    // Posiciones dentro de la configuración (7 enteros). Las proporciones van en milésimas.
+    /** Desde aquí viene la máscara: 1 = celda "no piso", fila por fila (índice INICIO_MASCARA + fila * columnas + columna). */
+    const val INICIO_MASCARA = 35
+
+    // Posiciones dentro de la configuración (10 enteros). Las proporciones van en milésimas.
     const val CFG_UMBRAL_COLOR = 0
     const val CFG_MIN_CELDAS = 1
     const val CFG_REF_ANCHO_MIL = 2        // ancho de la franja de referencia
@@ -69,6 +78,9 @@ object ObstaculosNativa {
     const val CFG_REF_CENTRO_X_MIL = 4     // centro de la franja a lo ancho (500 = al centro)
     const val CFG_REF_BORDE_INF_MIL = 5    // borde de abajo de la franja (1000 = pegada abajo)
     const val CFG_FILA_MINIMA_MIL = 6      // fila mínima de la zona de avance (500 = mitad inferior); las de arriba se ignoran
+    const val CFG_GRUPOS_PISO = 7          // K: cuántos colores distintos puede tener el piso (1 a 4)
+    const val CFG_APRENDIZAJE_MIL = 8      // velocidad de aprendizaje del modelo del piso (milésimas por cuadro; 0 = no aprende)
+    const val CFG_USAR_BORDES = 9          // 1 = señal extra de bordes (apagada por defecto: ver docs/obstaculos.md)
 
     // Códigos de error de obstaculos.h.
     const val ERR_IMAGEN_NULA = -1
@@ -79,9 +91,16 @@ object ObstaculosNativa {
     /** Analiza una imagen RGB (ancho x alto x 3 bytes) con la configuración por defecto: 10 enteros. */
     external fun analizar(rgb: ByteArray, ancho: Int, alto: Int): IntArray
 
-    /** Igual, pero con una configuración propia (7 enteros) y con el detalle de celdas: INICIO_MASCARA + filas*columnas enteros. */
-    external fun analizarConfig(rgb: ByteArray, ancho: Int, alto: Int, config: IntArray): IntArray
+    /**
+     * Igual, pero con una configuración propia (10 enteros), CON MEMORIA del piso entre cuadros y con el detalle de celdas:
+     * INICIO_MASCARA + filas*columnas enteros. `avanzando` dice si el carro está avanzando (solo entonces el modelo aprende)
+     * y `ahoraMs` es un reloj en milisegundos. Solo se llama desde el hilo de la cámara.
+     */
+    external fun analizarConfig(rgb: ByteArray, ancho: Int, alto: Int, config: IntArray, avanzando: Boolean, ahoraMs: Long): IntArray
 
-    /** Configuración por defecto del código en C (7 enteros). */
+    /** Olvida el piso aprendido: el siguiente cuadro vuelve a aprender los colores del piso desde la franja de referencia. */
+    external fun reiniciarModelo()
+
+    /** Configuración por defecto del código en C (10 enteros). */
     external fun configDefecto(): IntArray
 }

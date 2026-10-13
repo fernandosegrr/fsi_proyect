@@ -13,7 +13,13 @@
  *  4. El color del piso se toma de una franja de celdas abajo y al centro (se asume libre). Su
  *     tamaño y la fila mínima de la zona de avance se dan como PROPORCIÓN de la imagen (en
  *     milésimas: 500 = 0.5), así que valen para cualquier tamaño.
- *  5. Una celda es "no piso" si su color se aleja de ese color (ver UMBRAL_COLOR, etc.).
+ *     El piso puede tener VARIOS COLORES (baldosas, vetas, alfombras): se aprenden hasta
+ *     OBS_MAX_GRUPOS grupos de color (k-medias corto sobre la franja) y una celda es piso si
+ *     se parece a CUALQUIERA de ellos.
+ *  5. Una celda es "no piso" si su color se aleja de todos los colores del piso (ver UMBRAL_COLOR, etc.).
+ *     Con un ModeloPiso (obstaculos_analizar_modelo) el modelo del piso se conserva entre cuadros: se
+ *     actualiza despacio solo con celdas de piso mientras el carro avanza sin obstáculos, y se
+ *     reaprende solo si todo se ve "no piso" durante 1 s (cambio de piso).
  *  6. Se mira la zona de avance (por defecto la mitad inferior) en tres zonas (izquierda, centro,
  *     derecha) y cada una dice si hay obstáculo y qué tan cerca está (0 a 3).
  *  Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
@@ -103,6 +109,29 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define OBS_MEDIA_MIL     667
 #define OBS_CERCA_MIL     834
 
+/* ── Piso con varios colores y aprendizaje ─────────────────────────────── */
+
+#define OBS_MAX_GRUPOS        4    /* máximo de grupos de color del piso (K) */
+#define OBS_GRUPOS_DEFECTO    4    /* K por defecto */
+#define OBS_APRENDIZAJE_DEFECTO 20 /* velocidad de aprendizaje por defecto: 20 milésimas = 2 % por cuadro */
+#define OBS_MAX_DIST_GRUPOS  150   /* dos grupos de la franja más lejos que esto (suma |dR|+|dG|+|dB|) y de
+                                      distinto tono se consideran contaminados: ERR_REFERENCIA */
+#define OBS_DIST_FUSION       24   /* grupos más cerca que esto se funden en uno */
+#define OBS_MS_PISO_NUEVO   1000   /* ms con TODO lejos de todos los grupos para reaprender el piso */
+#define OBS_UMBRAL_BORDE      24   /* salto de color entre celdas vecinas para contar como borde (señal opcional) */
+
+/* Lo que el detector recuerda del piso entre cuadros. Se inicia con obstaculos_modelo_iniciar() y se
+ * pasa a cada llamada de obstaculos_analizar_modelo(). */
+typedef struct {
+    int valido;                              /* 1 si ya aprendió el piso */
+    int grupos;                              /* cuántos grupos hay (1 a OBS_MAX_GRUPOS) */
+    int color256[OBS_MAX_GRUPOS][3];         /* color (R, G, B) de cada grupo, por 256: así el aprendizaje lento no se pierde en redondeos */
+    int peso[OBS_MAX_GRUPOS];                /* cuántas celdas respaldaron cada grupo la última vez */
+    int sin_piso_activo;                     /* 1 si lleva un tiempo con todo "no piso" */
+    unsigned int sin_piso_desde_ms;          /* hora en que empezó ese tiempo */
+    int reaprendidos;                        /* cuántas veces se reaprendió el piso (cambio de piso) */
+} ModeloPiso;
+
 /* ── Resultado ─────────────────────────────────────────────────────────── */
 
 #define ZONA_IZQUIERDA  0
@@ -124,6 +153,12 @@ typedef struct {
     int rejilla_chica;         /* 1 si la cuadrícula es chica (ver OBS_AVISO_*): funciona pero es más tosca */
     int ref_columna, ref_fila;       /* primera celda de la franja de referencia usada en este análisis */
     int ref_ncolumnas, ref_nfilas;   /* tamaño de esa franja, en celdas */
+    int grupos;                      /* cuántos grupos de color del piso se usaron */
+    int grupo_color[OBS_MAX_GRUPOS][3];   /* el color de cada grupo (los primeros `grupos`) */
+    int franja_contaminada;          /* 1 si la franja no sirvió pero se usó el modelo ya aprendido */
+    int piso_reaprendido;            /* 1 si en ESTE cuadro se reaprendió el piso (cambio de piso): avisar */
+    int aprendio;                    /* 1 si en este cuadro se actualizó el modelo con celdas de piso */
+    int celdas_borde;                /* cuántas celdas se marcaron SOLO por la señal de bordes */
     /* 1 en cada celda "no piso" confirmada (toda la imagen); sirve para depurar y dibujar */
     unsigned char no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
 } ResultadoObstaculos;
@@ -141,6 +176,9 @@ typedef struct {
     int ref_borde_inf_mil;      /* dónde está el BORDE DE ABAJO de la franja (1 a 1000; 1000 = pegada abajo) */
     int fila_minima_mil;        /* fila mínima de la zona de avance como proporción del alto (0 a 1000);
                                    500 = 0.5 = la mitad inferior. Las filas de arriba se ignoran */
+    int grupos_piso;            /* K: cuántos grupos de color del piso se buscan (1 a OBS_MAX_GRUPOS) */
+    int aprendizaje_mil;        /* velocidad de aprendizaje del modelo, en milésimas por cuadro (0 a 1000; 0 = no aprende) */
+    int usar_bordes;            /* 1 = señal extra de bordes entre celdas vecinas (objetos casi del color del piso) */
 } ConfigObstaculos;
 
 /* Códigos de retorno de obstaculos_analizar. */
@@ -160,6 +198,21 @@ void obstaculos_config_defecto(ConfigObstaculos *config);
  * queda en ceros. */
 int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char *rgb,
                             int ancho, int alto, ResultadoObstaculos *resultado);
+
+/* Deja el modelo del piso vacío (no aprendió nada). */
+void obstaculos_modelo_iniciar(ModeloPiso *modelo);
+
+/* Analiza la imagen CONSERVANDO el modelo del piso entre cuadros:
+ *  - la primera vez (o tras un reinicio) aprende los grupos de color de la franja de referencia;
+ *  - si la franja deja de servir (un obstáculo encima) usa el modelo ya aprendido en vez de dar error;
+ *  - si `avanzando` es 1 y no hay obstáculo, actualiza despacio el modelo con las celdas de piso;
+ *  - si todo queda lejos de todos los grupos durante OBS_MS_PISO_NUEVO ms (usa `ahora_ms`), reaprende
+ *    el piso desde la franja y avisa con resultado->piso_reaprendido.
+ * `avanzando`: 1 si el carro está avanzando ahora. Los demás argumentos y códigos son como en
+ * obstaculos_analizar_con. Con un error el modelo no cambia. */
+int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *rgb,
+                               int ancho, int alto, int avanzando, unsigned int ahora_ms,
+                               ResultadoObstaculos *resultado);
 
 /* Igual que obstaculos_analizar_con pero con la configuración por defecto. */
 int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, ResultadoObstaculos *resultado);

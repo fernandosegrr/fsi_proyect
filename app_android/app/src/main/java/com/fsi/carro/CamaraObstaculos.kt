@@ -67,6 +67,7 @@ class CamaraObstaculos(
     private val contexto: Activity,
     private val configActual: () -> IntArray,
     private val tamanoPedido: () -> IntArray = { intArrayOf(ObstaculosNativa.ANCHO_CAMARA, ObstaculosNativa.ALTO_CAMARA) },   // [ancho, alto] de los cuadros que se analizan
+    private val avanzando: () -> Boolean = { false },   // true si el carro está avanzando ahora (solo entonces el modelo del piso aprende)
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -310,7 +311,7 @@ class CamaraObstaculos(
         convertir(imagen, pixeles, ancho, alto)
         val tras_conversion = System.nanoTime()
         val config = configActual()
-        val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config)
+        val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         val fin = System.nanoTime()
 
         contadorCuadros++

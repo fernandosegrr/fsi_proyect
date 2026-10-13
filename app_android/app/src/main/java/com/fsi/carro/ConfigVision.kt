@@ -10,7 +10,8 @@
  *     número de fila: así vale para cualquier tamaño de cuadro. En pantalla se muestra en por ciento.
  *  4. También guarda el tamaño de los cuadros que se piden a la cámara del teléfono (por defecto
  *     240x176, el de la cámara real del carro).
- *  5. comoArreglo() da los 7 enteros que espera ObstaculosNativa.analizarConfig.
+ *  5. También guarda cuántos colores puede tener el piso (K, 1 a 4) y la velocidad de aprendizaje del modelo.
+ *  6. comoArreglo() da los 10 enteros que espera ObstaculosNativa.analizarConfig.
  */
 package com.fsi.carro
 
@@ -23,6 +24,8 @@ class ConfigVision(contexto: Context) {
         const val UMBRAL_COLOR_MAXIMO = 300   // tope de la barra deslizable (el máximo del detector es 765)
         const val MIN_CELDAS_MAXIMO = 40
         const val PORCENTAJE_FILA_MAXIMO = 100   // la barra de fila mínima va de 0 a 100 %
+        const val GRUPOS_MAXIMO = 4              // K máximo (OBS_MAX_GRUPOS en el código en C)
+        const val APRENDIZAJE_MAXIMO_MIL = 100   // tope de la barra de aprendizaje (el máximo del detector es 1000)
 
         /** Tamaños de cuadro que se pueden pedir a la cámara del teléfono (ancho, alto). */
         val TAMANOS = arrayOf(
@@ -48,6 +51,16 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getInt("fila_minima_mil", defecto[ObstaculosNativa.CFG_FILA_MINIMA_MIL]).coerceIn(0, 1000)
         set(valor) = preferencias.edit().putInt("fila_minima_mil", valor.coerceIn(0, 1000)).apply()
 
+    /** K: cuántos colores distintos puede tener el piso (baldosas, vetas...). */
+    var gruposPiso: Int
+        get() = preferencias.getInt("grupos_piso", defecto[ObstaculosNativa.CFG_GRUPOS_PISO]).coerceIn(1, GRUPOS_MAXIMO)
+        set(valor) = preferencias.edit().putInt("grupos_piso", valor.coerceIn(1, GRUPOS_MAXIMO)).apply()
+
+    /** Velocidad de aprendizaje del modelo del piso, en milésimas por cuadro (0 = no aprende). */
+    var aprendizajeMil: Int
+        get() = preferencias.getInt("aprendizaje_mil", defecto[ObstaculosNativa.CFG_APRENDIZAJE_MIL]).coerceIn(0, 1000)
+        set(valor) = preferencias.edit().putInt("aprendizaje_mil", valor.coerceIn(0, 1000)).apply()
+
     /** Índice en TAMANOS del tamaño de cuadro que se pide a la cámara del teléfono. */
     var indiceTamano: Int
         get() = preferencias.getInt("indice_tamano", 0).coerceIn(0, TAMANOS.size - 1)
@@ -61,14 +74,18 @@ class ConfigVision(contexto: Context) {
         umbralColor = defecto[ObstaculosNativa.CFG_UMBRAL_COLOR]
         minCeldas = defecto[ObstaculosNativa.CFG_MIN_CELDAS]
         filaMinimaMil = defecto[ObstaculosNativa.CFG_FILA_MINIMA_MIL]
+        gruposPiso = defecto[ObstaculosNativa.CFG_GRUPOS_PISO]
+        aprendizajeMil = defecto[ObstaculosNativa.CFG_APRENDIZAJE_MIL]
     }
 
-    /** Los 7 enteros de configuración (la franja de referencia queda con el valor por defecto). */
+    /** Los 10 enteros de configuración (la franja de referencia queda con el valor por defecto). */
     fun comoArreglo(): IntArray {
         val config = defecto.copyOf()
         config[ObstaculosNativa.CFG_UMBRAL_COLOR] = umbralColor
         config[ObstaculosNativa.CFG_MIN_CELDAS] = minCeldas
         config[ObstaculosNativa.CFG_FILA_MINIMA_MIL] = filaMinimaMil
+        config[ObstaculosNativa.CFG_GRUPOS_PISO] = gruposPiso
+        config[ObstaculosNativa.CFG_APRENDIZAJE_MIL] = aprendizajeMil
         return config
     }
 }

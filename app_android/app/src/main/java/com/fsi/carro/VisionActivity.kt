@@ -47,6 +47,10 @@ class VisionActivity : Activity() {
     private lateinit var textoUmbral: TextView
     private lateinit var textoMinCeldas: TextView
     private lateinit var textoFilaMinima: TextView
+    private lateinit var textoGrupos: TextView
+    private lateinit var textoAprendizaje: TextView
+    private lateinit var barraGrupos: SeekBar
+    private lateinit var barraAprendizaje: SeekBar
     private lateinit var barraUmbral: SeekBar
     private lateinit var barraMinCeldas: SeekBar
     private lateinit var barraFilaMinima: SeekBar
@@ -59,6 +63,7 @@ class VisionActivity : Activity() {
     private var dibujando = false
     private var ultimoMostrado: CuadroAnalizado? = null
     private var pidiendoPermiso = false
+    private var ultimoAvisoPisoMs = 0L   // para mostrar unos segundos el aviso "piso nuevo aprendido"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,15 +79,23 @@ class VisionActivity : Activity() {
         barraMinCeldas = findViewById(R.id.barra_min_celdas)
         textoFilaMinima = findViewById(R.id.texto_fila_minima)
         barraFilaMinima = findViewById(R.id.barra_fila_minima)
+        textoGrupos = findViewById(R.id.texto_grupos)
+        barraGrupos = findViewById(R.id.barra_grupos)
+        textoAprendizaje = findViewById(R.id.texto_aprendizaje)
+        barraAprendizaje = findViewById(R.id.barra_aprendizaje)
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
         barraFilaMinima.max = ConfigVision.PORCENTAJE_FILA_MAXIMO   // el progreso es el por ciento del alto (0 = toda la imagen)
+        barraGrupos.max = ConfigVision.GRUPOS_MAXIMO - 1             // el progreso 0 equivale a 1 color
+        barraAprendizaje.max = ConfigVision.APRENDIZAJE_MAXIMO_MIL / 5   // pasos de 5 milésimas
         mostrarValoresDeBarras()
 
         barraUmbral.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.umbralColor = valor })
         barraMinCeldas.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.minCeldas = valor + 1 })
         barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinimaMil = valor * 10 })
+        barraGrupos.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.gruposPiso = valor + 1 })
+        barraAprendizaje.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.aprendizajeMil = valor * 5 })
         botonTamano = findViewById(R.id.boton_tamano)
         botonTamano.setOnClickListener {
             configuracion.indiceTamano = (configuracion.indiceTamano + 1) % ConfigVision.TAMANOS.size   // la cámara lo toma en el siguiente cuadro
@@ -91,6 +104,7 @@ class VisionActivity : Activity() {
         findViewById<Button>(R.id.boton_guardar_cuadro).setOnClickListener { guardarCuadro() }
         findViewById<Button>(R.id.boton_restablecer).setOnClickListener {
             configuracion.restablecer()
+            ObstaculosNativa.reiniciarModelo()   // también se olvida el piso aprendido
             mostrarValoresDeBarras()
         }
 
@@ -177,12 +191,31 @@ class VisionActivity : Activity() {
                 estado, camara.tamanoCamara.ifEmpty { "-" },
                 if (cuadro != null) "${cuadro.ancho}x${cuadro.alto} (${cuadro.columnas}x${cuadro.filas} celdas)" else "-",
                 camara.fps, camara.msPorCuadro,
-                if (cuadro != null) String.format(Locale.US, "\n  conversión %.2f + análisis %.2f\nPiso (RGB): %d,%d,%d\nCódigo: %d",
+                if (cuadro != null) String.format(Locale.US, "\n  conversión %.2f + análisis %.2f\nPiso (RGB): %d,%d,%d\nGrupos de color del piso: %d%s\nCódigo: %d",
                     cuadro.msConversion, cuadro.msAnalisis,
                     cuadro.resultado[ObstaculosNativa.REF_R], cuadro.resultado[ObstaculosNativa.REF_G], cuadro.resultado[ObstaculosNativa.REF_B],
+                    cuadro.resultado[ObstaculosNativa.GRUPOS_PISO], avisosDelPiso(cuadro),
                     cuadro.resultado[ObstaculosNativa.CODIGO]) else "")
             principal.postDelayed(this, 500)
         }
+    }
+
+    /** Avisos del modelo del piso para mostrar en pantalla (franja tapada, piso nuevo aprendido). */
+    private fun avisosDelPiso(cuadro: CuadroAnalizado): String {
+        if (cuadro.resultado[ObstaculosNativa.CODIGO] != 0) {
+            return ""
+        }
+        if (cuadro.resultado[ObstaculosNativa.PISO_REAPRENDIDO] != 0) {
+            ultimoAvisoPisoMs = System.currentTimeMillis()
+        }
+        val sb = StringBuilder()
+        if (System.currentTimeMillis() - ultimoAvisoPisoMs < 5000) {
+            sb.append("\n¡PISO NUEVO APRENDIDO!")
+        }
+        if (cuadro.resultado[ObstaculosNativa.FRANJA_TAPADA] != 0) {
+            sb.append("\nFranja tapada: se usa el piso aprendido")
+        }
+        return sb.toString()
     }
 
     // ── Barras ────────────────────────────────────────────────────────────
@@ -194,6 +227,10 @@ class VisionActivity : Activity() {
         textoMinCeldas.text = getString(R.string.texto_min_celdas, configuracion.minCeldas)
         barraFilaMinima.progress = configuracion.filaMinimaMil / 10
         val filasDelCuadro = ObstaculosNativa.filasDe(configuracion.altoCuadro)
+        barraGrupos.progress = configuracion.gruposPiso - 1
+        textoGrupos.text = getString(R.string.texto_grupos, configuracion.gruposPiso)
+        barraAprendizaje.progress = configuracion.aprendizajeMil / 5
+        textoAprendizaje.text = getString(R.string.texto_aprendizaje, configuracion.aprendizajeMil)
         textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinimaMil / 10,
             filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
         botonTamano.text = getString(R.string.boton_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
