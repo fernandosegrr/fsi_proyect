@@ -19,3 +19,4 @@ nucleo_c/pruebas_navegador
 nucleo_c/pruebas_navegador.exe
 cuadro_*.jpg
 cuadros_prueba/
+scripts/placas.local.json
