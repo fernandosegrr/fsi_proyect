@@ -95,6 +95,20 @@
                 android:layout_height="wrap_content" />
 
             <Button
+                android:id="@+id/boton_modelo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/boton_modelo" />
+
+            <TextView
+                android:id="@+id/texto_fusion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textSize="12sp" />
+
+            <Button
                 android:id="@+id/boton_tamano"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -11,6 +11,7 @@
  *     de error claro. Kotlin no interpreta nada, solo lo muestra.
  *  5. Más abajo, ObstaculosNativa.analizar() llama al detector de obstáculos por color de
  *     piso (obstaculos.c): recibe una imagen RGB (cualquier tamaño de 30x30 a 640x480) y devuelve 10 enteros.
+ *  5b. FusionNativa.* une el resultado del detector con las cajas del modelo de objetos (fusion.c).
  *  6. Antes del navegador está la calibración del carro (calibracion.c): CalibracionNativa.* y la
  *     calibración que usa el navegador. Al final, NavegadorNativa.* maneja el navegador del modo semiautónomo (navegador.c): hay
  *     UNA sola instancia (variable estática), que usa solo el hilo principal de la app.
@@ -20,10 +21,12 @@
 #include <jni.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include "trayectoria.h"
 #include "obstaculos.h"
 #include "navegador.h"
 #include "calibracion.h"
+#include "fusion.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -162,7 +165,7 @@ Java_com_fsi_carro_TrayectoriaNativa_maxPuntos(JNIEnv *env, jobject objeto)
 #define ENTEROS_CONFIG_OBSTACULOS    10
 /* Encabezado del detalle (ver analizarConfig): 10 del resumen + tamaño de la rejilla, franja de referencia, aviso
  * de rejilla chica, estado del modelo del piso y los colores de los grupos del piso. Después viene la máscara. */
-#define ENTEROS_ENCABEZADO_DETALLE   35
+#define ENTEROS_ENCABEZADO_DETALLE   38
 #define ENTEROS_DETALLE_MAXIMO       (ENTEROS_ENCABEZADO_DETALLE + OBS_MAX_FILAS * OBS_MAX_COLUMNAS)
 
 /* El modelo del piso que se recuerda entre cuadros (lo usa solo el hilo de la cámara). `reiniciar_modelo` lo pide la
@@ -264,7 +267,8 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
  *   [18] grupos de color del piso   [19] 1 si la franja estaba tapada (se usó lo aprendido)
  *   [20] 1 si se reaprendió el piso en este cuadro (cambio de piso)   [21] 1 si el modelo aprendió en este cuadro
  *   [22] celdas marcadas solo por bordes   [23..34] colores R,G,B de hasta 4 grupos del piso
- *   [35...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 35 + fila * columnas + columna).
+ *   [35..37] celdas confirmadas de cada zona (izquierda, centro, derecha)
+ *   [38...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 38 + fila * columnas + columna).
  * Si hay error, el arreglo trae solo el encabezado (con el código en [0]). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
@@ -329,6 +333,9 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         salida[20] = resultado.piso_reaprendido;
         salida[21] = resultado.aprendio;
         salida[22] = resultado.celdas_borde;
+        salida[35] = resultado.zona[0].celdas;   /* celdas confirmadas de cada zona (la fusión las usa para saber si el detector duda) */
+        salida[36] = resultado.zona[1].celdas;
+        salida[37] = resultado.zona[2].celdas;
         for (g = 0; g < resultado.grupos && g < OBS_MAX_GRUPOS; g++) {
             salida[23 + 3 * g] = resultado.grupo_color[g][0];
             salida[24 + 3 * g] = resultado.grupo_color[g][1];
@@ -386,6 +393,152 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
     return arreglo;
 }
 
+
+/* ── Fusión del detector de color con el modelo de objetos ─────────────── */
+
+#define ENTEROS_CONFIG_FUSION     10
+#define ENTEROS_RESULTADO_FUSION  20
+#define ENTEROS_POR_CAJA           6
+
+/* Configuración por defecto de la fusión (10 enteros):
+ *   [0] vigencia_ms  [1] confianza_min_mil  [2] confianza_frenar_mil  [3] solape_camino_mil  [4] cerca_mil
+ *   [5] media_mil  [6] area_grande_mil  [7..9] las 3 palabras de bits de las clases de interés. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FusionNativa_configDefecto(JNIEnv *env, jobject objeto)
+{
+    ConfigFusion cfg;
+    jint salida[ENTEROS_CONFIG_FUSION];
+    jintArray arreglo;
+
+    (void)objeto;
+    fusion_config_defecto(&cfg);
+    salida[0] = cfg.vigencia_ms;
+    salida[1] = cfg.confianza_min_mil;
+    salida[2] = cfg.confianza_frenar_mil;
+    salida[3] = cfg.solape_camino_mil;
+    salida[4] = cfg.cerca_mil;
+    salida[5] = cfg.media_mil;
+    salida[6] = cfg.area_grande_mil;
+    salida[7] = (jint)cfg.clases_interes[0];
+    salida[8] = (jint)cfg.clases_interes[1];
+    salida[9] = (jint)cfg.clases_interes[2];
+    arreglo = (*env)->NewIntArray(env, ENTEROS_CONFIG_FUSION);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_CONFIG_FUSION, salida);
+    }
+    return arreglo;
+}
+
+/* Decide con lo que ve el detector (el arreglo de analizarConfig: se leen las zonas, [1] a [6], y sus celdas, [35] a
+ * [37]), las cajas del modelo ([n, (clase, confianza_mil, xmin, ymin, xmax, ymax) * n], en milésimas del cuadro) y los relojes
+ * `marca_ms` (cuándo terminó el modelo) y `ahora_ms`. Devuelve 20 enteros:
+ *   [0] código (0 = bien)   [1..6] zonas fusionadas (hay, cercanía; igual que ObstaculosNativa.analizar)   [7..9] ceros
+ *   [10] severidad (0 a 3)  [11] fuente (0 nadie, 1 detector, 2 modelo, 3 ambos)  [12] el detector solo ya decide
+ *   [13] modelo vigente  [14] edad del modelo en ms  [15] hay aviso  [16] clase del aviso  [17] zona del aviso
+ *   [18] cercanía del aviso  [19] clase del objeto en el camino (-1 si no hay) */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray config, jintArray detector,
+                                         jintArray cajas, jlong marca_ms, jlong ahora_ms)
+{
+    ConfigFusion cfg;
+    ResultadoObstaculos det;
+    DeteccionesModelo modelo;
+    ResultadoFusion resultado;
+    jint datos_config[ENTEROS_CONFIG_FUSION];
+    jint datos_detector[ENTEROS_ENCABEZADO_DETALLE];
+    jint datos_cajas[1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA];
+    jint salida[ENTEROS_RESULTADO_FUSION];
+    jintArray arreglo;
+    const DeteccionesModelo *puntero_modelo = NULL;
+    int codigo, i, z;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_FUSION; i++) {
+        salida[i] = 0;
+    }
+    salida[19] = -1;
+    memset(&det, 0, sizeof det);
+
+    if (config == NULL || (*env)->GetArrayLength(env, config) < ENTEROS_CONFIG_FUSION ||
+        detector == NULL || (*env)->GetArrayLength(env, detector) < ENTEROS_ENCABEZADO_DETALLE) {
+        salida[0] = FUS_ERR_ARGUMENTO;
+    } else {
+        (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_FUSION, datos_config);
+        cfg.vigencia_ms = (int)datos_config[0];
+        cfg.confianza_min_mil = (int)datos_config[1];
+        cfg.confianza_frenar_mil = (int)datos_config[2];
+        cfg.solape_camino_mil = (int)datos_config[3];
+        cfg.cerca_mil = (int)datos_config[4];
+        cfg.media_mil = (int)datos_config[5];
+        cfg.area_grande_mil = (int)datos_config[6];
+        cfg.clases_interes[0] = (unsigned int)datos_config[7];
+        cfg.clases_interes[1] = (unsigned int)datos_config[8];
+        cfg.clases_interes[2] = (unsigned int)datos_config[9];
+
+        (*env)->GetIntArrayRegion(env, detector, 0, ENTEROS_ENCABEZADO_DETALLE, datos_detector);
+        for (z = 0; z < OBS_ZONAS; z++) {
+            det.zona[z].hay_obstaculo = (int)datos_detector[1 + 2 * z];
+            det.zona[z].cercania = (int)datos_detector[2 + 2 * z];
+            det.zona[z].celdas = (int)datos_detector[35 + z];
+        }
+
+        memset(&modelo, 0, sizeof modelo);
+        modelo.marca_ms = (unsigned int)marca_ms;
+        if (cajas != NULL && (*env)->GetArrayLength(env, cajas) >= 1) {
+            jsize largo = (*env)->GetArrayLength(env, cajas);
+            int n;
+
+            if (largo > 1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA) {
+                largo = 1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA;
+            }
+            (*env)->GetIntArrayRegion(env, cajas, 0, largo, datos_cajas);
+            n = (int)datos_cajas[0];
+            if (n > (int)((largo - 1) / ENTEROS_POR_CAJA)) {
+                n = (int)((largo - 1) / ENTEROS_POR_CAJA);   /* no se lee más de lo que llegó */
+            }
+            if (n > FUS_MAX_CAJAS) {
+                n = FUS_MAX_CAJAS;
+            }
+            for (i = 0; i < n; i++) {
+                modelo.cajas[i].clase = (int)datos_cajas[1 + i * ENTEROS_POR_CAJA];
+                modelo.cajas[i].confianza_mil = (int)datos_cajas[2 + i * ENTEROS_POR_CAJA];
+                modelo.cajas[i].xmin_mil = (int)datos_cajas[3 + i * ENTEROS_POR_CAJA];
+                modelo.cajas[i].ymin_mil = (int)datos_cajas[4 + i * ENTEROS_POR_CAJA];
+                modelo.cajas[i].xmax_mil = (int)datos_cajas[5 + i * ENTEROS_POR_CAJA];
+                modelo.cajas[i].ymax_mil = (int)datos_cajas[6 + i * ENTEROS_POR_CAJA];
+            }
+            modelo.n = (n > 0) ? n : 0;
+            puntero_modelo = &modelo;
+        }
+
+        codigo = fusion_decidir(&cfg, &det, puntero_modelo, (unsigned int)ahora_ms, &resultado);
+        salida[0] = codigo;
+        if (codigo == FUS_OK) {
+            for (z = 0; z < OBS_ZONAS; z++) {
+                salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
+                salida[2 + 2 * z] = resultado.zona[z].cercania;
+            }
+            salida[7] = datos_detector[7];    /* el color del piso del detector, para que el formato sea el mismo */
+            salida[8] = datos_detector[8];
+            salida[9] = datos_detector[9];
+            salida[10] = resultado.severidad;
+            salida[11] = resultado.fuente;
+            salida[12] = resultado.detector_solo_decide;
+            salida[13] = resultado.modelo_vigente;
+            salida[14] = resultado.edad_modelo_ms;
+            salida[15] = resultado.aviso;
+            salida[16] = resultado.aviso_clase;
+            salida[17] = resultado.aviso_zona;
+            salida[18] = resultado.aviso_cercania;
+            salida[19] = resultado.clase_en_camino;
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FUSION);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_FUSION, salida);
+    }
+    return arreglo;
+}
 
 /* ── Calibración del carro ─────────────────────────────────────────────── */
 

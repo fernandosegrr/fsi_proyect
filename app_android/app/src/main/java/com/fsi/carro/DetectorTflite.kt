@@ -35,6 +35,17 @@ class Configuracion(val nombre: String, val delegado: Delegado, val hilos: Int)
 /** Un objeto detectado: clase (texto) y confianza de 0 a 1. */
 class Deteccion(val clase: String, val confianza: Float)
 
+/** Un objeto detectado CON su caja: número de clase, nombre, confianza de 0 a 1 y la caja en milésimas del cuadro (0 a 1000, origen arriba a la izquierda). */
+class DeteccionCaja(
+    val clase: Int,
+    val nombre: String,
+    val confianza: Float,
+    val xmin: Int,
+    val ymin: Int,
+    val xmax: Int,
+    val ymax: Int
+)
+
 class DetectorTflite(private val contexto: Context) {
 
     companion object {
@@ -217,6 +228,34 @@ class DetectorTflite(private val contexto: Context) {
         }
         return resultado
     }
+
+    /**
+     * Igual que postprocesar(), pero devolviendo también la CAJA de cada objeto (el modelo la entrega como
+     * [ymin, xmin, ymax, xmax] entre 0 y 1; aquí se pasa a milésimas). Lo usa la fusión con el detector de color.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun postprocesarCajas(): List<DeteccionCaja> {
+        decidirClasesYConfianzas()
+        val resultado = ArrayList<DeteccionCaja>()
+        if (indiceClases < 0 || indiceConfianzas < 0 || indiceCantidad < 0 || indiceCajas < 0) {
+            return resultado
+        }
+        val clases = (salidas[indiceClases] as Array<FloatArray>)[0]
+        val confianzas = (salidas[indiceConfianzas] as Array<FloatArray>)[0]
+        val cajas = (salidas[indiceCajas] as Array<Array<FloatArray>>)[0]
+        val cantidad = Math.min(Math.min((salidas[indiceCantidad] as FloatArray)[0].toInt(), confianzas.size), cajas.size)
+        for (i in 0 until cantidad) {
+            if (confianzas[i] >= UMBRAL) {
+                val numero = clases[i].toInt()
+                val caja = cajas[i]
+                resultado.add(DeteccionCaja(numero, etiquetas.getOrNull(numero) ?: "clase $numero", confianzas[i],
+                    milesimas(caja[1]), milesimas(caja[0]), milesimas(caja[3]), milesimas(caja[2])))
+            }
+        }
+        return resultado
+    }
+
+    private fun milesimas(valor: Float): Int = Math.round(valor * 1000f).coerceIn(0, 1000)
 
     /**
      * De las dos salidas [1, N], las clases son números enteros (0, 1, 2...) y las

@@ -67,8 +67,10 @@ object ObstaculosNativa {
     const val CELDAS_BORDE = 22         // celdas marcadas solo por la señal de bordes
     const val COLORES_GRUPOS = 23       // R, G, B de hasta 4 grupos del piso: 23..34
 
+    const val CELDAS_ZONA = 35           // celdas confirmadas de cada zona (izquierda, centro, derecha): 35, 36 y 37
+
     /** Desde aquí viene la máscara: 1 = celda "no piso", fila por fila (índice INICIO_MASCARA + fila * columnas + columna). */
-    const val INICIO_MASCARA = 35
+    const val INICIO_MASCARA = 38
 
     // Posiciones dentro de la configuración (10 enteros). Las proporciones van en milésimas.
     const val CFG_UMBRAL_COLOR = 0

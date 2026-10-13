@@ -56,6 +56,8 @@ class VisionActivity : Activity() {
     private lateinit var barraFilaMinima: SeekBar
     private lateinit var camara: CamaraObstaculos
     private lateinit var botonTamano: Button
+    private lateinit var botonModelo: Button
+    private lateinit var textoFusion: TextView
 
     private val principal = Handler(Looper.getMainLooper())
     @Volatile
@@ -96,6 +98,13 @@ class VisionActivity : Activity() {
         barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinimaMil = valor * 10 })
         barraGrupos.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.gruposPiso = valor + 1 })
         barraAprendizaje.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.aprendizajeMil = valor * 5 })
+        botonModelo = findViewById(R.id.boton_modelo)
+        textoFusion = findViewById(R.id.texto_fusion)
+        botonModelo.setOnClickListener {
+            configuracion.usarModelo = !configuracion.usarModelo
+            camara.activarModelo(configuracion.usarModelo && camara.abierta)
+            mostrarValoresDeBarras()
+        }
         botonTamano = findViewById(R.id.boton_tamano)
         botonTamano.setOnClickListener {
             configuracion.indiceTamano = (configuracion.indiceTamano + 1) % ConfigVision.TAMANOS.size   // la cámara lo toma en el siguiente cuadro
@@ -109,7 +118,8 @@ class VisionActivity : Activity() {
         }
 
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
-        camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) }) { cuadro -> alLlegarCuadro(cuadro) }
+        camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
+            { false }, { configuracion.usarModelo }) { cuadro -> alLlegarCuadro(cuadro) }
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
     }
@@ -196,8 +206,47 @@ class VisionActivity : Activity() {
                     cuadro.resultado[ObstaculosNativa.REF_R], cuadro.resultado[ObstaculosNativa.REF_G], cuadro.resultado[ObstaculosNativa.REF_B],
                     cuadro.resultado[ObstaculosNativa.GRUPOS_PISO], avisosDelPiso(cuadro),
                     cuadro.resultado[ObstaculosNativa.CODIGO]) else "")
+            textoFusion.text = textoDeFusion(cuadro)
             principal.postDelayed(this, 500)
         }
+    }
+
+    /** Quién decidió y cuánto tarda cada etapa (detector de color, modelo de objetos y fusión). */
+    private fun textoDeFusion(cuadro: CuadroAnalizado?): String {
+        val m = camara.modelo
+        if (!configuracion.usarModelo) {
+            return "Modelo de objetos: apagado (decide solo el detector de color)"
+        }
+        if (m == null) {
+            return "Modelo de objetos: esperando a la cámara..."
+        }
+        if (m.error.isNotEmpty()) {
+            return "Modelo de objetos: ${m.error}\nDecide solo el detector de color."
+        }
+        if (cuadro == null) {
+            return "Modelo de objetos: iniciando..."
+        }
+        val f = cuadro.fusion
+        val sb = StringBuilder()
+        sb.append(String.format(Locale.US, "Etapas: detector %.1f ms (conversión %.1f + análisis %.1f)\n", cuadro.msConversion + cuadro.msAnalisis, cuadro.msConversion, cuadro.msAnalisis))
+        val r = m.ultimo
+        if (r != null) {
+            sb.append(String.format(Locale.US, "       modelo %.1f ms (preparar %.1f + inferir %.1f + postproceso %.1f), un resultado cada %.0f ms\n",
+                r.msTotal, r.msPreparar, r.msInferir, r.msPostprocesar, m.msEntreResultados))
+        } else {
+            sb.append("       modelo: todavía sin resultados\n")
+        }
+        if (f != null && f[FusionNativa.R_CODIGO] == 0) {
+            sb.append(String.format(Locale.US, "       fusión %.3f ms\nDecide: %s (severidad %d)%s\n", cuadro.msFusion,
+                FusionNativa.textoFuente(f[FusionNativa.R_FUENTE]).uppercase(), f[FusionNativa.R_SEVERIDAD],
+                if (f[FusionNativa.R_DETECTOR_SOLO] == 1) " — el detector frena solo, sin esperar al modelo" else ""))
+            sb.append("Modelo: " + if (f[FusionNativa.R_MODELO_VIGENTE] == 1) "vigente (edad ${f[FusionNativa.R_EDAD_MODELO_MS]} ms)" else "caducado o sin objetos").append("\n")
+            if (f[FusionNativa.R_AVISO] == 1) {
+                sb.append("AVISO: " + (m.etiquetas.getOrNull(f[FusionNativa.R_AVISO_CLASE]) ?: "objeto") +
+                    " (zona ${f[FusionNativa.R_AVISO_ZONA]}, cercanía ${f[FusionNativa.R_AVISO_CERCANIA]}): solo se avisa\n")
+            }
+        }
+        return sb.toString()
     }
 
     /** Avisos del modelo del piso para mostrar en pantalla (franja tapada, piso nuevo aprendido). */
@@ -234,6 +283,7 @@ class VisionActivity : Activity() {
         textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinimaMil / 10,
             filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
         botonTamano.text = getString(R.string.boton_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
+        botonModelo.text = getString(R.string.boton_modelo, getString(if (configuracion.usarModelo) R.string.si else R.string.no))
     }
 
     /** Un escuchador de barra que guarda el valor al moverla (solo si lo movió la persona). */

@@ -11,7 +11,8 @@
  *  4. También guarda el tamaño de los cuadros que se piden a la cámara del teléfono (por defecto
  *     240x176, el de la cámara real del carro).
  *  5. También guarda cuántos colores puede tener el piso (K, 1 a 4) y la velocidad de aprendizaje del modelo.
- *  6. comoArreglo() da los 10 enteros que espera ObstaculosNativa.analizarConfig.
+ *  6. usarModelo dice si además del detector de color se usa el modelo de objetos (fusión); por defecto NO hasta probarlo.
+ *  7. comoArreglo() da los 10 enteros que espera ObstaculosNativa.analizarConfig.
  */
 package com.fsi.carro
 
@@ -60,6 +61,11 @@ class ConfigVision(contexto: Context) {
     var aprendizajeMil: Int
         get() = preferencias.getInt("aprendizaje_mil", defecto[ObstaculosNativa.CFG_APRENDIZAJE_MIL]).coerceIn(0, 1000)
         set(valor) = preferencias.edit().putInt("aprendizaje_mil", valor.coerceIn(0, 1000)).apply()
+
+    /** true = se usa también el modelo de objetos (en su propio hilo) y se fusiona con el detector de color. */
+    var usarModelo: Boolean
+        get() = preferencias.getBoolean("usar_modelo", false)
+        set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
 
     /** Índice en TAMANOS del tamaño de cuadro que se pide a la cámara del teléfono. */
     var indiceTamano: Int

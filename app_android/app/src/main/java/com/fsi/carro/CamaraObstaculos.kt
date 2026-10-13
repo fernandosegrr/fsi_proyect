@@ -21,6 +21,10 @@
  *     corrige con la orientación del sensor).
  *  5. Cada segundo se escribe en logcat (etiqueta VISION) los cuadros por segundo y los ms
  *     medios por cuadro.
+ *  5b. MODELO DE OBJETOS (opcional, ModeloEnHilo): si está activo, cada cuadro se le ofrece al modelo, que corre
+ *     en su propio hilo a ~10 veces por segundo sin frenar al detector; después FusionNativa.decidir() une el
+ *     resultado del detector con lo último del modelo (si no está caducado). El resumen para el navegador sale de
+ *     la fusión; el detector de color siempre decide solo si el modelo falla o está caducado.
  *  6. tomarCuadroNuevo() es lo que usa el modo semiautónomo: devuelve el resumen del último
  *     cuadro solo una vez. Si el detector no pudo analizar el cuadro (error), se devuelve
  *     "todo bloqueado": ante la duda, el carro se detiene.
@@ -56,8 +60,14 @@ class CuadroAnalizado(
     val resultado: IntArray,        // ObstaculosNativa.INICIO_MASCARA + filas * columnas enteros
     val config: IntArray,           // la configuración con la que se analizó
     val msConversion: Double,
-    val msAnalisis: Double
+    val msAnalisis: Double,
+    val fusion: IntArray? = null,          // FusionNativa.ENTEROS_RESULTADO enteros si se usó el modelo de objetos
+    val modelo: ResultadoModelo? = null,   // lo último que dijo el modelo cuando se fusionó este cuadro
+    val msFusion: Double = 0.0
 ) {
+    /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
+    val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
+
     /** Columnas y filas de celdas de ESTE cuadro (0 si el análisis falló). */
     val columnas: Int get() = if (resultado[ObstaculosNativa.CODIGO] == 0) resultado[ObstaculosNativa.COLUMNAS_USADAS] else ObstaculosNativa.columnasDe(ancho)
     val filas: Int get() = if (resultado[ObstaculosNativa.CODIGO] == 0) resultado[ObstaculosNativa.FILAS_USADAS] else ObstaculosNativa.filasDe(alto)
@@ -68,6 +78,7 @@ class CamaraObstaculos(
     private val configActual: () -> IntArray,
     private val tamanoPedido: () -> IntArray = { intArrayOf(ObstaculosNativa.ANCHO_CAMARA, ObstaculosNativa.ALTO_CAMARA) },   // [ancho, alto] de los cuadros que se analizan
     private val avanzando: () -> Boolean = { false },   // true si el carro está avanzando ahora (solo entonces el modelo del piso aprende)
+    private val usarModelo: () -> Boolean = { false },  // true si se quiere usar también el modelo de objetos (fusión)
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -131,6 +142,13 @@ class CamaraObstaculos(
     private var tablaY = IntArray(altoSalida)
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
 
+    // Modelo de objetos (opcional) y su fusión con el detector de color.
+    @Volatile
+    var modelo: ModeloEnHilo? = null
+        private set
+    private var configFusion: IntArray? = null
+    private val sinCajas = intArrayOf(0)
+
     // ── Abrir y cerrar ────────────────────────────────────────────────────
 
     /** Abre la cámara trasera. Devuelve false (y deja `error`) si no se pudo empezar. */
@@ -164,6 +182,7 @@ class CamaraObstaculos(
             }
             Log.i(ETIQUETA, "abriendo cámara id=$id tamaño=$tamanoCamara girar180=$rotar180")
             administrador.openCamera(id, estadoDispositivo, manejador)
+            activarModelo(usarModelo())
             return true
         } catch (e: CameraAccessException) {
             cerrar()
@@ -178,6 +197,7 @@ class CamaraObstaculos(
     fun cerrar() {
         val habiaCamara = hilo != null
         abierta = false
+        activarModelo(false)
         try { sesion?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando sesión: ${e.message}") }
         try { dispositivo?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando cámara: ${e.message}") }
         sesion = null
@@ -190,6 +210,24 @@ class CamaraObstaculos(
         manejador = null
         if (habiaCamara) {
             Log.i(ETIQUETA, "cámara cerrada")
+        }
+    }
+
+    /** Enciende o apaga el modelo de objetos (su hilo) sin tocar la cámara. */
+    fun activarModelo(activar: Boolean) {
+        if (activar) {
+            if (modelo == null) {
+                modelo = ModeloEnHilo(contexto).also { it.iniciar() }
+                configFusion = null
+                Log.i(ETIQUETA, "modelo de objetos encendido")
+            }
+        } else {
+            val m = modelo
+            modelo = null
+            if (m != null) {
+                m.detener()
+                Log.i(ETIQUETA, "modelo de objetos apagado")
+            }
         }
     }
 
@@ -314,9 +352,29 @@ class CamaraObstaculos(
         val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         val fin = System.nanoTime()
 
+        // Modelo de objetos: se le ofrece el cuadro (sin esperar) y se fusiona con lo último que dijo.
+        var fusion: IntArray? = null
+        var ultimoModelo: ResultadoModelo? = null
+        var msFusion = 0.0
+        val m = modelo
+        if (m != null && m.activo && resultado[ObstaculosNativa.CODIGO] == 0) {
+            val ahoraMs = SystemClock.elapsedRealtime()
+            m.ofrecer(pixeles, ancho, alto, ahoraMs)
+            ultimoModelo = m.ultimo
+            if (configFusion == null && m.etiquetas.isNotEmpty()) {
+                configFusion = FusionNativa.configConClases(m.etiquetas)
+            }
+            val inicioFusion = System.nanoTime()
+            fusion = FusionNativa.decidir(configFusion ?: FusionNativa.configDefecto(), resultado,
+                ultimoModelo?.cajas ?: sinCajas, ultimoModelo?.marcaMs ?: 0L, ahoraMs)
+            msFusion = (System.nanoTime() - inicioFusion) / 1.0e6
+        } else if (m != null && !m.activo && m.error.isNotEmpty()) {
+            error = m.error   // el modelo falló: la cámara y el detector de color siguen funcionando
+        }
+
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
-            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6)
+            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
@@ -398,8 +456,9 @@ class CamaraObstaculos(
             return null
         }
         ultimoTomado = cuadro.numero
-        val resumen = cuadro.resultado.copyOf(10)
-        if (resumen[ObstaculosNativa.CODIGO] != 0) {
+        val resumen = cuadro.zonas.copyOf(10)   // las zonas fusionadas si se usa el modelo
+        if (cuadro.resultado[ObstaculosNativa.CODIGO] != 0) {
+            resumen[ObstaculosNativa.CODIGO] = cuadro.resultado[ObstaculosNativa.CODIGO]
             for (zona in 0..2) {
                 resumen[1 + 2 * zona] = 1
                 resumen[2 + 2 * zona] = 3

@@ -11,7 +11,8 @@
  *     franja de referencia del piso en azul (el detector dice dónde cayó), y las tres zonas
  *     (izquierda, centro, derecha, de la fila mínima hacia abajo) con su estado y su cercanía.
  *  4. La zona es verde si está libre y roja si tiene obstáculo; el número es la cercanía
- *     (1 = lejos, 2 = media, 3 = muy cerca).
+ *     (1 = lejos, 2 = media, 3 = muy cerca). Si se usa el modelo de objetos, las zonas son las FUSIONADAS
+ *     (detector + modelo) y encima se dibujan en celeste las cajas del modelo con su nombre y confianza.
  */
 package com.fsi.carro
 
@@ -40,6 +41,8 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
     private val pincelBorde = Paint().apply { style = Paint.Style.STROKE; strokeWidth = 4f }
     private val pincelFondoTexto = Paint().apply { color = Color.argb(170, 0, 0, 0) }
     private val pincelTexto = Paint().apply { color = Color.WHITE; textAlign = Paint.Align.CENTER; isFakeBoldText = true }
+    private val pincelCaja = Paint().apply { color = Color.CYAN; style = Paint.Style.STROKE; strokeWidth = 3f }
+    private val pincelNombreCaja = Paint().apply { color = Color.CYAN; textAlign = Paint.Align.LEFT; isFakeBoldText = true; textSize = 18f }
 
     /** Muestra un cuadro nuevo (hay que llamarlo en el hilo principal). null = sin cuadro. */
     fun mostrar(nuevo: CuadroAnalizado?, texto: String = "") {
@@ -123,8 +126,9 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
 
         // Las tres zonas, de la fila mínima hacia abajo.
         val nombres = arrayOf("IZQ", "CENTRO", "DER")
-        val hay = intArrayOf(resultado[ObstaculosNativa.HAY_IZQUIERDA], resultado[ObstaculosNativa.HAY_CENTRO], resultado[ObstaculosNativa.HAY_DERECHA])
-        val cercania = intArrayOf(resultado[ObstaculosNativa.CERCANIA_IZQUIERDA], resultado[ObstaculosNativa.CERCANIA_CENTRO], resultado[ObstaculosNativa.CERCANIA_DERECHA])
+        val zonasDecididas = cuadroActual.zonas   // las fusionadas si se usa el modelo de objetos
+        val hay = intArrayOf(zonasDecididas[ObstaculosNativa.HAY_IZQUIERDA], zonasDecididas[ObstaculosNativa.HAY_CENTRO], zonasDecididas[ObstaculosNativa.HAY_DERECHA])
+        val cercania = intArrayOf(zonasDecididas[ObstaculosNativa.CERCANIA_IZQUIERDA], zonasDecididas[ObstaculosNativa.CERCANIA_CENTRO], zonasDecididas[ObstaculosNativa.CERCANIA_DERECHA])
         val mitad = yLimite
         // El texto cabe en el ancho de una zona (la etiqueta más larga tiene unos 20 caracteres).
         pincelTexto.textSize = Math.max(12f, Math.min(altoRejilla / 14f, anchoRejilla / 3f / 11f))
@@ -140,6 +144,22 @@ class VistaDeteccion(contexto: Context, atributos: AttributeSet?) : View(context
             val mitadAncho = pincelTexto.measureText(etiqueta) / 2f + 8f
             lienzo.drawRect((x0 + x1) / 2f - mitadAncho, yTexto - pincelTexto.textSize, (x0 + x1) / 2f + mitadAncho, yTexto + 8f, pincelFondoTexto)
             lienzo.drawText(etiqueta, (x0 + x1) / 2f, yTexto, pincelTexto)
+        }
+
+        // Cajas del modelo de objetos (celeste), si la fusión las usó.
+        val modelo = cuadroActual.modelo
+        val fusion = cuadroActual.fusion
+        if (hayAnalisis && modelo != null && fusion != null && fusion[FusionNativa.R_MODELO_VIGENTE] == 1) {
+            val n = modelo.cajas[0]
+            for (i in 0 until n) {
+                val base = 1 + i * FusionNativa.ENTEROS_POR_CAJA
+                val x0 = izquierda + ancho * modelo.cajas[base + 2] / 1000f
+                val y0 = arriba + alto * modelo.cajas[base + 3] / 1000f
+                val x1 = izquierda + ancho * modelo.cajas[base + 4] / 1000f
+                val y1 = arriba + alto * modelo.cajas[base + 5] / 1000f
+                lienzo.drawRect(x0, y0, x1, y1, pincelCaja)
+                lienzo.drawText("${modelo.nombres.getOrElse(i) { "?" }} ${modelo.cajas[base + 1] / 10}%", x0 + 4f, y0 + 20f, pincelNombreCaja)
+            }
         }
 
         if (!hayAnalisis) {
