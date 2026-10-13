@@ -14,11 +14,17 @@ que hay algo y de qué lado.
 
 ## Cómo funciona (en el orden en que lo hace el código)
 
-1. **Entrada**: una imagen RGB de 320x240, 3 bytes por píxel (R, G, B), fila por fila.
-2. **Celdas**: se divide en celdas de 10x10 píxeles (32 columnas x 24 filas) y se calcula el
-   color promedio de cada una. Promediar 100 píxeles elimina casi todo el ruido de la cámara.
-3. **Color del piso**: se promedian las celdas de una franja de referencia abajo y al centro
-   (6 celdas de ancho x 2 de alto: columnas 13 a 18, filas 22 y 23). Se asume que esa franja
+1. **Entrada**: una imagen RGB de **cualquier tamaño de 30x30 a 640x480** (3 bytes por píxel:
+   R, G, B, fila por fila). El ancho y el alto se pasan en cada llamada; el detector no supone
+   320x240. La cámara real del carro entrega 240x176 (HQVGA).
+2. **Celdas**: se divide en celdas de 10x10 píxeles: columnas = ancho / 10 y filas = alto / 10
+   (los píxeles que sobran no se miran). 320x240 son 32x24 celdas, 240x176 son 24x17 y 160x120
+   son 16x12. Se calcula el color promedio de cada celda. Promediar 100 píxeles elimina casi
+   todo el ruido de la cámara.
+3. **Color del piso**: se promedian las celdas de una franja de referencia abajo y al centro.
+   Su tamaño es una **proporción** de la imagen (ancho 188 milésimas, alto 84 milésimas,
+   centrada y pegada abajo): en 320x240 son 6x2 celdas (columnas 13 a 18, filas 22 y 23), en
+   240x176 son 4x1 y en 160x120 son 3x1. Siempre hay al menos 1 celda. Se asume que esa franja
    es piso libre. Si sus celdas no son parecidas entre sí (alguna se aleja más de
    `MAX_VARIACION_REF`), hay algo encima y se devuelve el error `OBS_ERR_REFERENCIA`.
 4. **¿Es piso esta celda?** Es piso si cumple una de dos condiciones:
@@ -37,18 +43,36 @@ que hay algo y de qué lado.
    muy oscura o de otro color.
 5. **Ruido**: una celda "no piso" sin ninguna vecina "no piso" (en las 8 de alrededor) se
    descarta. Un reflejo suelto o un pixel malo no cuenta.
-6. **Zonas**: solo la zona de avance, de la fila `fila_minima` hacia abajo (por defecto la mitad
-   inferior de la imagen, filas 12 a 23); las filas de arriba (el fondo del cuarto, paredes
-   lejanas) se ignoran. Se divide en tres tercios de ancho: `ZONA_IZQUIERDA`, `ZONA_CENTRO` y
+6. **Zonas**: solo la zona de avance, de la fila mínima hacia abajo. La fila mínima es una
+   **proporción del alto** (`fila_minima_mil`, en milésimas; por defecto 500 = 0.5 = la mitad
+   inferior) y se convierte a fila al analizar: en 24 filas es la fila 12, en 17 filas la 8, en
+   12 filas la 6. Las filas de arriba (el fondo del cuarto, paredes lejanas) se ignoran. Se divide en tres tercios de ancho: `ZONA_IZQUIERDA`, `ZONA_CENTRO` y
    `ZONA_DERECHA`. Una zona tiene obstáculo si hay al menos `MIN_CELDAS` celdas "no piso"
    confirmadas desde esa fila hacia abajo.
-7. **Cercanía** (0 a 3) según la fila más baja que alcanza el obstáculo (no depende de `fila_minima`): 0 = no hay;
-   1 = lejos (filas 12 a 15); 2 = media (filas 16 a 19); 3 = muy cerca (filas 20 a 23).
+7. **Cercanía** (0 a 3) según la fila más baja que alcanza el obstáculo (no depende de la fila
+   mínima). Los límites también son proporciones del alto (`OBS_MEDIA_MIL` 667 y `OBS_CERCA_MIL`
+   834): 0 = no hay; 1 = lejos; 2 = media (desde 2/3 de la altura); 3 = muy cerca (desde 5/6).
+   En 24 filas son las de siempre (1 = filas 12 a 15, 2 = 16 a 19, 3 = 20 a 23); en 17 filas
+   (HQVGA) 1 = filas 8 a 10, 2 = 11 a 13 y 3 = 14 a 16.
 
 El resultado (`ResultadoObstaculos`) trae las tres zonas (hay obstáculo, cercanía y número de
-celdas), el color de referencia del piso y una máscara de 24x32 con las celdas "no piso" (sirve
-para dibujar o depurar). Los errores son códigos: `OBS_ERR_IMAGEN_NULA`, `OBS_ERR_TAMANO`
-(la imagen no es de 320x240), `OBS_ERR_REFERENCIA` y `OBS_ERR_CONFIG`.
+celdas), el color de referencia del piso, el tamaño de la rejilla de ese análisis (`columnas` y
+`filas`), la fila mínima y la franja de referencia que se usaron, el aviso `rejilla_chica` y una
+máscara con las celdas "no piso" (hasta 48x64; solo se usa la parte `filas` x `columnas`; sirve para
+dibujar o depurar). Los errores son códigos: `OBS_ERR_IMAGEN_NULA`, `OBS_ERR_TAMANO` (ancho o
+alto no positivos, mayores que 640x480 o con menos de 3x3 celdas: **nunca se cuelga ni lee fuera de
+la imagen**), `OBS_ERR_REFERENCIA` y `OBS_ERR_CONFIG`.
+
+### Tamaños de imagen: qué pasa con cada uno
+
+- **320x240** (32x24 celdas) y **240x176** (24x17, el modo de la cámara real): funcionan igual y
+  pasan el mismo juego de pruebas.
+- **160x120** (16x12 celdas): **funciona, pero con aviso** (`rejilla_chica` = 1, porque tiene
+  menos de 20 columnas o 15 filas). Cada celda pesa más, la franja de referencia es de 3x1
+  celdas y un objeto pequeño ocupa pocas celdas (con `min_celdas` 6 una caja de 4 celdas ya no
+  cuenta). Por eso QQVGA se descartó para detectar. La pantalla de visión avisa "Rejilla chica".
+- **30x30** (3x3, el mínimo): funciona con aviso; **menos de 3x3 celdas** (por ejemplo 29x30 o
+  20x240) da `OBS_ERR_TAMANO`.
 
 ## Parámetros a calibrar con el carro real
 
@@ -72,25 +96,37 @@ Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen
   un objeto debajo del carro.
 - `MIN_CELDAS` = 6: tamaño mínimo (en celdas de 10x10) para contar una zona. Más alto = menos
   falsas alarmas pero no ve objetos pequeños.
-- `OBS_FILA_MEDIA` = 16 y `OBS_FILA_CERCA` = 20: dónde cambian las cercanías. Hay que
-  relacionarlas con la distancia real (por ejemplo, a cuántos cm del carro está la fila 20) y
+- `OBS_MEDIA_MIL` = 667 y `OBS_CERCA_MIL` = 834 (proporciones del alto): dónde cambian las
+  cercanías. Hay que relacionarlas con la distancia real (por ejemplo, a cuántos cm del carro está la fila 20) y
   con la distancia de frenado del carro.
-- `fila_minima` (FILA_MINIMA) = 12 (`OBS_FILA_INICIAL_ZONAS`): primera fila de celdas, contando desde
-  arriba (0 a 23), que cuenta como zona de avance. Las filas de arriba se ignoran, aunque tengan
+- `fila_minima_mil` (fila mínima) = 500 (`OBS_FILA_MINIMA_MIL`): **proporción del alto** (0 a 1000
+  milésimas; 500 = 0.5 = la mitad inferior; el antiguo "12 de 24" equivale a 500). Se convierte a
+  la primera fila de celdas, contando desde arriba, que cuenta como zona de avance
+  (`filas * fila_minima_mil / 1000`). Las filas de arriba se ignoran, aunque tengan
   celdas "no piso" (la máscara `no_piso` sigue mostrándolas, para dibujar). Súbela si el fondo del
   cuarto (una pared lejana, un mueble) da falsas alarmas; bájala si la cámara apunta muy abajo y
   se pierde piso útil. Ajusta primero la inclinación del teléfono o la cámara y después esta fila,
   hasta que el fondo del cuarto quede en la parte gris de la pantalla de visión. Como la
-  cercanía usa la fila más baja del obstáculo, no cambia al mover `fila_minima`. Un valor fuera
-  de 0 a 23 da `OBS_ERR_CONFIG`. Para que un objeto cuente, al menos `MIN_CELDAS` de sus celdas
-  confirmadas deben estar en `fila_minima` o más abajo (el filtro de celdas aisladas mira también
+  cercanía usa la fila más baja del obstáculo, no cambia al mover la fila mínima. Un valor fuera
+  de 0 a 1000 da `OBS_ERR_CONFIG` (1000 = solo se mira la última fila). Para que un objeto
+  cuente, al menos `MIN_CELDAS` de sus celdas confirmadas deben estar en la fila mínima o más abajo (el filtro de celdas aisladas mira también
   las vecinas de arriba).
-- Geometría: franja de referencia (`OBS_REF_COLUMNAS`, `OBS_REF_FILAS`). Depende de cómo quede
-  montada la cámara.
+- Franja de referencia: `ref_ancho_mil` (188), `ref_alto_mil` (84), `ref_centro_x_mil` (500) y
+  `ref_borde_inf_mil` (1000), todas proporciones. Si se saldría de la imagen se corre hacia
+  adentro. Depende de cómo quede montada la cámara. Con una rejilla chica conviene una franja
+  más alta (por ejemplo `ref_alto_mil` 170) para promediar más celdas.
+- `MIN_CELDAS` se cuenta en celdas absolutas: con 240x176 los objetos se ven con menos celdas que
+  en 320x240 (el área baja a ~56 %), así que si una caja real no se detecta, baja `min_celdas`
+  a 4 en la pantalla de visión.
 
 ## Pruebas hechas
 
-- **En PC** (`cd nucleo_c; make test`): 71 casos, todos pasan (32 del detector, 19 de la configuración y 20 de `fila_minima`). Piso liso, con ruido leve y
+- **En PC** (`cd nucleo_c; make test`): 144 casos del detector, todos pasan. Son los 71 anteriores
+  (3 se reescribieron porque la configuración de la franja y la fila mínima ahora son proporciones;
+  se agregaron 6 de configuración) y 67 nuevos por tamaño: la misma escena (piso, ruido, luz, caja
+  al centro/izquierda/derecha cerca, media y lejos, pared, celda aislada, objeto arriba de la
+  fila mínima, franja contaminada, máscara, aviso) en 320x240, 240x176 y 160x120, más tamaños
+  raros (30x30, 640x480, 245x179, tamaños no positivos o fuera de rango). Piso liso, con ruido leve y
   fuerte, cambio de luz global (+30), degradado de luz, caja al centro, a la izquierda y a la
   derecha, caja lejos y a media distancia, caja entre dos zonas, objeto oscuro del mismo tono,
   pared que ocupa todo, celda aislada, celdas sueltas dispersas, objeto pequeño, objeto solo en
@@ -140,8 +176,8 @@ Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen
 
 ## Cómo usarlo
 
-- **C**: `obstaculos_analizar(rgb, 320, 240, &resultado)` devuelve `OBS_OK` o un código de error.
-- **Kotlin**: `ObstaculosNativa.analizar(bytesRgb, 320, 240)` devuelve 10 enteros
+- **C**: `obstaculos_analizar(rgb, ancho, alto, &resultado)` devuelve `OBS_OK` o un código de error.
+- **Kotlin**: `ObstaculosNativa.analizar(bytesRgb, ancho, alto)` devuelve 10 enteros
   `[código, hayIzq, cercaníaIzq, hayCentro, cercaníaCentro, hayDer, cercaníaDer, refR, refG, refB]`
   (los índices tienen nombre en `ObstaculosNativa`).
 - **Pruebas en PC**: `cd nucleo_c` y `make test` (corre también las de trayectoria).

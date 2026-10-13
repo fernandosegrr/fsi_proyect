@@ -158,25 +158,63 @@ static void pruebas_rutas_raras(void)
 
 /* ── Casos: obstáculos ─────────────────────────────────────────────────── */
 
+/* Cuadro de la zona CENTRO con la cercanía dada (para los tests que llaman al navegador sin simulador). */
+static void cuadro_centro(ResultadoObstaculos *obs, int cercania)
+{
+    memset(obs, 0, sizeof *obs);
+    obs->zona[ZONA_CENTRO].hay_obstaculo = (cercania > 0);
+    obs->zona[ZONA_CENTRO].cercania = cercania;
+    obs->zona[ZONA_CENTRO].celdas = cercania > 0 ? 10 : 0;
+}
+
+/* Prepara un navegador que avanza por la RECTA y le da cuadros cada `periodo_ms` con `cercania` en el
+ * centro desde la hora `t_obstaculo_ms`. Los ticks son exactamente a la hora de cada cuadro (sin
+ * simulador), para medir el retraso real del antirrebote. Devuelve la hora del primer STOP o -1. */
+static long hora_del_stop(int periodo_ms, int t_obstaculo_ms, int cercania, int hasta_ms)
+{
+    ResultadoObstaculos libre, con_obstaculo;
+    int t;
+
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_comenzar(&nav, 0);
+    cuadro_centro(&libre, 0);
+    cuadro_centro(&con_obstaculo, cercania);
+    for (t = 0; t <= hasta_ms; t += periodo_ms) {
+        const ResultadoObstaculos *cuadro = (t >= t_obstaculo_ms) ? &con_obstaculo : &libre;
+
+        if (navegador_tick(&nav, (uint32_t)t, cuadro) == NAV_CMD_STOP && t > 100) {
+            return t;
+        }
+    }
+    return -1;
+}
+
 static void pruebas_antirrebote(void)
 {
     preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 1550, ZONA_CENTRO, 3);   /* un solo cuadro de ruido */
+    sim_agregar_obstaculo(&sim, 1500, 1550, ZONA_CENTRO, 1);   /* un solo cuadro lejano de ruido */
     correr(12000);
-    caso("antirrebote: un cuadro de ruido NO detiene", nav.estado == NAV_TERMINADO &&
+    caso("antirrebote: un cuadro de ruido lejano NO detiene", nav.estado == NAV_TERMINADO &&
          sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1 && nav.esquivadas == 0);
 
     preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 1600, ZONA_CENTRO, 3);   /* dos cuadros: todavia menos que NAV_FRAMES_ANTIRREBOTE */
+    sim_agregar_obstaculo(&sim, 1500, 1600, ZONA_CENTRO, 1);   /* dos cuadros lejanos (100 ms): menos que MS_CONFIRMAR_LEJOS */
     correr(12000);
-    caso("antirrebote: dos cuadros seguidos tampoco detienen", nav.estado == NAV_TERMINADO &&
-         sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
+    caso("antirrebote: obstaculo lejano visto solo 100 ms (menos de 150 ms) tampoco detiene",
+         nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
 
     preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 1);   /* lejos: cercania menor que el minimo */
-    correr(12000);
-    caso("obstaculo LEJOS (cercania 1) no detiene", nav.estado == NAV_TERMINADO &&
-         sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
+    sim_agregar_obstaculo(&sim, 1500, 1550, ZONA_CENTRO, 3);   /* un solo cuadro MUY cerca: confirmacion inmediata */
+    correr(3000);
+    caso("un solo cuadro con obstaculo muy cerca (cercania 3) SI detiene al instante (no espera 150 ms)",
+         sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1500);
+
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 1);   /* lejano y permanente: se confirma tras MS_CONFIRMAR_LEJOS */
+    correr(2500);
+    caso("obstaculo LEJOS (cercania 1) permanente: detiene a los 150 ms (MS_CONFIRMAR_LEJOS)",
+         sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1650);
 
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 0, 99999, ZONA_IZQUIERDA, 3);
@@ -186,28 +224,140 @@ static void pruebas_antirrebote(void)
          sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1 && nav.esquivadas == 0);
 }
 
+/* El antirrebote cuenta MILISEGUNDOS: con cuadros cada 80 ms y cada 120 ms el retraso es casi el mismo. */
+static void pruebas_antirrebote_en_ms(void)
+{
+    /* Obstaculo muy cerca (inmediato): un solo cuadro. El STOP sale en el mismo tick del primer cuadro. */
+    caso("cuadros cada 80 ms, cercania 3: STOP con el primer cuadro con obstaculo (1 cuadro)",
+         hora_del_stop(80, 1600, 3, 5000) == 1600);
+    caso("cuadros cada 120 ms, cercania 3: STOP con el primer cuadro con obstaculo (1 cuadro)",
+         hora_del_stop(120, 1560, 3, 5000) == 1560);
+
+    /* Cercania 2 en el centro: tambien inmediato. */
+    caso("cuadros cada 80 ms, cercania 2 en el centro: STOP inmediato con 1 cuadro",
+         hora_del_stop(80, 1600, 2, 5000) == 1600);
+    caso("cuadros cada 120 ms, cercania 2 en el centro: STOP inmediato con 1 cuadro",
+         hora_del_stop(120, 1560, 2, 5000) == 1560);
+
+    /* Lejos (cercania 1): hay que verlo 150 ms y en al menos 2 cuadros.
+     * Cuadros cada 80 ms: el primero a 1600, el segundo a 1680 (80 ms < 150), el tercero a 1760 (160 ms >= 150). */
+    caso("cuadros cada 80 ms, obstaculo lejano: se confirma al tercer cuadro (160 ms despues del primero)",
+         hora_del_stop(80, 1600, 1, 5000) == 1760);
+    /* Cuadros cada 120 ms: 1560, 1680 (120 ms < 150), 1800 (240 ms >= 150). */
+    caso("cuadros cada 120 ms, obstaculo lejano: se confirma al tercer cuadro (240 ms despues del primero)",
+         hora_del_stop(120, 1560, 1, 5000) == 1800);
+    /* Cuadros cada 50 ms (el ritmo del tick): 4 cuadros = 150 ms justos. */
+    caso("cuadros cada 50 ms, obstaculo lejano: se confirma justo a los 150 ms",
+         hora_del_stop(50, 1500, 1, 5000) == 1650);
+
+    /* El retraso por antirrebote nunca pasa de MS_CONFIRMAR_LEJOS + un periodo de cuadro. */
+    caso("el retraso del antirrebote en obstaculo lejano es menos de 150 ms + un periodo (80 y 120 ms)",
+         hora_del_stop(80, 1600, 1, 5000) - 1600 < MS_CONFIRMAR_LEJOS + 80 &&
+         hora_del_stop(120, 1560, 1, 5000) - 1560 < MS_CONFIRMAR_LEJOS + 120);
+
+    /* Un cuadro lejano suelto entre cuadros libres no frena. */
+    {
+        ResultadoObstaculos libre, ruido_lejano;
+        int t, alguna_vez_stop = 0;
+
+        cuadro_centro(&libre, 0);
+        cuadro_centro(&ruido_lejano, 1);
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        for (t = 0; t <= 4000; t += 80) {
+            const ResultadoObstaculos *cuadro = (t == 1600) ? &ruido_lejano : &libre;
+
+            if (navegador_tick(&nav, (uint32_t)t, cuadro) == NAV_CMD_STOP && t > 100) {
+                alguna_vez_stop = 1;
+            }
+        }
+        caso("cuadros cada 80 ms: un cuadro lejano aislado (ruido) no detiene", !alguna_vez_stop);
+    }
+
+    /* Intermitente: lejano, libre, lejano, libre... nunca llega a 2 cuadros seguidos: no frena. */
+    {
+        ResultadoObstaculos libre, lejano;
+        int t, n = 0, alguna_vez_stop = 0;
+
+        cuadro_centro(&libre, 0);
+        cuadro_centro(&lejano, 1);
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        for (t = 0; t <= 4000; t += 120, n++) {
+            const ResultadoObstaculos *cuadro = (n % 2 == 0) ? &lejano : &libre;
+
+            if (navegador_tick(&nav, (uint32_t)t, cuadro) == NAV_CMD_STOP && t > 100) {
+                alguna_vez_stop = 1;
+            }
+        }
+        caso("cuadros cada 120 ms: obstaculo lejano intermitente (nunca 2 cuadros seguidos) no detiene", !alguna_vez_stop);
+    }
+
+    /* Para volver a avanzar: el frente libre MS_CONFIRMAR_LIBRE ms. Cuadros cada 80 ms. */
+    {
+        ResultadoObstaculos libre, cerca;
+        int t, t_reanuda = -1;
+        ComandoNav cmd;
+
+        cuadro_centro(&libre, 0);
+        cuadro_centro(&cerca, 3);
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        for (t = 0; t <= 3000; t += 80) {
+            /* obstaculo entre 1600 y 1760 (2 cuadros), luego libre */
+            const ResultadoObstaculos *cuadro = (t >= 1600 && t < 1760) ? &cerca : &libre;
+
+            cmd = navegador_tick(&nav, (uint32_t)t, cuadro);
+            if (t_reanuda < 0 && t >= 1760 && cmd == NAV_CMD_FORWARD) {
+                t_reanuda = t;
+            }
+        }
+        caso("cuadros cada 80 ms: tras detenerse, reanuda cuando el frente lleva 250 ms libre",
+             t_reanuda > 0 && t_reanuda - 1760 >= MS_CONFIRMAR_LIBRE && t_reanuda - 1760 < MS_CONFIRMAR_LIBRE + 80 &&
+             nav.esquivadas == 0);
+    }
+}
+
 static void pruebas_detencion_y_esquivar(void)
 {
     long t_stop;
 
-    /* Obstaculo al centro desde 1500 ms: con 3 cuadros seguidos (cada 50 ms) el STOP sale en 1600 ms. */
+    /* Obstaculo muy cerca al centro desde 1500 ms: confirmacion inmediata, el STOP sale con el primer cuadro. */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(1700);
     t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
-    caso("detiene con STOP a los 3 cuadros seguidos (1600 ms; retraso de 100 ms con cuadros cada 50 ms)",
-         t_stop == 1600 && nav.estado == NAV_DETENIDO_OBSTACULO);
+    caso("detiene con STOP en el primer cuadro con el obstaculo cerca (1500 ms, sin esperar mas cuadros)",
+         t_stop == 1500 && nav.estado == NAV_DETENIDO_OBSTACULO);
 
     preparar(RECTA, N(RECTA));
     sim.periodo_cuadro_ms = 100;
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(2000);
     t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
-    caso("con cuadros cada 100 ms el STOP sale a los 1700 ms (retraso de 200 ms)", t_stop == 1700);
+    caso("con cuadros cada 100 ms el STOP sale a los 1500 ms (el cuadro llega justo)", t_stop == 1500);
+
+    /* Cuadros cada 80 y 120 ms (no son multiplos del tick de 50 ms): el cuadro llega al primer tick siguiente. */
+    preparar(RECTA, N(RECTA));
+    sim.periodo_cuadro_ms = 80;
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
+    correr(2500);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    caso("con cuadros cada 80 ms: STOP en el primer cuadro con obstaculo (llega en el tick de 1550 ms)", t_stop == 1550);
+
+    preparar(RECTA, N(RECTA));
+    sim.periodo_cuadro_ms = 120;
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
+    correr(2500);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    caso("con cuadros cada 120 ms: STOP en el primer cuadro con obstaculo (llega en el tick de 1600 ms)", t_stop == 1600);
 
     /* El obstaculo desaparece mientras el carro esta detenido: reanuda sin esquivar. */
     preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 2000, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo(&sim, 1500, 1700, ZONA_CENTRO, 3);   /* desaparece antes de la pausa de 500 ms */
     correr(14000);
     caso("obstaculo que desaparece: se detiene, reanuda sin esquivar y llega",
          nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 2 &&
@@ -403,6 +553,7 @@ int main(void)
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();
+    pruebas_antirrebote_en_ms();
     pruebas_detencion_y_esquivar();
     pruebas_errores_de_navegacion();
     pruebas_cancelar();

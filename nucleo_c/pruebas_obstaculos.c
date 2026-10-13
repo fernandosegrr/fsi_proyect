@@ -16,7 +16,9 @@
 #include <string.h>
 #include "obstaculos.h"
 
-static unsigned char imagen[OBS_ALTO * OBS_ANCHO * 3];
+static int g_ancho = OBS_ANCHO;   /* tamaño de la imagen que se está generando (cambia en las pruebas por tamaño) */
+static int g_alto = OBS_ALTO;
+static unsigned char imagen[OBS_MAX_COLUMNAS * OBS_LADO_CELDA * OBS_MAX_FILAS * OBS_LADO_CELDA * 3];
 
 static int casos  = 0;
 static int fallos = 0;
@@ -33,6 +35,13 @@ static void caso(const char *nombre, int ok)
         fallos++;
     }
     printf("%s  %s\n", ok ? "OK   " : "FALLO", nombre);
+}
+
+/* Convierte "fila N de un total de T" en milésimas SIN perder la fila al volver a convertir
+ * (redondea hacia arriba): así un valor de las pruebas viejas (en filas) se expresa como proporción. */
+static int mil_de(int celdas, int total)
+{
+    return (celdas * 1000 + total - 1) / total;
 }
 
 /* ── Generación de imágenes ────────────────────────────────────────────── */
@@ -58,7 +67,7 @@ static void rellenar(const unsigned char color[3])
 {
     int i;
 
-    for (i = 0; i < OBS_ALTO * OBS_ANCHO; i++) {
+    for (i = 0; i < g_alto * g_ancho; i++) {
         imagen[i * 3]     = color[0];
         imagen[i * 3 + 1] = color[1];
         imagen[i * 3 + 2] = color[2];
@@ -70,7 +79,7 @@ static void ruido(int amplitud)
 {
     int i;
 
-    for (i = 0; i < OBS_ALTO * OBS_ANCHO * 3; i++) {
+    for (i = 0; i < g_alto * g_ancho * 3; i++) {
         imagen[i] = limitar(imagen[i] + (int)(aleatorio() % (unsigned)(2 * amplitud + 1)) - amplitud);
     }
 }
@@ -80,7 +89,7 @@ static void sumar_luz(int cantidad)
 {
     int i;
 
-    for (i = 0; i < OBS_ALTO * OBS_ANCHO * 3; i++) {
+    for (i = 0; i < g_alto * g_ancho * 3; i++) {
         imagen[i] = limitar(imagen[i] + cantidad);
     }
 }
@@ -90,12 +99,12 @@ static void degradado_luz(int maximo)
 {
     int x, y, c;
 
-    for (y = 0; y < OBS_ALTO; y++) {
-        int extra = (OBS_ALTO - 1 - y) * maximo / (OBS_ALTO - 1);
+    for (y = 0; y < g_alto; y++) {
+        int extra = (g_alto - 1 - y) * maximo / (g_alto - 1);
 
-        for (x = 0; x < OBS_ANCHO; x++) {
+        for (x = 0; x < g_ancho; x++) {
             for (c = 0; c < 3; c++) {
-                imagen[(y * OBS_ANCHO + x) * 3 + c] = limitar(imagen[(y * OBS_ANCHO + x) * 3 + c] + extra);
+                imagen[(y * g_ancho + x) * 3 + c] = limitar(imagen[(y * g_ancho + x) * 3 + c] + extra);
             }
         }
     }
@@ -108,9 +117,9 @@ static void rectangulo_celdas(int columna0, int fila0, int columna1, int fila1, 
 
     for (y = fila0 * OBS_LADO_CELDA; y < (fila1 + 1) * OBS_LADO_CELDA; y++) {
         for (x = columna0 * OBS_LADO_CELDA; x < (columna1 + 1) * OBS_LADO_CELDA; x++) {
-            imagen[(y * OBS_ANCHO + x) * 3]     = color[0];
-            imagen[(y * OBS_ANCHO + x) * 3 + 1] = color[1];
-            imagen[(y * OBS_ANCHO + x) * 3 + 2] = color[2];
+            imagen[(y * g_ancho + x) * 3]     = color[0];
+            imagen[(y * g_ancho + x) * 3 + 1] = color[1];
+            imagen[(y * g_ancho + x) * 3 + 2] = color[2];
         }
     }
 }
@@ -129,7 +138,7 @@ static int verificar(int cercania_izq, int cercania_centro, int cercania_der)
     esperado[ZONA_CENTRO]    = cercania_centro;
     esperado[ZONA_DERECHA]   = cercania_der;
 
-    codigo = obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &r);
+    codigo = obstaculos_analizar(imagen, g_ancho, g_alto, &r);
     ok = (codigo == OBS_OK);
     for (z = 0; z < OBS_ZONAS; z++) {
         ok = ok && r.zona[z].cercania == esperado[z] && r.zona[z].hay_obstaculo == (esperado[z] > 0);
@@ -156,7 +165,7 @@ static int verificar_con(const ConfigObstaculos *config, int cercania_izq, int c
     esperado[ZONA_CENTRO]    = cercania_centro;
     esperado[ZONA_DERECHA]   = cercania_der;
 
-    codigo = obstaculos_analizar_con(config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+    codigo = obstaculos_analizar_con(config, imagen, g_ancho, g_alto, &r);
     ok = (codigo == OBS_OK);
     for (z = 0; z < OBS_ZONAS; z++) {
         ok = ok && r.zona[z].cercania == esperado[z] && r.zona[z].hay_obstaculo == (esperado[z] > 0);
@@ -173,7 +182,7 @@ static int codigo_de_analisis(void)
 {
     ResultadoObstaculos r;
 
-    return obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &r);
+    return obstaculos_analizar(imagen, g_ancho, g_alto, &r);
 }
 
 /* ── Casos ─────────────────────────────────────────────────────────────── */
@@ -308,7 +317,7 @@ static void pruebas_ruido_y_limites(void)
     rectangulo_celdas(12, 14, 19, 20, CAJA);
     {
         ResultadoObstaculos r;
-        int codigo = obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &r);
+        int codigo = obstaculos_analizar(imagen, g_ancho, g_alto, &r);
         caso("la referencia del piso se calcula bien (cerca de 110,100,90)",
              codigo == OBS_OK && r.ref_r >= 107 && r.ref_r <= 113 && r.ref_g >= 97 && r.ref_g <= 103 &&
              r.ref_b >= 87 && r.ref_b <= 93);
@@ -321,15 +330,15 @@ static void pruebas_errores(void)
 {
     ResultadoObstaculos r;
 
-    caso("imagen nula: OBS_ERR_IMAGEN_NULA", obstaculos_analizar(NULL, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_IMAGEN_NULA);
-    caso("resultado nulo: OBS_ERR_IMAGEN_NULA", obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, NULL) == OBS_ERR_IMAGEN_NULA);
-    caso("alto invalido (200): OBS_ERR_TAMANO", obstaculos_analizar(imagen, OBS_ANCHO, 200, &r) == OBS_ERR_TAMANO);
-    caso("ancho invalido (640): OBS_ERR_TAMANO", obstaculos_analizar(imagen, 640, OBS_ALTO, &r) == OBS_ERR_TAMANO);
+    caso("imagen nula: OBS_ERR_IMAGEN_NULA", obstaculos_analizar(NULL, g_ancho, g_alto, &r) == OBS_ERR_IMAGEN_NULA);
+    caso("resultado nulo: OBS_ERR_IMAGEN_NULA", obstaculos_analizar(imagen, g_ancho, g_alto, NULL) == OBS_ERR_IMAGEN_NULA);
+    caso("alto invalido (20 px, menos de 3 filas de celdas): OBS_ERR_TAMANO", obstaculos_analizar(imagen, g_ancho, 20, &r) == OBS_ERR_TAMANO);
+    caso("ancho invalido (660 px, mas que el maximo): OBS_ERR_TAMANO", obstaculos_analizar(imagen, 660, g_alto, &r) == OBS_ERR_TAMANO);
     caso("ancho cero: OBS_ERR_TAMANO", obstaculos_analizar(imagen, 0, 0, &r) == OBS_ERR_TAMANO);
 
     /* Con un error el resultado queda en ceros. */
     memset(&r, 0x55, sizeof r);
-    obstaculos_analizar(imagen, 100, 100, &r);
+    obstaculos_analizar(imagen, 20, 20, &r);
     caso("con un error el resultado queda en ceros", r.zona[1].celdas == 0 && r.zona[1].hay_obstaculo == 0 && r.ref_r == 0);
 
     rellenar(PISO);
@@ -353,8 +362,8 @@ static void pruebas_repetibilidad(void)
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(12, 14, 19, 20, CAJA);
-    obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &a);
-    obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &b);
+    obstaculos_analizar(imagen, g_ancho, g_alto, &a);
+    obstaculos_analizar(imagen, g_ancho, g_alto, &b);
     caso("analizar dos veces la misma imagen da lo mismo", memcmp(&a, &b, sizeof a) == 0);
 }
 
@@ -368,14 +377,15 @@ static void pruebas_configuracion(void)
     obstaculos_config_defecto(&config);
     caso("config por defecto: umbral_color = UMBRAL_COLOR y min_celdas = MIN_CELDAS",
          config.umbral_color == UMBRAL_COLOR && config.min_celdas == MIN_CELDAS &&
-         config.ref_columnas == OBS_REF_COLUMNAS && config.ref_filas == OBS_REF_FILAS &&
-         config.ref_columna_inicial == OBS_REF_COLUMNA_INICIAL && config.ref_fila_inicial == OBS_REF_FILA_INICIAL);
+         config.ref_ancho_mil == OBS_REF_ANCHO_MIL && config.ref_alto_mil == OBS_REF_ALTO_MIL &&
+         config.ref_centro_x_mil == OBS_REF_CENTRO_X_MIL && config.ref_borde_inf_mil == OBS_REF_BORDE_INF_MIL &&
+         config.fila_minima_mil == OBS_FILA_MINIMA_MIL);
 
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(12, 14, 19, 20, CAJA);
-    obstaculos_analizar(imagen, OBS_ANCHO, OBS_ALTO, &por_defecto);
-    obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &con_config);
+    obstaculos_analizar(imagen, g_ancho, g_alto, &por_defecto);
+    obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &con_config);
     caso("obstaculos_analizar equivale a analizar_con la config por defecto", memcmp(&por_defecto, &con_config, sizeof por_defecto) == 0);
 
     /* MIN_CELDAS: un objeto de 4 celdas (2x2) se detecta si se baja el minimo y no si se sube. */
@@ -416,11 +426,10 @@ static void pruebas_configuracion(void)
     ruido(8);
     rectangulo_celdas(12, 20, 15, 23, CAJA);   /* la caja tapa la mitad de la franja central de abajo */
     caso("la caja tapa parte de la franja por defecto: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
-    config.ref_columna_inicial = 0;     /* otra franja: abajo a la izquierda, que esta libre */
-    config.ref_columnas = 6;
+    config.ref_centro_x_mil = mil_de(3, OBS_COLUMNAS);   /* otra franja: abajo a la izquierda (columnas 0 a 5), que esta libre */
     {
         ResultadoObstaculos r;
-        int codigo = obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+        int codigo = obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r);
         caso("con la franja de referencia en otra parte (libre) se detecta la caja del centro",
              codigo == OBS_OK && r.zona[ZONA_CENTRO].hay_obstaculo == 1 && r.zona[ZONA_CENTRO].cercania == 3 &&
              r.ref_r >= 107 && r.ref_r <= 113);
@@ -433,21 +442,28 @@ static void pruebas_configuracion(void)
         ConfigObstaculos mala;
 
         rellenar(PISO);
-        caso("config NULL: OBS_ERR_CONFIG", obstaculos_analizar_con(NULL, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        caso("config NULL: OBS_ERR_CONFIG", obstaculos_analizar_con(NULL, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
         mala = config; mala.min_celdas = 0;
-        caso("min_celdas 0: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        caso("min_celdas 0: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
         mala = config; mala.umbral_color = -1;
-        caso("umbral_color negativo: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
-        mala = config; mala.ref_columna_inicial = 30;
-        caso("franja que se sale por la derecha: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
-        mala = config; mala.ref_fila_inicial = 23; mala.ref_filas = 2;
-        caso("franja que se sale por abajo: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
-        mala = config; mala.ref_filas = 0;
-        caso("franja de alto cero: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
+        caso("umbral_color negativo: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_centro_x_mil = 1001;
+        caso("centro de la franja fuera de la imagen (1001 milesimas): OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_borde_inf_mil = 1500;
+        caso("borde de la franja por debajo de la imagen: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_alto_mil = 0;
+        caso("franja de alto cero: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_ancho_mil = 0;
+        caso("franja de ancho cero: OBS_ERR_CONFIG", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+        mala = config; mala.ref_centro_x_mil = 1000; mala.ref_ancho_mil = 1000;
+        caso("franja del ancho de toda la imagen es valida (se acomoda dentro)", obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) != OBS_ERR_CONFIG);
+        mala = config; mala.ref_centro_x_mil = 1000;
+        caso("franja pegada al borde derecho: se corre hacia adentro y no se sale de la imagen",
+             obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_OK);
         caso("config valida pero imagen de otro tamano: OBS_ERR_TAMANO primero",
-             obstaculos_analizar_con(&config, imagen, 100, 100, &r) == OBS_ERR_TAMANO);
+             obstaculos_analizar_con(&config, imagen, 20, 20, &r) == OBS_ERR_TAMANO);
         caso("con OBS_ERR_CONFIG el resultado queda en ceros",
-             (mala.ref_filas = 0, obstaculos_analizar_con(&mala, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG) &&
+             (mala.ref_alto_mil = 0, obstaculos_analizar_con(&mala, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG) &&
              r.zona[1].celdas == 0 && r.ref_r == 0);
     }
 }
@@ -460,22 +476,22 @@ static void pruebas_fila_minima(void)
 
     obstaculos_config_defecto(&config);
     caso("config por defecto: fila_minima = mitad inferior (12)",
-         config.fila_minima == OBS_FILA_INICIAL_ZONAS && config.fila_minima == 12);
+         config.fila_minima_mil == OBS_FILA_MINIMA_MIL && config.fila_minima_mil == 500);
 
     /* Un objeto lejano, todo por encima de la fila minima (filas 4 a 8). */
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(13, 4, 18, 8, CAJA);
     caso("fila_minima 12 (defecto): objeto en filas 4-8 se ignora", verificar_con(&config, 0, 0, 0));
-    config.fila_minima = 4;
+    config.fila_minima_mil = mil_de(4, OBS_FILAS);
     caso("fila_minima 4: el mismo objeto SI se detecta (cercania 1: fila baja 8)", verificar_con(&config, 0, 1, 0));
-    config.fila_minima = 9;
+    config.fila_minima_mil = mil_de(9, OBS_FILAS);
     caso("fila_minima 9: objeto en filas 4-8 se ignora (una fila por encima del limite)", verificar_con(&config, 0, 0, 0));
-    config.fila_minima = 8;
+    config.fila_minima_mil = mil_de(8, OBS_FILAS);
     caso("fila_minima 8: la fila 8 es la limite y solo ella cuenta (6 celdas): SI se detecta",
          verificar_con(&config, 0, 1, 0));
-    config.fila_minima = 4;
-    obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r);
+    config.fila_minima_mil = mil_de(4, OBS_FILAS);
+    obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r);
     caso("fila_minima 4: se cuentan las 30 celdas del objeto", r.zona[ZONA_CENTRO].celdas == 30);
     obstaculos_config_defecto(&config);
 
@@ -485,9 +501,9 @@ static void pruebas_fila_minima(void)
     rectangulo_celdas(13, 12, 18, 13, CAJA);
     caso("objeto en las filas 12-13 con fila_minima 12: cuenta (justo en la fila limite)",
          verificar_con(&config, 0, 1, 0));
-    config.fila_minima = 13;
+    config.fila_minima_mil = mil_de(13, OBS_FILAS);
     caso("fila_minima 13: queda solo la fila 13 (6 celdas): sigue contando", verificar_con(&config, 0, 1, 0));
-    config.fila_minima = 14;
+    config.fila_minima_mil = mil_de(14, OBS_FILAS);
     caso("fila_minima 14: las filas 12-13 quedan arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
     obstaculos_config_defecto(&config);
 
@@ -496,11 +512,11 @@ static void pruebas_fila_minima(void)
     ruido(8);
     rectangulo_celdas(13, 6, 18, 21, CAJA);   /* objeto alto: de la fila 6 a la 21 */
     caso("objeto alto (filas 6-21), fila_minima 12: cercania 3 (fila baja 21)", verificar_con(&config, 0, 3, 0));
-    config.fila_minima = 0;
+    config.fila_minima_mil = mil_de(0, OBS_FILAS);
     caso("fila_minima 0: cercania 3 igual", verificar_con(&config, 0, 3, 0));
-    config.fila_minima = 18;
+    config.fila_minima_mil = mil_de(18, OBS_FILAS);
     caso("fila_minima 18: cercania 3 igual (la fila mas baja no cambia)", verificar_con(&config, 0, 3, 0));
-    config.fila_minima = 22;
+    config.fila_minima_mil = mil_de(22, OBS_FILAS);
     caso("fila_minima 22: el objeto acaba en la fila 21, queda arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
     obstaculos_config_defecto(&config);
 
@@ -508,23 +524,214 @@ static void pruebas_fila_minima(void)
     ruido(8);
     rectangulo_celdas(13, 6, 18, 14, CAJA);   /* objeto que acaba en la fila 14 (media distancia: 1) */
     caso("objeto filas 6-14: cercania 1 (fila baja 14 < 16)", verificar_con(&config, 0, 1, 0));
-    config.fila_minima = 14;
+    config.fila_minima_mil = mil_de(14, OBS_FILAS);
     caso("fila_minima 14: solo cuenta la fila 14 (6 celdas), cercania 1", verificar_con(&config, 0, 1, 0));
     obstaculos_config_defecto(&config);
 
     /* Valores validos en los extremos y no validos. */
     rellenar(PISO);
-    config.fila_minima = 0;
-    caso("fila_minima 0 es valida", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_OK);
-    config.fila_minima = OBS_FILAS - 1;
-    caso("fila_minima 23 (ultima fila) es valida", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_OK);
-    config.fila_minima = -1;
-    caso("fila_minima -1: OBS_ERR_CONFIG", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
-    config.fila_minima = OBS_FILAS;
-    caso("fila_minima 24: OBS_ERR_CONFIG", obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG);
-    config.fila_minima = 1000;
-    caso("fila_minima 1000: OBS_ERR_CONFIG y resultado en ceros",
-         obstaculos_analizar_con(&config, imagen, OBS_ANCHO, OBS_ALTO, &r) == OBS_ERR_CONFIG && r.zona[1].celdas == 0);
+    config.fila_minima_mil = mil_de(0, OBS_FILAS);
+    caso("fila_minima 0 es valida", obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r) == OBS_OK);
+    config.fila_minima_mil = mil_de(OBS_FILAS - 1, OBS_FILAS);
+    caso("fila_minima 23 (ultima fila) es valida", obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r) == OBS_OK);
+    config.fila_minima_mil = mil_de(-1, OBS_FILAS);
+    caso("fila_minima -1: OBS_ERR_CONFIG", obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG);
+    config.fila_minima_mil = 1000;
+    caso("fila_minima 1.0 (1000 milesimas): valida, se mira solo la ultima fila", obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r) == OBS_OK && r.fila_minima_usada == OBS_FILAS - 1);
+    config.fila_minima_mil = 1001;
+    caso("fila_minima 1001 milesimas: OBS_ERR_CONFIG y resultado en ceros",
+         obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r) == OBS_ERR_CONFIG && r.zona[1].celdas == 0);
+}
+
+/* ── Pruebas por tamaño de imagen ──────────────────────────────────────────
+ * El mismo juego de escenas se repite en 320x240, 240x176 (HQVGA, el modo de la cámara real) y
+ * 160x120. Las cajas se colocan con PROPORCIONES de la imagen (no con celdas fijas), así que la
+ * escena es la misma en cualquier tamaño. */
+
+static char etiqueta[32];
+
+static void caso_t(const char *nombre, int ok)
+{
+    char completo[160];
+
+    snprintf(completo, sizeof completo, "[%s] %s", etiqueta, nombre);
+    caso(completo, ok);
+}
+
+/* Celdas = total * milesimas / 1000: la misma conversión que usa el detector. */
+static int celdas_de(int total, int milesimas)
+{
+    return total * milesimas / 1000;
+}
+
+/* Pinta una caja de celdas dada por proporciones del ancho (columnas) y por filas absolutas. */
+static void caja_por_proporcion(int col0_mil, int col1_mil, int fila0, int fila1, const unsigned char color[3])
+{
+    int columnas = obstaculos_columnas_de(g_ancho);
+    int c0 = celdas_de(columnas, col0_mil);
+    int c1 = celdas_de(columnas, col1_mil);
+
+    rectangulo_celdas(c0, fila0, c1, fila1, color);
+}
+
+/* Cercanía esperada de una caja cuya fila más baja es `fila_baja`, igual que la regla del detector. */
+static int cercania_esperada(int filas, int fila_baja)
+{
+    if (fila_baja >= celdas_de(filas, OBS_CERCA_MIL)) {
+        return 3;
+    }
+    return (fila_baja >= celdas_de(filas, OBS_MEDIA_MIL)) ? 2 : 1;
+}
+
+static void pruebas_tamano(int ancho, int alto, int rejilla_chica_esperada)
+{
+    int columnas = obstaculos_columnas_de(ancho);
+    int filas = obstaculos_filas_de(alto);
+    int fila_min = celdas_de(filas, OBS_FILA_MINIMA_MIL);
+    int fila_franja = filas - ((celdas_de(filas, OBS_REF_ALTO_MIL) < 1) ? 1 : celdas_de(filas, OBS_REF_ALTO_MIL));
+    int baja_cerca = celdas_de(filas, OBS_CERCA_MIL);
+    int baja_media = celdas_de(filas, OBS_MEDIA_MIL);
+    int baja_lejos = baja_media - 1;
+    ResultadoObstaculos r;
+    int codigo;
+
+    g_ancho = ancho;
+    g_alto = alto;
+    snprintf(etiqueta, sizeof etiqueta, "%dx%d", ancho, alto);
+
+    rellenar(PISO);
+    ruido(8);
+    caso_t("piso liso con ruido leve: sin obstaculos", verificar(0, 0, 0));
+
+    rellenar(PISO);
+    ruido(25);
+    caso_t("piso con ruido fuerte: sin obstaculos", verificar(0, 0, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    sumar_luz(30);
+    caso_t("cambio de luz global: sin obstaculos", verificar(0, 0, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(400, 600, fila_min, baja_cerca, CAJA);
+    caso_t("caja al centro llegando hasta abajo: solo CENTRO, muy cerca", verificar(0, 3, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(30, 250, fila_min, baja_cerca, CAJA);
+    caso_t("caja a la izquierda: solo IZQUIERDA, muy cerca", verificar(3, 0, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(760, 950, fila_min, baja_cerca, CAJA);
+    caso_t("caja a la derecha: solo DERECHA, muy cerca", verificar(0, 0, 3));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(400, 600, fila_min, baja_media, CAJA);
+    caso_t("caja a media distancia: cercania 2", verificar(0, cercania_esperada(filas, baja_media), 0));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(400, 600, fila_min, baja_lejos, CAJA);
+    caso_t("caja lejos (justo antes del limite de media distancia): cercania 1", verificar(0, 1, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(0, 0, columnas - 1, fila_franja - 1, PARED);
+    caso_t("pared que ocupa todo menos la franja del piso: las tres zonas, muy cerca", verificar(3, 3, 3));
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(columnas / 2, fila_min + 1, columnas / 2, fila_min + 1, CAJA);
+    caso_t("una celda aislada no cuenta", verificar(0, 0, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(300, 700, 0, fila_min - 1, CAJA);
+    caso_t("objeto solo en la mitad de arriba: se ignora", verificar(0, 0, 0));
+
+    rellenar(PISO);
+    ruido(8);
+    rectangulo_celdas(columnas / 2, filas - 1, columnas / 2, filas - 1, CAJA);
+    caso_t("una celda de la franja de referencia distinta: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(400, 600, fila_min, baja_cerca, CAJA);
+    codigo = obstaculos_analizar(imagen, ancho, alto, &r);
+    caso_t("el resultado trae el tamano de la rejilla y la fila minima usada",
+           codigo == OBS_OK && r.columnas == columnas && r.filas == filas && r.fila_minima_usada == fila_min);
+    caso_t("la referencia del piso es la del piso (cerca de 110,100,90)",
+           r.ref_r >= 107 && r.ref_r <= 113 && r.ref_g >= 97 && r.ref_g <= 103 && r.ref_b >= 87 && r.ref_b <= 93);
+    caso_t("la mascara marca la caja y no las celdas de piso",
+           r.no_piso[baja_cerca][columnas / 2] == 1 && r.no_piso[filas - 1][columnas / 2] == 0 &&
+           r.no_piso[fila_min][0] == 0);
+    caso_t("el aviso de rejilla chica es el esperado", r.rejilla_chica == rejilla_chica_esperada);
+    caso_t("la franja de referencia queda abajo y al centro, dentro de la rejilla",
+           r.ref_nfilas >= 1 && r.ref_ncolumnas >= 1 && r.ref_fila + r.ref_nfilas == filas &&
+           r.ref_columna >= 0 && r.ref_columna + r.ref_ncolumnas <= columnas &&
+           (r.ref_columna + r.ref_ncolumnas / 2 - columnas / 2 >= -1) &&
+           (r.ref_columna + r.ref_ncolumnas / 2 - columnas / 2 <= 1));
+
+    /* Una caja de tamaño de objeto real (no una pared) se ve con la config por defecto. */
+    rellenar(PISO);
+    ruido(8);
+    caja_por_proporcion(430, 570, baja_media - 1, baja_media, CAJA);
+    caso_t("objeto pequeno (2 filas) en el centro: se detecta o se descarta sin fallar",
+           obstaculos_analizar(imagen, ancho, alto, &r) == OBS_OK);
+
+    g_ancho = OBS_ANCHO;
+    g_alto = OBS_ALTO;
+    etiqueta[0] = '\0';
+}
+
+/* Tamaños raros: nunca se cuelga ni lee fuera de la imagen; da un error claro o funciona. */
+static void pruebas_tamanos_raros(void)
+{
+    ResultadoObstaculos r;
+    int i;
+    static const int anchos[] = { 1, 20, 29, 30, 245, 300, 640, 641, 700 };
+    static const int altos[]  = { 1, 20, 29, 30, 179, 300, 480, 481, 500 };
+
+    g_ancho = 30;
+    g_alto = 30;
+    rellenar(PISO);
+    caso("30x30 (3x3 celdas, el minimo): funciona y avisa rejilla chica",
+         obstaculos_analizar(imagen, 30, 30, &r) == OBS_OK && r.columnas == 3 && r.filas == 3 && r.rejilla_chica == 1);
+
+    g_ancho = 640;
+    g_alto = 480;
+    rellenar(PISO);
+    caso("640x480 (el maximo): funciona y no avisa", obstaculos_analizar(imagen, 640, 480, &r) == OBS_OK &&
+         r.columnas == 64 && r.filas == 48 && r.rejilla_chica == 0);
+
+    g_ancho = 245;
+    g_alto = 179;
+    rellenar(PISO);
+    caso("245x179 (no es multiplo de 10): usa 24x17 celdas e ignora los pixeles que sobran",
+         obstaculos_analizar(imagen, 245, 179, &r) == OBS_OK && r.columnas == 24 && r.filas == 17);
+
+    for (i = 0; i < (int)(sizeof anchos / sizeof anchos[0]); i++) {
+        int esperado_error = (anchos[i] < 30 || anchos[i] > 640 || altos[i] < 30 || altos[i] > 480);
+
+        g_ancho = (anchos[i] > 640) ? 640 : anchos[i];
+        g_alto = (altos[i] > 480) ? 480 : altos[i];
+        if (g_ancho > 0 && g_alto > 0) {
+            rellenar(PISO);
+        }
+        caso("tamano raro (ancho y alto en la lista): error claro de tamano o analisis correcto, sin colgarse",
+             obstaculos_analizar(imagen, anchos[i], altos[i], &r) == (esperado_error ? OBS_ERR_TAMANO : OBS_OK));
+    }
+
+    caso("ancho negativo: OBS_ERR_TAMANO", obstaculos_analizar(imagen, -320, 240, &r) == OBS_ERR_TAMANO);
+    caso("alto negativo: OBS_ERR_TAMANO", obstaculos_analizar(imagen, 320, -1, &r) == OBS_ERR_TAMANO);
+    caso("2 columnas x 100 filas: OBS_ERR_TAMANO (menos de 3 columnas)", obstaculos_analizar(imagen, 25, 1000, &r) == OBS_ERR_TAMANO);
+    caso("el texto del error de tamano es claro", strlen(obstaculos_texto_error(OBS_ERR_TAMANO)) > 10);
+
+    g_ancho = OBS_ANCHO;
+    g_alto = OBS_ALTO;
 }
 
 int main(void)
@@ -537,6 +744,10 @@ int main(void)
     pruebas_repetibilidad();
     pruebas_configuracion();
     pruebas_fila_minima();
+    pruebas_tamano(320, 240, 0);
+    pruebas_tamano(240, 176, 0);
+    pruebas_tamano(160, 120, 1);
+    pruebas_tamanos_raros();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

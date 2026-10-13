@@ -60,7 +60,7 @@ class ControlActivity : Activity() {
         logica = ControlLogica(EnlaceOkHttp()) { mostrarEstado() }
         semi = ModoSemiautonomo(logica) { mostrarEstado() }
         val configVision = ConfigVision(this)
-        camara = CamaraObstaculos(this, { configVision.comoArreglo() })
+        camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) })
         findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
         panelManual = findViewById(R.id.panel_manual)
         panelSemi = findViewById(R.id.panel_semi)

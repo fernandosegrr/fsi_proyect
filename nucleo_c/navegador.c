@@ -251,6 +251,9 @@ void navegador_iniciar(Navegador *nav)
     nav->frames_bloqueado = 0;
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
+    nav->t_bloqueo_ms = 0;
+    nav->t_libre_ms = 0;
+    nav->bloqueo_inmediato = 0;
     nav->esquivadas = 0;
     nav->lado = -1;
     nav->fase = 0;
@@ -284,6 +287,7 @@ int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
     nav->motivo_error = NAV_MOTIVO_NINGUNO;
     nav->esquivadas = 0;
     nav->frames_bloqueado = 0;
+    nav->bloqueo_inmediato = 0;
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
     nav->cmd_actual = NAV_CMD_STOP;
@@ -310,6 +314,7 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->cmd_actual = NAV_CMD_STOP;
     nav->seg_ms = 0;
     nav->frames_bloqueado = 0;
+    nav->bloqueo_inmediato = 0;
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
 
@@ -336,9 +341,17 @@ void navegador_cancelar(Navegador *nav)
 
 /* ── Cuadros de obstáculos ─────────────────────────────────────────────── */
 
-/* Guarda lo que se vio en el último cuadro y cuenta los cuadros seguidos con el frente
- * bloqueado o libre (antirrebote: un solo cuadro de ruido no cambia nada). */
-static void registrar_cuadro(Navegador *nav, const ResultadoObstaculos *obs)
+/* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3), o
+ * a media distancia (2) en la zona central. */
+static int cuadro_es_inmediato(int zona, int cercania)
+{
+    return cercania >= 3 || (cercania == 2 && zona == ZONA_CENTRO);
+}
+
+/* Guarda lo que se vio en el último cuadro y lleva la cuenta de la RACHA actual: cuántos cuadros
+ * seguidos (y desde qué hora, en ms) el frente está bloqueado o libre. Un cuadro de ruido suelto
+ * no cambia nada: ver bloqueo_confirmado() y libre_confirmado(). */
+static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
     int z, bloqueado;
 
@@ -348,16 +361,47 @@ static void registrar_cuadro(Navegador *nav, const ResultadoObstaculos *obs)
     }
     bloqueado = nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MIN_DETENER;
     if (bloqueado) {
+        if (nav->frames_bloqueado == 0) {      /* empieza una racha con obstáculo */
+            nav->t_bloqueo_ms = ahora_ms;
+            nav->bloqueo_inmediato = 0;
+        }
+        if (cuadro_es_inmediato(ZONA_CENTRO, nav->zona_cercania[ZONA_CENTRO])) {
+            nav->bloqueo_inmediato = 1;
+        }
         nav->frames_bloqueado++;
         nav->frames_libre = 0;
     } else {
+        if (nav->frames_libre == 0) {          /* empieza una racha con el frente libre */
+            nav->t_libre_ms = ahora_ms;
+        }
         nav->frames_libre++;
         nav->frames_bloqueado = 0;
+        nav->bloqueo_inmediato = 0;
     }
     nav->frames_recibidos++;
     limitar_contador(&nav->frames_bloqueado);
     limitar_contador(&nav->frames_libre);
     limitar_contador(&nav->frames_recibidos);
+}
+
+/* ¿Hay que tratar el frente como bloqueado? Inmediato con un solo cuadro (obstáculo cerca); si
+ * es lejano, solo cuando la racha dura MS_CONFIRMAR_LEJOS ms y tiene al menos 2 cuadros.
+ * Usa el reloj `ahora_ms` que recibe el navegador, no la cantidad de cuadros. */
+static int bloqueo_confirmado(const Navegador *nav, uint32_t ahora_ms)
+{
+    if (nav->frames_bloqueado == 0) {
+        return 0;
+    }
+    if (nav->bloqueo_inmediato) {
+        return 1;
+    }
+    return nav->frames_bloqueado >= 2 && (ahora_ms - nav->t_bloqueo_ms) >= (uint32_t)MS_CONFIRMAR_LEJOS;
+}
+
+/* ¿El frente lleva MS_CONFIRMAR_LIBRE ms libre (en al menos 2 cuadros)? */
+static int libre_confirmado(const Navegador *nav, uint32_t ahora_ms)
+{
+    return nav->frames_libre >= 2 && (ahora_ms - nav->t_libre_ms) >= (uint32_t)MS_CONFIRMAR_LIBRE;
 }
 
 /* ── Los estados ───────────────────────────────────────────────────────── */
@@ -399,7 +443,7 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
         break;
     }
 
-    if (comando == NAV_CMD_FORWARD && nav->frames_bloqueado >= NAV_FRAMES_ANTIRREBOTE) {
+    if (comando == NAV_CMD_FORWARD && bloqueo_confirmado(nav, ahora_ms)) {
         nav->estado = NAV_DETENIDO_OBSTACULO;
         nav->t_detenido_ms = ahora_ms;
         nav->frames_recibidos = 0;
@@ -416,9 +460,10 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
 {
     uint32_t espera = ahora_ms - nav->t_detenido_ms;
 
-    if (nav->frames_libre >= NAV_FRAMES_ANTIRREBOTE) {
+    if (libre_confirmado(nav, ahora_ms)) {
         nav->estado = NAV_SIGUIENDO;   /* el obstáculo se fue: continuar donde iba */
         nav->frames_bloqueado = 0;
+        nav->bloqueo_inmediato = 0;
         return tick_siguiendo(nav, ahora_ms);
     }
     if (espera >= NAV_PAUSA_MS && nav->frames_recibidos >= 1) {
@@ -448,7 +493,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
 
 /* ESQUIVANDO: gira hacia el lado libre, avanza un tramo fijo y gira de vuelta. Mientras
  * avanza de lado, si aparece algo MUY cerca al frente, ERROR (no se esquiva en cadena). */
-static ComandoNav tick_esquivando(Navegador *nav)
+static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 {
     if (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav->fase)) {
         nav->fase++;
@@ -459,7 +504,7 @@ static ComandoNav tick_esquivando(Navegador *nav)
         }
     }
     if (nav->fase == 1 && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= 3 &&
-        nav->frames_bloqueado >= NAV_FRAMES_ANTIRREBOTE) {
+        bloqueo_confirmado(nav, ahora_ms)) {
         ir_a_error(nav, NAV_MOTIVO_ESQUIVANDO);
         return NAV_CMD_STOP;
     }
@@ -471,6 +516,7 @@ static ComandoNav tick_esquivando(Navegador *nav)
 static ComandoNav tick_reincorporando(Navegador *nav)
 {
     nav->frames_bloqueado = 0;   /* hacen falta cuadros nuevos para volver a detenerse */
+    nav->bloqueo_inmediato = 0;
     nav->frames_libre = 0;
     if (planificar(nav) != NAV_OK) {
         ir_a_error(nav, NAV_MOTIVO_PLAN);
@@ -497,7 +543,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     nav->t_ultimo_ms = ahora_ms;
 
     if (obs != NULL) {
-        registrar_cuadro(nav, obs);
+        registrar_cuadro(nav, ahora_ms, obs);
     }
     nav->seg_ms += (int)dt;           /* el comando anterior estuvo activo estos dt ms */
     calcular_pose(nav);
@@ -506,7 +552,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     switch (nav->estado) {
     case NAV_SIGUIENDO:        comando = tick_siguiendo(nav, ahora_ms); break;
     case NAV_DETENIDO_OBSTACULO: comando = tick_detenido(nav, ahora_ms); break;
-    case NAV_ESQUIVANDO:       comando = tick_esquivando(nav); break;
+    case NAV_ESQUIVANDO:       comando = tick_esquivando(nav, ahora_ms); break;
     case NAV_REINCORPORANDO:   comando = tick_reincorporando(nav); break;
     default:                   comando = NAV_CMD_STOP; break;   /* ESPERANDO, TERMINADO, ERROR */
     }

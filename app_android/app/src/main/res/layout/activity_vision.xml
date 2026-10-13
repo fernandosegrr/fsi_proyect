@@ -2,7 +2,7 @@
 <!--
   Guía de lectura: pantalla de visión, en horizontal. A la izquierda el cuadro de la cámara con lo
   que detecta el detector (VistaDeteccion). A la derecha los datos (cuadros por segundo, ms por
-  cuadro, cámara) y los controles: barras de UMBRAL_COLOR, MIN_CELDAS y FILA_MINIMA, guardar cuadro y restablecer.
+  cuadro, cámara) y los controles: barras de UMBRAL_COLOR, MIN_CELDAS y fila mínima (en por ciento del alto), tamaño del cuadro (240x176 / 320x240 / 160x120), guardar cuadro y restablecer.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -69,6 +69,13 @@
                 android:id="@+id/barra_fila_minima"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/boton_tamano"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/boton_tamano" />
 
             <Button
                 android:id="@+id/boton_guardar_cuadro"

@@ -45,7 +45,9 @@ typedef struct {
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];
     int n_eventos;
-    int periodo_cuadro_ms;   /* cada cuántos ms llega un cuadro nuevo (múltiplo de NAV_TICK_MS) */
+    int periodo_cuadro_ms;   /* cada cuántos ms llega un cuadro nuevo (puede no ser múltiplo de NAV_TICK_MS: 80, 120...;
+                                el cuadro llega al primer tick que sigue a su hora) */
+    uint32_t proximo_cuadro_ms;   /* hora en que toca el siguiente cuadro */
 
     /* Bitácora y revisiones. */
     CambioComando cambios[SIM_MAX_CAMBIOS];

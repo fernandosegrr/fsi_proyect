@@ -31,10 +31,18 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_TICK_MS                50    /* cada cuánto se llama navegador_tick (nominal) */
 #define NAV_DT_MAX_MS            1000    /* tope del tiempo entre ticks (el firmware frena a los 1000 ms) */
 
-/* Antirrebote: cuántos cuadros SEGUIDOS deben ver el obstáculo (o verlo libre) para decidir. */
-#define NAV_FRAMES_ANTIRREBOTE      3
-/* Un obstáculo en la zona CENTRO cuenta si su cercanía (0 a 3) es al menos esta. */
-#define NAV_CERCANIA_MIN_DETENER    2
+/* Antirrebote EN MILISEGUNDOS (no en cuadros): así el retraso es el mismo con 8, 12 o 30 cuadros
+ * por segundo. Un obstáculo en la zona CENTRO cuenta si su cercanía (0 a 3) es al menos
+ * NAV_CERCANIA_MIN_DETENER. Después hay dos casos:
+ *   - INMEDIATO (con UN solo cuadro): cercanía 3, o cercanía 2 en la zona central (el obstáculo ya
+ *     está cerca: no hay tiempo que perder).
+ *   - LEJOS (cercanía 1): hay que verlo MS_CONFIRMAR_LEJOS milisegundos seguidos (y en al menos 2
+ *     cuadros) antes de detenerse; así un cuadro de ruido lejano no frena el carro.
+ * Para volver a avanzar, el frente debe verse libre MS_CONFIRMAR_LIBRE milisegundos seguidos. */
+#define MS_CONFIRMAR_LEJOS         150
+#define MS_CONFIRMAR_LIBRE         250
+#define NAV_CERCANIA_MIN_DETENER     1   /* pasar a 2 si los obstáculos lejanos no deben frenar */
+#define NAV_CERCANIA_INMEDIATA       2   /* en el centro: desde esta cercanía se confirma con un cuadro */
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
@@ -108,6 +116,9 @@ typedef struct {
     int frames_bloqueado;        /* cuadros seguidos con obstáculo al frente */
     int frames_libre;            /* cuadros seguidos con el frente libre */
     int frames_recibidos;        /* cuadros desde la última detención */
+    uint32_t t_bloqueo_ms;       /* hora del primer cuadro de la racha con obstáculo al frente */
+    uint32_t t_libre_ms;         /* hora del primer cuadro de la racha con el frente libre */
+    int bloqueo_inmediato;       /* 1 si en la racha hubo un cuadro de confirmación inmediata */
 
     /* Esquivar. */
     int esquivadas;

@@ -8,22 +8,25 @@ esté montada en el carro.
 ## Pantallas
 
 - **Visión: cámara y detector de obstáculos** (pantalla principal → primer botón). Siempre en
-  **horizontal**. Muestra el cuadro de 320x240 que realmente analiza el detector (sirve de vista
+  **horizontal**. Muestra el cuadro que realmente analiza el detector, de **240x176 por defecto** (el modo de la cámara real del
+  carro; un botón cambia a 320x240 o 160x120 y la pantalla no supone ningún tamaño fijo) (sirve de vista
   previa) y encima:
   - la cuadrícula de celdas de 10x10 píxeles;
   - **rojo semitransparente** en las celdas que no parecen piso;
-  - **azul**: la franja de referencia del piso (6 celdas de ancho x 2 de alto, abajo al centro);
+  - **azul**: la franja de referencia del piso (abajo al centro; su tamaño es una proporción de la imagen: 4x1 celdas en 240x176);
   - las tres zonas de la mitad inferior (izquierda, centro, derecha): borde **verde** si están libres
     y **rojo** con la palabra OBSTACULO y la cercanía (1 lejos, 2 media, 3 muy cerca) si hay obstáculo.
 
-  - las filas **ignoradas** en **gris** (todo lo que está arriba de **FILA_MINIMA**), con una **línea
+  - las filas **ignoradas** en **gris** (todo lo que está arriba de la **fila mínima**), con una **línea
     blanca** que marca el límite; las tres zonas empiezan en esa línea.
 
   A la derecha: estado de la cámara, cuadros por segundo, ms por cuadro (conversión + análisis), el
   color del piso de referencia y el código del detector (0 = bien, -3 = el piso de referencia no es
-  uniforme). Tres barras cambian **UMBRAL_COLOR** (0 a 300), **MIN_CELDAS** (1 a 40) y **FILA_MINIMA**
-  (0 a 23; la primera fila, de arriba hacia abajo, que cuenta como zona de avance) al instante y se
-  guardan (SharedPreferences). "Valores por defecto" las restablece (60, 6 y 12). "Guardar cuadro" escribe
+  uniforme). Tres barras cambian **UMBRAL_COLOR** (0 a 300), **MIN_CELDAS** (1 a 40) y la **fila mínima**
+  (0 a 100 % del alto; 50 % = la mitad inferior; el texto dice también a qué fila equivale en el cuadro
+  actual) al instante y se guardan (SharedPreferences). "Valores por defecto" las restablece (60, 6 y 50 %).
+  El botón **Tamaño del cuadro** cambia entre 240x176, 320x240 y 160x120 (la cámara del teléfono reduce a
+  ese tamaño); con 160x120 aparece el aviso "Rejilla chica". "Guardar cuadro" escribe
   un JPEG en la carpeta privada de la app.
 - **Control del carro → Semiautónomo → "Obstáculos: botones / cámara"**: con "cámara", el resultado del
   detector (con los mismos umbrales de arriba) alimenta al navegador en vez de los botones simulados.
@@ -37,7 +40,7 @@ un piso y unos cuantos objetos. Si el teléfono pide permiso de cámara, pulsa *
    prevista de la cámara del carro (unos 10 a 15 cm del piso) y apuntando hacia adelante y un poco hacia
    abajo, de modo que el piso cercano quede en la parte baja de la imagen. Anota la altura y la inclinación.
 2. **Inclinación y fila mínima.** Antes de ajustar umbrales, ajusta la **inclinación** del teléfono y la barra
-   **FILA_MINIMA** hasta que el **fondo del cuarto** (paredes lejanas, muebles, ventanas) salga en **gris**
+   **fila mínima** hasta que el **fondo del cuarto** (paredes lejanas, muebles, ventanas) salga en **gris**
    (arriba de la línea blanca) y el piso cercano quede por debajo. Anota la inclinación y la fila elegida.
    Si la línea queda muy abajo se pierde piso útil; si queda muy arriba, el fondo da falsas alarmas.
 3. **Franja azul sobre piso libre.** Comprueba que la franja azul (abajo, al centro) cae sobre piso limpio
@@ -65,7 +68,7 @@ un piso y unos cuantos objetos. Si el teléfono pide permiso de cámara, pulsa *
    Si el piso cambia mucho de luz o no es uniforme, parará con "ERROR": es el comportamiento seguro.
 
 **Qué anotar** (una línea por prueba): piso y luz; altura e inclinación del teléfono; el **UMBRAL_COLOR** y el
-**MIN_CELDAS** y la **FILA_MINIMA** que funcionaron; falsas alarmas (dónde, con qué causa); sombras y reflejos que engañan;
+**MIN_CELDAS** y la **fila mínima** que funcionaron; falsas alarmas (dónde, con qué causa); sombras y reflejos que engañan;
 objetos que no se detectan (y su color frente al del piso); cercanía que marca a 20, 40 y 60 cm; cuadros por
 segundo. Con eso se calibran los valores por defecto de `nucleo_c/obstaculos.h` y las filas de cercanía
 (`OBS_FILA_MEDIA`, `OBS_FILA_CERCA`).

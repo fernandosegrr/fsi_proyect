@@ -34,10 +34,11 @@
     <string name="boton_restablecer">Valores por defecto</string>
     <string name="texto_umbral">UMBRAL_COLOR: %1$d</string>
     <string name="texto_min_celdas">MIN_CELDAS: %1$d</string>
-    <string name="texto_fila_minima">FILA_MINIMA: %1$d (las filas de arriba salen en gris y se ignoran)</string>
+    <string name="texto_fila_minima">Fila mínima: %1$d %% del alto (fila %2$d de %3$d; las de arriba salen en gris y se ignoran)</string>
+    <string name="boton_tamano">Tamaño del cuadro: %1$dx%2$d (tocar para cambiar)</string>
     <string name="sin_cuadro">Todavía no hay ningún cuadro</string>
     <string name="cuadro_guardado">Guardado: %1$s</string>
-    <string name="ayuda_vision">Teléfono en horizontal, con el piso cerca del carro abajo en la imagen. Azul = franja del piso de referencia. Rojo = celdas que no parecen piso. Gris = filas ignoradas (arriba de la línea blanca FILA_MINIMA). Verde/rojo abajo = estado de cada zona.</string>
+    <string name="ayuda_vision">Teléfono en horizontal, con el piso cerca del carro abajo en la imagen. Azul = franja del piso de referencia. Rojo = celdas que no parecen piso. Gris = filas ignoradas (arriba de la línea blanca, la fila mínima). Verde/rojo abajo = estado de cada zona.</string>
     <string name="fuente_botones">Obstáculos: botones</string>
     <string name="fuente_camara">Obstáculos: cámara</string>
 </resources>

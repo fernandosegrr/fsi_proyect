@@ -78,8 +78,9 @@ struct Config {
   int calidad;        /* JPEG por software: 1 a 100, mayor = mejor */
 };
 
-/* Valor por defecto: se elige con el barrido (ver docs/camara_prueba.md). */
-static const Config CONFIG_DEFECTO = { 20, PIXFORMAT_RGB565, FRAMESIZE_QVGA, 50 };
+/* Valor por defecto: HQVGA 240x176 (medido: ~12 fps y ~0.32 s de retraso; QVGA se siente con retraso y
+ * QQVGA es muy chico para detectar obstaculos). QVGA y QQVGA siguen disponibles con /control?size=. */
+static const Config CONFIG_DEFECTO = { 20, PIXFORMAT_RGB565, FRAMESIZE_HQVGA, 50 };
 static Config cfg = CONFIG_DEFECTO;
 
 /* ── Tipos (arriba de todo: el preprocesador de Arduino pone los prototipos antes del primer código) ── */

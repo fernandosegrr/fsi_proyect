@@ -2,11 +2,15 @@
  * ConfigVision.kt — Los parámetros del detector de obstáculos que se ajustan en vivo.
  *
  * GUÍA DE LECTURA
- *  1. Guarda UMBRAL_COLOR, MIN_CELDAS y FILA_MINIMA en SharedPreferences (el almacenamiento de preferencias
- *     de Android), para que lo que se ajustó en VisionActivity también lo use el modo
+ *  1. Guarda UMBRAL_COLOR, MIN_CELDAS y la fila mínima en SharedPreferences (el almacenamiento de
+ *     preferencias de Android), para que lo que se ajustó en VisionActivity también lo use el modo
  *     semiautónomo de ControlActivity y se conserve al cerrar la app.
  *  2. Los valores por defecto vienen del código en C (ObstaculosNativa.configDefecto).
- *  3. comoArreglo() da los 7 enteros que espera ObstaculosNativa.analizarConfig.
+ *  3. La fila mínima es una PROPORCIÓN del alto (en milésimas: 500 = la mitad inferior), no un
+ *     número de fila: así vale para cualquier tamaño de cuadro. En pantalla se muestra en por ciento.
+ *  4. También guarda el tamaño de los cuadros que se piden a la cámara del teléfono (por defecto
+ *     240x176, el de la cámara real del carro).
+ *  5. comoArreglo() da los 7 enteros que espera ObstaculosNativa.analizarConfig.
  */
 package com.fsi.carro
 
@@ -18,7 +22,14 @@ class ConfigVision(contexto: Context) {
     companion object {
         const val UMBRAL_COLOR_MAXIMO = 300   // tope de la barra deslizable (el máximo del detector es 765)
         const val MIN_CELDAS_MAXIMO = 40
-        const val FILA_MINIMA_MAXIMA = ObstaculosNativa.FILAS - 1   // 23: la última fila
+        const val PORCENTAJE_FILA_MAXIMO = 100   // la barra de fila mínima va de 0 a 100 %
+
+        /** Tamaños de cuadro que se pueden pedir a la cámara del teléfono (ancho, alto). */
+        val TAMANOS = arrayOf(
+            intArrayOf(240, 176),   // HQVGA: el modo de la cámara real del carro
+            intArrayOf(320, 240),   // QVGA
+            intArrayOf(160, 120)    // QQVGA
+        )
     }
 
     private val preferencias: SharedPreferences = contexto.getSharedPreferences("vision", Context.MODE_PRIVATE)
@@ -32,15 +43,24 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getInt("min_celdas", defecto[ObstaculosNativa.CFG_MIN_CELDAS])
         set(valor) = preferencias.edit().putInt("min_celdas", valor).apply()
 
-    var filaMinima: Int
-        get() = preferencias.getInt("fila_minima", defecto[ObstaculosNativa.CFG_FILA_MINIMA]).coerceIn(0, FILA_MINIMA_MAXIMA)
-        set(valor) = preferencias.edit().putInt("fila_minima", valor).apply()
+    /** Fila mínima de la zona de avance como proporción del alto, en milésimas (500 = la mitad inferior). */
+    var filaMinimaMil: Int
+        get() = preferencias.getInt("fila_minima_mil", defecto[ObstaculosNativa.CFG_FILA_MINIMA_MIL]).coerceIn(0, 1000)
+        set(valor) = preferencias.edit().putInt("fila_minima_mil", valor.coerceIn(0, 1000)).apply()
+
+    /** Índice en TAMANOS del tamaño de cuadro que se pide a la cámara del teléfono. */
+    var indiceTamano: Int
+        get() = preferencias.getInt("indice_tamano", 0).coerceIn(0, TAMANOS.size - 1)
+        set(valor) = preferencias.edit().putInt("indice_tamano", valor.coerceIn(0, TAMANOS.size - 1)).apply()
+
+    val anchoCuadro: Int get() = TAMANOS[indiceTamano][0]
+    val altoCuadro: Int get() = TAMANOS[indiceTamano][1]
 
     /** Vuelve a los valores por defecto del código en C. */
     fun restablecer() {
         umbralColor = defecto[ObstaculosNativa.CFG_UMBRAL_COLOR]
         minCeldas = defecto[ObstaculosNativa.CFG_MIN_CELDAS]
-        filaMinima = defecto[ObstaculosNativa.CFG_FILA_MINIMA]
+        filaMinimaMil = defecto[ObstaculosNativa.CFG_FILA_MINIMA_MIL]
     }
 
     /** Los 7 enteros de configuración (la franja de referencia queda con el valor por defecto). */
@@ -48,7 +68,7 @@ class ConfigVision(contexto: Context) {
         val config = defecto.copyOf()
         config[ObstaculosNativa.CFG_UMBRAL_COLOR] = umbralColor
         config[ObstaculosNativa.CFG_MIN_CELDAS] = minCeldas
-        config[ObstaculosNativa.CFG_FILA_MINIMA] = filaMinima
+        config[ObstaculosNativa.CFG_FILA_MINIMA_MIL] = filaMinimaMil
         return config
     }
 }

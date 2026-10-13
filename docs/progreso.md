@@ -71,3 +71,8 @@
 - Hecho: campo `fila_minima` en `ConfigObstaculos` (por defecto 12 = mitad inferior, mismo comportamiento), `OBS_ERR_CONFIG` si está fuera de 0 a 23; la cercanía sigue saliendo de la fila más baja. 20 pruebas nuevas (71 del detector; 140 en `nucleo_c` con trayectoria 28 y navegador 41). JNI con 7 enteros, tercera barra en `VisionActivity` (guardada en SharedPreferences y usada también por el modo semiautónomo), filas ignoradas en gris y línea blanca en el límite.
 - Huawei, 33 s seguidos sin errores: 25.0 fps y 6.50 ms por cuadro (antes 24.9 y 6.85), así que no empeoró.
 - Pendiente: ajustar inclinación y FILA_MINIMA con el cuarto real (paso 2 de `docs/vision_huawei.md`).
+
+## PARTE 1: adaptar todo a la cámara real en HQVGA 240x176
+- Hecho: cámara Freenove arranca en HQVGA (QVGA y QQVGA siguen con `/control?size=`); el detector acepta cualquier tamaño de 30x30 a 640x480 (celdas de 10x10, franja de referencia y fila mínima como proporciones en milésimas, aviso de rejilla chica); el navegador confirma en milisegundos (`MS_CONFIRMAR_LEJOS` 150, inmediato con cercanía 2 o 3 al centro); `VisionActivity` y `VistaDeteccion` usan el tamaño de cada cuadro; `docs/latencia.md`.
+- Pruebas en PC: detector 144 casos (los 71 anteriores adaptados + 67 por tamaño 320x240, 240x176, 160x120 y tamaños raros), navegador 55 (con cuadros cada 50, 80 y 120 ms), trayectoria 28; todas pasan. La app compila (`assembleDebug`).
+- Pendiente (hardware): cargar el firmware de la cámara con HQVGA por defecto y medir el retraso con cronómetro; probar la app en el teléfono; medir PING/PONG por WiFi.

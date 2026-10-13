@@ -61,9 +61,16 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
 
 - `MS_POR_CM` y `MS_POR_GRADO` (`calibracion.h`): de ellos depende toda la posición estimada. Hay que medirlos
   con el carro real, con batería cargada, en el piso real, y repetirlos si cambia el peso o el piso.
-- `NAV_FRAMES_ANTIRREBOTE` = 3: cuadros seguidos para detenerse o dar por libre. A más cuadros, menos falsas
-  alarmas pero más retraso: el retraso hasta el STOP es de unos N-1 periodos de cuadro (ver abajo).
-- `NAV_CERCANIA_MIN_DETENER` = 2: desde qué cercanía del detector (0 a 3) se detiene.
+- **Antirrebote en milisegundos** (no en cuadros: así el retraso es el mismo con 8, 12 o 30 cuadros por
+  segundo). Usa el reloj `ahora_ms` que ya recibe `navegador_tick`:
+  - `NAV_CERCANIA_MIN_DETENER` = 1: desde qué cercanía del detector (0 a 3) en la zona CENTRO se considera
+    el frente bloqueado (pasar a 2 si los obstáculos lejanos no deben frenar el carro).
+  - **Confirmación inmediata con UN solo cuadro**: cercanía 3, o cercanía 2 en la zona central.
+  - `MS_CONFIRMAR_LEJOS` = 150: un obstáculo lejano (cercanía 1) debe verse 150 ms seguidos y en al menos 2
+    cuadros antes de detenerse. Con cuadros cada 80 ms se confirma al tercero (160 ms); cada 120 ms, a los 240 ms.
+  - `MS_CONFIRMAR_LIBRE` = 250: el frente debe verse libre 250 ms seguidos (2 cuadros como mínimo) para
+    reanudar tras una detención.
+  - Las zonas de los lados no detienen (solo sirven para elegir de qué lado esquivar).
 - `NAV_PAUSA_MS` = 500: pausa antes de decidir. `NAV_TIMEOUT_ESQUIVAR_MS` = 4000: cuánto espera con los dos
   lados bloqueados.
 - `NAV_ANGULO_ESQUIVAR` = 90 grados y `NAV_TRAMO_ESQUIVAR_CM` = 40 cm: cuánto se aparta. Hay que
@@ -74,15 +81,18 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
 ## Pruebas hechas
 
 - **En PC**: `cd nucleo_c; make test` corre las pruebas de los tres módulos: 28 de trayectoria, 32 de
-  obstáculos y **41 del navegador**, todas pasan. Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
-  diagonal, media vuelta), ruta vacía, un solo punto y ruta inválida, antirrebote (1 y 2 cuadros no detienen),
-  obstáculo lejano y obstáculos solo a los lados (no detienen), obstáculo que desaparece, esquivar por la
+  obstáculos y **55 del navegador**, todas pasan. Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
+  diagonal, media vuelta), ruta vacía, un solo punto y ruta inválida, antirrebote en ms (un cuadro lejano suelto no
+  detiene; un cuadro con obstáculo cerca sí, al instante; lejano permanente a los 150 ms; con cuadros cada 50, 80
+  y 120 ms; intermitente; reanudar tras 250 ms libre) y obstáculos solo a los lados (no detienen), obstáculo que desaparece, esquivar por la
   izquierda y por la derecha y reincorporarse, ambos lados bloqueados, obstáculo permanente (termina en ERROR),
   cancelar a mitad y durante ESQUIVANDO, reanudar tras cancelar, ninguna orden de movimiento tras ERROR o
   TERMINADO, y una deriva del 5 %. Con cambios deliberados al código (antirrebote, regla de reanudar, conteo
   del tiempo de cada paso) las pruebas fallan como deben.
-- **Retraso en PC**: con cuadros cada 50 ms el STOP sale 100 ms después de aparecer el obstáculo; con cuadros
-  cada 100 ms, 200 ms.
+- **Retraso en PC**: con el obstáculo cerca (cercanía 2 o 3 al centro) el STOP sale en el mismo tick del
+  primer cuadro (0 ms de antirrebote), con cuadros cada 50, 80, 100 o 120 ms; con un obstáculo lejano, a los 150 ms
+  (cuadros cada 50 ms), 160 ms (cada 80 ms) y 240 ms (cada 120 ms). Las medidas con el Huawei de más abajo son
+  del antirrebote anterior (3 cuadros) y no se repitieron. La cadena completa está en `docs/latencia.md`.
 - **En el Huawei con el servidor falso** (`adb reverse`; obstáculos simulados con botones, no hay cámara):
   - Cuadrado de 40 cm de lado: `FORWARD` unos 2 s, `RIGHT` unos 0,9 s, y así cuatro lados; al final `STOP`
     (TERMINADO). Zigzag: `FORWARD`/`RIGHT`/`FORWARD`/`LEFT`... y `STOP` final.

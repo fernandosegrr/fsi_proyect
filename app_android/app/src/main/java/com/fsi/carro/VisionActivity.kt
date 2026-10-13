@@ -51,6 +51,7 @@ class VisionActivity : Activity() {
     private lateinit var barraMinCeldas: SeekBar
     private lateinit var barraFilaMinima: SeekBar
     private lateinit var camara: CamaraObstaculos
+    private lateinit var botonTamano: Button
 
     private val principal = Handler(Looper.getMainLooper())
     @Volatile
@@ -76,12 +77,17 @@ class VisionActivity : Activity() {
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
-        barraFilaMinima.max = ConfigVision.FILA_MINIMA_MAXIMA   // el progreso es la fila (0 = toda la imagen)
+        barraFilaMinima.max = ConfigVision.PORCENTAJE_FILA_MAXIMO   // el progreso es el por ciento del alto (0 = toda la imagen)
         mostrarValoresDeBarras()
 
         barraUmbral.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.umbralColor = valor })
         barraMinCeldas.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.minCeldas = valor + 1 })
-        barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinima = valor })
+        barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinimaMil = valor * 10 })
+        botonTamano = findViewById(R.id.boton_tamano)
+        botonTamano.setOnClickListener {
+            configuracion.indiceTamano = (configuracion.indiceTamano + 1) % ConfigVision.TAMANOS.size   // la cámara lo toma en el siguiente cuadro
+            mostrarValoresDeBarras()
+        }
         findViewById<Button>(R.id.boton_guardar_cuadro).setOnClickListener { guardarCuadro() }
         findViewById<Button>(R.id.boton_restablecer).setOnClickListener {
             configuracion.restablecer()
@@ -89,7 +95,7 @@ class VisionActivity : Activity() {
         }
 
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
-        camara = CamaraObstaculos(this, { configuracion.comoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
+        camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) }) { cuadro -> alLlegarCuadro(cuadro) }
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
     }
@@ -167,8 +173,10 @@ class VisionActivity : Activity() {
             val cuadro = ultimoMostrado
             val estado = if (camara.abierta) "ABIERTA" else if (camara.error.isNotEmpty()) camara.error else "abriendo..."
             textoStats.text = String.format(Locale.US,
-                "Cámara: %s\nTamaño cámara: %s\nCuadros por segundo: %.1f\nms por cuadro: %.2f%s",
-                estado, camara.tamanoCamara.ifEmpty { "-" }, camara.fps, camara.msPorCuadro,
+                "Cámara: %s\nTamaño cámara: %s\nTamaño del cuadro: %s\nCuadros por segundo: %.1f\nms por cuadro: %.2f%s",
+                estado, camara.tamanoCamara.ifEmpty { "-" },
+                if (cuadro != null) "${cuadro.ancho}x${cuadro.alto} (${cuadro.columnas}x${cuadro.filas} celdas)" else "-",
+                camara.fps, camara.msPorCuadro,
                 if (cuadro != null) String.format(Locale.US, "\n  conversión %.2f + análisis %.2f\nPiso (RGB): %d,%d,%d\nCódigo: %d",
                     cuadro.msConversion, cuadro.msAnalisis,
                     cuadro.resultado[ObstaculosNativa.REF_R], cuadro.resultado[ObstaculosNativa.REF_G], cuadro.resultado[ObstaculosNativa.REF_B],
@@ -184,8 +192,11 @@ class VisionActivity : Activity() {
         barraMinCeldas.progress = (configuracion.minCeldas - 1).coerceIn(0, ConfigVision.MIN_CELDAS_MAXIMO - 1)
         textoUmbral.text = getString(R.string.texto_umbral, configuracion.umbralColor)
         textoMinCeldas.text = getString(R.string.texto_min_celdas, configuracion.minCeldas)
-        barraFilaMinima.progress = configuracion.filaMinima
-        textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinima)
+        barraFilaMinima.progress = configuracion.filaMinimaMil / 10
+        val filasDelCuadro = ObstaculosNativa.filasDe(configuracion.altoCuadro)
+        textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinimaMil / 10,
+            filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
+        botonTamano.text = getString(R.string.boton_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
     }
 
     /** Un escuchador de barra que guarda el valor al moverla (solo si lo movió la persona). */
@@ -213,7 +224,7 @@ class VisionActivity : Activity() {
         val nombre = "cuadro_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".jpg"
         val archivo = File(getExternalFilesDir(null), nombre)
         try {
-            val bitmap = Bitmap.createBitmap(cuadro.pixeles, ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(cuadro.pixeles, cuadro.ancho, cuadro.alto, Bitmap.Config.ARGB_8888)
             FileOutputStream(archivo).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
             Log.i(CamaraObstaculos.ETIQUETA, "cuadro guardado: ${archivo.absolutePath}")
             Toast.makeText(this, getString(R.string.cuadro_guardado, archivo.name), Toast.LENGTH_LONG).show()

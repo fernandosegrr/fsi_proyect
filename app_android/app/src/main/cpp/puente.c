@@ -10,7 +10,7 @@
  *  4. La salida es un TEXTO listo para mostrar: la lista de pasos o un mensaje
  *     de error claro. Kotlin no interpreta nada, solo lo muestra.
  *  5. Más abajo, ObstaculosNativa.analizar() llama al detector de obstáculos por color de
- *     piso (obstaculos.c): recibe la imagen RGB de 320x240 y devuelve 10 enteros.
+ *     piso (obstaculos.c): recibe una imagen RGB (cualquier tamaño de 30x30 a 640x480) y devuelve 10 enteros.
  *  6. Al final, NavegadorNativa.* maneja el navegador del modo semiautónomo (navegador.c): hay
  *     UNA sola instancia (variable estática), que usa solo el hilo principal de la app.
  *  Todo con arreglos de tamaño fijo: no hay malloc.
@@ -158,7 +158,10 @@ Java_com_fsi_carro_TrayectoriaNativa_maxPuntos(JNIEnv *env, jobject objeto)
 
 #define ENTEROS_RESULTADO_OBSTACULOS 10
 #define ENTEROS_CONFIG_OBSTACULOS     7
-#define ENTEROS_DETALLE_OBSTACULOS   (ENTEROS_RESULTADO_OBSTACULOS + OBS_FILAS * OBS_COLUMNAS)
+/* Encabezado del detalle (ver analizarConfig): 10 del resumen + columnas, filas, fila mínima usada, aviso de
+ * rejilla chica y la franja de referencia (columna, fila, ncolumnas, nfilas). Después viene la máscara. */
+#define ENTEROS_ENCABEZADO_DETALLE   18
+#define ENTEROS_DETALLE_MAXIMO       (ENTEROS_ENCABEZADO_DETALLE + OBS_MAX_FILAS * OBS_MAX_COLUMNAS)
 
 /* Revisa el arreglo de bytes y llama al detector con la configuración dada (NULL = por
  * defecto). Devuelve el código de obstaculos_analizar_con. */
@@ -172,8 +175,8 @@ static int analizar_arreglo(JNIEnv *env, jbyteArray rgb, jint ancho, jint alto,
     if (rgb == NULL) {
         return OBS_ERR_IMAGEN_NULA;
     }
-    if ((*env)->GetArrayLength(env, rgb) < OBS_ANCHO * OBS_ALTO * 3) {
-        return OBS_ERR_TAMANO;   /* el arreglo es más chico que una imagen de 320x240 */
+    if (ancho <= 0 || alto <= 0 || (long)(*env)->GetArrayLength(env, rgb) < (long)ancho * (long)alto * 3L) {
+        return OBS_ERR_TAMANO;   /* tamaño no positivo o arreglo más chico que la imagen: no se analiza */
     }
     if (config == NULL) {
         obstaculos_config_defecto(&por_defecto);
@@ -236,59 +239,71 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
 }
 
 /* Igual, pero con una configuración que se puede cambiar en vivo y con el detalle de las
- * celdas. `config` son 7 enteros: [umbralColor, minCeldas, refColumnas, refFilas,
- * refColumnaInicial, refFilaInicial, filaMinima]. Devuelve 10 + 24*32 enteros: los 10 de arriba y después
- * la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 10 + fila * 32 + columna). */
+ * celdas. `config` son 7 enteros: [umbralColor, minCeldas, refAnchoMil, refAltoMil, refCentroXMil,
+ * refBordeInfMil, filaMinimaMil] (las proporciones van en milésimas, ver obstaculos.h).
+ * Devuelve ENTEROS_ENCABEZADO_DETALLE + filas * columnas enteros:
+ *   [0..9]  el resumen de arriba
+ *   [10] columnas de la cuadrícula   [11] filas   [12] fila mínima usada   [13] 1 si la rejilla es chica
+ *   [14] columna de la franja de referencia   [15] fila   [16] ancho en celdas   [17] alto en celdas
+ *   [18...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 18 + fila * columnas + columna).
+ * Si hay error, el arreglo trae solo el encabezado (con el código en [0]). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
                                                     jint ancho, jint alto, jintArray config)
 {
     ResultadoObstaculos resultado;
     ConfigObstaculos cfg;
-    const ConfigObstaculos *puntero_config = NULL;
     jint datos_config[ENTEROS_CONFIG_OBSTACULOS];
-    jint salida[ENTEROS_DETALLE_OBSTACULOS];
+    jint salida[ENTEROS_DETALLE_MAXIMO];
     jintArray arreglo;
-    int codigo, i, fila, columna;
+    int codigo, i, fila, columna, largo;
 
     (void)objeto;
-    for (i = 0; i < ENTEROS_DETALLE_OBSTACULOS; i++) {
+    for (i = 0; i < ENTEROS_DETALLE_MAXIMO; i++) {
         salida[i] = 0;
     }
     if (config != NULL && (*env)->GetArrayLength(env, config) >= ENTEROS_CONFIG_OBSTACULOS) {
         (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_OBSTACULOS, datos_config);
         cfg.umbral_color = (int)datos_config[0];
         cfg.min_celdas = (int)datos_config[1];
-        cfg.ref_columnas = (int)datos_config[2];
-        cfg.ref_filas = (int)datos_config[3];
-        cfg.ref_columna_inicial = (int)datos_config[4];
-        cfg.ref_fila_inicial = (int)datos_config[5];
-        cfg.fila_minima = (int)datos_config[6];
-        puntero_config = &cfg;
+        cfg.ref_ancho_mil = (int)datos_config[2];
+        cfg.ref_alto_mil = (int)datos_config[3];
+        cfg.ref_centro_x_mil = (int)datos_config[4];
+        cfg.ref_borde_inf_mil = (int)datos_config[5];
+        cfg.fila_minima_mil = (int)datos_config[6];
     } else {
         /* Sin configuración: se pide a analizar_arreglo una configuración no válida. */
         cfg.umbral_color = -1;
         cfg.min_celdas = 0;
-        cfg.ref_columnas = 0;
-        cfg.ref_filas = 0;
-        cfg.ref_columna_inicial = 0;
-        cfg.ref_fila_inicial = 0;
-        cfg.fila_minima = -1;
-        puntero_config = &cfg;
+        cfg.ref_ancho_mil = 0;
+        cfg.ref_alto_mil = 0;
+        cfg.ref_centro_x_mil = -1;
+        cfg.ref_borde_inf_mil = 0;
+        cfg.fila_minima_mil = -1;
     }
-    codigo = analizar_arreglo(env, rgb, ancho, alto, puntero_config, &resultado);
+    codigo = analizar_arreglo(env, rgb, ancho, alto, &cfg, &resultado);
     llenar_resumen(salida, codigo, &resultado);
+    largo = ENTEROS_ENCABEZADO_DETALLE;
     if (codigo == OBS_OK) {
-        for (fila = 0; fila < OBS_FILAS; fila++) {
-            for (columna = 0; columna < OBS_COLUMNAS; columna++) {
-                salida[ENTEROS_RESULTADO_OBSTACULOS + fila * OBS_COLUMNAS + columna] = resultado.no_piso[fila][columna];
+        salida[10] = resultado.columnas;
+        salida[11] = resultado.filas;
+        salida[12] = resultado.fila_minima_usada;
+        salida[13] = resultado.rejilla_chica;
+        salida[14] = resultado.ref_columna;
+        salida[15] = resultado.ref_fila;
+        salida[16] = resultado.ref_ncolumnas;
+        salida[17] = resultado.ref_nfilas;
+        for (fila = 0; fila < resultado.filas; fila++) {
+            for (columna = 0; columna < resultado.columnas; columna++) {
+                salida[ENTEROS_ENCABEZADO_DETALLE + fila * resultado.columnas + columna] = resultado.no_piso[fila][columna];
             }
         }
+        largo = ENTEROS_ENCABEZADO_DETALLE + resultado.filas * resultado.columnas;
     }
 
-    arreglo = (*env)->NewIntArray(env, ENTEROS_DETALLE_OBSTACULOS);
+    arreglo = (*env)->NewIntArray(env, largo);
     if (arreglo != NULL) {
-        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_DETALLE_OBSTACULOS, salida);
+        (*env)->SetIntArrayRegion(env, arreglo, 0, largo, salida);
     }
     return arreglo;
 }
@@ -306,11 +321,11 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
     obstaculos_config_defecto(&cfg);
     salida[0] = cfg.umbral_color;
     salida[1] = cfg.min_celdas;
-    salida[2] = cfg.ref_columnas;
-    salida[3] = cfg.ref_filas;
-    salida[4] = cfg.ref_columna_inicial;
-    salida[5] = cfg.ref_fila_inicial;
-    salida[6] = cfg.fila_minima;
+    salida[2] = cfg.ref_ancho_mil;
+    salida[3] = cfg.ref_alto_mil;
+    salida[4] = cfg.ref_centro_x_mil;
+    salida[5] = cfg.ref_borde_inf_mil;
+    salida[6] = cfg.fila_minima_mil;
     arreglo = (*env)->NewIntArray(env, ENTEROS_CONFIG_OBSTACULOS);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_CONFIG_OBSTACULOS, salida);

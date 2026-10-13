@@ -8,11 +8,13 @@
  *  2. La cámara entrega cuadros YUV (un formato de video) en un ImageReader. Se elige el
  *     tamaño 4:3 más pequeño que sea al menos 320x240.
  *  3. alLlegarImagen() procesa cada cuadro en un hilo propio:
- *       convertir()  → lo reduce a 320x240 y lo pasa a RGB (bytes para el detector y
- *                      colores ARGB para dibujarlo)
+ *       convertir()  → lo reduce al tamaño pedido (por defecto 240x176, el de la cámara real
+ *                      del carro) y lo pasa a RGB (bytes para el detector y colores ARGB para
+ *                      dibujarlo)
  *       ObstaculosNativa.analizarConfig() → el detector en C, con la configuración en vivo
- *     y avisa con un CuadroAnalizado. Si llegan cuadros más rápido de lo que se procesan, se
- *     descartan los viejos (solo importa el último).
+ *     y avisa con un CuadroAnalizado, que lleva su propio ancho y alto. El tamaño se puede
+ *     cambiar con la función `tamanoPedido` y se nota en el siguiente cuadro. Si llegan cuadros
+ *     más rápido de lo que se procesan, se descartan los viejos (solo importa el último).
  *  4. SUPUESTO DE ORIENTACIÓN: el detector espera una imagen "de pie" en horizontal (el piso
  *     cerca del carro abajo). Se asume el teléfono sostenido en HORIZONTAL con la pantalla
  *     hacia ti; en esa posición la imagen del sensor ya sale derecha (o al revés, que se
@@ -44,19 +46,27 @@ import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 
-/** Un cuadro ya convertido y analizado. `pixeles` son colores ARGB de 320x240 para dibujar. */
+/** Un cuadro ya convertido y analizado. `pixeles` son colores ARGB de ancho x alto para dibujar.
+ *  El tamaño viaja con el cuadro: la pantalla no supone ningún tamaño fijo. */
 class CuadroAnalizado(
     val numero: Long,
+    val ancho: Int,
+    val alto: Int,
     val pixeles: IntArray,
-    val resultado: IntArray,        // ObstaculosNativa.ENTEROS_DETALLE enteros
+    val resultado: IntArray,        // ObstaculosNativa.INICIO_MASCARA + filas * columnas enteros
     val config: IntArray,           // la configuración con la que se analizó
     val msConversion: Double,
     val msAnalisis: Double
-)
+) {
+    /** Columnas y filas de celdas de ESTE cuadro (0 si el análisis falló). */
+    val columnas: Int get() = if (resultado[ObstaculosNativa.CODIGO] == 0) resultado[ObstaculosNativa.COLUMNAS_USADAS] else ObstaculosNativa.columnasDe(ancho)
+    val filas: Int get() = if (resultado[ObstaculosNativa.CODIGO] == 0) resultado[ObstaculosNativa.FILAS_USADAS] else ObstaculosNativa.filasDe(alto)
+}
 
 class CamaraObstaculos(
     private val contexto: Activity,
     private val configActual: () -> IntArray,
+    private val tamanoPedido: () -> IntArray = { intArrayOf(ObstaculosNativa.ANCHO_CAMARA, ObstaculosNativa.ALTO_CAMARA) },   // [ancho, alto] de los cuadros que se analizan
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -109,13 +119,16 @@ class CamaraObstaculos(
     private var cuadrosVentana = 0
     private var sumaMsVentana = 0.0
 
-    // Buffers reutilizados para no pedir memoria en cada cuadro.
+    // Buffers reutilizados para no pedir memoria en cada cuadro (se rehacen si cambia el tamaño pedido).
     private var bufY = ByteArray(0)
     private var bufU = ByteArray(0)
     private var bufV = ByteArray(0)
-    private val rgb = ByteArray(ObstaculosNativa.ANCHO * ObstaculosNativa.ALTO * 3)
-    private val tablaX = IntArray(ObstaculosNativa.ANCHO)
-    private val tablaY = IntArray(ObstaculosNativa.ALTO)
+    private var anchoSalida = ObstaculosNativa.ANCHO_CAMARA
+    private var altoSalida = ObstaculosNativa.ALTO_CAMARA
+    private var rgb = ByteArray(anchoSalida * altoSalida * 3)
+    private var tablaX = IntArray(anchoSalida)
+    private var tablaY = IntArray(altoSalida)
+    private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
 
     // ── Abrir y cerrar ────────────────────────────────────────────────────
 
@@ -140,7 +153,8 @@ class CamaraObstaculos(
                 ?: return fallar("La cámara no entrega YUV")
             rotar180 = caracteristicas.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270
             tamanoCamara = "${tamano.width}x${tamano.height}"
-            prepararTablas(tamano)
+            tamanoSensor = tamano
+            ajustarTamanoSalida()
 
             hilo = HandlerThread("camara-obstaculos").also { it.start() }
             manejador = Handler(hilo!!.looper)
@@ -194,16 +208,32 @@ class CamaraObstaculos(
         return (if (cuatroTercios.isNotEmpty()) cuatroTercios else grandes).minByOrNull { it.width * it.height }
     }
 
-    /** Tablas de qué columna y fila de la cámara corresponde a cada píxel de 320x240 (reducción por muestreo). */
-    private fun prepararTablas(tamano: Size) {
-        for (x in 0 until ObstaculosNativa.ANCHO) {
-            val destino = if (rotar180) ObstaculosNativa.ANCHO - 1 - x else x
-            tablaX[x] = destino * tamano.width / ObstaculosNativa.ANCHO
+    /**
+     * Mira qué tamaño de cuadro se pide ahora y, si cambió, rehace los buffers y las tablas de
+     * "qué columna y fila de la cámara corresponde a cada píxel de la salida" (reducción por muestreo).
+     * Solo se llama desde el hilo de la cámara (y una vez al abrir).
+     */
+    private fun ajustarTamanoSalida() {
+        val pedido = tamanoPedido()
+        val ancho = pedido[0].coerceIn(30, 640)
+        val alto = pedido[1].coerceIn(30, 480)
+        if (ancho == anchoSalida && alto == altoSalida && tablaX.size == ancho && tablaY.size == alto && ancho * alto * 3 == rgb.size) {
+            return
         }
-        for (y in 0 until ObstaculosNativa.ALTO) {
-            val destino = if (rotar180) ObstaculosNativa.ALTO - 1 - y else y
-            tablaY[y] = destino * tamano.height / ObstaculosNativa.ALTO
+        anchoSalida = ancho
+        altoSalida = alto
+        rgb = ByteArray(ancho * alto * 3)
+        tablaX = IntArray(ancho)
+        tablaY = IntArray(alto)
+        for (x in 0 until ancho) {
+            val destino = if (rotar180) ancho - 1 - x else x
+            tablaX[x] = destino * tamanoSensor.width / ancho
         }
+        for (y in 0 until alto) {
+            val destino = if (rotar180) alto - 1 - y else y
+            tablaY[y] = destino * tamanoSensor.height / alto
+        }
+        Log.i(ETIQUETA, "tamaño de análisis: ${ancho}x${alto}")
     }
 
     // ── Callbacks de la cámara ────────────────────────────────────────────
@@ -273,23 +303,26 @@ class CamaraObstaculos(
 
     private fun procesar(imagen: Image) {
         val inicio = System.nanoTime()
-        val pixeles = IntArray(ObstaculosNativa.ANCHO * ObstaculosNativa.ALTO)
-        convertir(imagen, pixeles)
+        ajustarTamanoSalida()
+        val ancho = anchoSalida
+        val alto = altoSalida
+        val pixeles = IntArray(ancho * alto)
+        convertir(imagen, pixeles, ancho, alto)
         val tras_conversion = System.nanoTime()
         val config = configActual()
-        val resultado = ObstaculosNativa.analizarConfig(rgb, ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO, config)
+        val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config)
         val fin = System.nanoTime()
 
         contadorCuadros++
-        val cuadro = CuadroAnalizado(contadorCuadros, pixeles, resultado, config,
+        val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
             (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
     }
 
-    /** Copia los tres planos del cuadro a arreglos, reduce a 320x240 y llena `rgb` (bytes) y `pixeles` (ARGB). */
-    private fun convertir(imagen: Image, pixeles: IntArray) {
+    /** Copia los tres planos del cuadro a arreglos, reduce a ancho x alto y llena `rgb` (bytes) y `pixeles` (ARGB). */
+    private fun convertir(imagen: Image, pixeles: IntArray, ancho: Int, alto: Int) {
         val planoY = imagen.planes[0]
         val planoU = imagen.planes[1]
         val planoV = imagen.planes[2]
@@ -302,11 +335,11 @@ class CamaraObstaculos(
 
         var posicion = 0
         var indice = 0
-        for (y in 0 until ObstaculosNativa.ALTO) {
+        for (y in 0 until alto) {
             val fy = tablaY[y]
             val filaY = fy * pasoY
             val filaUV = (fy shr 1) * pasoFilaUV
-            for (x in 0 until ObstaculosNativa.ANCHO) {
+            for (x in 0 until ancho) {
                 val fx = tablaX[x]
                 val luz = bufY[filaY + fx].toInt() and 0xFF
                 val indiceUV = filaUV + (fx shr 1) * pasoPixelUV
@@ -342,9 +375,9 @@ class CamaraObstaculos(
         if (ahora - inicioVentanaMs >= 1000) {
             fps = cuadrosVentana * 1000.0 / (ahora - inicioVentanaMs)
             msPorCuadro = sumaMsVentana / cuadrosVentana
-            Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d umbral=%d min_celdas=%d fila_minima=%d codigo=%d",
-                fps, msPorCuadro, cuadro.msConversion, cuadro.msAnalisis, contadorCuadros,
-                cuadro.config[ObstaculosNativa.CFG_UMBRAL_COLOR], cuadro.config[ObstaculosNativa.CFG_MIN_CELDAS], cuadro.config[ObstaculosNativa.CFG_FILA_MINIMA],
+            Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d tamano=%dx%d umbral=%d min_celdas=%d fila_minima_mil=%d codigo=%d",
+                fps, msPorCuadro, cuadro.msConversion, cuadro.msAnalisis, contadorCuadros, cuadro.ancho, cuadro.alto,
+                cuadro.config[ObstaculosNativa.CFG_UMBRAL_COLOR], cuadro.config[ObstaculosNativa.CFG_MIN_CELDAS], cuadro.config[ObstaculosNativa.CFG_FILA_MINIMA_MIL],
                 cuadro.resultado[ObstaculosNativa.CODIGO]))
             inicioVentanaMs = ahora
             cuadrosVentana = 0
@@ -364,7 +397,7 @@ class CamaraObstaculos(
             return null
         }
         ultimoTomado = cuadro.numero
-        val resumen = cuadro.resultado.copyOf(ObstaculosNativa.INICIO_MASCARA)
+        val resumen = cuadro.resultado.copyOf(10)
         if (resumen[ObstaculosNativa.CODIGO] != 0) {
             for (zona in 0..2) {
                 resumen[1 + 2 * zona] = 1

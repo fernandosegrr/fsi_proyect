@@ -151,8 +151,9 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         if (sim->t_ms == sim->t_cancelar_ms) {
             navegador_cancelar(nav);
         }
-        if (sim->periodo_cuadro_ms > 0 && (sim->t_ms % (uint32_t)sim->periodo_cuadro_ms) == 0) {
-            armar_cuadro(sim, sim->t_ms, &cuadro);
+        if (sim->periodo_cuadro_ms > 0 && sim->t_ms >= sim->proximo_cuadro_ms) {
+            armar_cuadro(sim, sim->proximo_cuadro_ms, &cuadro);   /* el cuadro es de su hora nominal, llega en este tick */
+            sim->proximo_cuadro_ms += (uint32_t)sim->periodo_cuadro_ms;
             obs = &cuadro;
         }
         comando = navegador_tick(nav, sim->t_ms, obs);
