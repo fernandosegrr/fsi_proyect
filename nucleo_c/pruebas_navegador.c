@@ -548,6 +548,127 @@ static void pruebas_textos(void)
     }
 }
 
+/* ── Casos: calibración medida del carro ──────────────────────────────── */
+
+/* Un carro "real" distinto de la calibración de ejemplo: tarda 150 ms en arrancar, avanza 42 ms/cm,
+ * sigue 30 mm al frenar y gira distinto a cada lado (9 ms/grado a la izquierda y 11.5 a la derecha). */
+static CalibracionCarro carro_distinto(void)
+{
+    CalibracionCarro real;
+
+    cal_defecto(&real);
+    real.medidos = CAL_MEDIDO_TODO;
+    real.arranque_ms = 150;
+    real.ms_por_cm_x10 = 420;
+    real.frenado_mm = 30;
+    real.ms_por_grado_izq_x10 = 90;
+    real.ms_por_grado_der_x10 = 115;
+    real.frenado_grados_izq_x10 = 60;
+    real.frenado_grados_der_x10 = 40;
+    return real;
+}
+
+static void pruebas_calibracion(void)
+{
+    CalibracionCarro real = carro_distinto();
+    CalibracionCarro mala;
+    int distancia_sin, distancia_con;
+
+    /* Entrega de la calibración al navegador. */
+    navegador_iniciar(&nav);
+    caso("el navegador nuevo usa la calibracion por defecto", nav.cal.medidos == 0 && nav.cal.ms_por_cm_x10 == MS_POR_CM * 10);
+    caso("poner una calibracion valida: NAV_OK", navegador_poner_calibracion(&nav, &real) == NAV_OK && nav.cal.arranque_ms == 150);
+    mala = real;
+    mala.ms_por_cm_x10 = 0;
+    caso("poner una calibracion no valida: NAV_ERR_ARGUMENTO y no cambia", navegador_poner_calibracion(&nav, &mala) == NAV_ERR_ARGUMENTO && nav.cal.ms_por_cm_x10 == 420);
+    caso("poner una calibracion NULL: NAV_ERR_ARGUMENTO", navegador_poner_calibracion(&nav, NULL) == NAV_ERR_ARGUMENTO && navegador_poner_calibracion(NULL, &real) == NAV_ERR_ARGUMENTO);
+    preparar(RECTA, N(RECTA));
+    caso("poner la calibracion con la ruta en marcha: NAV_ERR_ESTADO", navegador_poner_calibracion(&nav, &real) == NAV_ERR_ESTADO);
+    navegador_cancelar(&nav);
+    caso("cancelada la ruta (ESPERANDO) si se puede cambiar la calibracion", navegador_poner_calibracion(&nav, &real) == NAV_OK);
+
+    /* Un carro real con arranque, frenado y otra velocidad: SIN calibrar el navegador se pasa del destino. */
+    preparar(RECTA, N(RECTA));                 /* 5 celdas = 100 cm hacia arriba */
+    sim.real = real;
+    correr(15000);
+    distancia_sin = valor_absoluto(sim_y_mm(&sim) - 3 * MM);
+    caso("carro distinto SIN calibrar: llega, pero lejos del destino (mas de 100 mm)", nav.estado == NAV_TERMINADO && distancia_sin > 100);
+    printf("      sin calibrar: el carro real quedo a %d mm del destino\n", distancia_sin);
+
+    /* Con la calibracion verdadera, llega al destino. */
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    sim_iniciar(&sim, RECTA[0].columna, RECTA[0].fila, 0);
+    sim.real = real;
+    navegador_comenzar(&nav, 0);
+    correr(15000);
+    distancia_con = valor_absoluto(sim_y_mm(&sim) - 3 * MM);
+    caso("carro distinto CON su calibracion: llega a menos de 40 mm del destino", nav.estado == NAV_TERMINADO && distancia_con < 40);
+    printf("      calibrado: el carro real quedo a %d mm del destino\n", distancia_con);
+    caso("con calibracion la posicion estimada coincide con la real (menos de 40 mm)",
+         valor_absoluto(nav.y_mm - sim_y_mm(&sim)) < 40 && valor_absoluto(nav.x_mm - sim_x_mm(&sim)) < 40);
+
+    /* Zigzag: giros a los dos lados con tiempos distintos. */
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_cargar_ruta(&nav, ZIGZAG, N(ZIGZAG));
+    sim_iniciar(&sim, ZIGZAG[0].columna, ZIGZAG[0].fila, 0);
+    sim.real = real;
+    navegador_comenzar(&nav, 0);
+    correr(40000);
+    caso("zigzag (giros a izquierda y derecha) con la calibracion verdadera: llega cerca de (3,2)",
+         nav.estado == NAV_TERMINADO && cerca_de(3, 2, 90));
+    if (!(nav.estado == NAV_TERMINADO && cerca_de(3, 2, 90))) {
+        informar_posicion("zigzag calibrado");
+    }
+    {
+        int error_con = valor_absoluto(sim_x_mm(&sim) - 3 * MM) + valor_absoluto(sim_y_mm(&sim) - 2 * MM);
+
+        preparar(ZIGZAG, N(ZIGZAG));
+        sim.real = real;
+        correr(40000);
+        caso("el mismo zigzag SIN calibrar termina mas lejos que con calibracion",
+             valor_absoluto(sim_x_mm(&sim) - 3 * MM) + valor_absoluto(sim_y_mm(&sim) - 2 * MM) > error_con);
+    }
+
+    /* Giros a ambos lados con la calibracion de cada lado: el cuadrado vuelve al punto de partida. */
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_cargar_ruta(&nav, CUADRADO, N(CUADRADO));
+    sim_iniciar(&sim, CUADRADO[0].columna, CUADRADO[0].fila, 0);
+    sim.real = real;
+    navegador_comenzar(&nav, 0);
+    correr(40000);
+    caso("cuadrado con la calibracion verdadera: vuelve cerca del punto de partida (1,4)", nav.estado == NAV_TERMINADO && cerca_de(1, 4, 100));
+    if (!(nav.estado == NAV_TERMINADO && cerca_de(1, 4, 100))) {
+        informar_posicion("cuadrado calibrado");
+    }
+
+    /* Una detencion a mitad de camino: el carro frena (sigue 30 mm), tiene que volver a arrancar (150 ms)
+     * y aun asi debe llegar al destino. */
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    sim_iniciar(&sim, RECTA[0].columna, RECTA[0].fila, 0);
+    sim.real = real;
+    sim_agregar_obstaculo(&sim, 1500, 1700, ZONA_CENTRO, 3);
+    navegador_comenzar(&nav, 0);
+    correr(20000);
+    caso("calibrado, con una detencion por obstaculo a mitad de camino: reanuda y llega a menos de 40 mm del destino",
+         nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 2 &&
+         valor_absoluto(sim_y_mm(&sim) - 3 * MM) < 40);
+
+    /* Los tiempos de los pasos usan la calibracion: avanzar 100 cm pide menos ms con frenado (30 mm). */
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_comenzar(&nav, 0);
+    caso("el primer tramo de 20 cm (la ruta sigue recta): arranque + 200 mm * 4.2 = 990 ms, sin descontar el frenado",
+         nav.n_pasos == 1 && nav.pasos[0].tiempo_ms == cal_cm_a_ms_tramo(&real, 20, 1, 0) && nav.pasos[0].tiempo_ms == 990);
+    caso("un avance de 100 cm de una sola vez (sin tramos) pide arranque + (1000 - 30 mm) * 4.2 = 4224 ms", cal_cm_a_ms(&real, 100) == 4224);
+}
+
 int main(void)
 {
     pruebas_sin_obstaculos();
@@ -558,6 +679,7 @@ int main(void)
     pruebas_errores_de_navegacion();
     pruebas_cancelar();
     pruebas_deriva();
+    pruebas_calibracion();
     pruebas_textos();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);

@@ -15,6 +15,8 @@
  *     los obstáculos: botones simulados o la cámara del teléfono (CamaraObstaculos, con los
  *     umbrales que se ajustaron en VisionActivity). Al salir de la pantalla se cancela la ruta
  *     (STOP) y se cierra la cámara.
+ *  6b. Antes de cada ruta el navegador usa la CALIBRACION guardada del carro (CalibracionActivity); si falta
+ *     calibrar algo se muestra un aviso en el panel semiautónomo y se usan valores por defecto.
  *  7. Para pruebas se puede abrir por adb con otra dirección:
  *       adb shell am start -n com.fsi.carro/.ControlActivity --es direccion ws://localhost:8080/ws
  */
@@ -43,6 +45,7 @@ class ControlActivity : Activity() {
     private lateinit var textoNav: TextView
     private lateinit var botonModo: Button
     private lateinit var camara: CamaraObstaculos
+    private lateinit var calibracion: CalibracionGuardada
     private var fuenteCamara = false
     private var modoSemi = false
     private var rutaElegida = ModoSemiautonomo.RUTA_CUADRADO
@@ -57,6 +60,8 @@ class ControlActivity : Activity() {
         textoEstado = findViewById(R.id.texto_estado)
         intent.getStringExtra("direccion")?.let { campoDireccion.setText(it) }
 
+        calibracion = CalibracionGuardada(this)
+        calibracion.aplicarAlNavegador()
         logica = ControlLogica(EnlaceOkHttp()) { mostrarEstado() }
         semi = ModoSemiautonomo(logica) { mostrarEstado() }
         val configVision = ConfigVision(this)
@@ -105,6 +110,7 @@ class ControlActivity : Activity() {
         // ConnectivityManager.bindProcessToNetwork(redDelCarro) para forzar que el tráfico
         // salga por el WiFi del carro (192.168.4.1) aunque esa red no tenga Internet y el
         // teléfono prefiera los datos móviles. Se programa y prueba con el carro real.
+        calibracion.aplicarAlNavegador()   // por si se calibró en la otra pantalla
         logica.iniciar(campoDireccion.text.toString().trim())
         if (fuenteCamara) {
             abrirCamaraSiHayPermiso()   // se cerró en onPause: se vuelve a abrir
@@ -210,7 +216,8 @@ class ControlActivity : Activity() {
         findViewById<Button>(R.id.boton_iniciar_ruta).isEnabled = !semi.activo
         findViewById<Button>(R.id.boton_fuente).text = getString(if (fuenteCamara) R.string.fuente_camara else R.string.fuente_botones)
         val e = NavegadorNativa.estado()
-        textoNav.text = "Ruta: $nombreRuta\n" +
+        textoNav.text = (calibracion.avisoSiFalta()?.let { "⚠ $it\n" } ?: "") +
+            "Ruta: $nombreRuta\n" +
             "Estado: ${NavegadorNativa.textoEstado(e[NavegadorNativa.E_ESTADO])}\n" +
             "Comando: ${NavegadorNativa.textoComando(e[NavegadorNativa.E_COMANDO])}\n" +
             "Punto: ${e[NavegadorNativa.E_OBJETIVO]} de ${e[NavegadorNativa.E_PUNTOS] - 1}   Esquivadas: ${e[NavegadorNativa.E_ESQUIVADAS]}\n" +

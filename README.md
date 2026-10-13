@@ -16,7 +16,7 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
   También `servidor_falso.py` (imita al carro por WebSocket para probar la app sin el carro; ver
   `docs/pruebas_control.md`).
 - `nucleo_c/` — módulos en C estándar (sin librerías) para usar desde Android: trayectoria
-  (`trayectoria.c/.h`, `calibracion.h` con valores de ejemplo que hay que medir) y detector de obstáculos
+  (`trayectoria.c/.h`, `calibracion.c/.h` con la calibración medida del carro: arranque, ms por cm, frenado y giro por lado) y detector de obstáculos
   por color de piso (`obstaculos.c/.h`, ver `docs/obstaculos.md`) y navegador del modo semiautónomo
   (`navegador.c/.h` y un simulador de carro para las pruebas, ver `docs/navegador.md`), cada uno con sus pruebas.
 - `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una

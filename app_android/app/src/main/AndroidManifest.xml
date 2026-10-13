@@ -41,6 +41,12 @@
             android:exported="true"
             android:screenOrientation="landscape" />
 
+        <!-- Asistente de calibración del carro (arranque, avance, giro); ver CalibracionActivity.kt. -->
+        <activity
+            android:name=".CalibracionActivity"
+            android:exported="true"
+            android:screenOrientation="portrait" />
+
         <!-- Benchmark del detector de objetos; se puede abrir con adb (ver BenchmarkActivity.kt). -->
         <activity
             android:name=".BenchmarkActivity"

@@ -11,7 +11,8 @@
  *     de error claro. Kotlin no interpreta nada, solo lo muestra.
  *  5. Más abajo, ObstaculosNativa.analizar() llama al detector de obstáculos por color de
  *     piso (obstaculos.c): recibe una imagen RGB (cualquier tamaño de 30x30 a 640x480) y devuelve 10 enteros.
- *  6. Al final, NavegadorNativa.* maneja el navegador del modo semiautónomo (navegador.c): hay
+ *  6. Antes del navegador está la calibración del carro (calibracion.c): CalibracionNativa.* y la
+ *     calibración que usa el navegador. Al final, NavegadorNativa.* maneja el navegador del modo semiautónomo (navegador.c): hay
  *     UNA sola instancia (variable estática), que usa solo el hilo principal de la app.
  *  Todo con arreglos de tamaño fijo: no hay malloc.
  */
@@ -22,6 +23,7 @@
 #include "trayectoria.h"
 #include "obstaculos.h"
 #include "navegador.h"
+#include "calibracion.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -333,6 +335,275 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
     return arreglo;
 }
 
+
+/* ── Calibración del carro ─────────────────────────────────────────────── */
+
+/* La calibración se pasa a Kotlin como 8 enteros, en este orden (el mismo de CalibracionCarro):
+ *   [0] medidos  [1] arranque_ms  [2] ms_por_cm_x10  [3] frenado_mm
+ *   [4] ms_por_grado_izq_x10  [5] ms_por_grado_der_x10
+ *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10
+ * Las funciones que cambian la calibración devuelven 9 enteros: [0] = código (0 = bien) y [1..8] = la
+ * calibración resultante (sin cambios si hubo error). */
+#define ENTEROS_CALIBRACION 8
+
+/* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
+static CalibracionCarro calibracion_global;
+static int calibracion_inicializada = 0;
+
+static CalibracionCarro *obtener_calibracion(void)
+{
+    if (!calibracion_inicializada) {
+        cal_defecto(&calibracion_global);
+        calibracion_inicializada = 1;
+    }
+    return &calibracion_global;
+}
+
+/* Lee 8 enteros de Kotlin. Devuelve 0 si el arreglo no sirve. */
+static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *cal)
+{
+    jint datos[ENTEROS_CALIBRACION];
+
+    if (arreglo == NULL || (*env)->GetArrayLength(env, arreglo) < ENTEROS_CALIBRACION) {
+        return 0;
+    }
+    (*env)->GetIntArrayRegion(env, arreglo, 0, ENTEROS_CALIBRACION, datos);
+    cal->medidos = (int)datos[0];
+    cal->arranque_ms = (int)datos[1];
+    cal->ms_por_cm_x10 = (int)datos[2];
+    cal->frenado_mm = (int)datos[3];
+    cal->ms_por_grado_izq_x10 = (int)datos[4];
+    cal->ms_por_grado_der_x10 = (int)datos[5];
+    cal->frenado_grados_izq_x10 = (int)datos[6];
+    cal->frenado_grados_der_x10 = (int)datos[7];
+    return 1;
+}
+
+/* Arma el arreglo de 9 enteros [código, calibración...]. */
+static jintArray devolver_calibracion(JNIEnv *env, int codigo, const CalibracionCarro *cal)
+{
+    jint salida[1 + ENTEROS_CALIBRACION];
+    jintArray arreglo;
+
+    salida[0] = codigo;
+    salida[1] = cal->medidos;
+    salida[2] = cal->arranque_ms;
+    salida[3] = cal->ms_por_cm_x10;
+    salida[4] = cal->frenado_mm;
+    salida[5] = cal->ms_por_grado_izq_x10;
+    salida[6] = cal->ms_por_grado_der_x10;
+    salida[7] = cal->frenado_grados_izq_x10;
+    salida[8] = cal->frenado_grados_der_x10;
+    arreglo = (*env)->NewIntArray(env, 1 + ENTEROS_CALIBRACION);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
+    }
+    return arreglo;
+}
+
+/* Calibración por defecto (código 0). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_defecto(JNIEnv *env, jobject objeto)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    cal_defecto(&cal);
+    return devolver_calibracion(env, CAL_OK, &cal);
+}
+
+/* Promedio de los valores sin los atípicos (ver calibracion.h). Devuelve 0 si no hay valores. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_promedioSinAtipicos(JNIEnv *env, jobject objeto, jintArray valores)
+{
+    jint datos[CAL_MAX_MUESTRAS];
+    int enteros[CAL_MAX_MUESTRAS];
+    jsize n;
+    int i;
+
+    (void)objeto;
+    if (valores == NULL) {
+        return 0;
+    }
+    n = (*env)->GetArrayLength(env, valores);
+    if (n < 1 || n > CAL_MAX_MUESTRAS) {
+        return 0;
+    }
+    (*env)->GetIntArrayRegion(env, valores, 0, n, datos);
+    for (i = 0; i < n; i++) {
+        enteros[i] = (int)datos[i];
+    }
+    return (jint)cal_promedio_sin_atipicos(enteros, (int)n, NULL);
+}
+
+/* Guarda el retardo de arranque medido. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ponerArranque(JNIEnv *env, jobject objeto, jintArray calibracion, jint arranque_ms)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_poner_arranque(&cal, (int)arranque_ms);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Lee dos arreglos de enteros del mismo largo (de 2 a CAL_MAX_PUNTOS). Devuelve el largo o 0. */
+static int leer_dos_listas(JNIEnv *env, jintArray a, jintArray b, int *lista_a, int *lista_b)
+{
+    jint datos[CAL_MAX_PUNTOS];
+    jsize n;
+    int i;
+
+    if (a == NULL || b == NULL) {
+        return 0;
+    }
+    n = (*env)->GetArrayLength(env, a);
+    if (n < 2 || n > CAL_MAX_PUNTOS || (*env)->GetArrayLength(env, b) != n) {
+        return 0;
+    }
+    (*env)->GetIntArrayRegion(env, a, 0, n, datos);
+    for (i = 0; i < n; i++) {
+        lista_a[i] = (int)datos[i];
+    }
+    (*env)->GetIntArrayRegion(env, b, 0, n, datos);
+    for (i = 0; i < n; i++) {
+        lista_b[i] = (int)datos[i];
+    }
+    return (int)n;
+}
+
+/* Ajusta el avance con los tiempos (ms) y lo que avanzó el carro (mm). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarAvance(JNIEnv *env, jobject objeto, jintArray calibracion,
+                                                    jintArray ms, jintArray mm)
+{
+    CalibracionCarro cal;
+    int lista_ms[CAL_MAX_PUNTOS], lista_mm[CAL_MAX_PUNTOS];
+    int n, codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    n = leer_dos_listas(env, ms, mm, lista_ms, lista_mm);
+    codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_avance(&cal, n, lista_ms, lista_mm);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Ajusta el giro de un lado (-1 izquierda, 1 derecha) con los tiempos (ms) y los grados por 10. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarGiro(JNIEnv *env, jobject objeto, jintArray calibracion, jint lado,
+                                                  jintArray ms, jintArray grados_x10)
+{
+    CalibracionCarro cal;
+    int lista_ms[CAL_MAX_PUNTOS], lista_g[CAL_MAX_PUNTOS];
+    int n, codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    n = leer_dos_listas(env, ms, grados_x10, lista_ms, lista_g);
+    codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_giro(&cal, (int)lado, n, lista_ms, lista_g);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Qué falta medir (bits CAL_MEDIDO_*; 0 = todo). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_faltantes(JNIEnv *env, jobject objeto, jintArray calibracion)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        return CAL_MEDIDO_TODO;
+    }
+    return (jint)cal_faltantes(&cal);
+}
+
+/* Cuántos ms de motor pide la calibración para avanzar `cm` o girar `grados` (negativo = izquierda). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_cmAMs(JNIEnv *env, jobject objeto, jintArray calibracion, jint cm)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        return 0;
+    }
+    return (jint)cal_cm_a_ms(&cal, (int)cm);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_gradosAMs(JNIEnv *env, jobject objeto, jintArray calibracion, jint grados)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        return 0;
+    }
+    return (jint)cal_grados_a_ms(&cal, (int)grados);
+}
+
+/* La calibración como texto "clave=valor" (vacío si no es válida). */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_CalibracionNativa_aTexto(JNIEnv *env, jobject objeto, jintArray calibracion)
+{
+    CalibracionCarro cal;
+    char texto[CAL_LARGO_TEXTO];
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal) || !cal_es_valida(&cal) || cal_a_texto(&cal, texto, sizeof texto) < 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
+/* Lee el texto de aTexto: devuelve [código, calibración...]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_deTexto(JNIEnv *env, jobject objeto, jstring texto)
+{
+    CalibracionCarro cal;
+    const char *caracteres;
+    int codigo;
+
+    (void)objeto;
+    cal_defecto(&cal);
+    if (texto == NULL) {
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    caracteres = (*env)->GetStringUTFChars(env, texto, NULL);
+    if (caracteres == NULL) {
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_de_texto(caracteres, &cal);
+    (*env)->ReleaseStringUTFChars(env, texto, caracteres);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Le dice al navegador qué calibración usar (se aplica en la próxima ruta que se cargue). Devuelve 0
+ * o un código de error (la calibración no es válida). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerCalibracion(JNIEnv *env, jobject objeto, jintArray calibracion)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal) || !cal_es_valida(&cal)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    *obtener_calibracion() = cal;
+    return CAL_OK;
+}
+
 /* ── Navegador del modo semiautónomo ───────────────────────────────────── */
 
 /* La única instancia del navegador (memoria estática, sin malloc). Solo se usa desde el
@@ -373,6 +644,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
         puntos[i].fila = (int)entrada[2 * i + 1];
     }
     navegador_iniciar(&navegador_global);
+    navegador_poner_calibracion(&navegador_global, obtener_calibracion());   /* la calibración medida del carro */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 

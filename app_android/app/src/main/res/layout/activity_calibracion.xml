@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: asistente de calibración del carro (CalibracionActivity). Arriba la conexión con el
+  carro y el botón STOP (siempre visible). Debajo, el paso actual: título, instrucción, los datos
+  anotados y los botones del paso (cuáles se ven depende del paso).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/texto_conexion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/campo_direccion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="textUri"
+                android:text="@string/direccion_por_defecto" />
+
+            <Button
+                android:id="@+id/boton_conectar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/boton_conectar" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/boton_stop"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="@string/boton_stop"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/texto_titulo_paso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/texto_instruccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/texto_datos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/boton_probar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/boton_ya"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:layout_marginTop="8dp"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/campo_resultado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:inputType="numberDecimal" />
+
+        <Button
+            android:id="@+id/boton_guardar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cal_guardar" />
+
+        <Button
+            android:id="@+id/boton_repetir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cal_repetir" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/boton_atras"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/cal_atras" />
+
+            <Button
+                android:id="@+id/boton_siguiente"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/cal_siguiente" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/boton_usar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cal_usar" />
+
+        <Button
+            android:id="@+id/boton_copiar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cal_copiar" />
+
+        <Button
+            android:id="@+id/boton_borrar_cal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cal_borrar" />
+    </LinearLayout>
+</ScrollView>

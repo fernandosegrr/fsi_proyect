@@ -45,6 +45,9 @@ object NavegadorNativa {
     const val E_MOTIVO_ERROR = 7
     const val E_COMANDO = 8
 
+    /** Le dice al navegador qué calibración del carro usar (8 enteros, ver CalibracionNativa). Se aplica a la próxima ruta que se cargue. Devuelve 0 o un código de error. */
+    external fun ponerCalibracion(calibracion: IntArray): Int
+
     /** Carga la ruta [columna0, fila0, columna1, fila1, ...]. Devuelve 0 si está bien o un código negativo. */
     external fun cargarRuta(puntos: IntArray): Int
 

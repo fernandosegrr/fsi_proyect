@@ -8,6 +8,7 @@
  *     el texto que devuelve; Kotlin no interpreta nada.
  *  4. "Borrar" limpia la ruta y el resultado.
  *  5. "Visión" abre VisionActivity (cámara + detector de obstáculos con umbrales ajustables).
+ *  5b. "Calibración del carro" abre CalibracionActivity (mide arranque, avance y giro con el carro).
  *  6. "Control del carro" abre ControlActivity (botones + WebSocket hacia el carro).
  *  7. "Benchmark del detector" abre BenchmarkActivity (mide el detector de objetos).
  */
@@ -38,6 +39,9 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.boton_borrar).setOnClickListener { borrar() }
         findViewById<Button>(R.id.boton_vision).setOnClickListener {
             startActivity(Intent(this, VisionActivity::class.java))
+        }
+        findViewById<Button>(R.id.boton_calibracion).setOnClickListener {
+            startActivity(Intent(this, CalibracionActivity::class.java))
         }
         findViewById<Button>(R.id.boton_control).setOnClickListener {
             startActivity(Intent(this, ControlActivity::class.java))

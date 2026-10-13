@@ -98,11 +98,6 @@ static int distancia_cm(int direccion, int celdas)
     return celdas * CELDA_CM;
 }
 
-static int valor_absoluto(int x)
-{
-    return (x < 0) ? -x : x;
-}
-
 /* ── Salida ────────────────────────────────────────────────────────────── */
 
 /* Agrega un paso si hay lugar. Devuelve 1 si lo agregó, 0 si no cabe. */
@@ -133,11 +128,25 @@ int trayectoria_calcular_desde(int orientacion_inicial, const Punto *puntos, int
                                Paso *pasos, int capacidad, int *n_pasos,
                                int *indice_error)
 {
+    return trayectoria_calcular_desde_cal(NULL, orientacion_inicial, puntos, n_puntos,
+                                          pasos, capacidad, n_pasos, indice_error);
+}
+
+int trayectoria_calcular_desde_cal(const CalibracionCarro *cal, int orientacion_inicial,
+                                   const Punto *puntos, int n_puntos,
+                                   Paso *pasos, int capacidad, int *n_pasos,
+                                   int *indice_error)
+{
+    CalibracionCarro por_defecto;
     int indice_local = 0;
     int orientacion  = orientacion_inicial;
     int codigo;
     int i;
 
+    if (cal == NULL) {
+        cal_defecto(&por_defecto);
+        cal = &por_defecto;
+    }
     if (indice_error == NULL) {
         indice_error = &indice_local;
     }
@@ -173,14 +182,14 @@ int trayectoria_calcular_desde(int orientacion_inicial, const Punto *puntos, int
         giro = giro_grados(orientacion, direccion);
         if (giro != 0 &&
             !agregar_paso(pasos, capacidad, n_pasos, PASO_GIRAR, giro,
-                          valor_absoluto(giro) * MS_POR_GRADO)) {
+                          cal_grados_a_ms(cal, giro))) {
             *n_pasos = 0;
             return TRAY_ERR_DEMASIADOS_PASOS;
         }
 
         cm = distancia_cm(direccion, celdas);
         if (!agregar_paso(pasos, capacidad, n_pasos, PASO_AVANZAR, cm,
-                          cm * MS_POR_CM)) {
+                          cal_cm_a_ms(cal, cm))) {
             *n_pasos = 0;
             return TRAY_ERR_DEMASIADOS_PASOS;
         }

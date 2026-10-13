@@ -58,6 +58,12 @@
         android:text="@string/boton_vision" />
 
     <Button
+        android:id="@+id/boton_calibracion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/boton_calibracion" />
+
+    <Button
         android:id="@+id/boton_control"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

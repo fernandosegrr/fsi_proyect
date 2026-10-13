@@ -4,7 +4,8 @@
  * GUÍA DE LECTURA
  *  1. Lo que se ve primero son las ayudas de posición: el carro no tiene sensores de
  *     posición, así que se calcula por TIEMPO (calcular_pose): cuánto tiempo estuvo
- *     avanzando o girando, convertido con MS_POR_CM y MS_POR_GRADO.
+ *     avanzando o girando, convertido con la calibración del carro (calibracion.c: arranque,
+ *     ms por cm, frenado y ms por grado de cada lado).
  *  2. planificar() usa trayectoria.c para sacar los pasos (AVANZAR/GIRAR con su tiempo) desde
  *     la posición y el rumbo actuales hasta el siguiente punto de la ruta.
  *  3. EL TEMPORIZADOR DE TRAMOS está en contar_tiempo_ejecutado() y en tick_siguiendo() /
@@ -88,7 +89,7 @@ static void calcular_pose(Navegador *nav)
     switch (nav->cmd_actual) {
     case NAV_CMD_FORWARD:
     case NAV_CMD_REVERSE:
-        distancia = nav->seg_ms * 10 / MS_POR_CM;   /* milímetros recorridos */
+        distancia = cal_ms_a_mm(&nav->cal, nav->seg_ms);   /* milímetros recorridos */
         if (nav->cmd_actual == NAV_CMD_REVERSE) {
             distancia = -distancia;
         }
@@ -97,10 +98,10 @@ static void calcular_pose(Navegador *nav)
         nav->y_mm = nav->base_y_mm + DIR_Y[direccion] * distancia / 1000;
         break;
     case NAV_CMD_LEFT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - nav->seg_ms / MS_POR_GRADO);
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - cal_ms_a_grados(&nav->cal, CAL_LADO_IZQUIERDA, nav->seg_ms));
         break;
     case NAV_CMD_RIGHT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + nav->seg_ms / MS_POR_GRADO);
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + cal_ms_a_grados(&nav->cal, CAL_LADO_DERECHA, nav->seg_ms));
         break;
     default:
         break;
@@ -116,10 +117,39 @@ static void fijar_pose(Navegador *nav)
     nav->seg_ms = 0;
 }
 
+/* Al soltar un comando de movimiento el carro NO se detiene al instante: sigue avanzando (o
+ * girando) el frenado medido. Se suma a la pose para que la posición estimada lo incluya. */
+static void sumar_frenado(Navegador *nav)
+{
+    int direccion, mm;
+
+    switch (nav->cmd_actual) {
+    case NAV_CMD_FORWARD:
+    case NAV_CMD_REVERSE:
+        mm = nav->cal.frenado_mm;
+        if (nav->cmd_actual == NAV_CMD_REVERSE) {
+            mm = -mm;
+        }
+        direccion = indice_direccion(nav->base_rumbo_grados);
+        nav->x_mm += DIR_X[direccion] * mm / 1000;
+        nav->y_mm += DIR_Y[direccion] * mm / 1000;
+        break;
+    case NAV_CMD_LEFT:
+        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados - cal_frenado_grados(&nav->cal, CAL_LADO_IZQUIERDA));
+        break;
+    case NAV_CMD_RIGHT:
+        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados + cal_frenado_grados(&nav->cal, CAL_LADO_DERECHA));
+        break;
+    default:
+        break;
+    }
+}
+
 /* Cambia el comando actual (si es distinto) cerrando el tramo anterior. */
 static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
 {
     if (nuevo != nav->cmd_actual) {
+        sumar_frenado(nav);
         fijar_pose(nav);
         nav->cmd_actual = nuevo;
     }
@@ -150,12 +180,16 @@ static ComandoNav comando_de_fase(const Navegador *nav)
 }
 
 /* Cuánto debe durar cada fase de esquivar, en ms. */
-static int duracion_fase(int fase)
+static int duracion_fase(const Navegador *nav, int fase)
 {
     if (fase == 1) {
-        return NAV_TRAMO_ESQUIVAR_CM * MS_POR_CM;
+        return cal_cm_a_ms(&nav->cal, NAV_TRAMO_ESQUIVAR_CM);
     }
-    return NAV_ANGULO_ESQUIVAR * MS_POR_GRADO;
+    /* La fase 0 gira hacia el lado elegido y la 2 hacia el contrario: cada lado tiene su tiempo. */
+    if (fase == 0) {
+        return cal_grados_a_ms(&nav->cal, (nav->lado < 0) ? -NAV_ANGULO_ESQUIVAR : NAV_ANGULO_ESQUIVAR);
+    }
+    return cal_grados_a_ms(&nav->cal, (nav->lado < 0) ? NAV_ANGULO_ESQUIVAR : -NAV_ANGULO_ESQUIVAR);
 }
 
 static void ir_a_error(Navegador *nav, MotivoErrorNav motivo)
@@ -177,6 +211,34 @@ static void contar_tiempo_ejecutado(Navegador *nav, int dt)
 }
 
 /* ── Planificación ─────────────────────────────────────────────────────── */
+
+/* El navegador planifica de un punto de la ruta al siguiente. Si el carro YA va avanzando y el tramo
+ * nuevo sigue en línea recta, no hay que esperar otro arranque; y si el tramo siguiente también sigue
+ * recto, el carro no frena aquí (no se descuenta el frenado). Esta función corrige los tiempos de los
+ * pasos AVANZAR de ese tramo con cal_cm_a_ms_tramo. `camino` son las celdas del tramo. */
+static void ajustar_tramos_continuos(Navegador *nav, const Punto *camino, int n)
+{
+    int continua = (nav->cmd_actual == NAV_CMD_FORWARD && nav->n_pasos > 0 && nav->pasos[0].tipo == PASO_AVANZAR);
+    int sigue_recto = 0;
+    int i, ultimo = nav->n_pasos - 1;
+
+    if (n >= 2 && nav->indice_objetivo + 1 < nav->n_puntos) {
+        const Punto *a = &nav->ruta[nav->indice_objetivo];
+        const Punto *b = &nav->ruta[nav->indice_objetivo + 1];
+
+        sigue_recto = (signo(camino[n - 1].columna - camino[n - 2].columna) == signo(b->columna - a->columna) &&
+                       signo(camino[n - 1].fila - camino[n - 2].fila) == signo(b->fila - a->fila));
+    }
+    for (i = 0; i < nav->n_pasos; i++) {
+        if (nav->pasos[i].tipo == PASO_AVANZAR) {
+            nav->pasos[i].tiempo_ms = cal_cm_a_ms_tramo(&nav->cal, nav->pasos[i].valor,
+                                                        !(i == 0 && continua), !(i == ultimo && sigue_recto));
+        }
+    }
+    if (continua) {
+        nav->seg_ms = nav->cal.arranque_ms;   /* el arranque ya pasó: el tiempo cuenta como movimiento */
+    }
+}
 
 /* Calcula los pasos desde la celda más cercana a la posición estimada hasta el punto de la
  * ruta al que se dirige (indice_objetivo), mirando hacia el rumbo actual (ajustado al
@@ -210,14 +272,15 @@ static int planificar(Navegador *nav)
         n++;
     }
 
-    nav->codigo_trayectoria = trayectoria_calcular_desde(orientacion, camino, n,
-                                                          nav->pasos, MAX_PASOS, &nav->n_pasos, &indice_error);
+    nav->codigo_trayectoria = trayectoria_calcular_desde_cal(&nav->cal, orientacion, camino, n,
+                                                              nav->pasos, MAX_PASOS, &nav->n_pasos, &indice_error);
     nav->indice_paso = 0;
     nav->ms_paso = 0;
     if (nav->codigo_trayectoria != TRAY_OK) {
         nav->n_pasos = 0;
         return NAV_ERR_RUTA;
     }
+    ajustar_tramos_continuos(nav, camino, n);
     return NAV_OK;
 }
 
@@ -230,6 +293,7 @@ void navegador_iniciar(Navegador *nav)
     if (nav == NULL) {
         return;
     }
+    cal_defecto(&nav->cal);
     nav->n_puntos = 0;
     nav->indice_objetivo = 0;
     nav->n_pasos = 0;
@@ -258,6 +322,18 @@ void navegador_iniciar(Navegador *nav)
     nav->lado = -1;
     nav->fase = 0;
     nav->ms_fase = 0;
+}
+
+int navegador_poner_calibracion(Navegador *nav, const CalibracionCarro *cal)
+{
+    if (nav == NULL || cal == NULL || !cal_es_valida(cal)) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    if (nav->estado != NAV_ESPERANDO && nav->estado != NAV_TERMINADO && nav->estado != NAV_ERROR) {
+        return NAV_ERR_ESTADO;
+    }
+    nav->cal = *cal;
+    return NAV_OK;
 }
 
 int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
@@ -462,6 +538,9 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
 
     if (libre_confirmado(nav, ahora_ms)) {
         nav->estado = NAV_SIGUIENDO;   /* el obstáculo se fue: continuar donde iba */
+        /* El carro siguió un poco al frenar (se gana tiempo de ese paso) y tendrá que arrancar otra vez
+         * (se pierde): se ajusta el tiempo ya ejecutado del paso. */
+        nav->ms_paso += (int)((long)nav->cal.frenado_mm * nav->cal.ms_por_cm_x10 / 100) - nav->cal.arranque_ms;
         nav->frames_bloqueado = 0;
         nav->bloqueo_inmediato = 0;
         return tick_siguiendo(nav, ahora_ms);
@@ -495,7 +574,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
  * avanza de lado, si aparece algo MUY cerca al frente, ERROR (no se esquiva en cadena). */
 static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 {
-    if (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav->fase)) {
+    if (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav, nav->fase)) {
         nav->fase++;
         nav->ms_fase = 0;
         if (nav->fase > 2) {

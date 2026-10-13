@@ -8,6 +8,8 @@
 #ifndef TRAYECTORIA_H
 #define TRAYECTORIA_H
 
+#include "calibracion.h"
+
 #ifdef __cplusplus
 extern "C" {   /* permite usarlo desde C++ / JNI */
 #endif
@@ -68,6 +70,14 @@ int trayectoria_calcular(const Punto *puntos, int n_puntos,
 int trayectoria_calcular_desde(int orientacion_inicial, const Punto *puntos, int n_puntos,
                                Paso *pasos, int capacidad, int *n_pasos,
                                int *indice_error);
+
+/* Igual que trayectoria_calcular_desde, pero los tiempos de cada paso salen de una calibración
+ * medida del carro (arranque, ms por cm, frenado, ms por grado de cada lado; ver calibracion.h).
+ * Con `cal` = NULL usa la calibración por defecto (MS_POR_CM y MS_POR_GRADO), igual que las demás. */
+int trayectoria_calcular_desde_cal(const CalibracionCarro *cal, int orientacion_inicial,
+                                   const Punto *puntos, int n_puntos,
+                                   Paso *pasos, int capacidad, int *n_pasos,
+                                   int *indice_error);
 
 /* Texto corto en español para un código de retorno (para mostrar al usuario). */
 const char *trayectoria_texto_error(int codigo);

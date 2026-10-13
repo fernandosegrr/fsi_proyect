@@ -58,6 +58,9 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->rumbo_cgrados = (long)rumbo_grados * 100;
     sim->pct_avance = 100;
     sim->pct_giro = 100;
+    cal_defecto(&sim->real);
+    sim->cmd_previo = NAV_CMD_STOP;
+    sim->ms_en_comando = 0;
     sim->periodo_cuadro_ms = NAV_TICK_MS;
     sim->t_cancelar_ms = 0xFFFFFFFFu;
 }
@@ -85,7 +88,7 @@ static int rumbo_entero(const Simulador *sim)
     return (int)((grados + 360) % 360);
 }
 
-/* Mueve el carro: el comando estuvo activo `dt` ms. */
+/* Mueve el carro: el comando estuvo activo `dt` ms EFECTIVOS (ya sin el arranque). */
 static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
 {
     int rumbo = rumbo_entero(sim);
@@ -95,7 +98,7 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
     switch (comando) {
     case NAV_CMD_FORWARD:
     case NAV_CMD_REVERSE:
-        distancia = (long)dt * 1000 / MS_POR_CM * sim->pct_avance / 100;   /* 1 mm = 100 centésimas */
+        distancia = (long)dt * 10000 / sim->real.ms_por_cm_x10 * sim->pct_avance / 100;   /* 1 mm = 100 centésimas */
         if (comando == NAV_CMD_REVERSE) {
             distancia = -distancia;
         }
@@ -105,7 +108,8 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
         break;
     case NAV_CMD_LEFT:
     case NAV_CMD_RIGHT:
-        giro = (long)dt * 100 / MS_POR_GRADO * sim->pct_giro / 100;
+        giro = (long)dt * 1000 / ((comando == NAV_CMD_LEFT) ? sim->real.ms_por_grado_izq_x10 : sim->real.ms_por_grado_der_x10)
+               * sim->pct_giro / 100;
         sim->rumbo_cgrados += (comando == NAV_CMD_RIGHT) ? giro : -giro;
         break;
     default:
@@ -129,6 +133,33 @@ static void armar_cuadro(const Simulador *sim, uint32_t t_ms, ResultadoObstaculo
                 cuadro->zona[e->zona].cercania = e->cercania;
             }
         }
+    }
+}
+
+/* Al soltar un comando de movimiento el carro sigue un poco (el frenado del carro real). */
+static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
+{
+    int rumbo = rumbo_entero(sim);
+    long distancia;
+
+    switch (comando) {
+    case NAV_CMD_FORWARD:
+    case NAV_CMD_REVERSE:
+        distancia = (long)sim->real.frenado_mm * 100 * sim->pct_avance / 100;
+        if (comando == NAV_CMD_REVERSE) {
+            distancia = -distancia;
+        }
+        sim->x_cmm += seno(rumbo) * distancia / 1000;
+        sim->y_cmm -= coseno(rumbo) * distancia / 1000;
+        break;
+    case NAV_CMD_LEFT:
+        sim->rumbo_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+        break;
+    case NAV_CMD_RIGHT:
+        sim->rumbo_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+        break;
+    default:
+        break;
     }
 }
 
@@ -170,7 +201,22 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         hay_primer_cambio = 0;
         anterior = comando;
 
-        mover_carro(sim, comando, NAV_TICK_MS);   /* el comando se mantiene hasta el siguiente tick */
+        /* El comando se mantiene hasta el siguiente tick. Si cambió, el anterior se suelta (y el carro
+         * desliza el frenado); durante el arranque del nuevo comando el carro no se mueve. */
+        if (comando != sim->cmd_previo) {
+            deslizar_al_frenar(sim, sim->cmd_previo);
+            sim->cmd_previo = comando;
+            sim->ms_en_comando = 0;
+        }
+        {
+            int antes = sim->ms_en_comando;
+            int despues = antes + NAV_TICK_MS;
+            int desde = (antes > sim->real.arranque_ms) ? antes : sim->real.arranque_ms;
+            int efectivo = (despues > desde) ? despues - desde : 0;
+
+            mover_carro(sim, comando, efectivo);
+            sim->ms_en_comando = despues;
+        }
         sim->t_ms += NAV_TICK_MS;
     }
     return comando;

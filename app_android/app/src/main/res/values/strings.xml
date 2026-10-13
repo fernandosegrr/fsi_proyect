@@ -29,6 +29,14 @@
     <string name="obstaculo_derecha">Der: %1$s</string>
     <string name="si">SÍ</string>
     <string name="no">no</string>
+    <string name="boton_calibracion">Calibración del carro (arranque, avance y giro)</string>
+    <string name="cal_guardar">Guardar este resultado</string>
+    <string name="cal_repetir">Borrar el último dato / repetir</string>
+    <string name="cal_atras">Atrás</string>
+    <string name="cal_siguiente">Siguiente</string>
+    <string name="cal_usar">Usar estos valores</string>
+    <string name="cal_copiar">Copiar los valores como texto</string>
+    <string name="cal_borrar">Borrar la calibración guardada</string>
     <string name="boton_vision">Visión: cámara y detector de obstáculos</string>
     <string name="boton_guardar_cuadro">Guardar cuadro</string>
     <string name="boton_restablecer">Valores por defecto</string>

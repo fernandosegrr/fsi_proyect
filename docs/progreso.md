@@ -76,3 +76,8 @@
 - Hecho: cámara Freenove arranca en HQVGA (QVGA y QQVGA siguen con `/control?size=`); el detector acepta cualquier tamaño de 30x30 a 640x480 (celdas de 10x10, franja de referencia y fila mínima como proporciones en milésimas, aviso de rejilla chica); el navegador confirma en milisegundos (`MS_CONFIRMAR_LEJOS` 150, inmediato con cercanía 2 o 3 al centro); `VisionActivity` y `VistaDeteccion` usan el tamaño de cada cuadro; `docs/latencia.md`.
 - Pruebas en PC: detector 144 casos (los 71 anteriores adaptados + 67 por tamaño 320x240, 240x176, 160x120 y tamaños raros), navegador 55 (con cuadros cada 50, 80 y 120 ms), trayectoria 28; todas pasan. La app compila (`assembleDebug`).
 - Pendiente (hardware): cargar el firmware de la cámara con HQVGA por defecto y medir el retraso con cronómetro; probar la app en el teléfono; medir PING/PONG por WiFi.
+
+## PARTE 2: calibración experimental del carro (sin encoders)
+- Hecho: `nucleo_c/calibracion.c/.h` (promedio, mediana, promedio sin atípicos, ajuste por mínimos cuadrados de avance y de cada giro, conversiones cm→ms y grados→ms con arranque, frenado y lado, texto exportable); el navegador usa la calibración medida (con arranque, frenado y tramos continuos); en la app `CalibracionActivity` (asistente: reacción, arranque, avance, giro izquierdo y derecho, resumen, «usar estos valores», copiar y borrar), `CalibracionGuardada` y aviso en el modo semiautónomo; `docs/calibracion.md`.
+- Pruebas en PC: calibración 92 casos (incluye 400 simulaciones con ruido de ±10 %), navegador 70, trayectoria 28, obstáculos 144; todas pasan. La app compila (`assembleDebug`).
+- PENDIENTE HARDWARE: hacer el procedimiento con el carro real y medir la desviación de una ruta calibrada.

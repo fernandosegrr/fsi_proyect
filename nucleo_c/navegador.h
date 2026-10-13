@@ -11,7 +11,8 @@
  *       ESPERANDO → SIGUIENDO → DETENIDO_OBSTACULO → ESQUIVANDO → REINCORPORANDO → SIGUIENDO
  *       ... → TERMINADO (llegó) o ERROR (no pudo seguir).
  *  4. El navegador NO tiene sensores de posición: lleva la cuenta por TIEMPO (cuánto tiempo
- *     estuvo avanzando o girando), con la calibración de calibracion.h. Es una estimación.
+ *     estuvo avanzando o girando), con la calibración del carro (calibracion.h): por defecto la
+ *     de ejemplo, o la medida con navegador_poner_calibracion(). Es una estimación.
  *  5. Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
  *  6. Regla de seguridad: en los estados ESPERANDO, TERMINADO y ERROR el comando es SIEMPRE STOP.
  */
@@ -21,6 +22,7 @@
 #include <stdint.h>
 #include "trayectoria.h"
 #include "obstaculos.h"
+#include "calibracion.h"
 
 #ifdef __cplusplus
 extern "C" {   /* permite usarlo desde C++ / JNI */
@@ -87,6 +89,9 @@ typedef enum {
 #define NAV_ERR_ESTADO        -3   /* esa función no se puede usar en el estado actual */
 
 typedef struct {
+    /* Calibración del carro (arranque, ms por cm, frenado, ms por grado de cada lado). */
+    CalibracionCarro cal;
+
     /* Ruta original (celdas) y camino actual (pasos por tiempo). */
     Punto ruta[MAX_PUNTOS];
     int   n_puntos;
@@ -131,6 +136,12 @@ typedef struct {
 
 /* Deja el navegador en ESPERANDO, sin ruta. */
 void navegador_iniciar(Navegador *nav);
+
+/* Cambia la calibración del carro (por defecto se usa la de ejemplo de calibracion.h). Solo con el
+ * navegador parado (ESPERANDO, TERMINADO o ERROR). Devuelve NAV_OK, NAV_ERR_ARGUMENTO (nula o no
+ * válida) o NAV_ERR_ESTADO. Los pasos de una ruta ya cargada se calculan al comenzar, así que se
+ * puede cambiar justo antes de navegador_comenzar. */
+int navegador_poner_calibracion(Navegador *nav, const CalibracionCarro *cal);
 
 /* Carga la ruta (lista de celdas contiguas, ver trayectoria.h). El carro se supone en el
  * primer punto mirando hacia ORIENTACION_INICIAL. Devuelve NAV_OK o un código de error. */

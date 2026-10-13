@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include "navegador.h"
+#include "calibracion.h"
 
 #define SIM_MAX_EVENTOS   8
 #define SIM_MAX_CAMBIOS 256
@@ -41,6 +42,13 @@ typedef struct {
     long x_cmm, y_cmm, rumbo_cgrados;
     int pct_avance;      /* 100 = avanza justo lo que dice la calibración; 95 = 5 % menos */
     int pct_giro;
+    /* Calibración del carro REAL simulado (por defecto la de ejemplo: sin arranque ni frenado). Si es
+     * distinta de la que usa el navegador, el navegador se equivoca como con un carro mal calibrado.
+     * Un comando de movimiento no mueve el carro durante `arranque_ms` y, al soltarlo, el carro sigue
+     * avanzando (o girando) el frenado. */
+    CalibracionCarro real;
+    ComandoNav cmd_previo;   /* comando del tick anterior */
+    int ms_en_comando;       /* cuánto lleva activo el comando actual */
 
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];

@@ -59,8 +59,13 @@ calibración de `nucleo_c/calibracion.h`.
 
 Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el navegador).
 
-- `MS_POR_CM` y `MS_POR_GRADO` (`calibracion.h`): de ellos depende toda la posición estimada. Hay que medirlos
-  con el carro real, con batería cargada, en el piso real, y repetirlos si cambia el peso o el piso.
+- **Calibración del carro** (`CalibracionCarro`, ver `docs/calibracion.md`): de ella depende toda la posición estimada. El
+  navegador ya no usa `MS_POR_CM` y `MS_POR_GRADO` fijos: usa la calibración MEDIDA (arranque, ms por cm, frenado, y ms por
+  grado de la izquierda y de la derecha por separado), que se le da con `navegador_poner_calibracion` y se mide con el
+  asistente de la app. Si no se calibró, usa los valores por defecto de `calibracion.h` (`MS_POR_CM` 50 y
+  `MS_POR_GRADO` 10) y la pantalla de control avisa. Hay que medirla con el carro real, con batería cargada, en el piso
+  real, y repetirla si cambia el peso o el piso. Al encadenar tramos rectos no se repite el arranque ni se descuenta el
+  frenado (solo cuenta al detenerse o girar), y al reanudar tras una detención por obstáculo se compensa.
 - **Antirrebote en milisegundos** (no en cuadros: así el retraso es el mismo con 8, 12 o 30 cuadros por
   segundo). Usa el reloj `ahora_ms` que ya recibe `navegador_tick`:
   - `NAV_CERCANIA_MIN_DETENER` = 1: desde qué cercanía del detector (0 a 3) en la zona CENTRO se considera
@@ -81,7 +86,7 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
 ## Pruebas hechas
 
 - **En PC**: `cd nucleo_c; make test` corre las pruebas de los tres módulos: 28 de trayectoria, 32 de
-  obstáculos y **55 del navegador**, todas pasan. Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
+  obstáculos y **70 del navegador**, todas pasan (y 92 de calibración). Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
   diagonal, media vuelta), ruta vacía, un solo punto y ruta inválida, antirrebote en ms (un cuadro lejano suelto no
   detiene; un cuadro con obstáculo cerca sí, al instante; lejano permanente a los 150 ms; con cuadros cada 50, 80
   y 120 ms; intermitente; reanudar tras 250 ms libre) y obstáculos solo a los lados (no detienen), obstáculo que desaparece, esquivar por la
