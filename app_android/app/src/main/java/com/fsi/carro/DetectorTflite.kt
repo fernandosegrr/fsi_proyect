@@ -51,6 +51,7 @@ class DetectorTflite(private val contexto: Context) {
     companion object {
         const val ARCHIVO_MODELO = "efficientdet_lite0.tflite"
         const val UMBRAL = 0.4f   // por debajo de esta confianza no se cuenta como detección
+        const val UMBRAL_DIAGNOSTICO = 0.2f   // el registro de diagnóstico anota lo mejor que vio el modelo si pasa de esto
         const val UMBRAL_CAJAS = 0.6f   // para las cajas que se fusionan con el detector de color: 60 % (un "refrigerator 43 %" sobre una pared lisa debe ignorarse)
     }
 
@@ -238,6 +239,7 @@ class DetectorTflite(private val contexto: Context) {
     fun postprocesarCajas(): List<DeteccionCaja> {
         decidirClasesYConfianzas()
         val resultado = ArrayList<DeteccionCaja>()
+        mejorSinUmbral = ""
         if (indiceClases < 0 || indiceConfianzas < 0 || indiceCantidad < 0 || indiceCajas < 0) {
             return resultado
         }
@@ -245,6 +247,19 @@ class DetectorTflite(private val contexto: Context) {
         val confianzas = (salidas[indiceConfianzas] as Array<FloatArray>)[0]
         val cajas = (salidas[indiceCajas] as Array<Array<FloatArray>>)[0]
         val cantidad = Math.min(Math.min((salidas[indiceCantidad] as FloatArray)[0].toInt(), confianzas.size), cajas.size)
+        // Diagnóstico (solo clase y porcentaje): lo mejor que vio el modelo, aunque no llegue al umbral de las cajas.
+        var mejor = -1
+        for (i in 0 until cantidad) {
+            if (mejor < 0 || confianzas[i] > confianzas[mejor]) {
+                mejor = i
+            }
+        }
+        if (mejor >= 0 && confianzas[mejor] >= UMBRAL_DIAGNOSTICO) {
+            val nombre = etiquetas.getOrNull(clases[mejor].toInt()) ?: "clase ${clases[mejor].toInt()}"
+            val c = cajas[mejor]
+            mejorSinUmbral = String.format(java.util.Locale.US, "%s %.0f%% caja x=%d..%d y=%d..%d", nombre, confianzas[mejor] * 100f,
+                milesimas(c[1]), milesimas(c[3]), milesimas(c[0]), milesimas(c[2]))
+        }
         for (i in 0 until cantidad) {
             if (confianzas[i] >= UMBRAL_CAJAS) {
                 val numero = clases[i].toInt()
@@ -255,6 +270,11 @@ class DetectorTflite(private val contexto: Context) {
         }
         return resultado
     }
+
+    /** Lo mejor que vio el modelo en el último cuadro (clase, porcentaje y caja), aunque no pasara el umbral; vacío si no vio nada. Solo texto. */
+    @Volatile
+    var mejorSinUmbral = ""
+        private set
 
     private fun milesimas(valor: Float): Int = Math.round(valor * 1000f).coerceIn(0, 1000)
 

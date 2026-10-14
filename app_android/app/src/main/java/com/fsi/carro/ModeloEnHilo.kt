@@ -60,6 +60,7 @@ class ModeloEnHilo(private val contexto: Context) {
     @Volatile
     var ultimo: ResultadoModelo? = null
         private set
+    private var ultimoLogModeloMs = 0L
 
     /** Mensaje de error (vacío si todo va bien). */
     @Volatile
@@ -180,6 +181,11 @@ class ModeloEnHilo(private val contexto: Context) {
         detector.inferir()
         val t2 = System.nanoTime()
         val detecciones = detector.postprocesarCajas()
+        val ahoraLog = android.os.SystemClock.elapsedRealtime()
+        if (ahoraLog - ultimoLogModeloMs >= 1000L) {   // una línea por segundo: lo mejor que vio el modelo (aunque no pase el umbral)
+            ultimoLogModeloMs = ahoraLog
+            Log.i("MODELO", "mejor=" + (if (detector.mejorSinUmbral.isEmpty()) "nada (menos de 20%)" else detector.mejorSinUmbral) + " | cajas_que_pasan_60%=${detecciones.size}")
+        }
         val t3 = System.nanoTime()
 
         val n = Math.min(detecciones.size, 10)   // FUS_MAX_CAJAS
