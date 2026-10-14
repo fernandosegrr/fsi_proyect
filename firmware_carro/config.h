@@ -69,7 +69,7 @@
  * Con los dos igual a VELOCIDAD no hay ajuste. Las pruebas compilan con los valores de aquí (las que comparan contra el firmware
  * original suponen 255 y 255). */
 #ifndef VELOCIDAD_IZQ
-#define VELOCIDAD_IZQ    248   /* medido: el carro se desvía a la derecha ≈11° cada 1.5 m (14.5 cm de lado): se baja el izquierdo ≈2.7 % */
+#define VELOCIDAD_IZQ    252   /* medido a 150 cm: con 255 se desvía 14.5 cm a la derecha, con 248 se pasó 16 cm a la izquierda → recta cerca de 252 */
 #endif
 #ifndef VELOCIDAD_DER
 #define VELOCIDAD_DER    VELOCIDAD
