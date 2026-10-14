@@ -79,6 +79,7 @@ class CalibracionActivity : Activity() {
     private lateinit var botonBorrarCal: Button
 
     private var paso = Paso.INTRO
+    private var soloGiroVisual = false   // se saltó directo al paso 6: el resumen parte de la calibración guardada, no de los valores por defecto
 
     // Datos anotados.
     private val reacciones = ArrayList<Int>()
@@ -282,6 +283,8 @@ class CalibracionActivity : Activity() {
                     "\n• una cinta o regla para medir lo que avanza;\n• marcas de 90 grados en el piso (con cinta) para los giros.\n\n" +
                     "El botón STOP de arriba siempre detiene el carro. Toca «Siguiente» para empezar."
                 textoDatos.text = guardada.avisoSiFalta() ?: "Ya hay una calibración completa guardada."
+                botonProbar.visibility = View.VISIBLE
+                botonProbar.text = "Solo calibrar el giro con la cámara (salta al paso 6 y conserva la calibración guardada)"
             }
             Paso.REACCION -> {
                 textoTitulo.text = "1. Tu tiempo de reacción"
@@ -392,6 +395,7 @@ class CalibracionActivity : Activity() {
     private fun actualizarBotones() {
         val ocupado = corriendo || arrancando || estadoReaccion != 0
         botonProbar.isEnabled = when (paso) {
+            Paso.INTRO -> true
             Paso.REACCION -> estadoReaccion == 0 && reacciones.size < TOQUES_REACCION
             Paso.ARRANQUE -> conectado() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER ->
@@ -415,6 +419,10 @@ class CalibracionActivity : Activity() {
 
     private fun alProbar() {
         when (paso) {
+            Paso.INTRO -> {
+                soloGiroVisual = true
+                cambiarPaso(Paso.GIRO_VISUAL.ordinal - Paso.INTRO.ordinal)
+            }
             Paso.REACCION -> empezarReaccion()
             Paso.ARRANQUE -> empezarArranque()
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> empezarPruebaDeTiempo()
@@ -622,7 +630,11 @@ class CalibracionActivity : Activity() {
     /** Calcula la calibración con lo anotado (en C) y arma el texto del resumen. */
     private fun calcularResumen() {
         val sb = StringBuilder()
-        var cal = CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
+        // Si se saltó al paso 6 solo para el campo de visión, se parte de lo guardado; si no, de los valores por defecto.
+        var cal = if (soloGiroVisual) guardada.leer() else CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
+        if (soloGiroVisual) {
+            sb.append("Se conservan el arranque, el avance y los giros de la calibración guardada (solo se ajusta el campo de visión).\n")
+        }
 
         if (toquesArranque.size >= 3) {
             val medio = CalibracionNativa.promedioSinAtipicos(toquesArranque.toIntArray())
