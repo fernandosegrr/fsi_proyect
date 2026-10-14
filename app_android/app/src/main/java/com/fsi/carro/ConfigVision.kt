@@ -67,6 +67,11 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getBoolean("usar_modelo", false)
         set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
 
+    /** true = en la pantalla de control los obstáculos salen de la cámara y no de los botones simulados (se recuerda al volver a abrir). */
+    var obstaculosCamara: Boolean
+        get() = preferencias.getBoolean("obstaculos_camara", false)
+        set(valor) = preferencias.edit().putBoolean("obstaculos_camara", valor).apply()
+
     /** true = los cuadros salen de la cámara DEL CARRO (video por WiFi, VideoCarro); false = de la cámara del teléfono. */
     var fuenteCarro: Boolean
         get() = preferencias.getBoolean("fuente_carro", false)

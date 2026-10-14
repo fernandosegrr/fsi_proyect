@@ -67,6 +67,7 @@ class ControlActivity : Activity() {
         semi.leerCalibracion = { calibracion.leer() }
         PruebaObstaculoNativa.iniciarResumen()
         val configVision = ConfigVision(this)
+        fuenteCamara = configVision.obstaculosCamara   // se recuerda la última elección: antes siempre volvía a "botones" y la ruta corría SIN ver obstáculos
         camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo })
         findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
         panelManual = findViewById(R.id.panel_manual)
@@ -137,6 +138,7 @@ class ControlActivity : Activity() {
     private fun cambiarFuente(usarCamara: Boolean) {
         semi.cancelar("Cambio de fuente de obstáculos")
         fuenteCamara = usarCamara
+        ConfigVision(this).obstaculosCamara = usarCamara
         if (usarCamara) {
             abrirCamaraSiHayPermiso()
         } else {
@@ -227,6 +229,7 @@ class ControlActivity : Activity() {
         val e = NavegadorNativa.estado()
         textoNav.text = (calibracion.avisoSiFalta()?.let { "⚠ $it\n" } ?: "") +
             "Ruta: $nombreRuta\n" +
+            (if (!fuenteCamara) "⚠ Obstáculos: BOTONES. La cámara NO está conectada a la ruta: el carro no verá obstáculos reales. Toca «Obstáculos: botones» para pasar a cámara.\n" else "") +
             "Estado: ${NavegadorNativa.textoEstado(e[NavegadorNativa.E_ESTADO])}\n" +
             "Comando: ${NavegadorNativa.textoComando(e[NavegadorNativa.E_COMANDO])}\n" +
             "Punto: ${e[NavegadorNativa.E_OBJETIVO]} de ${e[NavegadorNativa.E_PUNTOS] - 1}   Esquivadas: ${e[NavegadorNativa.E_ESQUIVADAS]}\n" +
