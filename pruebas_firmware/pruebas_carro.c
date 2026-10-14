@@ -312,8 +312,10 @@ static void o_set_motors(int m1a, int m1b, int m2a, int m2b)
 
 static void o_apply_motors(const char *dir, int spd)
 {
-    if      (!strcmp(dir, "FORWARD")) o_set_motors(0,   spd, spd, 0);
-    else if (!strcmp(dir, "REVERSE")) o_set_motors(spd, 0,   0,   spd);
+    /* La única diferencia deliberada con el original: avanzar y retroceder usan el ajuste por lado (VELOCIDAD_IZQ/DER) para ir recto. */
+    (void)spd;
+    if      (!strcmp(dir, "FORWARD")) o_set_motors(0,   VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
+    else if (!strcmp(dir, "REVERSE")) o_set_motors(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
     else if (!strcmp(dir, "LEFT"))    o_set_motors(0,   0,   255, 0);
     else if (!strcmp(dir, "RIGHT"))   o_set_motors(0,   255, 0,   0);
 }
