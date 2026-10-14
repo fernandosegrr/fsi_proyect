@@ -110,3 +110,11 @@
 - Hecho: canal WiFi fijo y sin ahorro de energía en las dos placas; `/stats` de la cámara con reconexiones y señal mínima; estadística del video (`video_stats.c`, log `VIDEO_STATS`, pantalla de visión) y aviso si el video no va por la red del carro; vigilancia del video en el navegador (hueco mayor a 500 ms → STOP y ERROR, no reanuda solo); instrumentación `OBST_PRUEBA` y ruta «Prueba de obstáculo (1 m)»; `docs/latencia.md` con 38 cm/s y 0.9 cm; confianza mínima del modelo en 60 %.
 - Pruebas en PC: 10 suites, todas sin fallos (video 14, prueba de obstáculo 16, navegador 105, fusión 72, firmware 56). App compilada e instalada.
 - PENDIENTE HARDWARE: cargar `scripts\cargar.ps1 nuevo` y `camara`; la serie de pasadas con un objeto real (`docs/prueba_obstaculos.md`); ver si los tropiezos del video desaparecen.
+
+## ESTADO DE LA PRUEBA DE OBSTÁCULOS CON LA CÁMARA DEL CARRO (13 oct 2026)
+- Video del carro estable: 11 a 12 fps, huecos máximos de 90 a 330 ms, sin huecos de más de 500 ms, 0 reconexiones de la cámara (canal fijo y sin ahorro de energía en las dos placas).
+- Piso vacío: sin falsos obstáculos (0 de 270 muestras; 3 pasadas completas sin frenar).
+- Objetos de ~15 cm de ancho o más (mochila): se ven desde ~80 cm y el navegador se detiene y esquiva. Con un obstáculo enorme y poco espacio la esquiva termina en ERROR (se rinde al verlo todavía muy cerca): es lo diseñado.
+- LÍMITE ACEPTADO (decisión del usuario): objetos angostos (termo) se ven a ~19 cm y el carro avanza 14 a 19 cm después del primer cuadro (retraso total 350 a 480 ms: video 320 ms + 12 a 134 ms hasta enviar el STOP + mitad del ida y vuelta; velocidad 38 cm/s). Bajar la potencia no sirve (el motor solo zumba) y el modelo de objetos no reconoce el termo con esta cámara (inventa «person»/«refrigerator»): se queda apagado.
+- Ajustes del detector que le funcionaron al usuario (guardados en el teléfono, no en el código): fila mínima ~440, celdas mínimas 6 a 8, umbral de color 40, modelo en NO.
+- Ideas si algún día se necesita ver objetos angostos: avance a pulsos con la potencia siempre al 100 %; otra cámara con menos retraso.
