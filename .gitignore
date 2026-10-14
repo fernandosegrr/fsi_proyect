@@ -37,3 +37,7 @@ nucleo_c/pruebas_video_stats
 nucleo_c/pruebas_video_stats.exe
 nucleo_c/pruebas_prueba_obstaculo
 nucleo_c/pruebas_prueba_obstaculo.exe
+nucleo_c/pruebas_corredor
+nucleo_c/pruebas_corredor.exe
+nucleo_c/pruebas_pisos_dificiles
+nucleo_c/pruebas_pisos_dificiles.exe
