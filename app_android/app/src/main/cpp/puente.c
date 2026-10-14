@@ -170,12 +170,14 @@ Java_com_fsi_carro_TrayectoriaNativa_maxPuntos(JNIEnv *env, jobject objeto)
 #define ENTEROS_CONFIG_OBSTACULOS    10
 /* Encabezado del detalle (ver analizarConfig): 10 del resumen + tamaño de la rejilla, franja de referencia, aviso
  * de rejilla chica, estado del modelo del piso y los colores de los grupos del piso. Después viene la máscara. */
-#define ENTEROS_ENCABEZADO_DETALLE   38
+#define ENTEROS_ENCABEZADO_DETALLE   42
 #define ENTEROS_DETALLE_MAXIMO       (ENTEROS_ENCABEZADO_DETALLE + OBS_MAX_FILAS * OBS_MAX_COLUMNAS)
 
 /* El modelo del piso que se recuerda entre cuadros (lo usa solo el hilo de la cámara). `reiniciar_modelo` lo pide la
  * pantalla (otro hilo): se atiende al analizar el siguiente cuadro. */
 static ModeloPiso modelo_global;
+static AcumuladorPiso acumulador_piso;          /* lo que se va acumulando mientras se aprende el piso (botón «Aprender piso») */
+static volatile int aprendiendo_piso = 0;       /* 1 mientras cada cuadro analizado también se suma al acumulador */
 static int modelo_inicializado = 0;
 static volatile int reiniciar_modelo = 0;
 
@@ -204,6 +206,9 @@ static int analizar_arreglo(JNIEnv *env, jbyteArray rgb, jint ancho, jint alto,
     datos = (*env)->GetPrimitiveArrayCritical(env, rgb, NULL);
     if (datos == NULL) {
         return OBS_ERR_IMAGEN_NULA;
+    }
+    if (aprendiendo_piso) {   /* el cuadro también alimenta el aprendizaje del piso (el carro está quieto) */
+        obstaculos_aprender_cuadro(&acumulador_piso, config, (const unsigned char *)datos, ancho, alto);
     }
     if (modelo != NULL) {
         codigo = obstaculos_analizar_modelo(config, modelo, (const unsigned char *)datos, ancho, alto, avanzando, ahora_ms, resultado);
@@ -273,7 +278,9 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
  *   [20] 1 si se reaprendió el piso en este cuadro (cambio de piso)   [21] 1 si el modelo aprendió en este cuadro
  *   [22] celdas marcadas solo por bordes   [23..34] colores R,G,B de hasta 4 grupos del piso
  *   [35..37] celdas confirmadas de cada zona (izquierda, centro, derecha)
- *   [38...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 38 + fila * columnas + columna).
+ *   [38] brillo medio de la zona de avance (0 a 255)  [39] ganancia con que se reajustó el brillo (1000 = ninguna)
+ *   [40] celdas marcadas en la zona de avance  [41] motivo (bits OBS_MOTIVO_*)
+ *   [42...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 42 + fila * columnas + columna).
  * Si hay error, el arreglo trae solo el encabezado (con el código en [0]). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
@@ -303,6 +310,15 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         cfg.grupos_piso = (int)datos_config[7];
         cfg.aprendizaje_mil = (int)datos_config[8];
         cfg.usar_bordes = (int)datos_config[9];
+        cfg.mejoras_piso = 1;   /* los dos últimos enteros de la configuración son opcionales: [10] mejoras de piso (por defecto 1) y [11] piso fijo (por defecto 0) */
+        cfg.piso_fijo = 0;
+        if ((*env)->GetArrayLength(env, config) >= 12) {
+            jint extra[2];
+
+            (*env)->GetIntArrayRegion(env, config, 10, 2, extra);
+            cfg.mejoras_piso = (int)extra[0];
+            cfg.piso_fijo = (int)extra[1];
+        }
     } else {
         /* Sin configuración: se pide al detector una configuración no válida. */
         cfg.umbral_color = -1;
@@ -315,6 +331,8 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         cfg.grupos_piso = 0;
         cfg.aprendizaje_mil = -1;
         cfg.usar_bordes = 2;
+        cfg.mejoras_piso = 1;
+        cfg.piso_fijo = 0;
     }
     if (!modelo_inicializado || reiniciar_modelo) {
         obstaculos_modelo_iniciar(&modelo_global);
@@ -338,6 +356,10 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         salida[20] = resultado.piso_reaprendido;
         salida[21] = resultado.aprendio;
         salida[22] = resultado.celdas_borde;
+        salida[38] = resultado.brillo_medio;
+        salida[39] = resultado.ganancia_mil;
+        salida[40] = resultado.celdas_marcadas;
+        salida[41] = resultado.motivo;
         salida[35] = resultado.zona[0].celdas;   /* celdas confirmadas de cada zona (la fusión las usa para saber si el detector duda) */
         salida[36] = resultado.zona[1].celdas;
         salida[37] = resultado.zona[2].celdas;
@@ -357,6 +379,78 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
     arreglo = (*env)->NewIntArray(env, largo);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, largo, salida);
+    }
+    return arreglo;
+}
+
+/* Empieza a aprender el piso: desde el siguiente cuadro, cada cuadro analizado se suma al acumulador. Solo desde el hilo de la cámara. */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_ObstaculosNativa_aprenderPisoIniciar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    obstaculos_aprender_iniciar(&acumulador_piso);
+    aprendiendo_piso = 1;
+}
+
+/* Termina de aprender el piso con lo acumulado: agrupa los colores de toda la zona de avance, deja ese modelo del piso y avisa qué aprendió.
+ * `config` son los mismos 10 o 12 enteros de analizarConfig. Solo desde el hilo de la cámara. Devuelve 23 enteros:
+ *   [0] código (0 = bien; OBS_ERR_REFERENCIA = muy pocos cuadros)  [1] colores aprendidos  [2] brillo medio (0 a 255)
+ *   [3] 1 si el piso es muy oscuro  [4] 1 si es muy variado  [5] % descartado por poco apoyo  [6] cuadros usados
+ *   [7..18] colores R,G,B de hasta 4 grupos  [19..22] % de celdas que respalda cada color. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject objeto, jintArray config)
+{
+    jint salida[23];
+    ConfigObstaculos cfg;
+    InformePiso informe;
+    jint datos_config[ENTEROS_CONFIG_OBSTACULOS];
+    jintArray arreglo;
+    int codigo, i, g;
+
+    (void)objeto;
+    for (i = 0; i < 23; i++) {
+        salida[i] = 0;
+    }
+    aprendiendo_piso = 0;
+    obstaculos_config_defecto(&cfg);
+    if (config != NULL && (*env)->GetArrayLength(env, config) >= ENTEROS_CONFIG_OBSTACULOS) {
+        (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_OBSTACULOS, datos_config);
+        cfg.umbral_color = (int)datos_config[0];
+        cfg.min_celdas = (int)datos_config[1];
+        cfg.ref_ancho_mil = (int)datos_config[2];
+        cfg.ref_alto_mil = (int)datos_config[3];
+        cfg.ref_centro_x_mil = (int)datos_config[4];
+        cfg.ref_borde_inf_mil = (int)datos_config[5];
+        cfg.fila_minima_mil = (int)datos_config[6];
+        cfg.grupos_piso = (int)datos_config[7];
+        cfg.aprendizaje_mil = (int)datos_config[8];
+        cfg.usar_bordes = (int)datos_config[9];
+    }
+    if (!modelo_inicializado) {
+        obstaculos_modelo_iniciar(&modelo_global);
+        modelo_inicializado = 1;
+    }
+    memset(&informe, 0, sizeof informe);
+    codigo = obstaculos_aprender_terminar(&acumulador_piso, &cfg, &modelo_global, &informe);
+    salida[0] = codigo;
+    if (codigo == OBS_OK) {
+        salida[1] = informe.grupos;
+        salida[2] = informe.brillo_medio;
+        salida[3] = informe.muy_oscuro;
+        salida[4] = informe.muy_variado;
+        salida[5] = informe.descartado_pct;
+        salida[6] = informe.cuadros;
+        for (g = 0; g < OBS_MAX_GRUPOS; g++) {
+            salida[7 + 3 * g] = informe.color[g][0];
+            salida[8 + 3 * g] = informe.color[g][1];
+            salida[9 + 3 * g] = informe.color[g][2];
+            salida[19 + g] = informe.peso_pct[g];
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, 23);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 23, salida);
     }
     return arreglo;
 }
@@ -1291,7 +1385,7 @@ Java_com_fsi_carro_CorredorNativa_aplicar(JNIEnv *env, jobject objeto, jintArray
         largo = (*env)->GetArrayLength(env, detalle);
         if (!configuracion.activo) {
             codigo = COR_OK;   /* apagado: ceros y nada se filtra */
-        } else if (largo < 38) {
+        } else if (largo < ENTEROS_ENCABEZADO_DETALLE) {
             codigo = -10;
         } else {
             jint *datos = (jint *)(*env)->GetPrimitiveArrayCritical(env, detalle, NULL);
@@ -1303,7 +1397,7 @@ Java_com_fsi_carro_CorredorNativa_aplicar(JNIEnv *env, jobject objeto, jintArray
                 filas = (int)datos[11];
                 fila_minima = (int)datos[12];
                 if (datos[0] != 0 || columnas < 1 || filas < 1 || columnas > OBS_MAX_COLUMNAS || filas > OBS_MAX_FILAS ||
-                    largo < 38 + columnas * filas) {
+                    largo < ENTEROS_ENCABEZADO_DETALLE + columnas * filas) {
                     codigo = -10;   /* el análisis falló o el detalle está incompleto */
                 } else {
                     memset(zonas, 0, sizeof zonas);
@@ -1314,7 +1408,7 @@ Java_com_fsi_carro_CorredorNativa_aplicar(JNIEnv *env, jobject objeto, jintArray
                     }
                     for (fila = 0; fila < filas; fila++) {
                         for (columna = 0; columna < columnas; columna++) {
-                            mascara[fila * OBS_MAX_COLUMNAS + columna] = (unsigned char)(datos[38 + fila * columnas + columna] ? 1 : 0);
+                            mascara[fila * OBS_MAX_COLUMNAS + columna] = (unsigned char)(datos[ENTEROS_ENCABEZADO_DETALLE + fila * columnas + columna] ? 1 : 0);
                         }
                     }
                 }

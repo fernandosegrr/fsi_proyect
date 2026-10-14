@@ -343,3 +343,74 @@ estrecha de abajo hacia arriba sin excepciones; **45 clasificaciones** de objeto
 color con imágenes sintéticas (caja centrada dentro, caja a la izquierda lejos fuera, la misma caja cerca dentro); el corredor apagado; 100 000 cajas al azar
 (estado en rango, coherente con los anchos, y un margen mayor nunca deja fuera lo que estaba dentro). En el navegador: fuera del corredor no frena y la ruta
 termina; la cercanía del corredor manda sobre la de la zona; elegir lado sigue evitando el lado ocupado aunque esté fuera del corredor.
+
+## Pisos negros y de 2 colores (trabajo E, lote 4)
+
+Problemas reales: (1) con piso negro el detector marcaba objeto aunque no hubiera; (2) con un piso de 2 colores (visto en la universidad) uno de los colores
+se marcaba como objeto. Código: `nucleo_c/obstaculos.c` (mejoras) y `nucleo_c/pisos_sinteticos.c` + `pruebas_pisos_dificiles.c` (la reproducción en PC con cuadros
+sintéticos; solo números, ninguna imagen se guarda ni se mira).
+
+### Qué se reprodujo y qué no (hechos medidos en PC, antes de arreglar)
+Escenas sintéticas de 240x176 con ruido por píxel (sigma 3 a 8), viñeteo, degradado de luz, reflejos, error de color por bloque de 16x16 (como el JPEG), cambios de
+exposición, piso negro, liso, baldosas, franjas y damero de 2 colores (con color MEZCLADO en el borde de las baldosas). «ANTES» = el detector de antes
+(`mejoras_piso = 0` y la franja de 188 milésimas).
+
+| Hipótesis | Resultado |
+|---|---|
+| 1. En celdas oscuras la normalización de brillo amplifica el ruido de color | **NO se reprodujo con ruido**: 0 falsos obstáculos en 60 cuadros con sigma 3 a 8, viñeteo 0 a 40 %, degradado ±30 % y error de color de ±6 niveles. La regla «mismo tono» no se usa con brillo menor a 90 y la regla de distancia de color acepta antes. |
+| 1b. (la que sí salió) un piso negro con **luz que cambia en valor absoluto** | **Reproducido**: un reflejo de +40 o +60 niveles sobre la franja de referencia (abajo al centro) da falso obstáculo en 60 de 60 cuadros. En un piso negro cualquier variación de luz es pequeña en relación pero grande contra el umbral de color (40: tres canales × 13 niveles). Que el umbral bajara de 60 a 40 lo hace más sensible. |
+| 2. Una referencia de un solo color deja el otro como obstáculo | **Confirmado**: con baldosas de 40 a 120 px, en 12 de 16 posiciones de la franja (cae sobre una sola baldosa) un color daba falso obstáculo en 30 de 30 cuadros. |
+| 3. La exposición automática cambia el brillo entre cuadros | **Solo en ruta**: en el modo normal el detector de antes ya la absorbía (la franja agrega el color nuevo como un grupo más). Con el piso fijo de una ruta (no se agregan colores) un cambio de ×1.35 o ×0.5 marcaba todo como obstáculo en 4 de 8 escenas (39 de 39 cuadros). |
+
+### Arreglos (`ConfigObstaculos.mejoras_piso`, 1 por defecto; con 0 se tiene el detector de antes)
+1. **`BRILLO_OSCURO` = 150** (suma R+G+B; unos 50 por canal): si la celda y la referencia son oscuras NO se compara el color, solo la luminancia, con una diferencia
+   mínima tolerada `DIF_MIN_OSCURO` = 90 (o el umbral de color si es mayor). Sin croma.
+2. **Tira de referencia más ancha** (`OBS_REF_ANCHO_MIL` 188 → **800**, el 80 % del ancho abajo) y **apoyo mínimo `OBS_APOYO_MIN_PCT` = 15 %**: de los hasta K = 4 grupos de color
+   que salen de la tira se descartan los respaldados por menos del 15 % de sus celdas (menos el más grande). Los dos colores de un piso de baldosas quedan aprendidos y una
+   mancha o un objeto chico en la tira NO se aprende como piso (esas celdas, además, no cuentan para el desvío de la tira). Un objeto grande (≥ 15 % y de otro tono) sigue dando
+   franja contaminada (el modelo ya aprendido se conserva). El **color intermedio entre dos grupos** (el borde de una baldosa) ya contaba como piso desde antes (distancia a la recta entre los dos
+   grupos ≤ umbral / 2): las pruebas con color mezclado en el borde no dan falsos.
+3. **Reajuste de brillo** (`OBS_GANANCIA_MIN_MIL` = 180, `_CONSISTENCIA_PCT` = 70, `_TOLERANCIA_MIL` = 150): si TODO el piso de la zona de avance cambia de brillo de golpe, se escalan los colores
+   aprendidos por la razón mediana en vez de marcar todo como obstáculo. Solo si: la razón se aleja ≥ 18 % de 1, al menos el 70 % de las celdas (y el 60 % en cada una de las 3 zonas)
+   coinciden con ella, más de la mitad de la zona tiene tono de piso, **y la tira de abajo cambió igual** (80 %). Una pared del mismo tono que el piso que llena la zona NO cumple lo último
+   (la tira no cambió): ya hubo una prueba que lo atrapó. Una mochila en el cuadro durante el cambio de exposición se sigue detectando.
+4. **`piso_fijo`** (1 durante una ruta): no se agregan colores nuevos ni se reaprende el piso por «todo se ve no piso» (la ruta no cambia de piso por su cuenta); el brillo sí se reajusta.
+   Prueba: piso que cambia de golpe a negro a media prueba: sin `piso_fijo` se reaprende (0 falsos en los cuadros 25 a 39), con `piso_fijo` sigue marcando (15 de 15).
+
+### Números después de arreglar (`pruebas_pisos_dificiles`, 24 casos; ANTES / NUEVO)
+- Piso negro vacío con reflejo de +40 y +60 niveles (y error de color de 0, 3 y 6 niveles por bloque): ANTES 60 de 60 cuadros falsos en los 6 casos; AHORA 0 en las 12 combinaciones de reflejo (0, 20, 40, 60) y error de color. 54 escenas de ruido 3 a 8, viñeteo y degradado con un reflejo de +30: 0 falsos.
+- Baldosas de 40 a 120 px en 16 posiciones: antes 30 de 30 cuadros falsos en 12 posiciones; ahora 0 en las 16. Franjas, damero y baldosas de 40 px con ruido 4 y 8: 0 falsos.
+- Exposición en ruta (×1.35 y ×0.5 en liso, baldosas, franjas y damero): antes 39 de 39 en 4 de 8 escenas; ahora 0.
+- **Objetos** (mano, libreta amarilla, caja azul-verdosa, mochila azul oscura) sobre los 5 pisos con ruido 5 y viñeteo 20 %: 19 de 20 combinaciones se detectan en 30 de 30 cuadros; la peor es la **mano sobre baldosas
+  beige/gris (22 de 30 cuadros, nunca más de 3 seguidos sin verla)** porque la baldosa clara tiene casi el tono de la piel (límite conocido de un detector por color). La **sombra suave** y el **piso vacío**
+  de cada tipo: 0 falsos.
+
+### Botón «Aprender piso»
+- **Dónde:** pantalla de **Visión** (debajo de «Fuente del video») y panel semiautónomo de **Control** (arriba de «Iniciar»). Con el carro **quieto** sobre el piso por el que va a pasar y sin objetos
+  en la zona de abajo; dura ~1 s (`APRENDER_PISO_MS`).
+- **Qué hace:** suma los colores de cada celda de TODA la zona de avance (no solo de la tira) en ~12 cuadros, los promedia (menos ruido), los agrupa en hasta K = 4 colores y descarta los de poco apoyo (< 15 %);
+  ese es el modelo del piso (`obstaculos_aprender_iniciar / _cuadro / _terminar`, en C; pruebas con los 5 pisos).
+- **Qué muestra:** cuántos colores aprendió con su RGB y el % de la zona de cada uno, el brillo medio (0 a 255) y los avisos **«MUY OSCURO»** (brillo medio por canal < 50) y **«MUY VARIADO»**
+  (más del 20 % de las celdas quedó en colores de poco apoyo, o hizo falta el máximo de 4 colores).
+- **La ruta lo exige:** al tocar «Iniciar» (con la cámara como fuente) la app pide haber aprendido el piso DESDE la ruta anterior; si no, avisa y un **segundo toque en 10 s confirma usar el último piso**.
+  El piso aprendido «se gasta» al empezar cada ruta. Durante la ruta rige `piso_fijo`.
+
+### Registro `PISO_DIAG`
+Una línea por cuadro (etiqueta `PISO_DIAG`, nivel D): `brillo=<0..255> ganancia=<1000 = sin reajuste> grupos=<n> celdas_marcadas=<n> zonas=<izq,cen,der: 0/1> motivo=<obstaculo|franja_tapada|reajuste_brillo|piso_nuevo|piso_oscuro|todo_no_piso|ninguno, con +> piso_fijo=<0/1>`.
+Se lee con `adb logcat -d -s PISO_DIAG:D` (antes: `adb logcat -G 16M` y `adb logcat -c`).
+
+### Lo que NO resuelve
+- Un objeto del mismo tono que el piso con poca diferencia de brillo (una caja beige sobre un piso beige) sigue sin verse: es el límite de un detector por color.
+- Con un piso muy oscuro, un obstáculo oscuro (mochila negra sobre piso negro) tampoco: el aviso «MUY OSCURO» existe para saberlo.
+- Los valores se probaron con cuadros sintéticos: **faltan los números del piso real** (casa y universidad).
+
+### PENDIENTE HARDWARE (con pasos y números a reportar)
+**En casa** (piso de prueba de 1.5 m):
+1. Arma un tramo de 1.5 m con **2 colores** (cartulinas, hojas o toallas: por ejemplo cuadros de ~20 cm blancos y gris oscuro) y otro tramo de ~50 cm **negro** (cartulina o tela negra, mate).
+2. App: **Control** → Semiautónomo → «Obstáculos: cámara» (y el video del carro). Carro quieto al inicio del piso de 2 colores, nada adelante: **Aprender piso**. Anota: colores aprendidos, brillo medio y los avisos.
+3. **3 pasadas sin obstáculo** («Prueba de obstáculo (1 m)», aprendiendo el piso antes de cada una): el carro **no** debe frenar. Anota cuántas frenaron de 3.
+4. **3 pasadas con una caja** (≥ 15 cm) a 60 cm de frente: debe frenar. Anota cuántas frenaron de 3 y a cuántos cm quedó de la caja.
+5. Repite 2 a 4 sobre el tramo negro.
+**En la universidad:** aprender el piso real; 3 pasadas sin obstáculo y 3 con caja; mismos números.
+**Qué reportar:** por piso (2 colores, negro, universidad): colores aprendidos, brillo medio, avisos, falsas paradas de 3 y paradas con caja de 3 (+ cm), y el log:
+`adb logcat -d -v time PISO_DIAG:D OBST_PRUEBA:D NAV:D VISION:I *:S`.

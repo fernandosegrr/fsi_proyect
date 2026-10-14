@@ -35,6 +35,7 @@ class ModoSemiautonomo(
         const val TICK_MS = 50L
         const val TIMEOUT_CAMARA_MS = 1000L   // sin cuadros nuevos durante este tiempo: se cancela la ruta
         const val PERFIL_ESPERA_MS = 1000L    // tiempo máximo para que el carro confirme el perfil AUTO antes de arrancar una ruta
+        const val CONFIRMAR_PISO_MS = 10000L  // tiempo para confirmar (tocando Iniciar otra vez) que se usa el último piso aprendido
 
         // Rutas de prueba: [columna0, fila0, columna1, fila1, ...], cada punto vecino del anterior.
         // Cuadrado de 2 celdas por lado (40 cm) y zigzag de escalones de 1 celda.
@@ -61,6 +62,8 @@ class ModoSemiautonomo(
 
     private var ultimoCuadroMs = 0L
     private var ultimoEstadoCentro = -1
+    private var inicioUltimaRutaMs = 0L           // hora en que empezó la última ruta (el piso aprendido antes de esa hora ya se "gastó")
+    private var confirmarUltimoPisoHasta = 0L      // hasta cuándo un segundo toque en Iniciar confirma usar el último piso
     private var ultimaFaseLog = -1      // para escribir en el log solo cuando cambia la maniobra de esquivar
     private var ultimosReintentosLog = -1
 
@@ -125,6 +128,27 @@ class ModoSemiautonomo(
             alCambiar()
             return false
         }
+        // El piso: cada ruta exige haberlo APRENDIDO (botón «Aprender piso») desde la ruta anterior, o confirmar usar el último (tocar Iniciar otra vez en 10 s).
+        // Con la fuente de botones no hay cámara y no se pide.
+        val camaraPiso = camara
+        if (camaraPiso != null) {
+            val ahora = SystemClock.elapsedRealtime()
+            val aprendidoParaEstaRuta = camaraPiso.pisoAprendidoMs != 0L && camaraPiso.pisoAprendidoMs > inicioUltimaRutaMs
+            if (camaraPiso.aprendiendoPiso) {
+                mensaje = "Todavía se está aprendiendo el piso (~1 s): espera y vuelve a tocar Iniciar."
+                alCambiar()
+                return false
+            }
+            if (!aprendidoParaEstaRuta && ahora > confirmarUltimoPisoHasta) {
+                confirmarUltimoPisoHasta = ahora + CONFIRMAR_PISO_MS
+                mensaje = "Antes de la ruta hay que APRENDER EL PISO: con el carro quieto sobre el piso de la ruta toca «Aprender piso». " +
+                    "O toca Iniciar otra vez (en 10 s) para usar el último piso" +
+                    (camaraPiso.informePiso?.let { " aprendido (${it.grupos} color(es), brillo medio ${it.brilloMedio})" } ?: " (todavía no se aprendió ninguno: se usará lo que ve la tira de abajo)") + "."
+                Log.i(ETIQUETA, "ruta pendiente: falta aprender el piso o confirmar el último")
+                alCambiar()
+                return false
+            }
+        }
         esperandoPerfil = true
         mensaje = "Pidiendo al carro el perfil AUTO (velocidad limitada)..."
         alCambiar()
@@ -177,6 +201,8 @@ class ModoSemiautonomo(
             return false
         }
         Log.i(ETIQUETA, "ruta iniciada (${ruta.size / 2} puntos)")
+        inicioUltimaRutaMs = SystemClock.elapsedRealtime()
+        confirmarUltimoPisoHasta = 0L
         mensaje = ""
         // El retroceso de los reintentos de esquive es CIEGO (no hay cámara atrás): se avisa siempre, y si no se calibró, que usa el del avance.
         val calAtras = leerCalibracion()

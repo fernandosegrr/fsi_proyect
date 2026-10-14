@@ -69,6 +69,8 @@ class VisionActivity : Activity() {
     private lateinit var botonCorredor: Button     // controles que se agregan por código debajo de «Fuente del video» (ver agregarControlesExtra)
     private lateinit var campoCorredor: EditText
     private lateinit var textoCorredor: TextView
+    private lateinit var botonAprenderPiso: Button   // «Aprender piso»: con el carro quieto, aprende los colores de toda la zona de abajo
+    private lateinit var textoPisoAprendido: TextView
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
     private val cuadrosSinGiro = AtomicInteger(0)        // cuadros en que la cámara no tuvo confianza
     private var ultimoNumeroGiro = -1L
@@ -250,6 +252,12 @@ class VisionActivity : Activity() {
             textoVideo.text = camara.textoVideo()
             textoGiro.text = textoDeGiro(cuadro)
             textoCorredor.text = textoDeCorredor(cuadro)
+            textoPisoAprendido.text = when {
+                camara.aprendiendoPiso -> "Aprendiendo el piso... deja el carro quieto y sin objetos adelante."
+                camara.errorAprender.isNotEmpty() -> camara.errorAprender
+                camara.informePiso != null -> camara.informePiso!!.texto()
+                else -> "Piso: todavía no se aprendió con el botón (se usa lo que ve la tira de abajo)."
+            } + (cuadro?.let { "\nBrillo medio del cuadro: ${it.resultado[ObstaculosNativa.BRILLO_MEDIO]}  motivo: ${ObstaculosNativa.textoMotivo(it.resultado[ObstaculosNativa.MOTIVO])}" } ?: "")
             registrosPendientes++
             if (registrosPendientes % 4 == 0) {   // cada ~2 s se anota en logcat lo que muestra la pantalla (sirve para probar sin mirar la imagen)
                 Log.i(CamaraObstaculos.ETIQUETA, "pantalla| piso=" + (cuadro?.resultado?.let { "${it[ObstaculosNativa.REF_R]},${it[ObstaculosNativa.REF_G]},${it[ObstaculosNativa.REF_B]}" } ?: "-") + " | " + (textoFusion.text.toString() + " " + textoGiro.text.toString()).replace("\n", " / "))
@@ -334,6 +342,21 @@ class VisionActivity : Activity() {
         val padre = botonFuenteVideo.parent as LinearLayout
         var lugar = padre.indexOfChild(botonFuenteVideo) + 1
         val separacion = (8 * resources.displayMetrics.density).toInt()
+
+        botonAprenderPiso = Button(this)
+        botonAprenderPiso.text = "Aprender piso (carro quieto, ~1 s)"
+        botonAprenderPiso.setOnClickListener {
+            if (camara.abierta && !camara.aprendiendoPiso) {
+                camara.aprenderPiso()
+            } else {
+                Toast.makeText(this, "La cámara no está lista", Toast.LENGTH_SHORT).show()
+            }
+        }
+        padre.addView(botonAprenderPiso, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
+        textoPisoAprendido = TextView(this)
+        textoPisoAprendido.typeface = android.graphics.Typeface.MONOSPACE
+        textoPisoAprendido.textSize = 12f
+        padre.addView(textoPisoAprendido, lugar++)
 
         botonCorredor = Button(this)
         botonCorredor.setOnClickListener {

@@ -636,6 +636,8 @@ static void pruebas_modelo_y_errores(void)
     int codigo;
 
     obstaculos_config_defecto(&cfg);
+    cfg.ref_ancho_mil = 188;   /* estas pruebas tapan "la mitad de la franja": se escribieron para la franja angosta de antes */
+    cfg.mejoras_piso = 0;
 
     /* Franja tapada con un modelo ya aprendido: se sigue con lo aprendido y el obstaculo se detecta. */
     obstaculos_modelo_iniciar(&m);
@@ -708,7 +710,10 @@ static void pruebas_modelo_y_errores(void)
     /* Franja contaminada: una celda roja en la franja da error sin modelo con cualquier K. */
     cuadro_de_piso(0);
     rect_px(160, 230, 170, 240, CAJA);
-    caso("una celda roja dentro de la franja: OBS_ERR_REFERENCIA (la caja no es un tono del piso)", analizar() == OBS_ERR_REFERENCIA);
+    cfg.mejoras_piso = 0;   /* el detector de antes: una celda rara contamina la franja */
+    caso("una celda roja dentro de la franja (sin las mejoras de piso): OBS_ERR_REFERENCIA (la caja no es un tono del piso)", analizar() == OBS_ERR_REFERENCIA);
+    cfg.mejoras_piso = 1;
+    caso("... con las mejoras, una celda roja que respalda menos del 15 % de la franja se descarta: se analiza sin error", analizar() == OBS_OK);
     obstaculos_config_defecto(&cfg);
 }
 

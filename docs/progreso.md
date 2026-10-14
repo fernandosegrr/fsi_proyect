@@ -135,3 +135,7 @@
 ### Trabajo B: corredor de trayectoria — hecho (apagado por defecto)
 - `corredor.c/.h`: la huella del carro proyectada por perspectiva; solo frena lo que cae DENTRO o en el BORDE (en la duda, frena); lo de FUERA solo avisa. Interfaz común `CajaImagen` para el detector, el modelo de objetos y el flujo. Detalle en `docs/obstaculos.md`.
 - Pruebas en PC: `pruebas_corredor` 59 casos, navegador 143, el resto sin fallos. PENDIENTE HARDWARE: medir ancho, altura, inclinación y campo de visión del carro y comprobar con una caja.
+
+### Trabajo E: pisos negros y de 2 colores — hecho
+- Reproducción en PC con cuadros sintéticos y arreglos (brillo oscuro, tira ancha con apoyo mínimo, reajuste de brillo, piso fijo en rutas); botón «Aprender piso» (la ruta lo exige o confirma el último); registro `PISO_DIAG`. Detalle y números en `docs/obstaculos.md` («Pisos negros y de 2 colores»).
+- Pruebas en PC: pisos difíciles 24, obstáculos 146, piso 58. PENDIENTE HARDWARE: pasos y números a reportar en `docs/obstaculos.md` (casa: tramo de 2 colores y tramo negro; universidad: piso real).

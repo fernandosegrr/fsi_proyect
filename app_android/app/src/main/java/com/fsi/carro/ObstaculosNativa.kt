@@ -69,8 +69,20 @@ object ObstaculosNativa {
 
     const val CELDAS_ZONA = 35           // celdas confirmadas de cada zona (izquierda, centro, derecha): 35, 36 y 37
 
+    // Diagnóstico del cuadro (registro PISO_DIAG).
+    const val BRILLO_MEDIO = 38          // brillo medio de la zona de avance, 0 a 255
+    const val GANANCIA_MIL = 39          // factor con que se reajustó el brillo del piso (1000 = no se reajustó)
+    const val CELDAS_MARCADAS = 40       // celdas "no piso" confirmadas en la zona de avance
+    const val MOTIVO = 41                // bits MOTIVO_* (obstaculos.h: OBS_MOTIVO_*)
+    const val MOTIVO_OBSTACULO = 1
+    const val MOTIVO_FRANJA_TAPADA = 2
+    const val MOTIVO_REAJUSTE = 4
+    const val MOTIVO_PISO_NUEVO = 8
+    const val MOTIVO_PISO_OSCURO = 16
+    const val MOTIVO_TODO_NO_PISO = 32
+
     /** Desde aquí viene la máscara: 1 = celda "no piso", fila por fila (índice INICIO_MASCARA + fila * columnas + columna). */
-    const val INICIO_MASCARA = 38
+    const val INICIO_MASCARA = 42
 
     // Posiciones dentro de la configuración (10 enteros). Las proporciones van en milésimas.
     const val CFG_UMBRAL_COLOR = 0
@@ -83,6 +95,32 @@ object ObstaculosNativa {
     const val CFG_GRUPOS_PISO = 7          // K: cuántos colores distintos puede tener el piso (1 a 4)
     const val CFG_APRENDIZAJE_MIL = 8      // velocidad de aprendizaje del modelo del piso (milésimas por cuadro; 0 = no aprende)
     const val CFG_USAR_BORDES = 9          // 1 = señal extra de bordes (apagada por defecto: ver docs/obstaculos.md)
+    const val CFG_MEJORAS_PISO = 10        // 1 (por defecto) = brillo oscuro, grupos con apoyo mínimo y reajuste de brillo (pisos negros y de 2 colores)
+    const val CFG_PISO_FIJO = 11           // 1 = durante una ruta: no se reaprende el piso ni se agregan colores
+    const val ENTEROS_CONFIG = 12
+
+    // Resultado de aprenderPisoTerminar (23 enteros).
+    const val APR_CODIGO = 0
+    const val APR_GRUPOS = 1
+    const val APR_BRILLO_MEDIO = 2
+    const val APR_MUY_OSCURO = 3
+    const val APR_MUY_VARIADO = 4
+    const val APR_DESCARTADO_PCT = 5
+    const val APR_CUADROS = 6
+    const val APR_COLORES = 7        // R, G, B de hasta 4 grupos: 7..18
+    const val APR_PESOS_PCT = 19     // % de celdas de cada color: 19..22
+
+    /** Texto corto de los motivos de un cuadro (para PISO_DIAG). */
+    fun textoMotivo(motivo: Int): String {
+        val partes = ArrayList<String>()
+        if (motivo and MOTIVO_OBSTACULO != 0) partes.add("obstaculo")
+        if (motivo and MOTIVO_FRANJA_TAPADA != 0) partes.add("franja_tapada")
+        if (motivo and MOTIVO_REAJUSTE != 0) partes.add("reajuste_brillo")
+        if (motivo and MOTIVO_PISO_NUEVO != 0) partes.add("piso_nuevo")
+        if (motivo and MOTIVO_PISO_OSCURO != 0) partes.add("piso_oscuro")
+        if (motivo and MOTIVO_TODO_NO_PISO != 0) partes.add("todo_no_piso")
+        return if (partes.isEmpty()) "ninguno" else partes.joinToString("+")
+    }
 
     // Códigos de error de obstaculos.h.
     const val ERR_IMAGEN_NULA = -1
@@ -99,6 +137,12 @@ object ObstaculosNativa {
      * y `ahoraMs` es un reloj en milisegundos. Solo se llama desde el hilo de la cámara.
      */
     external fun analizarConfig(rgb: ByteArray, ancho: Int, alto: Int, config: IntArray, avanzando: Boolean, ahoraMs: Long): IntArray
+
+    /** Empieza a aprender el piso: desde el siguiente cuadro cada cuadro analizado se suma (el carro debe estar QUIETO). Solo desde el hilo de la cámara. */
+    external fun aprenderPisoIniciar()
+
+    /** Termina de aprender el piso con lo acumulado y deja ese modelo (23 enteros, posiciones APR_*). Solo desde el hilo de la cámara. */
+    external fun aprenderPisoTerminar(config: IntArray): IntArray
 
     /** Olvida el piso aprendido: el siguiente cuadro vuelve a aprender los colores del piso desde la franja de referencia. */
     external fun reiniciarModelo()

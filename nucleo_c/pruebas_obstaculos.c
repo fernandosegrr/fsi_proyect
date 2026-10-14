@@ -185,6 +185,18 @@ static int codigo_de_analisis(void)
     return obstaculos_analizar(imagen, g_ancho, g_alto, &r);
 }
 
+/* Igual, con el detector de ANTES de las mejoras de piso (mejoras_piso = 0): una celda rara en la franja la contamina aunque sea poca. */
+static int codigo_de_analisis_antes(void)
+{
+    ResultadoObstaculos r;
+    ConfigObstaculos c;
+
+    obstaculos_config_defecto(&c);
+    c.mejoras_piso = 0;
+    c.ref_ancho_mil = 188;   /* y su franja angosta de siempre */
+    return obstaculos_analizar_con(&c, imagen, g_ancho, g_alto, &r);
+}
+
 /* ── Casos ─────────────────────────────────────────────────────────────── */
 
 static void pruebas_piso_libre(void)
@@ -344,12 +356,16 @@ static void pruebas_errores(void)
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(13, 22, 15, 23, CAJA);   /* un objeto cubre la mitad de la franja de referencia */
-    caso("referencia contaminada (objeto sobre la franja): OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+    caso("referencia contaminada (objeto sobre la mitad de la franja angosta de antes): OBS_ERR_REFERENCIA", codigo_de_analisis_antes() == OBS_ERR_REFERENCIA);
+    /* Con la tira ancha por defecto (80 % del ancho) el mismo objeto de 2 celdas es un intruso chico (menos del 15 % de la tira): se descarta. */
+    caso("el mismo objeto con la tira ancha por defecto (menos del 15 % de apoyo): se descarta y la imagen se analiza", codigo_de_analisis() == OBS_OK);
 
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(16, 23, 16, 23, CAJA);   /* una sola celda de la franja */
-    caso("referencia con una sola celda distinta: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+    caso("referencia con una sola celda distinta (sin las mejoras de piso): OBS_ERR_REFERENCIA", codigo_de_analisis_antes() == OBS_ERR_REFERENCIA);
+    /* Con las mejoras, una celda rara que respalda menos del 15 % de la franja se descarta (no se aprende como piso y no ensucia la franja). */
+    caso("referencia con una sola celda distinta (con las mejoras, la franja es de 12 celdas: 8 % de apoyo): se descarta y la imagen se analiza", codigo_de_analisis() == OBS_OK);
 
     caso("textos de error en espanol", strlen(obstaculos_texto_error(OBS_ERR_REFERENCIA)) > 10 &&
          strlen(obstaculos_texto_error(OBS_ERR_TAMANO)) > 5);
@@ -425,7 +441,9 @@ static void pruebas_configuracion(void)
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(12, 20, 15, 23, CAJA);   /* la caja tapa la mitad de la franja central de abajo */
-    caso("la caja tapa parte de la franja por defecto: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+    config.ref_ancho_mil = 188;   /* la franja angosta de antes: la caja tapa la mitad */
+    config.mejoras_piso = 0;
+    caso("la caja tapa parte de la franja angosta: OBS_ERR_REFERENCIA", obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &(ResultadoObstaculos){0}) == OBS_ERR_REFERENCIA);
     config.ref_centro_x_mil = mil_de(3, OBS_COLUMNAS);   /* otra franja: abajo a la izquierda (columnas 0 a 5), que esta libre */
     {
         ResultadoObstaculos r;
@@ -666,7 +684,7 @@ static void pruebas_tamano(int ancho, int alto, int rejilla_chica_esperada)
     rellenar(PISO);
     ruido(8);
     rectangulo_celdas(columnas / 2, filas - 1, columnas / 2, filas - 1, CAJA);
-    caso_t("una celda de la franja de referencia distinta: OBS_ERR_REFERENCIA", codigo_de_analisis() == OBS_ERR_REFERENCIA);
+    caso_t("una celda de la franja de referencia distinta (sin las mejoras de piso): OBS_ERR_REFERENCIA", codigo_de_analisis_antes() == OBS_ERR_REFERENCIA);
 
     rellenar(PISO);
     ruido(8);

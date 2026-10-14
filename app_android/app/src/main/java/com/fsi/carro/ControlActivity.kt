@@ -73,7 +73,8 @@ class ControlActivity : Activity() {
         PruebaObstaculoNativa.iniciarResumen()
         val configVision = ConfigVision(this)
         fuenteCamara = configVision.obstaculosCamara   // se recuerda la última elección: antes siempre volvía a "botones" y la ruta corría SIN ver obstáculos
-        camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo }, { configVision.corredorComoArreglo() })
+        camara = CamaraObstaculos(this, { configVision.comoArreglo().also { it[ObstaculosNativa.CFG_PISO_FIJO] = if (semi.activo) 1 else 0 } },   // en una ruta el piso no cambia (piso_fijo)
+         { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo }, { configVision.corredorComoArreglo() })
         findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
         panelManual = findViewById(R.id.panel_manual)
         panelSemi = findViewById(R.id.panel_semi)
@@ -101,6 +102,7 @@ class ControlActivity : Activity() {
             mostrarEstado()
         }
         findViewById<Button>(R.id.boton_reiniciar_prueba).setOnClickListener { semi.reiniciarPrueba() }
+        agregarBotonAprenderPiso()
         findViewById<Button>(R.id.boton_iniciar_ruta).setOnClickListener { semi.iniciar(rutaElegida) }
         findViewById<Button>(R.id.boton_cancelar_ruta).setOnClickListener { semi.cancelar() }
         findViewById<Button>(R.id.boton_obstaculo_izquierda).setOnClickListener { semi.alternarObstaculo(0) }
@@ -215,6 +217,24 @@ class ControlActivity : Activity() {
         }
     }
 
+    /** Agrega (por código, sin tocar el diseño) el botón «Aprender piso» justo arriba de Iniciar: antes de cada ruta, con el carro quieto sobre el piso de la ruta. */
+    private fun agregarBotonAprenderPiso() {
+        val filaIniciar = findViewById<Button>(R.id.boton_iniciar_ruta).parent as android.widget.LinearLayout
+        val columna = filaIniciar.parent as android.widget.LinearLayout
+        val boton = Button(this)
+        boton.text = "Aprender piso (carro quieto, ~1 s)"
+        boton.setOnClickListener {
+            if (!fuenteCamara || !camara.abierta) {
+                android.widget.Toast.makeText(this, "Primero pon «Obstáculos: cámara» y espera a que la cámara esté abierta", android.widget.Toast.LENGTH_LONG).show()
+            } else if (semi.activo) {
+                android.widget.Toast.makeText(this, "No se puede aprender el piso con una ruta en marcha", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                camara.aprenderPiso()
+            }
+        }
+        columna.addView(boton, columna.indexOfChild(filaIniciar))
+    }
+
     /** Muestra Conectado / Desconectado / Reconectando y la latencia PING-PONG. */
     private fun mostrarEstado() {
         val estado = when (logica.conexion) {
@@ -225,6 +245,14 @@ class ControlActivity : Activity() {
         val latencia = logica.latenciaMs?.let { "$it ms" } ?: "—"
         textoEstado.text = getString(R.string.estado_con_latencia, estado, latencia) + "\n" + textoPerfil()
         mostrarSemiautonomo()
+    }
+
+    /** Lo que se sabe del piso: aprendiendo, lo aprendido (colores, brillo medio y avisos) o que falta aprenderlo. */
+    private fun textoPiso(): String = when {
+        camara.aprendiendoPiso -> "Aprendiendo el piso... deja el carro quieto y sin objetos adelante."
+        camara.errorAprender.isNotEmpty() -> camara.errorAprender
+        camara.informePiso != null -> camara.informePiso!!.texto()
+        else -> "Piso: sin aprender (antes de la ruta toca «Aprender piso» con el carro quieto, o confirma el último con un segundo toque en Iniciar)."
     }
 
     /** El perfil de velocidad: el que se pidió y si el carro ya lo confirmó. */
@@ -259,6 +287,7 @@ class ControlActivity : Activity() {
             (if (fuenteCamara) "Cámara: ${if (camara.abierta) "ABIERTA" else "cerrada"}  ${"%.1f".format(java.util.Locale.US, camara.fps)} fps\n" else "") +
             "Posición estimada: x=${e[NavegadorNativa.E_X_MM] / 10} cm  y=${e[NavegadorNativa.E_Y_MM] / 10} cm  rumbo=${e[NavegadorNativa.E_RUMBO]}°\n" +
             (if (fuenteCamara && camara.esVideoCarro) camara.textoVideo() + "\n" else "") +
+            (if (fuenteCamara) textoPiso() + "\n" else "") +
             (if (semi.textoPrueba.isNotEmpty()) semi.textoPrueba + "\n" else "") +
             semi.mensaje
     }

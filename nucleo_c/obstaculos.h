@@ -60,9 +60,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  * se convierte a celdas con: celdas = total_de_celdas * milesimas / 1000 (entero, hacia abajo).
  *
  * Franja de referencia del piso (valores POR DEFECTO; se cambian con ConfigObstaculos):
- *   ancho 188‰ (6 de 32 celdas), alto 84‰ (2 de 24 celdas), centrada en el ancho (500‰) y
- *   pegada abajo (borde inferior en 1000‰). En 320x240 es la franja de 6x2 celdas de siempre. */
-#define OBS_REF_ANCHO_MIL        188
+ *   ancho 800‰ (la tira ancha: 26 de 32 celdas), alto 84‰ (2 de 24 celdas), centrada en el ancho (500‰) y pegada abajo (borde inferior en 1000‰).
+ *   Antes era de 188‰ (6 de 32 celdas): sobre un piso de baldosas de dos colores la franja angosta caía en UNA sola baldosa y el otro color se marcaba
+ *   como obstáculo. La tira ancha ve los dos colores y las manchas chicas se descartan (OBS_APOYO_MIN_PCT). */
+#define OBS_REF_ANCHO_MIL        800
 #define OBS_REF_ALTO_MIL          84
 #define OBS_REF_CENTRO_X_MIL     500
 #define OBS_REF_BORDE_INF_MIL   1000
@@ -108,6 +109,31 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  * y 0 si la zona no tiene obstáculo. */
 #define OBS_MEDIA_MIL     667
 #define OBS_CERCA_MIL     834
+
+/* ── Pisos difíciles: negros y de 2 colores (mejoras_piso) ───────────────────
+ *  - BRILLO_OSCURO: si la celda Y el color de referencia son más oscuros que esto (suma R+G+B, 0 a 765; 150 = unos 50 por canal), NO se compara
+ *    el color: solo la luminancia (el brillo), con una diferencia mínima tolerada DIF_MIN_OSCURO (o el umbral de color, el que sea mayor). En lo
+ *    oscuro el color es ruido (el tono normalizado se dispara) y un reflejo o un degradado de luz cambia el brillo más de lo que cabe en el umbral.
+ *  - OBS_APOYO_MIN_PCT: al agrupar la franja de referencia, un grupo de color solo cuenta como piso si lo respaldan al menos este % de las celdas
+ *    de la franja (así una franja ancha aprende los dos colores de un piso de baldosas, y una mancha o un objeto chico NO se aprende como piso).
+ *  - Reajuste de brillo (OBS_GANANCIA_*): si TODO el piso de la zona de avance cambia de brillo de golpe (la exposición automática de la cámara),
+ *    se escalan los colores aprendidos en vez de marcar todo como obstáculo. Solo si el cambio es de al menos OBS_GANANCIA_MIN_MIL (180 = 18 %), lo
+ *    mismo en al menos OBS_GANANCIA_CONSISTENCIA_PCT % de las celdas (dentro de +-OBS_GANANCIA_TOLERANCIA_MIL milésimas del cambio mediano), y en cada
+ *    una de las tres zonas: un objeto grande que tapa parte del piso NO lo cumple. */
+#define BRILLO_OSCURO                  150
+#define DIF_MIN_OSCURO                  90
+#define OBS_APOYO_MIN_PCT               15
+#define OBS_GANANCIA_MIN_MIL           180
+#define OBS_GANANCIA_CONSISTENCIA_PCT   70
+#define OBS_GANANCIA_TOLERANCIA_MIL    150
+
+/* Motivos (bits de ResultadoObstaculos.motivo): por qué el resultado de este cuadro es el que es. */
+#define OBS_MOTIVO_OBSTACULO       1   /* alguna zona tiene obstáculo */
+#define OBS_MOTIVO_FRANJA_TAPADA   2   /* la franja de referencia no sirvió: se usó lo aprendido */
+#define OBS_MOTIVO_REAJUSTE        4   /* se reajustó el brillo del piso (cambio de exposición) */
+#define OBS_MOTIVO_PISO_NUEVO      8   /* se reaprendió el piso (todo se veía "no piso" durante 1 s) */
+#define OBS_MOTIVO_PISO_OSCURO    16   /* el piso de la zona de avance es oscuro (brillo medio bajo BRILLO_OSCURO / 3 por canal) */
+#define OBS_MOTIVO_TODO_NO_PISO   32   /* casi todo lo de la zona de avance se ve "no piso" */
 
 /* ── Piso con varios colores y aprendizaje ─────────────────────────────── */
 
@@ -164,6 +190,11 @@ typedef struct {
     int piso_reaprendido;            /* 1 si en ESTE cuadro se reaprendió el piso (cambio de piso): avisar */
     int aprendio;                    /* 1 si en este cuadro se actualizó el modelo con celdas de piso */
     int celdas_borde;                /* cuántas celdas se marcaron SOLO por la señal de bordes */
+    /* Diagnóstico del cuadro (registro PISO_DIAG): */
+    int brillo_medio;                /* brillo medio de la zona de avance (0 a 255 por canal) */
+    int ganancia_mil;                /* factor con que se reajustó el brillo del piso en este cuadro (1000 = no se reajustó) */
+    int celdas_marcadas;             /* celdas "no piso" confirmadas en la zona de avance */
+    int motivo;                      /* bits OBS_MOTIVO_* */
     /* 1 en cada celda "no piso" confirmada (toda la imagen); sirve para depurar y dibujar */
     unsigned char no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
 } ResultadoObstaculos;
@@ -184,6 +215,8 @@ typedef struct {
     int grupos_piso;            /* K: cuántos grupos de color del piso se buscan (1 a OBS_MAX_GRUPOS) */
     int aprendizaje_mil;        /* velocidad de aprendizaje del modelo, en milésimas por cuadro (0 a 1000; 0 = no aprende) */
     int usar_bordes;            /* 1 = señal extra de bordes entre celdas vecinas (objetos casi del color del piso) */
+    int mejoras_piso;           /* 1 (por defecto) = brillo oscuro, grupos con apoyo mínimo y reajuste de brillo; 0 = el detector de antes (para comparar) */
+    int piso_fijo;              /* 1 = durante una ruta: no se reaprende el piso ni se agregan colores nuevos (el brillo sí se reajusta) */
 } ConfigObstaculos;
 
 /* Códigos de retorno de obstaculos_analizar. */
@@ -218,6 +251,43 @@ void obstaculos_modelo_iniciar(ModeloPiso *modelo);
 int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *rgb,
                                int ancho, int alto, int avanzando, unsigned int ahora_ms,
                                ResultadoObstaculos *resultado);
+
+/* ── Aprender el piso (botón «Aprender piso») ──────────────────────────────
+ * Con el carro QUIETO, durante ~1 s se le dan al acumulador los cuadros (obstaculos_aprender_cuadro) y al final se agrupan los colores de TODA la zona
+ * de avance (no solo de la franja de abajo): hasta K grupos, descartando los de poco apoyo (OBS_APOYO_MIN_PCT). El resultado reemplaza el modelo del piso. */
+typedef struct {
+    long suma[OBS_MAX_FILAS][OBS_MAX_COLUMNAS][3];   /* suma de los colores de cada celda en todos los cuadros */
+    int cuadros;                                     /* cuántos cuadros se sumaron */
+    int ancho, alto;                                 /* tamaño de los cuadros (todos iguales) */
+    int fila_minima;                                 /* primera fila de la zona de avance */
+} AcumuladorPiso;
+
+/* Lo que se aprendió. */
+typedef struct {
+    int grupos;              /* cuántos colores quedaron */
+    int brillo_medio;        /* brillo medio de la zona de avance (0 a 255 por canal) */
+    int muy_oscuro;          /* 1 si el piso es muy oscuro (brillo medio bajo BRILLO_OSCURO / 3) */
+    int muy_variado;         /* 1 si más del 20 % de las celdas quedó en colores de poco apoyo (descartados) o hace falta el máximo de colores */
+    int descartado_pct;      /* % de las celdas de la zona en grupos descartados por poco apoyo */
+    int cuadros;             /* cuántos cuadros se usaron */
+    int color[OBS_MAX_GRUPOS][3];
+    int peso_pct[OBS_MAX_GRUPOS];   /* % de las celdas que respaldan cada color */
+} InformePiso;
+
+#define OBS_APRENDER_MIN_CUADROS  3
+
+/* Deja el acumulador vacío. */
+void obstaculos_aprender_iniciar(AcumuladorPiso *acumulador);
+
+/* Suma un cuadro. Devuelve OBS_OK o un error (tamaño raro, configuración mala, o tamaño distinto al de los cuadros anteriores). */
+int obstaculos_aprender_cuadro(AcumuladorPiso *acumulador, const ConfigObstaculos *config, const unsigned char *rgb, int ancho, int alto);
+
+/* Agrupa lo acumulado, deja el modelo del piso con esos colores y llena el informe. Devuelve OBS_OK, OBS_ERR_CONFIG o OBS_ERR_REFERENCIA (muy pocos
+ * cuadros: OBS_APRENDER_MIN_CUADROS). Con un error el modelo no cambia. */
+int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe);
+
+/* Texto corto en español de los motivos (bits OBS_MOTIVO_*), para el registro PISO_DIAG. Escribe en `texto` (capacidad `capacidad`). */
+void obstaculos_texto_motivo(int motivo, char *texto, int capacidad);
 
 /* Igual que obstaculos_analizar_con pero con la configuración por defecto. */
 int obstaculos_analizar(const unsigned char *rgb, int ancho, int alto, ResultadoObstaculos *resultado);

@@ -142,9 +142,12 @@ class ConfigVision(contexto: Context) {
         aprendizajeMil = defecto[ObstaculosNativa.CFG_APRENDIZAJE_MIL]
     }
 
-    /** Los 10 enteros de configuración (la franja de referencia queda con el valor por defecto). */
+    /** Los 12 enteros de configuración (la franja de referencia queda con el valor por defecto del código en C: la tira ancha). El 12.º (piso fijo) lo cambia
+     *  quien sabe si hay una ruta en marcha (ControlActivity). */
     fun comoArreglo(): IntArray {
-        val config = defecto.copyOf()
+        val config = defecto.copyOf(ObstaculosNativa.ENTEROS_CONFIG)
+        config[ObstaculosNativa.CFG_MEJORAS_PISO] = 1
+        config[ObstaculosNativa.CFG_PISO_FIJO] = 0
         config[ObstaculosNativa.CFG_UMBRAL_COLOR] = umbralColor
         config[ObstaculosNativa.CFG_MIN_CELDAS] = minCeldas
         config[ObstaculosNativa.CFG_FILA_MINIMA_MIL] = filaMinimaMil

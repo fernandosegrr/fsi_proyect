@@ -89,6 +89,33 @@ class CuadroAnalizado(
     val filas: Int get() = if (resultado[ObstaculosNativa.CODIGO] == 0) resultado[ObstaculosNativa.FILAS_USADAS] else ObstaculosNativa.filasDe(alto)
 }
 
+/** Lo que se aprendió con el botón «Aprender piso» (ver obstaculos.h: InformePiso). */
+class InformePisoAprendido(
+    val grupos: Int,
+    val brilloMedio: Int,
+    val muyOscuro: Boolean,
+    val muyVariado: Boolean,
+    val descartadoPct: Int,
+    val cuadros: Int,
+    val colores: List<IntArray>,    // R, G, B de cada color aprendido
+    val pesosPct: List<Int>         // % de la zona de avance que respalda cada color
+) {
+    /** El texto para la pantalla: cuántos colores aprendió, su brillo medio y los avisos. */
+    fun texto(): String {
+        val sb = StringBuilder("Piso aprendido: $grupos color(es), brillo medio $brilloMedio de 255 ($cuadros cuadros)")
+        for (i in colores.indices) {
+            sb.append("\n  color ${i + 1}: RGB ${colores[i][0]},${colores[i][1]},${colores[i][2]} (${pesosPct[i]} % de la zona)")
+        }
+        if (muyOscuro) {
+            sb.append("\n⚠ El piso es MUY OSCURO: un obstáculo oscuro casi no se distingue de él.")
+        }
+        if (muyVariado) {
+            sb.append("\n⚠ El piso es MUY VARIADO ($descartadoPct % de la zona quedó en colores de poco apoyo): revisa que no haya objetos y que la luz sea pareja.")
+        }
+        return sb.toString()
+    }
+}
+
 class CamaraObstaculos(
     private val contexto: Activity,
     private val configActual: () -> IntArray,
@@ -103,6 +130,7 @@ class CamaraObstaculos(
         const val ETIQUETA = "VISION"
         private const val MAX_IMAGENES = 2
         const val LATENCIA_VIDEO_CARRO_MS = 320   // retraso del video del carro hasta el teléfono (docs/latencia.md)
+        const val APRENDER_PISO_MS = 1000L        // cuánto dura el aprendizaje del piso con el carro quieto
     }
 
     // Estado de la cámara.
@@ -167,6 +195,39 @@ class CamaraObstaculos(
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
     private var tablasListas = false   // las tablas de muestreo ya se llenaron para el sensor y el tamaño actuales
     private var firmaCeldasLog = 0     // para escribir en el log solo cuando cambian las celdas marcadas (diagnóstico)
+
+    // Aprender el piso (botón «Aprender piso»): con el carro QUIETO, durante ~1 s los cuadros se acumulan (en C) y al final se agrupan los colores de toda la
+    // zona de avance. Todo ocurre en el hilo de la cámara: la pantalla solo lo pide con aprenderPiso() y lee el informe.
+    @Volatile
+    private var pedirAprender = false
+    private var aprendiendoHasta = 0L
+
+    /** true desde que se pidió aprender el piso hasta que termina (~1 s). */
+    @Volatile
+    var aprendiendoPiso = false
+        private set
+
+    /** Lo que se aprendió la última vez (null = nada todavía, o falló: ver errorAprender). */
+    @Volatile
+    var informePiso: InformePisoAprendido? = null
+        private set
+
+    @Volatile
+    var errorAprender = ""
+        private set
+
+    /** Hora (SystemClock.elapsedRealtime) en que terminó de aprender el piso por última vez; 0 = nunca. */
+    @Volatile
+    var pisoAprendidoMs = 0L
+        private set
+
+    /** Pide aprender el piso: el carro debe estar QUIETO sobre el piso por el que va a pasar y sin objetos en la zona de abajo. */
+    fun aprenderPiso() {
+        errorAprender = ""
+        informePiso = null
+        aprendiendoPiso = true
+        pedirAprender = true
+    }
 
     // Giro visual: campo de visión CALIBRADO (lo pone la pantalla desde la calibración; 0 = no calibrado) y el de la cámara según el
     // teléfono (distancia focal y tamaño del sensor, se calcula al abrir). Se usa el calibrado y, si no hay, el de la cámara.
@@ -527,7 +588,24 @@ class CamaraObstaculos(
     /** Todo lo que se hace con un cuadro ya convertido a RGB (en `rgb`) y a ARGB (`pixeles`): detector, giro visual, modelo y fusión. */
     private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long, llegadaMs: Long) {
         val config = configActual()
+        if (pedirAprender) {   // el aprendizaje empieza justo antes de este cuadro: así este cuadro ya se suma
+            pedirAprender = false
+            ObstaculosNativa.aprenderPisoIniciar()
+            aprendiendoHasta = SystemClock.elapsedRealtime() + APRENDER_PISO_MS
+        }
         val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
+        if (aprendiendoHasta != 0L && SystemClock.elapsedRealtime() >= aprendiendoHasta) {
+            terminarDeAprenderPiso(config)
+        }
+        // Registro PISO_DIAG: una línea por cuadro, solo números y el motivo.
+        if (resultado[ObstaculosNativa.CODIGO] == 0) {
+            Log.d("PISO_DIAG", "brillo=${resultado[ObstaculosNativa.BRILLO_MEDIO]} ganancia=${resultado[ObstaculosNativa.GANANCIA_MIL]} " +
+                "grupos=${resultado[ObstaculosNativa.GRUPOS_PISO]} celdas_marcadas=${resultado[ObstaculosNativa.CELDAS_MARCADAS]} " +
+                "zonas=${resultado[ObstaculosNativa.HAY_IZQUIERDA]}${resultado[ObstaculosNativa.HAY_CENTRO]}${resultado[ObstaculosNativa.HAY_DERECHA]} " +
+                "motivo=${ObstaculosNativa.textoMotivo(resultado[ObstaculosNativa.MOTIVO])} piso_fijo=${config.getOrElse(ObstaculosNativa.CFG_PISO_FIJO) { 0 }}")
+        } else {
+            Log.d("PISO_DIAG", "error_detector=${resultado[ObstaculosNativa.CODIGO]}")
+        }
         val fin = System.nanoTime()
 
         // Giro visual: cuánto giró el carro respecto al cuadro anterior (se compara la mitad de arriba).
@@ -603,6 +681,30 @@ class CamaraObstaculos(
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
+    }
+
+    /** Cierra el aprendizaje del piso (en C) y guarda el informe. */
+    private fun terminarDeAprenderPiso(config: IntArray) {
+        aprendiendoHasta = 0L
+        val r = ObstaculosNativa.aprenderPisoTerminar(config)
+        aprendiendoPiso = false
+        if (r[ObstaculosNativa.APR_CODIGO] != 0) {
+            errorAprender = "No se pudo aprender el piso (código ${r[ObstaculosNativa.APR_CODIGO]}): llegaron muy pocos cuadros; revisa la cámara y vuelve a intentarlo."
+            informePiso = null
+            Log.w(ETIQUETA, "piso| $errorAprender")
+            return
+        }
+        val grupos = r[ObstaculosNativa.APR_GRUPOS]
+        val colores = (0 until grupos).map { g ->
+            intArrayOf(r[ObstaculosNativa.APR_COLORES + 3 * g], r[ObstaculosNativa.APR_COLORES + 3 * g + 1], r[ObstaculosNativa.APR_COLORES + 3 * g + 2])
+        }
+        val pesos = (0 until grupos).map { g -> r[ObstaculosNativa.APR_PESOS_PCT + g] }
+        val informe = InformePisoAprendido(grupos, r[ObstaculosNativa.APR_BRILLO_MEDIO], r[ObstaculosNativa.APR_MUY_OSCURO] == 1,
+            r[ObstaculosNativa.APR_MUY_VARIADO] == 1, r[ObstaculosNativa.APR_DESCARTADO_PCT], r[ObstaculosNativa.APR_CUADROS], colores, pesos)
+        informePiso = informe
+        pisoAprendidoMs = SystemClock.elapsedRealtime()
+        Log.i(ETIQUETA, "piso| aprendido: grupos=$grupos brillo_medio=${informe.brilloMedio} muy_oscuro=${informe.muyOscuro} " +
+            "muy_variado=${informe.muyVariado} descartado_pct=${informe.descartadoPct} cuadros=${informe.cuadros}")
     }
 
     /** Copia los tres planos del cuadro a arreglos, reduce a ancho x alto y llena `rgb` (bytes) y `pixeles` (ARGB). */

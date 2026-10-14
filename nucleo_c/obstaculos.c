@@ -45,6 +45,7 @@ typedef struct {
     int grupos;
     int color[OBS_MAX_GRUPOS][3];
     int peso[OBS_MAX_GRUPOS];
+    int mejoras;                /* 1 = usar la regla de brillo oscuro al comparar (config.mejoras_piso) */
 } GruposPiso;
 
 /* ── Utilidades ────────────────────────────────────────────────────────── */
@@ -238,11 +239,16 @@ static int centro_mas_cercano(const unsigned char muestra[3], int centros[][3], 
  *      muestra más lejos de los centros ya elegidos (y solo si está al menos OBS_DIST_FUSION lejos).
  *   2. Tres vueltas de: cada muestra al centro más cercano y cada centro al promedio de las suyas.
  *   3. Los grupos que quedan casi en el mismo color (OBS_DIST_FUSION) se funden.
+ *   4. Con `apoyo_min_pct` > 0, un grupo respaldado por menos de ese % de las muestras se DESCARTA (menos el más grande): una mancha o un
+ *      objeto chico en la franja ya no se aprende como piso ni la ensucia.
  * Llena `grupos` (colores y pesos) y devuelve el desvío máximo: lo más lejos que quedó una muestra de
- * su grupo (para decidir si la franja es uniforme). */
-static int agrupar_franja(unsigned char muestras[][3], int n, int k_max, GruposPiso *grupos)
+ * su grupo (para decidir si la franja es uniforme). Las muestras de los grupos descartados no cuentan para el desvío. */
+static int agrupar_franja(unsigned char muestras[][3], int n, int k_max, int apoyo_min_pct, GruposPiso *grupos, int *n_intrusos)
 {
     int centros[OBS_MAX_GRUPOS][3];
+    int descartados[OBS_MAX_GRUPOS][3];   /* centros de los grupos quitados por poco apoyo */
+    int n_descartados = 0;
+    int intrusos = 0;
     int suma[OBS_MAX_GRUPOS][3];
     int cuenta[OBS_MAX_GRUPOS];
     int k = 1;
@@ -332,6 +338,26 @@ static int agrupar_franja(unsigned char muestras[][3], int n, int k_max, GruposP
         }
     } while (cambio);
 
+    /* 4. Quitar los grupos con poco apoyo (el más grande siempre se queda). */
+    if (apoyo_min_pct > 0) {
+        int mayor = 0;
+
+        for (g = 1; g < k; g++) {
+            if (cuenta[g] > cuenta[mayor]) {
+                mayor = g;
+            }
+        }
+        for (g = 0; g < k; g++) {
+            if (g != mayor && cuenta[g] > 0 && cuenta[g] * 100 < n * apoyo_min_pct) {
+                for (c = 0; c < 3; c++) {
+                    descartados[n_descartados][c] = centros[g][c];
+                }
+                n_descartados++;
+                cuenta[g] = 0;
+            }
+        }
+    }
+
     /* Grupos que quedaron vivos (con peso > 0), en el orden en que aparecieron. */
     grupos->grupos = 0;
     for (g = 0; g < k; g++) {
@@ -347,9 +373,20 @@ static int agrupar_franja(unsigned char muestras[][3], int n, int k_max, GruposP
         int mejor = centro_mas_cercano(muestras[i], grupos->color, grupos->grupos);
         int d = distancia_muestra(muestras[i], grupos->color[mejor]);
 
+        if (n_descartados > 0) {   /* una muestra más cerca de un grupo descartado que de uno que se queda es un "intruso": no cuenta */
+            int mas_cerca_de_descartado = centro_mas_cercano(muestras[i], descartados, n_descartados);
+
+            if (distancia_muestra(muestras[i], descartados[mas_cerca_de_descartado]) < d) {
+                intrusos++;
+                continue;
+            }
+        }
         if (d > desvio) {
             desvio = d;
         }
+    }
+    if (n_intrusos != NULL) {
+        *n_intrusos = intrusos;
     }
     return desvio;
 }
@@ -378,11 +415,11 @@ static int todos_compatibles(const GruposPiso *g)
 
 /* Calcula los grupos de la franja de referencia. Devuelve OBS_OK, u OBS_ERR_REFERENCIA si alguna celda
  * se aleja demasiado de su grupo (franja contaminada) o si los grupos no pueden ser todos piso. */
-static int grupos_de_la_franja(MapaColores celdas, const Rejilla *rejilla, int k_max, GruposPiso *grupos)
+static int grupos_de_la_franja(MapaColores celdas, const Rejilla *rejilla, int k_max, int apoyo_min_pct, GruposPiso *grupos)
 {
     unsigned char muestras[MAX_CELDAS][3];
     int n = reunir_franja(celdas, rejilla, muestras);
-    int desvio = agrupar_franja(muestras, n, k_max, grupos);
+    int desvio = agrupar_franja(muestras, n, k_max, apoyo_min_pct, grupos, NULL);
 
     if (desvio > MAX_VARIACION_REF || !todos_compatibles(grupos)) {
         return OBS_ERR_REFERENCIA;
@@ -436,6 +473,7 @@ static void modelo_a_grupos(const ModeloPiso *modelo, GruposPiso *grupos)
     int g, c;
 
     grupos->grupos = modelo->grupos;
+    grupos->mejoras = 0;
     for (g = 0; g < modelo->grupos; g++) {
         for (c = 0; c < 3; c++) {
             grupos->color[g][c] = (modelo->color256[g][c] + 128) / 256;
@@ -504,10 +542,17 @@ static int franja_cubierta(const ModeloPiso *modelo, const GruposPiso *franja)
  *   B) mismo tono pero distinta luz: color normalizado parecido (<= UMBRAL_CROMA) y
  *      brillo que no difiere más de UMBRAL_BRILLO. B solo se usa si ambos colores
  *      tienen brillo suficiente (SUMA_MIN_CROMA); en la oscuridad el tono no es confiable. */
-static int es_piso(const int color[3], const int referencia[3], int umbral_color)
+static int es_piso(const int color[3], const int referencia[3], int umbral_color, int mejoras)
 {
     if (distancia_color(color, referencia) <= umbral_color) {
         return 1;
+    }
+    /* Celda y referencia OSCURAS (mejoras_piso): el color no es confiable (ruido, reflejos, JPEG): solo se compara la luminancia, con una
+     * diferencia mínima tolerada. Sin croma. */
+    if (mejoras && brillo(color) < BRILLO_OSCURO && brillo(referencia) < BRILLO_OSCURO) {
+        int tolerancia = (umbral_color > DIF_MIN_OSCURO) ? umbral_color : DIF_MIN_OSCURO;
+
+        return valor_absoluto(brillo(color) - brillo(referencia)) <= tolerancia;
     }
     if (brillo(color) >= SUMA_MIN_CROMA && brillo(referencia) >= SUMA_MIN_CROMA &&
         distancia_croma(color, referencia) <= UMBRAL_CROMA &&
@@ -547,7 +592,7 @@ static int es_piso_modelo(const GruposPiso *piso, const int color[3], int umbral
     int a, b;
 
     for (a = 0; a < piso->grupos; a++) {
-        if (es_piso(color, piso->color[a], umbral_color)) {
+        if (es_piso(color, piso->color[a], umbral_color, piso->mejoras)) {
             return 1;
         }
     }
@@ -846,6 +891,10 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
     resultado->piso_reaprendido = 0;
     resultado->aprendio = 0;
     resultado->celdas_borde = 0;
+    resultado->brillo_medio = 0;
+    resultado->ganancia_mil = 1000;
+    resultado->celdas_marcadas = 0;
+    resultado->motivo = 0;
     for (fila = 0; fila < OBS_MAX_FILAS; fila++) {
         for (columna = 0; columna < OBS_MAX_COLUMNAS; columna++) {
             resultado->no_piso[fila][columna] = 0;
@@ -868,6 +917,8 @@ void obstaculos_config_defecto(ConfigObstaculos *config)
     config->grupos_piso = OBS_GRUPOS_DEFECTO;
     config->aprendizaje_mil = OBS_APRENDIZAJE_DEFECTO;
     config->usar_bordes = 0;
+    config->mejoras_piso = 1;
+    config->piso_fijo = 0;
 }
 
 /* La configuración es válida si los umbrales y las proporciones están en rango. */
@@ -882,7 +933,140 @@ static int config_es_valida(const ConfigObstaculos *config)
            config->fila_minima_mil >= 0 && config->fila_minima_mil <= 1000 &&
            config->grupos_piso >= 1 && config->grupos_piso <= OBS_MAX_GRUPOS &&
            config->aprendizaje_mil >= 0 && config->aprendizaje_mil <= 1000 &&
-           (config->usar_bordes == 0 || config->usar_bordes == 1);
+           (config->usar_bordes == 0 || config->usar_bordes == 1) &&
+           (config->mejoras_piso == 0 || config->mejoras_piso == 1) &&
+           (config->piso_fijo == 0 || config->piso_fijo == 1);
+}
+
+/* ── Reajuste de brillo (cambio de exposición de la cámara) ────────────────
+ * Para cada celda de la zona de avance con brillo suficiente se busca el grupo del piso que tiene su mismo TONO (color normalizado) y se mide la
+ * razón de brillos celda / grupo. Si la mediana de esas razones se aleja al menos OBS_GANANCIA_MIN_MIL de 1000 y casi todas las celdas
+ * (OBS_GANANCIA_CONSISTENCIA_PCT %, en las tres zonas) coinciden con ella, el piso entero cambió de brillo: es la exposición automática y no un
+ * objeto. Entonces se escalan los colores del modelo por esa razón. Un objeto que tapa parte del piso rompe la consistencia (o deja menos de la
+ * mitad de las celdas con tono de piso) y no se reajusta nada. Devuelve 1 si reajustó y deja la razón en *ganancia_mil. */
+#define GANANCIA_BINS        120
+#define GANANCIA_RAZON_MIN   250    /* la razón de brillo se mide de 0.25 a 3.25 */
+#define GANANCIA_PASO         25
+
+/* La razón de brillo (en milésimas) de una celda respecto al grupo del piso que tiene su mismo TONO. Devuelve 0 si la celda es oscura o no tiene el
+ * tono de ningún grupo claro del piso (entonces no sirve para medir el brillo). */
+static int razon_de_brillo(const GruposPiso *piso, const int color[3])
+{
+    int g, mejor = -1, d_mejor = 0;
+
+    if (brillo(color) < SUMA_MIN_CROMA) {   /* con menos brillo que esto el tono no es confiable */
+        return 0;
+    }
+    for (g = 0; g < piso->grupos; g++) {
+        int d;
+
+        if (brillo(piso->color[g]) < SUMA_MIN_CROMA) {
+            continue;
+        }
+        d = distancia_croma(color, piso->color[g]);
+        if (mejor < 0 || d < d_mejor) {
+            mejor = g;
+            d_mejor = d;
+        }
+    }
+    if (mejor < 0 || d_mejor > 2 * UMBRAL_CROMA) {
+        return 0;
+    }
+    return brillo(color) * 1000 / brillo(piso->color[mejor]);
+}
+
+static int ajustar_brillo(ModeloPiso *trabajo, MapaColores celdas, const Rejilla *rejilla, int fila_minima, int *ganancia_mil)
+{
+    GruposPiso piso;
+    int histograma[GANANCIA_BINS];
+    int por_zona[OBS_ZONAS], consistentes_zona[OBS_ZONAS];
+    int fila, columna, g, c, considerados = 0, total = 0, acumulado, mediana, bin;
+    int franja_total = 0, franja_consistente = 0, dentro = 0;
+    int zona_de[OBS_MAX_COLUMNAS];
+
+    modelo_a_grupos(trabajo, &piso);
+    for (bin = 0; bin < GANANCIA_BINS; bin++) {
+        histograma[bin] = 0;
+    }
+    for (g = 0; g < OBS_ZONAS; g++) {
+        por_zona[g] = 0;
+        consistentes_zona[g] = 0;
+    }
+    for (columna = 0; columna < rejilla->columnas; columna++) {
+        zona_de[columna] = columna * OBS_ZONAS / rejilla->columnas;
+    }
+    for (fila = fila_minima; fila < rejilla->filas; fila++) {
+        for (columna = 0; columna < rejilla->columnas; columna++) {
+            int color[3], razon;
+
+            total++;
+            leer_celda(celdas, fila, columna, color);
+            razon = razon_de_brillo(&piso, color);
+            if (razon == 0) {
+                continue;
+            }
+            bin = limitar_entre((razon - GANANCIA_RAZON_MIN) / GANANCIA_PASO, 0, GANANCIA_BINS - 1);
+            histograma[bin]++;
+            considerados++;
+            por_zona[zona_de[columna]]++;
+        }
+    }
+    if (considerados < 12 || considerados * 2 < total) {
+        return 0;   /* menos de la mitad de la zona tiene tono de piso: no se puede afirmar que todo el piso cambió */
+    }
+    acumulado = 0;
+    mediana = 0;
+    for (bin = 0; bin < GANANCIA_BINS; bin++) {
+        acumulado += histograma[bin];
+        if (acumulado * 2 >= considerados) {
+            mediana = GANANCIA_RAZON_MIN + bin * GANANCIA_PASO + GANANCIA_PASO / 2;
+            break;
+        }
+    }
+    if (valor_absoluto(mediana - 1000) < OBS_GANANCIA_MIN_MIL) {
+        return 0;
+    }
+    /* Consistencia con la mediana: en total, en cada zona y en la franja de referencia (la que está pegada abajo, bajo el carro: una pared del
+     * mismo tono que el piso puede llenar la zona pero no la franja; si la franja no cambió igual, no es la exposición). */
+    for (fila = fila_minima; fila < rejilla->filas; fila++) {
+        for (columna = 0; columna < rejilla->columnas; columna++) {
+            int color[3], razon, consistente;
+            int en_franja = (fila >= rejilla->ref_fila && fila < rejilla->ref_fila + rejilla->ref_nfilas &&
+                             columna >= rejilla->ref_columna && columna < rejilla->ref_columna + rejilla->ref_ncolumnas);
+
+            leer_celda(celdas, fila, columna, color);
+            razon = razon_de_brillo(&piso, color);
+            consistente = (razon != 0 && valor_absoluto(razon - mediana) <= OBS_GANANCIA_TOLERANCIA_MIL);
+            if (razon != 0 && consistente) {
+                dentro++;
+                consistentes_zona[zona_de[columna]]++;
+            }
+            if (en_franja) {
+                franja_total++;
+                franja_consistente += consistente ? 1 : 0;
+            }
+        }
+    }
+    if (dentro * 100 < considerados * OBS_GANANCIA_CONSISTENCIA_PCT) {
+        return 0;
+    }
+    for (g = 0; g < OBS_ZONAS; g++) {
+        if (por_zona[g] > 0 && consistentes_zona[g] * 100 < por_zona[g] * 60) {
+            return 0;   /* una zona no sigue el cambio: hay algo ahí, no es la exposición */
+        }
+    }
+    if (franja_total > 0 && franja_consistente * 100 < franja_total * 80) {
+        return 0;
+    }
+    for (g = 0; g < trabajo->grupos; g++) {
+        for (c = 0; c < 3; c++) {
+            long nuevo = (long)trabajo->color256[g][c] * mediana / 1000;
+
+            trabajo->color256[g][c] = (int)((nuevo > 255L * 256L) ? 255L * 256L : nuevo);
+        }
+    }
+    *ganancia_mil = mediana;
+    return 1;
 }
 
 int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *rgb,
@@ -916,14 +1100,16 @@ int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *model
 
     /* El modelo se trabaja en una copia: si hay un error no cambia. */
     trabajo = *modelo;
-    franja_ok = (grupos_de_la_franja(celdas, &rejilla, config->grupos_piso, &franja) == OBS_OK);
+    franja_ok = (grupos_de_la_franja(celdas, &rejilla, config->grupos_piso, config->mejoras_piso ? OBS_APOYO_MIN_PCT : 0, &franja) == OBS_OK);
     if (!trabajo.valido) {
         if (!franja_ok) {
             return OBS_ERR_REFERENCIA;   /* nada que recordar y la franja no sirve */
         }
         modelo_desde_grupos(&trabajo, &franja);
     } else if (franja_ok) {
-        modelo_agregar_grupos(&trabajo, &franja, config->grupos_piso);
+        if (!config->piso_fijo) {   /* en una ruta el piso no cambia: no se agregan colores nuevos */
+            modelo_agregar_grupos(&trabajo, &franja, config->grupos_piso);
+        }
         if (!franja_cubierta(&trabajo, &franja)) {
             resultado->franja_contaminada = 1;   /* la franja no se parece a lo aprendido */
         }
@@ -942,7 +1128,12 @@ int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *model
     fila_minima = limitar_entre(proporcion(rejilla.filas, config->fila_minima_mil), 0, rejilla.filas - 1);
     resultado->fila_minima_usada = fila_minima;
 
+    /* Cambio de exposición: si TODO el piso cambió de brillo, se escalan los colores aprendidos (y no se marca todo como obstáculo). */
+    if (config->mejoras_piso && ajustar_brillo(&trabajo, celdas, &rejilla, fila_minima, &resultado->ganancia_mil)) {
+        resultado->motivo |= OBS_MOTIVO_REAJUSTE;
+    }
     modelo_a_grupos(&trabajo, &piso);
+    piso.mejoras = config->mejoras_piso;
     resultado->celdas_borde = marcar_candidatas(celdas, &rejilla, &piso, config->umbral_color, config->usar_bordes, candidatas);
     confirmar_celdas(candidatas, &rejilla, resultado->no_piso);
     resumir_zonas(resultado->no_piso, &rejilla, config->min_celdas, fila_minima, resultado);
@@ -960,13 +1151,46 @@ int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *model
         if (!trabajo.sin_piso_activo) {
             trabajo.sin_piso_activo = 1;
             trabajo.sin_piso_desde_ms = ahora_ms;
-        } else if ((unsigned int)(ahora_ms - trabajo.sin_piso_desde_ms) >= (unsigned int)OBS_MS_PISO_NUEVO && franja_ok) {
+        } else if ((unsigned int)(ahora_ms - trabajo.sin_piso_desde_ms) >= (unsigned int)OBS_MS_PISO_NUEVO && franja_ok && !config->piso_fijo) {
             modelo_desde_grupos(&trabajo, &franja);
             trabajo.reaprendidos++;
             resultado->piso_reaprendido = 1;
         }
     } else {
         trabajo.sin_piso_activo = 0;
+    }
+
+    /* Diagnóstico del cuadro (PISO_DIAG): brillo medio de la zona de avance, celdas marcadas y el motivo. */
+    {
+        long suma_brillo = 0;
+        int fila_d, columna_d, celdas_zona = 0;
+
+        for (fila_d = fila_minima; fila_d < rejilla.filas; fila_d++) {
+            for (columna_d = 0; columna_d < rejilla.columnas; columna_d++) {
+                int color_d[3];
+
+                leer_celda(celdas, fila_d, columna_d, color_d);
+                suma_brillo += brillo(color_d);
+                celdas_zona++;
+                resultado->celdas_marcadas += resultado->no_piso[fila_d][columna_d];
+            }
+        }
+        resultado->brillo_medio = (celdas_zona > 0) ? (int)(suma_brillo / (3L * celdas_zona)) : 0;
+        if (hay_obstaculo) {
+            resultado->motivo |= OBS_MOTIVO_OBSTACULO;
+        }
+        if (resultado->franja_contaminada) {
+            resultado->motivo |= OBS_MOTIVO_FRANJA_TAPADA;
+        }
+        if (resultado->piso_reaprendido) {
+            resultado->motivo |= OBS_MOTIVO_PISO_NUEVO;
+        }
+        if (resultado->brillo_medio * 3 < BRILLO_OSCURO) {
+            resultado->motivo |= OBS_MOTIVO_PISO_OSCURO;
+        }
+        if (celdas_zona > 0 && resultado->celdas_marcadas * 100 >= celdas_zona * 90) {
+            resultado->motivo |= OBS_MOTIVO_TODO_NO_PISO;
+        }
     }
 
     /* El color de referencia que se informa es el del grupo con más celdas. */
@@ -1019,5 +1243,155 @@ const char *obstaculos_texto_error(int codigo)
     case OBS_ERR_REFERENCIA:    return "El piso de referencia no es uniforme (hay un objeto debajo del carro?)";
     case OBS_ERR_CONFIG:        return "La configuracion no es valida";
     default:                    return "Error desconocido";
+    }
+}
+
+/* ── Aprender el piso (botón «Aprender piso») ──────────────────────────── */
+
+void obstaculos_aprender_iniciar(AcumuladorPiso *acumulador)
+{
+    int fila, columna, c;
+
+    if (acumulador == NULL) {
+        return;
+    }
+    for (fila = 0; fila < OBS_MAX_FILAS; fila++) {
+        for (columna = 0; columna < OBS_MAX_COLUMNAS; columna++) {
+            for (c = 0; c < 3; c++) {
+                acumulador->suma[fila][columna][c] = 0;
+            }
+        }
+    }
+    acumulador->cuadros = 0;
+    acumulador->ancho = 0;
+    acumulador->alto = 0;
+    acumulador->fila_minima = 0;
+}
+
+int obstaculos_aprender_cuadro(AcumuladorPiso *acumulador, const ConfigObstaculos *config, const unsigned char *rgb, int ancho, int alto)
+{
+    MapaColores celdas;
+    Rejilla rejilla;
+    int codigo, fila, columna, c, fila_minima;
+
+    if (acumulador == NULL || rgb == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    codigo = calcular_rejilla(ancho, alto, &rejilla);
+    if (codigo != OBS_OK) {
+        return codigo;
+    }
+    if (config == NULL || !config_es_valida(config)) {
+        return OBS_ERR_CONFIG;
+    }
+    if (acumulador->cuadros > 0 && (acumulador->ancho != ancho || acumulador->alto != alto)) {
+        return OBS_ERR_TAMANO;   /* los cuadros tienen que ser todos del mismo tamaño */
+    }
+    fila_minima = limitar_entre(proporcion(rejilla.filas, config->fila_minima_mil), 0, rejilla.filas - 1);
+    promediar_celdas(rgb, &rejilla, celdas);
+    for (fila = fila_minima; fila < rejilla.filas; fila++) {
+        for (columna = 0; columna < rejilla.columnas; columna++) {
+            for (c = 0; c < 3; c++) {
+                acumulador->suma[fila][columna][c] += celdas[fila][columna][c];
+            }
+        }
+    }
+    acumulador->ancho = ancho;
+    acumulador->alto = alto;
+    acumulador->fila_minima = fila_minima;
+    acumulador->cuadros++;
+    return OBS_OK;
+}
+
+int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe)
+{
+    static unsigned char muestras[MAX_CELDAS][3];   /* el color promedio de cada celda de la zona (promediado entre los cuadros) */
+    Rejilla rejilla;
+    GruposPiso grupos;
+    long suma_brillo = 0;
+    int n = 0, fila, columna, c, g, intrusos = 0, codigo;
+
+    if (acumulador == NULL || config == NULL || modelo == NULL || informe == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    if (!config_es_valida(config)) {
+        return OBS_ERR_CONFIG;
+    }
+    if (acumulador->cuadros < OBS_APRENDER_MIN_CUADROS) {
+        return OBS_ERR_REFERENCIA;   /* muy pocos cuadros para aprender */
+    }
+    codigo = calcular_rejilla(acumulador->ancho, acumulador->alto, &rejilla);
+    if (codigo != OBS_OK) {
+        return codigo;
+    }
+    for (fila = acumulador->fila_minima; fila < rejilla.filas; fila++) {
+        for (columna = 0; columna < rejilla.columnas; columna++) {
+            for (c = 0; c < 3; c++) {
+                muestras[n][c] = (unsigned char)(acumulador->suma[fila][columna][c] / acumulador->cuadros);
+                suma_brillo += muestras[n][c];
+            }
+            n++;
+        }
+    }
+    if (n < 1) {
+        return OBS_ERR_TAMANO;
+    }
+    agrupar_franja(muestras, n, config->grupos_piso, OBS_APOYO_MIN_PCT, &grupos, &intrusos);
+    modelo_desde_grupos(modelo, &grupos);
+    informe->grupos = grupos.grupos;
+    informe->cuadros = acumulador->cuadros;
+    informe->brillo_medio = (int)(suma_brillo / (3L * n));
+    informe->muy_oscuro = (informe->brillo_medio * 3 < BRILLO_OSCURO) ? 1 : 0;
+    informe->descartado_pct = intrusos * 100 / n;
+    informe->muy_variado = (informe->descartado_pct > 20 || grupos.grupos >= OBS_MAX_GRUPOS) ? 1 : 0;
+    for (g = 0; g < OBS_MAX_GRUPOS; g++) {
+        for (c = 0; c < 3; c++) {
+            informe->color[g][c] = (g < grupos.grupos) ? grupos.color[g][c] : 0;
+        }
+        informe->peso_pct[g] = (g < grupos.grupos) ? grupos.peso[g] * 100 / n : 0;
+    }
+    return OBS_OK;
+}
+
+/* Agrega un texto al final del buffer (con "+" entre motivos). */
+static void agregar_motivo(char *texto, int capacidad, int *largo, const char *nuevo)
+{
+    if (*largo > 0 && *largo < capacidad - 1) {
+        texto[(*largo)++] = '+';
+    }
+    while (*nuevo != '\0' && *largo < capacidad - 1) {
+        texto[(*largo)++] = *nuevo++;
+    }
+    texto[*largo] = '\0';
+}
+
+void obstaculos_texto_motivo(int motivo, char *texto, int capacidad)
+{
+    int largo = 0;
+
+    if (texto == NULL || capacidad < 2) {
+        return;
+    }
+    texto[0] = '\0';
+    if (motivo & OBS_MOTIVO_OBSTACULO) {
+        agregar_motivo(texto, capacidad, &largo, "obstaculo");
+    }
+    if (motivo & OBS_MOTIVO_FRANJA_TAPADA) {
+        agregar_motivo(texto, capacidad, &largo, "franja_tapada");
+    }
+    if (motivo & OBS_MOTIVO_REAJUSTE) {
+        agregar_motivo(texto, capacidad, &largo, "reajuste_brillo");
+    }
+    if (motivo & OBS_MOTIVO_PISO_NUEVO) {
+        agregar_motivo(texto, capacidad, &largo, "piso_nuevo");
+    }
+    if (motivo & OBS_MOTIVO_PISO_OSCURO) {
+        agregar_motivo(texto, capacidad, &largo, "piso_oscuro");
+    }
+    if (motivo & OBS_MOTIVO_TODO_NO_PISO) {
+        agregar_motivo(texto, capacidad, &largo, "todo_no_piso");
+    }
+    if (largo == 0) {
+        agregar_motivo(texto, capacidad, &largo, "ninguno");
     }
 }
