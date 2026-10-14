@@ -43,6 +43,12 @@ class CalibracionGuardada(contexto: Context) {
     /** El campo de visión horizontal de la cámara guardado, en grados por 10 (600 si no se calibró). */
     fun fovX10(): Int = leer()[CalibracionNativa.CAL_FOV_GRADOS_X10]
 
+    /** El campo de visión CALIBRADO, o 0 si todavía no se calibró (entonces la cámara usa el que calcula con su focal y su sensor). */
+    fun fovCalibradoX10(): Int {
+        val cal = leer()
+        return if (cal[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_FOV != 0) cal[CalibracionNativa.CAL_FOV_GRADOS_X10] else 0
+    }
+
     /** true si ya se midió todo (arranque, avance y los dos giros). */
     fun estaCompleta(): Boolean = CalibracionNativa.faltantes(leer()) == 0
 

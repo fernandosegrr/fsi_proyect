@@ -35,6 +35,9 @@ nuevo en `CalibracionActivity`.
 6. **Grados**: `giro = corrimiento × FOV / ancho` (FOV horizontal, 60° de partida). Un corrimiento del contenido hacia la
    **izquierda** de la imagen es un giro a la **derecha** (positivo, igual que el navegador).
 
+**Campo de visión de partida**: la app lo calcula con la distancia focal y el ancho del sensor que informa el teléfono (`CamaraObstaculos.calcularFovX10`;
+Huawei ELS-NX9: 4.4 mm y 7.3 mm = 79°, no 60°). Si el paso 6 de la calibración ya midió uno, ese manda. Los 60° solo se usan si el teléfono no informa esos datos.
+
 **Error de la aproximación lineal**: con un FOV de 60° la relación píxel-ángulo no es exactamente lineal. Para una característica
 justo al centro el giro sale 9 % corto, a ±20° 3 % largo, a ±30° (el borde) 21 % largo; promediando todas las columnas el error es de
 sólo −0.7 % (calculado con la geometría de una cámara de agujero). Por eso, y por si el FOV real de la cámara no es 60°, el FOV se

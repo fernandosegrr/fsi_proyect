@@ -155,9 +155,13 @@ class CamaraObstaculos(
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
     private var tablasListas = false   // las tablas de muestreo ya se llenaron para el sensor y el tamaño actuales
 
-    // Giro visual: campo de visión que se usa (lo pone la pantalla desde la calibración) y el último giro medido.
+    // Giro visual: campo de visión CALIBRADO (lo pone la pantalla desde la calibración; 0 = no calibrado) y el de la cámara según el
+    // teléfono (distancia focal y tamaño del sensor, se calcula al abrir). Se usa el calibrado y, si no hay, el de la cámara.
     @Volatile
-    var fovX10 = MovimientoVisualNativa.FOV_DEFECTO_X10
+    var fovX10 = 0
+    @Volatile
+    var fovCamaraX10 = MovimientoVisualNativa.FOV_DEFECTO_X10
+    val fovEfectivoX10: Int get() = if (fovX10 > 0) fovX10 else fovCamaraX10
     @Volatile
     var ultimoGiro: GiroVisual? = null
         private set
@@ -198,6 +202,7 @@ class CamaraObstaculos(
             val tamano = elegirTamano(mapa.getOutputSizes(ImageFormat.YUV_420_888))
                 ?: return fallar("La cámara no entrega YUV")
             rotar180 = caracteristicas.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270
+            fovCamaraX10 = calcularFovX10(caracteristicas, tamano)
             tamanoCamara = "${tamano.width}x${tamano.height}"
             tamanoSensor = tamano
             tablasListas = false   // otro sensor: hay que rehacer las tablas aunque el tamaño de salida sea el mismo
@@ -373,6 +378,30 @@ class CamaraObstaculos(
         }
     }
 
+    /**
+     * Campo de visión horizontal (grados por 10) a partir de la distancia focal y el ancho del sensor: 2 * atan(ancho / (2 * focal)).
+     * Si la imagen que se pide tiene otra forma que el sensor (por ejemplo 4:3 contra 3:2) se recorta el ancho para esa forma.
+     * Si el teléfono no informa esos datos, 60 grados. Con el Huawei ELS-NX9 (focal 4.4 mm, sensor 7.3 mm) sale 79 grados, no 60.
+     */
+    private fun calcularFovX10(caracteristicas: CameraCharacteristics, tamano: Size): Int {
+        val focales = caracteristicas.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+        val sensorMm = caracteristicas.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+        val activa = caracteristicas.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+        if (focales == null || focales.isEmpty() || sensorMm == null || activa == null || focales[0] <= 0f || sensorMm.width <= 0f || activa.width() <= 0 || activa.height() <= 0) {
+            return MovimientoVisualNativa.FOV_DEFECTO_X10
+        }
+        var anchoMm = sensorMm.width.toDouble()
+        // El tamaño pedido se recorta del sensor sin deformar: si es más "cuadrado" que el sensor se pierde ancho.
+        val formaSensor = activa.width().toDouble() / activa.height()
+        val formaImagen = tamano.width.toDouble() / tamano.height
+        if (formaImagen < formaSensor) {
+            anchoMm *= formaImagen / formaSensor
+        }
+        val grados = Math.toDegrees(2.0 * Math.atan(anchoMm / (2.0 * focales[0])))
+        val x10 = Math.round(grados * 10).toInt()
+        return if (x10 in 300..1400) x10 else MovimientoVisualNativa.FOV_DEFECTO_X10
+    }
+
     private fun procesar(imagen: Image) {
         val inicio = System.nanoTime()
         ajustarTamanoSalida()
@@ -387,7 +416,7 @@ class CamaraObstaculos(
 
         // Giro visual: cuánto giró el carro respecto al cuadro anterior (se compara la mitad de arriba).
         val ahoraCuadroMs = SystemClock.elapsedRealtime()
-        val mv = MovimientoVisualNativa.procesar(rgb, ancho, alto, fovX10)
+        val mv = MovimientoVisualNativa.procesar(rgb, ancho, alto, fovEfectivoX10)
         val cuadrosAbarcados = mv[MovimientoVisualNativa.CUADROS].coerceIn(1, marcasCuadrosMs.size - 1)
         val dtMs = if (cuentaMarcas < cuadrosAbarcados) 0 else (ahoraCuadroMs - marcasCuadrosMs[(cuentaMarcas - cuadrosAbarcados) % marcasCuadrosMs.size]).toInt()
         marcasCuadrosMs[cuentaMarcas % marcasCuadrosMs.size] = ahoraCuadroMs

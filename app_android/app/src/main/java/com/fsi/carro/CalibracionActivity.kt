@@ -158,7 +158,7 @@ class CalibracionActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.CAMERA), VisionActivity.PEDIDO_PERMISO_CAMARA)
             return
         }
-        camara.fovX10 = guardada.fovX10()
+        camara.fovX10 = guardada.fovCalibradoX10()
         camara.abrir()
     }
 
@@ -355,7 +355,7 @@ class CalibracionActivity : Activity() {
                 botonRepetir.text = getString(R.string.cal_repetir)
                 val sb = StringBuilder()
                 sb.append("Cámara: " + (if (camara.abierta) "ABIERTA" else if (camara.error.isNotEmpty()) camara.error else "abriendo...") + "\n")
-                sb.append(String.format(Locale.US, "Campo de visión actual: %.1f°\n", guardada.fovX10() / 10.0))
+                sb.append(String.format(Locale.US, "Campo de visión actual: %.1f°\n", camara.fovEfectivoX10 / 10.0))
                 if (corriendo || esperandoDato) {
                     sb.append(String.format(Locale.US, "La cámara ve que giró: %.1f°\n", visualActualX10 / 10.0))
                 }
@@ -643,6 +643,8 @@ class CalibracionActivity : Activity() {
         cal = ajustarGrupo(sb, cal, "Giro derecha", giroDer, TIEMPOS_GIRO, CalibracionNativa.LADO_DERECHA)
 
         if (fovReal.isNotEmpty()) {
+            // El campo de visión con el que se midió la prueba (el de la cámara si no estaba calibrado) es el que se ajusta.
+            cal[CalibracionNativa.CAL_FOV_GRADOS_X10] = camara.fovEfectivoX10
             val (codigo, nueva) = CalibracionNativa.desempaquetar(CalibracionNativa.ajustarFov(cal, fovReal.sum(), fovVisual.sum()))
             if (codigo == CalibracionNativa.OK) {
                 cal = nueva

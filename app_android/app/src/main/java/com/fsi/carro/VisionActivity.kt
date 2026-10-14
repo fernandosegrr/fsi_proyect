@@ -131,7 +131,7 @@ class VisionActivity : Activity() {
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
             { false }, { configuracion.usarModelo }) { cuadro -> alLlegarCuadro(cuadro) }
-        camara.fovX10 = CalibracionGuardada(this).fovX10()   // campo de visión de la cámara calibrado (60 grados si no)
+        camara.fovX10 = CalibracionGuardada(this).fovCalibradoX10()   // campo de visión calibrado (0 = no calibrado: se usa el de la cámara)
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
     }
@@ -243,7 +243,7 @@ class VisionActivity : Activity() {
         val giro = cuadro?.giro ?: return "Giro visual: esperando cuadros..."
         val acumulado = anguloAcumuladoX10.get()
         return String.format(Locale.US, "Giro visual (campo de visión %.1f°): %s\nÁngulo acumulado: %+.1f° (%d cuadros sin confianza)",
-            camara.fovX10 / 10.0,
+            camara.fovEfectivoX10 / 10.0,
             if (giro.confiable) String.format(Locale.US, "%+.1f° en este cuadro (confianza %d)", giro.giroX10 / 10.0, giro.confianzaMil / 10)
             else "sin confianza: " + MovimientoVisualNativa.textoMotivo(giro.motivo) + " (energía ${giro.energia}, mínimo 60)",
             acumulado / 10.0, cuadrosSinGiro.get())
