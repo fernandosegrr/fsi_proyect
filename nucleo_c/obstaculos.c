@@ -821,6 +821,9 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
         resultado->zona[zona].hay_obstaculo = 0;
         resultado->zona[zona].cercania = 0;
         resultado->zona[zona].celdas = 0;
+        resultado->zona[zona].celdas_corredor = 0;      /* los campos del corredor los llena corredor.c; aquí empiezan en 0 */
+        resultado->zona[zona].fuera_corredor = 0;
+        resultado->zona[zona].cercania_corredor = 0;
     }
     resultado->ref_r = 0;
     resultado->ref_g = 0;

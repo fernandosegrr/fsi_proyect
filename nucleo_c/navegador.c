@@ -457,6 +457,8 @@ void navegador_iniciar(Navegador *nav)
     nav->bloqueo_inmediato = 0;
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_celdas[z] = 0;
+        nav->zona_frena[z] = 0;
+        nav->zona_cerc_frena[z] = 0;
     }
     nav->esquivadas = 0;
     nav->lado = -1;
@@ -586,14 +588,18 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->zona_hay[z] = obs->zona[z].hay_obstaculo;
         nav->zona_cercania[z] = obs->zona[z].cercania;
         nav->zona_celdas[z] = obs->zona[z].celdas;
-        if (nav->zona_hay[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cercania[z] >= 1 &&
-            nav->zona_cercania[z] < NAV_CERCANIA_MIN_DETENER) {
+        /* Corredor (corredor.h): un obstáculo FUERA del corredor se sigue viendo (zona_hay, para elegir lado) pero no frena. */
+        nav->zona_frena[z] = obs->zona[z].hay_obstaculo && !obs->zona[z].fuera_corredor;
+        nav->zona_cerc_frena[z] = !nav->zona_frena[z] ? 0 :
+            ((obs->zona[z].cercania_corredor > 0) ? obs->zona[z].cercania_corredor : obs->zona[z].cercania);
+        if (nav->zona_frena[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cerc_frena[z] >= 1 &&
+            nav->zona_cerc_frena[z] < NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* frenar desde lejos: cercanía 1 en el centro también bloquea (se confirma con menos tiempo) */
         }
-        if (nav->zona_hay[z] && nav->zona_cercania[z] >= NAV_CERCANIA_MIN_DETENER) {
-            bloqueado = 1;                       /* un obstáculo cerca en cualquier zona bloquea */
+        if (nav->zona_frena[z] && nav->zona_cerc_frena[z] >= NAV_CERCANIA_MIN_DETENER) {
+            bloqueado = 1;                       /* un obstáculo cerca en cualquier zona (dentro del corredor, si está activo) bloquea */
             causa_normal = 1;
-            if (cuadro_es_inmediato(z, nav->zona_cercania[z])) {
+            if (cuadro_es_inmediato(z, nav->zona_cerc_frena[z])) {
                 inmediato = 1;
             }
         }
@@ -795,7 +801,7 @@ static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
     if (!cuadro_nuevo && espera < listo_ms + NAV_MIRAR_MAX_ESPERA_MS) {
         return NAV_CMD_STOP;   /* todavía no llega un cuadro útil: se sigue esperando (un poco más) */
     }
-    bloqueado = cuadro_nuevo && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA;
+    bloqueado = cuadro_nuevo && nav->zona_frena[ZONA_CENTRO] && nav->zona_cerc_frena[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA;
 
     nav->ms_fase = 0;
     if (!bloqueado) {
@@ -857,7 +863,7 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             return NAV_CMD_STOP;
         }
     }
-    if (nav->fase == NAV_FASE_AVANZAR && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA &&
+    if (nav->fase == NAV_FASE_AVANZAR && nav->zona_frena[ZONA_CENTRO] && nav->zona_cerc_frena[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA &&
         bloqueo_confirmado(nav, ahora_ms)) {
         ir_a_error(nav, NAV_MOTIVO_ESQUIVANDO);
         return NAV_CMD_STOP;

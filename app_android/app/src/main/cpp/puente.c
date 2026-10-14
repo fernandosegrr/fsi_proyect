@@ -31,6 +31,7 @@
 #include "movimiento_visual.h"
 #include "video_stats.h"
 #include "prueba_obstaculo.h"
+#include "corredor.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -632,6 +633,8 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
 static CalibracionCarro calibracion_global;
 static int calibracion_inicializada = 0;
 static int celdas_zona_global[3] = { -1, -1, -1 };   /* celdas de obstáculo de cada zona del último cuadro (-1 = no se sabe: se estiman) */
+static int corredor_fuera_global[3] = { 0, 0, 0 };   /* 1 = la zona tiene un obstáculo FUERA del corredor (solo avisa): lo pone Kotlin antes de cada tick */
+static int corredor_cercania_global[3] = { 0, 0, 0 };   /* cercanía de lo que está DENTRO del corredor en cada zona (0 = usar la de siempre) */
 static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
 
@@ -1030,6 +1033,22 @@ Java_com_fsi_carro_NavegadorNativa_ponerCeldas(JNIEnv *env, jobject objeto, jint
     celdas_zona_global[ZONA_DERECHA] = (int)derecha;
 }
 
+/* Dice qué zonas tienen un obstáculo FUERA del corredor (solo avisan, no frenan) y la cercanía de lo que está DENTRO, para el siguiente tick
+ * (los mismos números que devuelve CorredorNativa.aplicar). Con 0 en todo (corredor apagado o fuente de botones) todo cuenta como siempre. */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerCorredor(JNIEnv *env, jobject objeto, jint fuera_izq, jint fuera_cen, jint fuera_der,
+                                                  jint cerc_izq, jint cerc_cen, jint cerc_der)
+{
+    (void)env;
+    (void)objeto;
+    corredor_fuera_global[ZONA_IZQUIERDA] = fuera_izq ? 1 : 0;
+    corredor_fuera_global[ZONA_CENTRO] = fuera_cen ? 1 : 0;
+    corredor_fuera_global[ZONA_DERECHA] = fuera_der ? 1 : 0;
+    corredor_cercania_global[ZONA_IZQUIERDA] = (int)cerc_izq;
+    corredor_cercania_global[ZONA_CENTRO] = (int)cerc_cen;
+    corredor_cercania_global[ZONA_DERECHA] = (int)cerc_der;
+}
+
 /* Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giro_x10` en grados por 10 (positivo a la derecha),
  * `dt_ms` el tiempo entre esos cuadros y `confiable` si la cámara estaba segura (ver navegador_aporte_visual). */
 JNIEXPORT void JNICALL
@@ -1059,6 +1078,9 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
             resultado.zona[z].celdas = (celdas_zona_global[z] >= 0) ? celdas_zona_global[z] : (resultado.zona[z].hay_obstaculo ? MIN_CELDAS : 0);
+            resultado.zona[z].celdas_corredor = 0;
+            resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
+            resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
         }
         cuadro = &resultado;
     }
@@ -1226,6 +1248,97 @@ Java_com_fsi_carro_PruebaObstaculoNativa_resumen(JNIEnv *env, jobject objeto)
     arreglo = (*env)->NewIntArray(env, 5);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 5, salida);
+    }
+    return arreglo;
+}
+
+
+/* ── Corredor de trayectoria (corredor.c) ──────────────────────────────── */
+
+/* Aplica el corredor a lo que vio el detector de color en un cuadro.
+ *   `config`: 7 enteros [activo, ancho del carro cm, altura de la cámara cm, inclinación grados por 10, campo de visión grados por 10,
+ *             margen lateral cm, peso mínimo].
+ *   `detalle`: el arreglo de ObstaculosNativa.analizarConfig (resumen, encabezado y máscara de celdas).
+ *   `ancho`, `alto`: tamaño del cuadro en píxeles.
+ * Devuelve 10 enteros: [0] código (0 = bien; COR_ERR_* o -10 si el detalle no sirve), [1..3] zona izquierda/centro/derecha FUERA del
+ * corredor (1 = hay obstáculo pero no por donde pasa el carro), [4..6] cercanía de lo que está DENTRO del corredor en cada zona (0 = usar la de
+ * siempre), [7..9] peso (celdas) dentro del corredor en cada zona. Con el corredor apagado devuelve ceros (código 0). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CorredorNativa_aplicar(JNIEnv *env, jobject objeto, jintArray config, jintArray detalle, jint ancho, jint alto)
+{
+    jint salida[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    jint cfg[7];
+    jintArray arreglo;
+    ConfigCorredor configuracion;
+    Corredor corredor;
+    ZonaObstaculo zonas[OBS_ZONAS];
+    static unsigned char mascara[OBS_MAX_FILAS * OBS_MAX_COLUMNAS];
+    jsize largo;
+    int z, codigo = COR_OK, columnas, filas, fila_minima, fila, columna;
+
+    (void)objeto;
+    if (config == NULL || detalle == NULL || (*env)->GetArrayLength(env, config) < 7) {
+        salida[0] = COR_ERR_ARGUMENTO;
+    } else {
+        (*env)->GetIntArrayRegion(env, config, 0, 7, cfg);
+        configuracion.activo = (int)cfg[0];
+        configuracion.ancho_carro_cm = (int)cfg[1];
+        configuracion.altura_camara_cm = (int)cfg[2];
+        configuracion.inclinacion_grados_x10 = (int)cfg[3];
+        configuracion.fov_grados_x10 = (int)cfg[4];
+        configuracion.margen_lateral_cm = (int)cfg[5];
+        configuracion.min_peso = (int)cfg[6];
+        largo = (*env)->GetArrayLength(env, detalle);
+        if (!configuracion.activo) {
+            codigo = COR_OK;   /* apagado: ceros y nada se filtra */
+        } else if (largo < 38) {
+            codigo = -10;
+        } else {
+            jint *datos = (jint *)(*env)->GetPrimitiveArrayCritical(env, detalle, NULL);
+
+            if (datos == NULL) {
+                codigo = -10;
+            } else {
+                columnas = (int)datos[10];
+                filas = (int)datos[11];
+                fila_minima = (int)datos[12];
+                if (datos[0] != 0 || columnas < 1 || filas < 1 || columnas > OBS_MAX_COLUMNAS || filas > OBS_MAX_FILAS ||
+                    largo < 38 + columnas * filas) {
+                    codigo = -10;   /* el análisis falló o el detalle está incompleto */
+                } else {
+                    memset(zonas, 0, sizeof zonas);
+                    for (z = 0; z < OBS_ZONAS; z++) {
+                        zonas[z].hay_obstaculo = (int)datos[1 + 2 * z];
+                        zonas[z].cercania = (int)datos[2 + 2 * z];
+                        zonas[z].celdas = (int)datos[35 + z];
+                    }
+                    for (fila = 0; fila < filas; fila++) {
+                        for (columna = 0; columna < columnas; columna++) {
+                            mascara[fila * OBS_MAX_COLUMNAS + columna] = (unsigned char)(datos[38 + fila * columnas + columna] ? 1 : 0);
+                        }
+                    }
+                }
+                (*env)->ReleasePrimitiveArrayCritical(env, detalle, datos, JNI_ABORT);
+                if (codigo == COR_OK) {
+                    codigo = corredor_preparar(&corredor, &configuracion, (int)ancho, (int)alto);
+                    if (codigo == COR_OK) {
+                        codigo = corredor_aplicar_mascara(&corredor, mascara, OBS_MAX_COLUMNAS, columnas, filas, fila_minima, zonas);
+                    }
+                    if (codigo == COR_OK) {
+                        for (z = 0; z < OBS_ZONAS; z++) {
+                            salida[1 + z] = zonas[z].fuera_corredor;
+                            salida[4 + z] = zonas[z].cercania_corredor;
+                            salida[7 + z] = zonas[z].celdas_corredor;
+                        }
+                    }
+                }
+            }
+        }
+        salida[0] = codigo;
+    }
+    arreglo = (*env)->NewIntArray(env, 10);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 10, salida);
     }
     return arreglo;
 }

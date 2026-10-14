@@ -131,3 +131,7 @@
 - Firmware con dos perfiles (`MODO_MANUAL`/`MODO_AUTO`, `ACK_*`, STOP si cambia en movimiento, AUTO al arrancar/reconectar/watchdog); la app abre en manual, las rutas esperan el `ACK_AUTO` 1 s, la calibración siempre en AUTO. Detalle en `docs/perfiles_velocidad.md`.
 - Calibración medida a 210 (leída del teléfono): 51.7 ms/cm, frenado 1.4 cm, retroceso 44.4 ms/cm; `docs/latencia.md` recalculado: 8.5 cm hasta frenar con el obstáculo cerca (14.9 a 255).
 - Pruebas en PC: firmware 87, servidor falso 14. PENDIENTE HARDWARE: rectas de 150 cm en los dos perfiles; repetir el giro izquierdo de la calibración (valor sospechoso).
+
+### Trabajo B: corredor de trayectoria — hecho (apagado por defecto)
+- `corredor.c/.h`: la huella del carro proyectada por perspectiva; solo frena lo que cae DENTRO o en el BORDE (en la duda, frena); lo de FUERA solo avisa. Interfaz común `CajaImagen` para el detector, el modelo de objetos y el flujo. Detalle en `docs/obstaculos.md`.
+- Pruebas en PC: `pruebas_corredor` 59 casos, navegador 143, el resto sin fallos. PENDIENTE HARDWARE: medir ancho, altura, inclinación y campo de visión del carro y comprobar con una caja.

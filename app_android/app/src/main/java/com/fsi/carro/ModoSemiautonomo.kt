@@ -258,6 +258,21 @@ class ModoSemiautonomo(
                 NavegadorNativa.ponerCeldas(-1, -1, -1)
             }
         }
+        if (cuadro != null) {
+            // Corredor: un obstáculo FUERA de por donde pasa el carro no frena (solo se informa). Solo se confía en el corredor para las zonas que decidió el
+            // detector de color; si el modelo de objetos subió una zona (fusión), esa zona cuenta entera.
+            val info = fuente?.cuadroTomado
+            val c = info?.corredor
+            if (c != null && info.resultado.size > ObstaculosNativa.CERCANIA_DERECHA) {
+                val det = info.resultado
+                fun igual(zona: Int) = cuadro[1 + 2 * zona] == det[1 + 2 * zona] && cuadro[2 + 2 * zona] == det[2 + 2 * zona]
+                NavegadorNativa.ponerCorredor(
+                    if (igual(0)) c[CorredorNativa.FUERA] else 0, if (igual(1)) c[CorredorNativa.FUERA + 1] else 0, if (igual(2)) c[CorredorNativa.FUERA + 2] else 0,
+                    if (igual(0)) c[CorredorNativa.CERCANIA] else 0, if (igual(1)) c[CorredorNativa.CERCANIA + 1] else 0, if (igual(2)) c[CorredorNativa.CERCANIA + 2] else 0)
+            } else {
+                NavegadorNativa.ponerCorredor(0, 0, 0, 0, 0, 0)
+            }
+        }
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
         registrarEsquive()
@@ -309,7 +324,8 @@ class ModoSemiautonomo(
         val minimoCentro = if (camara?.esVideoCarro == true) 1 else 2
         for (zona in 0..2) {
             val minimo = if (zona == 1) minimoCentro else 2
-            if (cuadro[1 + 2 * zona] == 1 && cuadro[2 + 2 * zona] >= minimo && cuadro[2 + 2 * zona] > cercania) {
+            val fueraCorredor = info?.corredor?.let { it[CorredorNativa.FUERA + zona] == 1 } ?: false   // un obstáculo fuera del corredor no frena: no es una pasada
+            if (!fueraCorredor && cuadro[1 + 2 * zona] == 1 && cuadro[2 + 2 * zona] >= minimo && cuadro[2 + 2 * zona] > cercania) {
                 cercania = cuadro[2 + 2 * zona]
                 zonaMasCerca = zona
             }

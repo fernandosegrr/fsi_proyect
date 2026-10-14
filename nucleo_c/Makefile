@@ -4,7 +4,7 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo
+all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -33,6 +33,9 @@ pruebas_video_stats: pruebas_video_stats.c video_stats.c video_stats.h
 pruebas_prueba_obstaculo: pruebas_prueba_obstaculo.c prueba_obstaculo.c prueba_obstaculo.h
 	$(CC) $(CFLAGS) -o $@ pruebas_prueba_obstaculo.c prueba_obstaculo.c
 
+pruebas_corredor: pruebas_corredor.c corredor.c corredor.h obstaculos.c obstaculos.h
+	$(CC) $(CFLAGS) -o $@ pruebas_corredor.c corredor.c obstaculos.c
+
 test: all
 	./pruebas_calibracion
 	./pruebas_trayectoria
@@ -43,8 +46,9 @@ test: all
 	./pruebas_navegador
 	./pruebas_video_stats
 	./pruebas_prueba_obstaculo
+	./pruebas_corredor
 
 clean:
-	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe
+	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe
 
 .PHONY: all test clean

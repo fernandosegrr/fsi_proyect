@@ -75,6 +75,12 @@ object NavegadorNativa {
     /** 1 = además de lo de siempre, un obstáculo LEJANO (cercanía 1) en el centro también frena, tras 2 cuadros y 60 ms. Para el video del carro. */
     external fun frenarLejosCentro(activo: Int): Int
 
+    /**
+     * Corredor de trayectoria: dice qué zonas tienen un obstáculo FUERA del corredor (1 = solo avisa, no frena) y la cercanía de lo que está DENTRO
+     * (0 = la de siempre) para el siguiente tick. Con todo en 0 el corredor no hace nada.
+     */
+    external fun ponerCorredor(fueraIzq: Int, fueraCen: Int, fueraDer: Int, cercaniaIzq: Int, cercaniaCen: Int, cercaniaDer: Int)
+
     /** Dice cuántas celdas de obstáculo tiene cada zona en el cuadro que va al siguiente tick (-1 = no se sabe). El navegador elige el lado con menos celdas. */
     external fun ponerCeldas(izquierda: Int, centro: Int, derecha: Int)
 

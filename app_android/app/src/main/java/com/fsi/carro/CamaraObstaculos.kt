@@ -78,7 +78,8 @@ class CuadroAnalizado(
     val msFusion: Double = 0.0,
     val giro: GiroVisual? = null,          // lo que se vio girar respecto al cuadro anterior
     val marcaMs: Long = 0L,                // hora (SystemClock.elapsedRealtime) en que el cuadro LLEGÓ al teléfono
-    val msHastaResultado: Double = 0.0     // ms desde que llegó hasta que el detector (y la fusión) terminaron
+    val msHastaResultado: Double = 0.0,    // ms desde que llegó hasta que el detector (y la fusión) terminaron
+    val corredor: IntArray? = null         // CorredorNativa.aplicar de este cuadro (null = corredor apagado)
 ) {
     /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
     val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
@@ -94,6 +95,7 @@ class CamaraObstaculos(
     private val tamanoPedido: () -> IntArray = { intArrayOf(ObstaculosNativa.ANCHO_CAMARA, ObstaculosNativa.ALTO_CAMARA) },   // [ancho, alto] de los cuadros que se analizan
     private val avanzando: () -> Boolean = { false },   // true si el carro está avanzando ahora (solo entonces el modelo del piso aprende)
     private val usarModelo: () -> Boolean = { false },  // true si se quiere usar también el modelo de objetos (fusión)
+    private val configCorredor: () -> IntArray = { IntArray(0) },   // CorredorNativa.CFG_*: vacío o activo = 0 = corredor apagado
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -583,10 +585,21 @@ class CamaraObstaculos(
             }
         }
 
+        // Corredor de trayectoria: qué zonas tienen el obstáculo FUERA de por donde pasa el carro (solo si está activado).
+        var corredor: IntArray? = null
+        val cfgCorredor = configCorredor()
+        if (cfgCorredor.size > CorredorNativa.CFG_ACTIVO && cfgCorredor[CorredorNativa.CFG_ACTIVO] == 1 && resultado[ObstaculosNativa.CODIGO] == 0) {
+            corredor = CorredorNativa.aplicar(cfgCorredor, resultado, ancho, alto)
+            if (corredor[CorredorNativa.CODIGO] != 0) {
+                Log.w(ETIQUETA, "corredor| error codigo=${corredor[CorredorNativa.CODIGO]}: se ignora el corredor en este cuadro")
+                corredor = null
+            }
+        }
+
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
             (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual,
-            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble())
+            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble(), corredor)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)

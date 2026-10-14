@@ -267,3 +267,79 @@ Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen
   `[código, hayIzq, cercaníaIzq, hayCentro, cercaníaCentro, hayDer, cercaníaDer, refR, refG, refB]`
   (los índices tienen nombre en `ObstaculosNativa`).
 - **Pruebas en PC**: `cd nucleo_c` y `make test` (corre también las de trayectoria).
+
+## Corredor de trayectoria (APAGADO por defecto)
+
+Código: `nucleo_c/corredor.c/.h` (C puro, probado en PC: `nucleo_c/pruebas_corredor.c`). En la app: `CorredorNativa`, `ConfigVision` y los controles de la pantalla de visión.
+
+### Para qué
+Hasta ahora el navegador decidía con tres zonas (izquierda / centro / derecha, tercios de la imagen): un objeto que pasa **por un lado**, fuera de por
+donde va a pasar el carro, también lo frenaba. El corredor es la franja de piso por la que el carro **sí va a pasar** (su ancho más un margen), dibujada en
+la imagen con la perspectiva: **ancha cerca y angosta lejos**. Un obstáculo frena o hace esquivar solo si está dentro; el que pasa por un lado **solo avisa**.
+
+### Geometría (cámara de agujero, enteros)
+Parámetros configurables: `ANCHO_CARRO_CM`, `ALTURA_CAMARA_CM`, `INCLINACION_GRADOS` (hacia abajo), `FOV_GRADOS` (horizontal) y `MARGEN_LATERAL_CM`.
+Con `f = (ancho_imagen / 2) / tan(FOV / 2)` y `cy = alto / 2`, para la fila `v`:
+
+- `A(v) = f · sen(incl) + (v − cy) · cos(incl)`
+- distancia del piso en esa fila: `d = altura · (f · cos(incl) − (v − cy) · sen(incl)) / A(v)`
+- ancho de `x` cm en esa fila: `x · A(v) / altura` píxeles. Como `A(v)` crece hacia abajo, el corredor se **estrecha** hacia arriba y vale 0 en el
+  horizonte (`A = 0`).
+
+Con los valores de partida (240x176, 18 cm de carro, cámara a 10 cm y 20° hacia abajo, 60° de campo) la mitad del ancho del carro mide en píxeles:
+fila 176 → 139 px (a 11 cm del carro: el corredor ya cubre todo el cuadro), 150 → 117 (13 cm), 120 → 92 (18 cm), 100 → 75 (23 cm), 80 → 58 (31 cm),
+60 → 41 (46 cm), 40 → 24 (81 cm). El horizonte queda en la fila 12. Estos números salen de `pruebas_corredor` y se comprobaron contra una referencia
+independiente (proyección con decimales y bisección).
+
+### Cómo se decide
+Una **caja** (rectángulo en píxeles) toca el piso por su borde de abajo: esa fila da la distancia y el ancho del corredor ahí.
+
+- **DENTRO**: la caja cruza la huella del carro (ancho / 2 a cada lado del centro) → frena.
+- **BORDE**: cruza solo el margen lateral → **en la duda, frena** (cuenta como dentro del corredor).
+- **FUERA**: no toca ni el margen → solo avisa (`fuera_corredor`).
+- Borde de abajo en el horizonte o sobre él: no se puede ubicar en el piso → FUERA (`sobre_horizonte`); el detector ya descarta esas filas con la fila mínima.
+- Los anchos se redondean **hacia arriba** (más ancho = más prudente).
+
+### Interfaz común: `CajaImagen`
+Una sola interfaz para todas las fuentes: un rectángulo en píxeles con un **peso** y la **fuente** (`COR_FUENTE_DETECTOR`, `_MODELO`, `_FLUJO`).
+
+| Fuente | Cajas | Peso |
+|---|---|---|
+| Detector de color | una por celda "no piso" (10x10 px), de la fila mínima hacia abajo (`corredor_aplicar_mascara` / `corredor_aplicar_resultado`) | 1 por celda |
+| Modelo de objetos | una por objeto (`corredor_caja_de_milesimas` convierte las milésimas del modelo a píxeles) | `min_peso` (una sola basta) |
+| Flujo del piso | una por bloque de 16x16 | lo que decida quien llama |
+
+`corredor_aplicar_zonas` reparte las cajas en las tres zonas (tercio del ancho donde cae el centro de la caja), suma el peso de las que quedan dentro o
+en el borde y rellena en cada `ZonaObstaculo`: `celdas_corredor` (el peso dentro), `fuera_corredor` (hay obstáculo en la zona pero el peso dentro no llega a
+`min_peso` = 2 celdas) y `cercania_corredor` (1 a 3 por la fila más baja de lo que está dentro, con los mismos límites del detector: `OBS_MEDIA_MIL` y
+`OBS_CERCA_MIL`). Con el corredor apagado esos tres campos se limpian y el navegador usa lo de siempre.
+
+### En el navegador
+`zona_hay` (hay obstáculo, de cualquier tipo) sigue igual y la usa **elegir lado**: un obstáculo a un lado fuera del corredor **sigue contando como ocupado** y el
+carro no se aparta hacia él. Para **frenar** se usa `zona_frena` (hay obstáculo y no está fuera del corredor) y `zona_cerc_frena` (la cercanía del corredor si
+hay; si no, la de siempre). Lo mismo en el reintento de esquive (mirar) y en avanzar de lado.
+
+### En la app
+- Pantalla de **Visión**, debajo de «Fuente del video»: botón **«Corredor de trayectoria: SÍ/NO»** y un campo con las medidas
+  `ancho_cm altura_cm inclinación° campo_de_visión° margen_cm` (por defecto `18 10 20.0 60.0 3`; se aplica con «Listo» del teclado). Debajo, una línea por zona:
+  `libre`, `obstáculo FUERA (solo avisa)` u `obstáculo DENTRO (cercanía n)`.
+- `CamaraObstaculos` calcula el corredor en cada cuadro (si está activo) y `ModoSemiautonomo` se lo pasa al navegador (`NavegadorNativa.ponerCorredor`). Si el
+  modelo de objetos subió una zona (fusión), esa zona cuenta entera (el corredor solo se aplica a lo que decidió el detector de color). La racha de
+  `OBST_PRUEBA` ignora los obstáculos fuera del corredor.
+
+### Hay que MEDIR (PENDIENTE HARDWARE)
+Los valores de partida **no están medidos**: `ANCHO_CARRO_CM` 18, `ALTURA_CAMARA_CM` 10, `INCLINACION_GRADOS` 20, `FOV_GRADOS` 60 y margen 3 cm.
+
+1. **Ancho del carro:** con una cinta, de la parte más ancha de una rueda a la más ancha de la otra.
+2. **Altura de la cámara:** del piso al centro de la lente.
+3. **Inclinación:** pon el carro en el piso mirando una pared; con un celular o transportador mide el ángulo del eje de la cámara contra la horizontal (hacia abajo es positivo).
+4. **Campo de visión:** coloca dos marcas en el piso (por ejemplo a 1 m de la cámara, 70 cm una de otra), mira cuántos píxeles ocupan y calcula, o deja 60.
+5. **Comprobar:** con el corredor activo, mira en la pantalla de visión una caja a 30 y 60 cm, centrada (DENTRO), a 12 cm del eje (BORDE) y a 30 cm del eje (FUERA).
+
+### Pruebas (`pruebas_corredor.c`, 59 casos; `pruebas_navegador.c`, 9 casos del corredor)
+Configuración y validación; la perspectiva contra la referencia con decimales (distancia de cada fila 100 a 176 y semiancho de la huella en 35 filas); el corredor se
+estrecha de abajo hacia arriba sin excepciones; **45 clasificaciones** de objetos de 6 cm a 20, 30, 50, 80 y 120 cm y a 0, ±8 (dentro), ±13.5 (borde), ±18 y ±30 cm
+(fuera) más otra cámara (320x240, 78°, carro de 22 cm); cajas sobre el horizonte y que se salen por abajo; las zonas con cajas del modelo y del flujo; el detector de
+color con imágenes sintéticas (caja centrada dentro, caja a la izquierda lejos fuera, la misma caja cerca dentro); el corredor apagado; 100 000 cajas al azar
+(estado en rango, coherente con los anchos, y un margen mayor nunca deja fuera lo que estaba dentro). En el navegador: fuera del corredor no frena y la ruta
+termina; la cercanía del corredor manda sobre la de la zona; elegir lado sigue evitando el lado ocupado aunque esté fuera del corredor.

@@ -25,7 +25,11 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.WindowManager
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -62,6 +66,9 @@ class VisionActivity : Activity() {
     private lateinit var textoVideo: TextView
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
+    private lateinit var botonCorredor: Button     // controles que se agregan por código debajo de «Fuente del video» (ver agregarControlesExtra)
+    private lateinit var campoCorredor: EditText
+    private lateinit var textoCorredor: TextView
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
     private val cuadrosSinGiro = AtomicInteger(0)        // cuadros en que la cámara no tuvo confianza
     private var ultimoNumeroGiro = -1L
@@ -99,6 +106,7 @@ class VisionActivity : Activity() {
         botonTamano = findViewById(R.id.boton_tamano)
         textoFusion = findViewById(R.id.texto_fusion)
         textoGiro = findViewById(R.id.texto_giro)
+        agregarControlesExtra()
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
@@ -140,7 +148,7 @@ class VisionActivity : Activity() {
 
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
-            { false }, { configuracion.usarModelo }) { cuadro -> alLlegarCuadro(cuadro) }
+            { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
         camara.fovX10 = CalibracionGuardada(this).fovCalibradoX10()   // campo de visión calibrado (0 = no calibrado: se usa el de la cámara)
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
@@ -241,6 +249,7 @@ class VisionActivity : Activity() {
             textoFusion.text = textoDeFusion(cuadro)
             textoVideo.text = camara.textoVideo()
             textoGiro.text = textoDeGiro(cuadro)
+            textoCorredor.text = textoDeCorredor(cuadro)
             registrosPendientes++
             if (registrosPendientes % 4 == 0) {   // cada ~2 s se anota en logcat lo que muestra la pantalla (sirve para probar sin mirar la imagen)
                 Log.i(CamaraObstaculos.ETIQUETA, "pantalla| piso=" + (cuadro?.resultado?.let { "${it[ObstaculosNativa.REF_R]},${it[ObstaculosNativa.REF_G]},${it[ObstaculosNativa.REF_B]}" } ?: "-") + " | " + (textoFusion.text.toString() + " " + textoGiro.text.toString()).replace("\n", " / "))
@@ -318,7 +327,75 @@ class VisionActivity : Activity() {
 
     // ── Barras ────────────────────────────────────────────────────────────
 
+    // ── Controles agregados por código (debajo de «Fuente del video») ─────────
+
+    /** Agrega los controles del corredor de trayectoria (botón, campo de medidas y texto del estado). */
+    private fun agregarControlesExtra() {
+        val padre = botonFuenteVideo.parent as LinearLayout
+        var lugar = padre.indexOfChild(botonFuenteVideo) + 1
+        val separacion = (8 * resources.displayMetrics.density).toInt()
+
+        botonCorredor = Button(this)
+        botonCorredor.setOnClickListener {
+            configuracion.corredorActivo = !configuracion.corredorActivo
+            mostrarValoresDeBarras()
+        }
+        padre.addView(botonCorredor, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
+
+        campoCorredor = EditText(this)
+        campoCorredor.inputType = InputType.TYPE_CLASS_TEXT
+        campoCorredor.imeOptions = EditorInfo.IME_ACTION_DONE
+        campoCorredor.setSingleLine(true)
+        campoCorredor.textSize = 12f
+        campoCorredor.hint = "ancho_cm altura_cm inclinación° campo_de_visión° margen_cm"
+        campoCorredor.setOnEditorActionListener { vista, accion, _ ->
+            if (accion == EditorInfo.IME_ACTION_DONE) {
+                aplicarCampoCorredor(vista.text.toString())
+                true
+            } else {
+                false
+            }
+        }
+        padre.addView(campoCorredor, lugar++)
+
+        textoCorredor = TextView(this)
+        textoCorredor.typeface = android.graphics.Typeface.MONOSPACE
+        textoCorredor.textSize = 12f
+        padre.addView(textoCorredor, lugar)
+    }
+
+    /** Lee «ancho altura inclinación campo_de_visión margen» (cm, cm, grados, grados, cm) y los guarda. */
+    private fun aplicarCampoCorredor(texto: String) {
+        val numeros = texto.trim().split(Regex("[ ,;]+")).mapNotNull { it.replace(',', '.').toDoubleOrNull() }
+        if (numeros.size != 5) {
+            Toast.makeText(this, "Escribe 5 números: ancho_cm altura_cm inclinación° campo_de_visión° margen_cm", Toast.LENGTH_LONG).show()
+            return
+        }
+        configuracion.corredorAnchoCm = Math.round(numeros[0]).toInt()
+        configuracion.corredorAlturaCm = Math.round(numeros[1]).toInt()
+        configuracion.corredorInclinacionX10 = Math.round(numeros[2] * 10).toInt()
+        configuracion.corredorFovX10 = Math.round(numeros[3] * 10).toInt()
+        configuracion.corredorMargenCm = Math.round(numeros[4]).toInt()
+        mostrarValoresDeBarras()
+    }
+
+    /** El estado del corredor: lo configurado y, con el último cuadro, qué zonas quedan fuera. */
+    private fun textoDeCorredor(cuadro: CuadroAnalizado?): String {
+        val config = "Corredor ${if (configuracion.corredorActivo) "ACTIVO" else "apagado"}: carro ${configuracion.corredorAnchoCm} cm, cámara a " +
+            "${configuracion.corredorAlturaCm} cm, ${configuracion.corredorInclinacionX10 / 10.0}° hacia abajo, campo de visión ${configuracion.corredorFovX10 / 10.0}°, margen ${configuracion.corredorMargenCm} cm"
+        val c = cuadro?.corredor ?: return config
+        val nombres = arrayOf("izq", "cen", "der")
+        val partes = (0..2).joinToString("  ") { z ->
+            "${nombres[z]}: " + (if (cuadro.resultado[1 + 2 * z] == 0) "libre" else if (c[CorredorNativa.FUERA + z] == 1) "obstáculo FUERA (solo avisa)"
+                else "obstáculo DENTRO (cercanía ${c[CorredorNativa.CERCANIA + z]})")
+        }
+        return config + "\n" + partes
+    }
+
     private fun mostrarValoresDeBarras() {
+        botonCorredor.text = "Corredor de trayectoria: ${if (configuracion.corredorActivo) "SÍ" else "NO"} (tocar para cambiar)"
+        campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,
+            configuracion.corredorInclinacionX10 / 10.0, configuracion.corredorFovX10 / 10.0, configuracion.corredorMargenCm))
         barraUmbral.progress = configuracion.umbralColor.coerceIn(0, ConfigVision.UMBRAL_COLOR_MAXIMO)
         barraMinCeldas.progress = (configuracion.minCeldas - 1).coerceIn(0, ConfigVision.MIN_CELDAS_MAXIMO - 1)
         textoUmbral.text = getString(R.string.texto_umbral, configuracion.umbralColor)

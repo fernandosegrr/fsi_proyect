@@ -1233,6 +1233,101 @@ static void pruebas_esquive_objetos_grandes(void)
     }
 }
 
+
+/* ── Casos: el corredor de trayectoria (corredor.h) en las decisiones del navegador ───────────── */
+
+/* Corre la ruta RECTA con un cuadro fijo (el mismo en cada tick desde 1000 ms) y dice qué comando mandó. */
+static ComandoNav comando_con_cuadro(const ResultadoObstaculos *cuadro, uint32_t hasta_ms, int frenar_lejos)
+{
+    ResultadoObstaculos libre;
+    uint32_t tiempo;
+    ComandoNav comando = NAV_CMD_STOP;
+
+    memset(&libre, 0, sizeof libre);
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_poner_frenar_lejos_centro(&nav, frenar_lejos);
+    navegador_comenzar(&nav, 0);
+    for (tiempo = 0; tiempo < hasta_ms; tiempo += NAV_TICK_MS) {
+        comando = navegador_tick(&nav, tiempo, (tiempo < 1000) ? &libre : cuadro);
+    }
+    return comando;
+}
+
+static void pruebas_corredor_en_navegador(void)
+{
+    ResultadoObstaculos cuadro;
+    ComandoNav comando;
+
+    /* Sin corredor (los campos en 0): un obstaculo muy cerca al centro frena, como siempre. */
+    memset(&cuadro, 0, sizeof cuadro);
+    cuadro.zona[ZONA_CENTRO].hay_obstaculo = 1;
+    cuadro.zona[ZONA_CENTRO].cercania = 3;
+    cuadro.zona[ZONA_CENTRO].celdas = 12;
+    comando = comando_con_cuadro(&cuadro, 1300, 0);
+    caso("corredor apagado (campos en 0): obstaculo al centro con cercania 3 frena", comando == NAV_CMD_STOP && nav.estado == NAV_DETENIDO_OBSTACULO);
+
+    /* El mismo obstaculo marcado FUERA del corredor: solo avisa, no frena y la ruta termina. */
+    cuadro.zona[ZONA_CENTRO].fuera_corredor = 1;
+    comando = comando_con_cuadro(&cuadro, 1600, 0);
+    caso("obstaculo FUERA del corredor (cercania 3): no frena, sigue avanzando", comando == NAV_CMD_FORWARD && nav.estado == NAV_SIGUIENDO &&
+         nav.zona_hay[ZONA_CENTRO] == 1 && nav.zona_frena[ZONA_CENTRO] == 0);
+    comando = comando_con_cuadro(&cuadro, 14000, 0);
+    caso("... y la ruta termina sin detenerse ni esquivar", nav.estado == NAV_TERMINADO && nav.esquivadas == 0);
+
+    /* Lo mismo en un lado: un obstaculo de cercania 3 a la izquierda fuera del corredor no frena. */
+    memset(&cuadro, 0, sizeof cuadro);
+    cuadro.zona[ZONA_IZQUIERDA].hay_obstaculo = 1;
+    cuadro.zona[ZONA_IZQUIERDA].cercania = 3;
+    cuadro.zona[ZONA_IZQUIERDA].fuera_corredor = 1;
+    comando = comando_con_cuadro(&cuadro, 1600, 0);
+    caso("obstaculo cercano a un lado FUERA del corredor: no frena", comando == NAV_CMD_FORWARD);
+    cuadro.zona[ZONA_IZQUIERDA].fuera_corredor = 0;
+    comando = comando_con_cuadro(&cuadro, 1300, 0);
+    caso("el mismo obstaculo a un lado DENTRO del corredor: si frena (cercania 3 inmediata)", comando == NAV_CMD_STOP);
+
+    /* La cercania del corredor manda: la zona dice 3 pero lo que cae dentro del corredor esta lejos (cercania 1): no frena. */
+    memset(&cuadro, 0, sizeof cuadro);
+    cuadro.zona[ZONA_CENTRO].hay_obstaculo = 1;
+    cuadro.zona[ZONA_CENTRO].cercania = 3;
+    cuadro.zona[ZONA_CENTRO].cercania_corredor = 1;
+    comando = comando_con_cuadro(&cuadro, 1600, 0);
+    caso("la parte del obstaculo dentro del corredor esta lejos (cercania_corredor 1): no frena aunque la zona diga 3", comando == NAV_CMD_FORWARD);
+    comando = comando_con_cuadro(&cuadro, 1300, 1);
+    caso("... salvo con frenar desde lejos en el centro (cercania 1 al centro frena a los 2 cuadros)", comando == NAV_CMD_STOP);
+    cuadro.zona[ZONA_CENTRO].cercania_corredor = 3;
+    cuadro.zona[ZONA_CENTRO].cercania = 1;
+    comando = comando_con_cuadro(&cuadro, 1300, 0);
+    caso("al reves: la zona dice 1 pero lo que esta dentro del corredor esta muy cerca (3): frena", comando == NAV_CMD_STOP);
+
+    /* Elegir lado: un obstaculo a la izquierda FUERA del corredor sigue contando como ocupado (no se aparta hacia el). */
+    {
+        ResultadoObstaculos libre;
+        uint32_t tiempo;
+        ComandoNav giro = NAV_CMD_STOP;
+
+        memset(&libre, 0, sizeof libre);
+        memset(&cuadro, 0, sizeof cuadro);
+        cuadro.zona[ZONA_CENTRO].hay_obstaculo = 1;
+        cuadro.zona[ZONA_CENTRO].cercania = 3;
+        cuadro.zona[ZONA_CENTRO].celdas = 12;
+        cuadro.zona[ZONA_IZQUIERDA].hay_obstaculo = 1;
+        cuadro.zona[ZONA_IZQUIERDA].cercania = 2;
+        cuadro.zona[ZONA_IZQUIERDA].fuera_corredor = 1;   /* a la izquierda hay algo, pero no frena */
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        for (tiempo = 0; tiempo < 3500 && giro == NAV_CMD_STOP; tiempo += NAV_TICK_MS) {
+            ComandoNav c = navegador_tick(&nav, tiempo, (tiempo < 1000) ? &libre : &cuadro);
+
+            if (nav.estado == NAV_ESQUIVANDO && (c == NAV_CMD_LEFT || c == NAV_CMD_RIGHT)) {
+                giro = c;
+            }
+        }
+        caso("elegir lado: la izquierda tiene un obstaculo fuera del corredor: el navegador se aparta por la DERECHA (sigue viendolo ocupado)", giro == NAV_CMD_RIGHT);
+    }
+}
+
 int main(void)
 {
     pruebas_sin_obstaculos();
@@ -1249,6 +1344,7 @@ int main(void)
     pruebas_pausa_entre_movimientos();
     pruebas_giro_visual_con_retraso();
     pruebas_esquive_objetos_grandes();
+    pruebas_corredor_en_navegador();
     pruebas_textos();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);

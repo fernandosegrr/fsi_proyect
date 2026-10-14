@@ -170,8 +170,10 @@ typedef struct {
     int latencia_visual_ms;      /* retraso de la cámara: un cuadro que llega ahora muestra lo que pasó hace esto (0 = sin retraso) */
 
     /* Lo último que se vio del obstáculo. */
-    int zona_hay[OBS_ZONAS];
+    int zona_hay[OBS_ZONAS];     /* hay obstáculo en la zona (cualquiera): lo usa elegir_lado, para no apartarse hacia un obstáculo */
     int zona_cercania[OBS_ZONAS];
+    int zona_frena[OBS_ZONAS];       /* hay obstáculo en la zona Y está dentro del corredor (sin corredor = zona_hay): esto es lo que frena */
+    int zona_cerc_frena[OBS_ZONAS];  /* cercanía con la que frena (la del corredor si hay; si no, la de siempre); 0 si no frena */
     int frames_bloqueado;        /* cuadros seguidos con obstáculo al frente */
     int frames_libre;            /* cuadros seguidos con el frente libre */
     int frames_recibidos;        /* cuadros desde la última detención */

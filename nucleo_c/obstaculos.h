@@ -143,6 +143,11 @@ typedef struct {
     int hay_obstaculo;   /* 1 si la zona tiene obstáculo, 0 si no */
     int cercania;        /* 0 = sin obstáculo, 1 = lejos, 2 = media, 3 = muy cerca */
     int celdas;          /* cuántas celdas "no piso" confirmadas hay en la zona */
+    /* Corredor de trayectoria (corredor.h). Los llena corredor_aplicar_*; con el corredor apagado, o si nadie los llena, valen 0 y el
+     * navegador usa hay_obstaculo y cercania de siempre. */
+    int celdas_corredor;     /* peso (celdas) de lo que cae DENTRO del corredor en esta zona */
+    int fuera_corredor;      /* 1 si hay obstáculo en la zona pero NO en el corredor: solo avisa, no frena */
+    int cercania_corredor;   /* cercanía (1 a 3) de lo que está dentro del corredor; 0 = usar `cercania` */
 } ZonaObstaculo;
 
 typedef struct {

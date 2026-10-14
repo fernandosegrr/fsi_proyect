@@ -28,6 +28,14 @@ class ConfigVision(contexto: Context) {
         const val GRUPOS_MAXIMO = 4              // K máximo (OBS_MAX_GRUPOS en el código en C)
         const val APRENDIZAJE_MAXIMO_MIL = 100   // tope de la barra de aprendizaje (el máximo del detector es 1000)
 
+        // Valores de partida del corredor (los mismos de corredor.h: ANCHO_CARRO_CM, ALTURA_CAMARA_CM, INCLINACION_GRADOS, FOV_GRADOS...). SIN MEDIR.
+        const val CORREDOR_ANCHO_CM = 18
+        const val CORREDOR_ALTURA_CM = 10
+        const val CORREDOR_INCLINACION_X10 = 200
+        const val CORREDOR_FOV_X10 = 600
+        const val CORREDOR_MARGEN_CM = 3
+        const val CORREDOR_MIN_PESO = 2
+
         /** Tamaños de cuadro que se pueden pedir a la cámara del teléfono (ancho, alto). */
         val TAMANOS = arrayOf(
             intArrayOf(240, 176),   // HQVGA: el modo de la cámara real del carro
@@ -66,6 +74,41 @@ class ConfigVision(contexto: Context) {
     var usarModelo: Boolean
         get() = preferencias.getBoolean("usar_modelo", false)
         set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
+
+    // ── Corredor de trayectoria (corredor.h): APAGADO por defecto ──
+    /** true = solo frena un obstáculo que cae dentro de la huella del carro proyectada en la imagen (el que pasa por un lado solo avisa). */
+    var corredorActivo: Boolean
+        get() = preferencias.getBoolean("corredor_activo", false)
+        set(valor) = preferencias.edit().putBoolean("corredor_activo", valor).apply()
+
+    /** Ancho del carro en cm (las ruedas más anchas). HAY QUE MEDIRLO. */
+    var corredorAnchoCm: Int
+        get() = preferencias.getInt("corredor_ancho_cm", CORREDOR_ANCHO_CM)
+        set(valor) = preferencias.edit().putInt("corredor_ancho_cm", valor.coerceIn(1, 100)).apply()
+
+    /** Altura de la lente de la cámara sobre el piso, en cm. HAY QUE MEDIRLA. */
+    var corredorAlturaCm: Int
+        get() = preferencias.getInt("corredor_altura_cm", CORREDOR_ALTURA_CM)
+        set(valor) = preferencias.edit().putInt("corredor_altura_cm", valor.coerceIn(1, 100)).apply()
+
+    /** Inclinación de la cámara hacia abajo, en grados por 10 (200 = 20.0°). HAY QUE MEDIRLA. */
+    var corredorInclinacionX10: Int
+        get() = preferencias.getInt("corredor_inclinacion_x10", CORREDOR_INCLINACION_X10)
+        set(valor) = preferencias.edit().putInt("corredor_inclinacion_x10", valor.coerceIn(0, 800)).apply()
+
+    /** Campo de visión horizontal de la cámara del carro, en grados por 10 (600 = 60°, sin medir). */
+    var corredorFovX10: Int
+        get() = preferencias.getInt("corredor_fov_x10", CORREDOR_FOV_X10)
+        set(valor) = preferencias.edit().putInt("corredor_fov_x10", valor.coerceIn(200, 1500)).apply()
+
+    /** Margen lateral a cada lado de la huella del carro, en cm. */
+    var corredorMargenCm: Int
+        get() = preferencias.getInt("corredor_margen_cm", CORREDOR_MARGEN_CM)
+        set(valor) = preferencias.edit().putInt("corredor_margen_cm", valor.coerceIn(0, 50)).apply()
+
+    /** Los 7 enteros de configuración del corredor (CorredorNativa.CFG_*). */
+    fun corredorComoArreglo(): IntArray = intArrayOf(
+        if (corredorActivo) 1 else 0, corredorAnchoCm, corredorAlturaCm, corredorInclinacionX10, corredorFovX10, corredorMargenCm, CORREDOR_MIN_PESO)
 
     /** true = en la pantalla de control los obstáculos salen de la cámara y no de los botones simulados (se recuerda al volver a abrir). */
     var obstaculosCamara: Boolean
