@@ -29,6 +29,8 @@
 #include "calibracion.h"
 #include "fusion.h"
 #include "movimiento_visual.h"
+#include "video_stats.h"
+#include "prueba_obstaculo.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -1055,4 +1057,123 @@ Java_com_fsi_carro_NavegadorNativa_textoEstado(JNIEnv *env, jobject objeto, jint
 {
     (void)objeto;
     return (*env)->NewStringUTF(env, navegador_texto_estado((EstadoNav)estado));
+}
+
+
+/* ── Estadística del video del carro (video_stats.c) ───────────────────── */
+
+/* Una sola estadística (la del video del carro). La protege un candado de Kotlin (VideoStatsNativa), así que aquí no hace falta otro. */
+static VideoStats estadistica_video;
+static int estadistica_video_iniciada = 0;
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_VideoStatsNativa_nIniciar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    vs_iniciar(&estadistica_video);
+    estadistica_video_iniciada = 1;
+}
+
+/* Llegó un cuadro de video a la hora `ahora_ms` (reloj del teléfono, ms). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_VideoStatsNativa_nCuadro(JNIEnv *env, jobject objeto, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    if (!estadistica_video_iniciada) {
+        vs_iniciar(&estadistica_video);
+        estadistica_video_iniciada = 1;
+    }
+    vs_cuadro(&estadistica_video, (uint32_t)ahora_ms);
+}
+
+/* Resumen de los últimos 10 s: [0] fps por 10, [1] hueco máximo ms, [2] huecos mayores a 500 ms, [3] cuadros, [4] hueco actual ms. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_VideoStatsNativa_nResumen(JNIEnv *env, jobject objeto, jlong ahora_ms)
+{
+    jint salida[5];
+    ResumenVideo r;
+    jintArray arreglo;
+
+    (void)objeto;
+    if (!estadistica_video_iniciada) {
+        vs_iniciar(&estadistica_video);
+        estadistica_video_iniciada = 1;
+    }
+    r = vs_resumen(&estadistica_video, (uint32_t)ahora_ms);
+    salida[0] = r.fps_x10;
+    salida[1] = r.hueco_max_ms;
+    salida[2] = r.huecos_largos;
+    salida[3] = r.cuadros;
+    salida[4] = r.hueco_actual_ms;
+    arreglo = (*env)->NewIntArray(env, 5);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 5, salida);
+    }
+    return arreglo;
+}
+
+/* ── Cuentas de la prueba de obstáculos (prueba_obstaculo.c) ───────────── */
+
+static ResumenPrueba resumen_prueba_obstaculo;
+
+/* Retraso total obstáculo → STOP en ms (video + ms hasta enviar el STOP + mitad del ida y vuelta). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_PruebaObstaculoNativa_retrasoMs(JNIEnv *env, jobject objeto, jint ms_stop, jint ms_respuesta, jint latencia_video_ms)
+{
+    PasadaObstaculo p;
+
+    (void)env;
+    (void)objeto;
+    p.ms_detectar = 0;
+    p.ms_stop = (int)ms_stop;
+    p.ms_respuesta = (int)ms_respuesta;
+    p.latencia_video_ms = (int)latencia_video_ms;
+    return po_retraso_ms(&p);
+}
+
+/* Décimas de cm que avanza el carro durante `retraso_ms` con la calibración dada (-1 si la calibración no es válida). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_PruebaObstaculoNativa_cmX10(JNIEnv *env, jobject objeto, jint retraso_ms, jint ms_por_cm_x10, jint frenado_mm)
+{
+    (void)env;
+    (void)objeto;
+    return po_cm_x10((int)retraso_ms, (int)ms_por_cm_x10, (int)frenado_mm);
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_PruebaObstaculoNativa_iniciarResumen(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    po_resumen_iniciar(&resumen_prueba_obstaculo);
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_PruebaObstaculoNativa_agregar(JNIEnv *env, jobject objeto, jint retraso_ms, jint cm_x10)
+{
+    (void)env;
+    (void)objeto;
+    po_resumen_agregar(&resumen_prueba_obstaculo, (int)retraso_ms, (int)cm_x10);
+}
+
+/* [0] pasadas, [1] retraso promedio ms, [2] retraso máximo ms, [3] cm promedio por 10, [4] cm máximo por 10. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_PruebaObstaculoNativa_resumen(JNIEnv *env, jobject objeto)
+{
+    jint salida[5];
+    jintArray arreglo;
+
+    (void)objeto;
+    salida[0] = resumen_prueba_obstaculo.n;
+    salida[1] = po_resumen_retraso_prom_ms(&resumen_prueba_obstaculo);
+    salida[2] = resumen_prueba_obstaculo.max_retraso_ms;
+    salida[3] = po_resumen_cm_prom_x10(&resumen_prueba_obstaculo);
+    salida[4] = resumen_prueba_obstaculo.max_cm_x10;
+    arreglo = (*env)->NewIntArray(env, 5);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 5, salida);
+    }
+    return arreglo;
 }

@@ -39,6 +39,11 @@ class ModoSemiautonomo(
         // Cuadrado de 2 celdas por lado (40 cm) y zigzag de escalones de 1 celda.
         val RUTA_CUADRADO = intArrayOf(1, 4, 1, 3, 1, 2, 2, 2, 3, 2, 3, 3, 3, 4, 2, 4, 1, 4)
         val RUTA_ZIGZAG = intArrayOf(0, 5, 0, 4, 1, 4, 1, 3, 2, 3, 2, 2, 3, 2)
+        // Prueba de obstáculos: una recta de 5 celdas (1 m). Al frenar por un obstáculo la pasada se mide y la ruta se cancela (el carro queda detenido).
+        val RUTA_PRUEBA_OBSTACULO = intArrayOf(2, 8, 2, 7, 2, 6, 2, 5, 2, 4, 2, 3)
+        const val ETIQUETA_PRUEBA = "OBST_PRUEBA"
+        const val MOTIVO_SIN_VIDEO = 5   // MotivoErrorNav en navegador.h: NAV_MOTIVO_SIN_VIDEO
+        val NOMBRE_ZONA = arrayOf("IZQUIERDA", "CENTRO", "DERECHA")
     }
 
     private val manejador = Handler(Looper.getMainLooper())
@@ -52,6 +57,23 @@ class ModoSemiautonomo(
 
     private var ultimoCuadroMs = 0L
     private var ultimoEstadoCentro = -1
+
+    // ── Prueba "Obstáculos: cámara" ─────────────────────────────────────
+    /** La calibración guardada (la pone la pantalla de control): se usan ms por cm y frenado para convertir el retraso en cm. */
+    var leerCalibracion: () -> IntArray = { IntArray(0) }
+
+    /** Lo que muestra la pantalla de la prueba: última pasada y resumen. */
+    var textoPrueba = ""
+        private set
+
+    private var modoPruebaObstaculo = false     // true con la ruta de prueba
+    private var resumenEscrito = true            // el resumen de esta ruta ya se escribió en el log
+    // El PRIMER cuadro de la racha actual con un obstáculo cerca (cercanía 2 o más): de ahí se cuentan los tiempos.
+    private var bloqueoMarcaMs = 0L
+    private var bloqueoMsDetectar = 0.0
+    private var bloqueoCercania = 0
+    private var bloqueoZona = 0
+    private var bloqueoFuente = ""
 
     /** true si la ruta está en marcha Y el último comando mandado fue avanzar (lo lee el hilo de la cámara). */
     @Volatile
@@ -85,6 +107,9 @@ class ModoSemiautonomo(
         if (activo) {
             return false
         }
+        modoPruebaObstaculo = ruta.contentEquals(RUTA_PRUEBA_OBSTACULO)
+        bloqueoMarcaMs = 0L
+        resumenEscrito = false
         if (logica.conexion != ControlLogica.Conexion.CONECTADO) {
             mensaje = "Sin conexión con el carro"
             alCambiar()
@@ -126,6 +151,7 @@ class ModoSemiautonomo(
         activo = false
         manejador.removeCallbacks(tarea)
         NavegadorNativa.cancelar()
+        escribirResumenDePrueba()
         if (estabaActivo || ultimoComando != NavegadorNativa.CMD_STOP) {
             Log.i(ETIQUETA, "cancelado: $motivo")
             logica.ordenAutomatica("STOP")
@@ -159,6 +185,7 @@ class ModoSemiautonomo(
             if (cuadro != null) {
                 ultimoCuadroMs = ahora
                 registrarCambioDeCamara(cuadro)
+                seguirBloqueo(fuente.cuadroTomado, cuadro)
             } else if (ahora - ultimoCuadroMs > TIMEOUT_CAMARA_MS) {
                 cancelar("Cámara sin imágenes")
                 return
@@ -176,14 +203,119 @@ class ModoSemiautonomo(
             avanzando = (comando == NavegadorNativa.CMD_FORWARD)
             val texto = NavegadorNativa.textoComando(comando)
             Log.i(ETIQUETA, "comando=$texto estado=${NavegadorNativa.textoEstado(estado)}")
-            logica.ordenAutomatica(texto)
+            if (comando == NavegadorNativa.CMD_STOP && estado == NavegadorNativa.DETENIDO_OBSTACULO && fuente != null && bloqueoMarcaMs != 0L) {
+                frenarPorObstaculo(fuente)
+            } else {
+                logica.ordenAutomatica(texto)
+            }
         }
         if (estado == NavegadorNativa.TERMINADO || estado == NavegadorNativa.ERROR || estado == NavegadorNativa.ESPERANDO) {
             activo = false
             avanzando = false
             mensaje = NavegadorNativa.textoEstado(estado)
+            if (estado == NavegadorNativa.ERROR && NavegadorNativa.estado()[NavegadorNativa.E_MOTIVO_ERROR] == MOTIVO_SIN_VIDEO) {
+                mensaje = "DETENIDO: se perdió el video de la cámara (más de 500 ms sin cuadros). No reanuda solo: inicia la ruta otra vez."
+            }
             Log.i(ETIQUETA, "fin: $mensaje")
+            escribirResumenDePrueba()
         }
+        alCambiar()
+    }
+
+    /** Lleva la racha de cuadros con un obstáculo cerca (cercanía 2 o más en cualquier zona) y guarda cómo era el PRIMERO. */
+    private fun seguirBloqueo(info: CuadroAnalizado?, cuadro: IntArray) {
+        var zonaMasCerca = -1
+        var cercania = 0
+        for (zona in 0..2) {
+            if (cuadro[1 + 2 * zona] == 1 && cuadro[2 + 2 * zona] >= 2 && cuadro[2 + 2 * zona] > cercania) {
+                cercania = cuadro[2 + 2 * zona]
+                zonaMasCerca = zona
+            }
+        }
+        if (zonaMasCerca < 0 || info == null) {
+            bloqueoMarcaMs = 0L   // el frente está libre: la racha termina
+            return
+        }
+        if (bloqueoMarcaMs == 0L) {
+            bloqueoMarcaMs = info.marcaMs
+            bloqueoMsDetectar = info.msHastaResultado
+            bloqueoCercania = cercania
+            bloqueoZona = zonaMasCerca
+            val fusion = info.fusion
+            bloqueoFuente = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) {
+                when (fusion[FusionNativa.R_FUENTE]) {
+                    FusionNativa.FUENTE_MODELO -> "modelo"
+                    FusionNativa.FUENTE_AMBOS -> "detector+modelo"
+                    else -> "detector"
+                }
+            } else {
+                "detector"
+            }
+        }
+    }
+
+    /** El navegador frenó por un obstáculo con la cámara: manda el STOP (con PING para medir la respuesta) y deja anotados los tiempos. */
+    private fun frenarPorObstaculo(fuente: CamaraObstaculos) {
+        val marca = bloqueoMarcaMs
+        val msDetectar = bloqueoMsDetectar
+        val cercania = bloqueoCercania
+        val zona = bloqueoZona
+        val origen = bloqueoFuente
+        val latenciaVideo = fuente.latenciaVisualMs
+        logica.pararConRespuesta { msRespuesta ->
+            manejador.post { terminarPasada(marca, msDetectar, msStop, msRespuesta.toInt(), cercania, zona, origen, latenciaVideo) }
+        }
+        msStop = (SystemClock.elapsedRealtime() - marca).toInt()   // desde que llegó el cuadro hasta que el STOP salió
+    }
+
+    private var msStop = 0
+
+    /** Cierra una pasada: calcula el retraso y los cm (en C), lo escribe en el log y en pantalla, y cancela la ruta de prueba. */
+    private fun terminarPasada(marca: Long, msDetectar: Double, msStopEnviado: Int, msRespuesta: Int, cercania: Int, zona: Int, origen: String, latenciaVideo: Int) {
+        val cal = leerCalibracion()
+        val msPorCmX10 = if (cal.size > CalibracionNativa.CAL_MS_POR_CM_X10) cal[CalibracionNativa.CAL_MS_POR_CM_X10] else 263
+        val frenadoMm = if (cal.size > CalibracionNativa.CAL_FRENADO_MM) cal[CalibracionNativa.CAL_FRENADO_MM] else 9
+        val retraso = PruebaObstaculoNativa.retrasoMs(msStopEnviado, msRespuesta, latenciaVideo)
+        val cmX10 = PruebaObstaculoNativa.cmX10(retraso, msPorCmX10, frenadoMm)
+        PruebaObstaculoNativa.agregar(retraso, cmX10)
+        val linea = String.format(java.util.Locale.US,
+            "marca_cuadro_ms=%d ms_detectar=%.1f ms_stop=%d ms_respuesta=%d cercania=%d zona=%s fuente=%s latencia_video_ms=%d retraso_total_ms=%d cm_recorridos=%.1f (a %.1f ms/cm + frenado %.1f cm)",
+            marca, msDetectar, msStopEnviado, msRespuesta, cercania, NOMBRE_ZONA[zona], origen, latenciaVideo, retraso, cmX10 / 10.0, msPorCmX10 / 10.0, frenadoMm / 10.0)
+        Log.i(ETIQUETA_PRUEBA, linea)
+        val r = PruebaObstaculoNativa.resumen()
+        textoPrueba = String.format(java.util.Locale.US,
+            "Última pasada: detectó en %.0f ms, STOP enviado a los %d ms, respuesta del carro %d ms, video %d ms → retraso %d ms ≈ %.1f cm (cercanía %d, zona %s, fuente %s)\n"
+                + "Pasadas: %d | retraso promedio %d ms, máximo %d ms | cm promedio %.1f, máximo %.1f",
+            msDetectar, msStopEnviado, msRespuesta, latenciaVideo, retraso, cmX10 / 10.0, cercania, NOMBRE_ZONA[zona], origen,
+            r[PruebaObstaculoNativa.R_PASADAS], r[PruebaObstaculoNativa.R_RETRASO_PROM_MS], r[PruebaObstaculoNativa.R_RETRASO_MAX_MS],
+            r[PruebaObstaculoNativa.R_CM_PROM_X10] / 10.0, r[PruebaObstaculoNativa.R_CM_MAX_X10] / 10.0)
+        if (modoPruebaObstaculo && activo) {
+            cancelar("Prueba de obstáculo: pasada medida. El carro queda detenido; llévalo de vuelta y toca Iniciar para otra pasada.")
+        } else {
+            alCambiar()
+        }
+    }
+
+    /** Al terminar la ruta escribe el resumen de la prueba (una vez por ruta, si hubo pasadas). */
+    private fun escribirResumenDePrueba() {
+        if (resumenEscrito) {
+            return
+        }
+        resumenEscrito = true
+        val r = PruebaObstaculoNativa.resumen()
+        if (r[PruebaObstaculoNativa.R_PASADAS] > 0) {
+            Log.i(ETIQUETA_PRUEBA, String.format(java.util.Locale.US,
+                "RESUMEN pasadas=%d retraso_promedio_ms=%d retraso_max_ms=%d cm_promedio=%.1f cm_max=%.1f",
+                r[PruebaObstaculoNativa.R_PASADAS], r[PruebaObstaculoNativa.R_RETRASO_PROM_MS], r[PruebaObstaculoNativa.R_RETRASO_MAX_MS],
+                r[PruebaObstaculoNativa.R_CM_PROM_X10] / 10.0, r[PruebaObstaculoNativa.R_CM_MAX_X10] / 10.0))
+        }
+    }
+
+    /** Borra las cuentas de la prueba (promedios y máximos) para empezar otra serie de pasadas. */
+    fun reiniciarPrueba() {
+        PruebaObstaculoNativa.iniciarResumen()
+        textoPrueba = ""
+        Log.i(ETIQUETA_PRUEBA, "cuentas de la prueba reiniciadas")
         alCambiar()
     }
 

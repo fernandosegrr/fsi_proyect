@@ -59,6 +59,7 @@ class VisionActivity : Activity() {
     private lateinit var botonTamano: Button
     private lateinit var botonModelo: Button
     private lateinit var botonFuenteVideo: Button
+    private lateinit var textoVideo: TextView
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
@@ -94,6 +95,7 @@ class VisionActivity : Activity() {
         barraAprendizaje = findViewById(R.id.barra_aprendizaje)
         botonModelo = findViewById(R.id.boton_modelo)
         botonFuenteVideo = findViewById(R.id.boton_fuente_video)
+        textoVideo = findViewById(R.id.texto_video)
         botonTamano = findViewById(R.id.boton_tamano)
         textoFusion = findViewById(R.id.texto_fusion)
         textoGiro = findViewById(R.id.texto_giro)
@@ -237,6 +239,7 @@ class VisionActivity : Activity() {
                     cuadro.resultado[ObstaculosNativa.GRUPOS_PISO], avisosDelPiso(cuadro),
                     cuadro.resultado[ObstaculosNativa.CODIGO]) else "")
             textoFusion.text = textoDeFusion(cuadro)
+            textoVideo.text = camara.textoVideo()
             textoGiro.text = textoDeGiro(cuadro)
             registrosPendientes++
             if (registrosPendientes % 4 == 0) {   // cada ~2 s se anota en logcat lo que muestra la pantalla (sirve para probar sin mirar la imagen)

@@ -35,6 +35,10 @@
  * librería de WiFi, así que solo se expande dentro del .ino. */
 #define WIFI_POTENCIA_TX WIFI_POWER_13dBm
 
+/* Canal WiFi FIJO del punto de acceso (1, 6 u 11 son los que no se traslapan). Con un canal fijo la cámara, que se conecta como
+ * cliente, no se queda buscando el canal después de una caída. */
+#define WIFI_CANAL 1
+
 /* Frecuencia de CPU (MHz): 160 ahorra corriente frente a los 240 por defecto. */
 #define CPU_MHZ 160
 

@@ -4,7 +4,7 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador
+all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -27,6 +27,12 @@ pruebas_movimiento: pruebas_movimiento.c movimiento_visual.c movimiento_visual.h
 pruebas_navegador: pruebas_navegador.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c trayectoria.h obstaculos.h calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_navegador.c simulador_navegador.c navegador.c trayectoria.c calibracion.c
 
+pruebas_video_stats: pruebas_video_stats.c video_stats.c video_stats.h
+	$(CC) $(CFLAGS) -o $@ pruebas_video_stats.c video_stats.c
+
+pruebas_prueba_obstaculo: pruebas_prueba_obstaculo.c prueba_obstaculo.c prueba_obstaculo.h
+	$(CC) $(CFLAGS) -o $@ pruebas_prueba_obstaculo.c prueba_obstaculo.c
+
 test: all
 	./pruebas_calibracion
 	./pruebas_trayectoria
@@ -35,8 +41,10 @@ test: all
 	./pruebas_fusion
 	./pruebas_movimiento
 	./pruebas_navegador
+	./pruebas_video_stats
+	./pruebas_prueba_obstaculo
 
 clean:
-	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe
+	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe
 
 .PHONY: all test clean

@@ -59,6 +59,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_GIRO_MAX_PCT          150
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
+#define NAV_MAX_HUECO_VIDEO_MS    500    /* si la cámara de obstáculos pasa más de esto sin mandar un cuadro: STOP y ERROR (no reanuda sola) */
 #define NAV_PAUSA_ASENTAR_MS      300    /* STOP entre avanzar y girar (y al revés): el carro termina de moverse y el giro/avance siguiente
                                           * arranca desde cero, como en la calibración. Sin esto, el giro dependía de la inercia del avance. */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
@@ -93,7 +94,8 @@ typedef enum {
     NAV_MOTIVO_LADOS_BLOQUEADOS,   /* obstáculo al frente y ningún lado libre tras el tiempo máximo */
     NAV_MOTIVO_MAX_ESQUIVADAS,     /* ya esquivó NAV_MAX_ESQUIVADAS veces y vuelve a haber obstáculo */
     NAV_MOTIVO_ESQUIVANDO,         /* apareció un obstáculo muy cerca mientras esquivaba */
-    NAV_MOTIVO_PLAN                /* no se pudo calcular el camino de regreso a la ruta */
+    NAV_MOTIVO_PLAN,               /* no se pudo calcular el camino de regreso a la ruta */
+    NAV_MOTIVO_SIN_VIDEO           /* la cámara dejó de mandar cuadros más de NAV_MAX_HUECO_VIDEO_MS: se detuvo y NO reanuda sola */
 } MotivoErrorNav;
 
 /* Códigos de retorno de las funciones de configuración. */
@@ -123,6 +125,8 @@ typedef struct {
     uint32_t       t_ultimo_ms;          /* hora del último tick */
     uint32_t       t_detenido_ms;        /* hora en que se detuvo por obstáculo */
     int            asentando;            /* 1 mientras espera detenido entre dos movimientos distintos */
+    int            usa_camara;           /* 1 desde que llegó el primer cuadro de obstáculos en esta ruta (con la fuente de botones no hay huecos que vigilar) */
+    uint32_t       t_ultimo_cuadro_ms;   /* hora del último cuadro de obstáculos recibido */
     uint32_t       asentar_hasta_ms;     /* hora en que termina esa espera */
 
     /* Posición estimada: milímetros (x hacia la derecha, y hacia abajo) y rumbo en grados

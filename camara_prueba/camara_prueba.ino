@@ -242,9 +242,32 @@ static void reiniciar_estadisticas()
   anilloLleno = 0;
 }
 
+/* Salud del WiFi (para /stats): cuántas veces se cayó la conexión y la señal más baja de los últimos 10 segundos. */
+static volatile uint32_t reconexiones = 0;
+static int8_t rssiUltimos[10];          /* una muestra por segundo; 0 = sin muestra (no había conexión) */
+static uint8_t rssiPos = 0;
+
+/* Guarda la señal de este segundo (0 si no hay conexión). */
+static void anotar_rssi(int rssi)
+{
+  rssiUltimos[rssiPos] = (int8_t)rssi;
+  rssiPos = (rssiPos + 1) % 10;
+}
+
+/* La señal más baja (más negativa) de los últimos 10 segundos; 0 si no hubo ninguna muestra. */
+static int rssi_minimo_10s()
+{
+  int minimo = 0;
+  for (int i = 0; i < 10; i++) {
+    if (rssiUltimos[i] != 0 && (minimo == 0 || rssiUltimos[i] < minimo)) minimo = rssiUltimos[i];
+  }
+  return minimo;
+}
+
 /* Cada segundo (desde loop): guarda lo acumulado y empieza de nuevo. */
 static void tomar_instantanea(uint32_t ms)
 {
+  anotar_rssi(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0);
   Acum copia;
   portENTER_CRITICAL(&mux);
   copia = acum;
@@ -874,15 +897,15 @@ static esp_err_t manejar_stats(httpd_req_t *req)
 {
   log_peticion(req);
   Resumen r = resumir(3);   /* últimos 3 segundos */
-  char json[640];
+  char json[800];
   int n = snprintf(json, sizeof(json),
     "{\"fps_captura\":%.1f,\"fps_envio\":%.1f,\"ms_captura\":%.1f,\"ms_compresion\":%.1f,\"ms_envio\":%.1f,"
     "\"edad_ms\":%.0f,\"edad_max_ms\":%.0f,\"envio_max_ms\":%.0f,\"descartados\":%u,\"descartados_total\":%u,\"jpeg_medio_bytes\":%.0f,\"stream\":%s,"
-    "\"rssi\":%d,\"heap_libre\":%u,\"psram_libre\":%u,\"uptime_s\":%u,"
+    "\"rssi\":%d,\"rssi_min_10s\":%d,\"reconexiones\":%u,\"heap_libre\":%u,\"psram_libre\":%u,\"uptime_s\":%u,"
     "\"config\":{\"xclk_mhz\":%d,\"formato\":\"%s\",\"tam\":\"%s\",\"calidad\":%d,\"sensor\":\"%s\"}}",
     r.fpsCaptura, r.fpsEnvio, r.msCaptura, r.msCompresion, r.msEnvio, r.edadMs, r.edadMaxMs, r.envioMaxMs,
     (unsigned)r.descartados, (unsigned)totalDescartados, r.jpegMedio, streamActivo ? "true" : "false",
-    WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
+    WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, rssi_minimo_10s(), (unsigned)reconexiones, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
     (unsigned)(millis() / 1000), cfg.xclkMHz, nombre_formato(cfg.fmt), nombre_tam(cfg.tam), cfg.calidad, nombreSensor);
   if (n <= 0 || n >= (int)sizeof(json)) return httpd_resp_send_500(req);
   httpd_resp_set_type(req, "application/json");
@@ -1022,6 +1045,7 @@ static bool esperar_conexion()
     }
     delay(250);
   }
+  WiFi.setSleep(false);   /* otra vez ya conectado: algunas versiones lo reactivan al asociarse */
   Serial.printf("[wifi] CONECTADO: IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
   return true;
 }
@@ -1047,6 +1071,7 @@ void setup()
   WiFi.onEvent([](arduino_event_id_t ev, arduino_event_info_t info) {
     if (ev == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
       Serial.printf("[wifi] desconectado, razon %d\n", (int)info.wifi_sta_disconnected.reason);
+      reconexiones++;
     }
   });
 

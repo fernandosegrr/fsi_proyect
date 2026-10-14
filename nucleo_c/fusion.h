@@ -75,7 +75,7 @@ typedef struct {
 /* Parámetros ajustables (ConfigFusion). */
 typedef struct {
     int vigencia_ms;          /* un resultado del modelo más viejo que esto se ignora (300) */
-    int confianza_min_mil;    /* por debajo de esta confianza una caja no cuenta (400) */
+    int confianza_min_mil;    /* por debajo de esta confianza una caja no cuenta (600 = 60 %) */
     int confianza_frenar_mil; /* para frenar SOLO por el modelo (detector sin evidencia) hace falta esta confianza (600) */
     int solape_camino_mil;    /* una caja está "en el camino" si cruza la zona central al menos esto, en milésimas del ancho (60) */
     int cerca_mil;            /* borde de abajo de la caja a partir de aquí = cercanía 3 (834, como el detector) */

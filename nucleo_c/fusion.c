@@ -50,7 +50,7 @@ void fusion_config_defecto(ConfigFusion *config)
         return;
     }
     config->vigencia_ms = 300;
-    config->confianza_min_mil = 400;
+    config->confianza_min_mil = 600;   /* 60 %: un "refrigerator 43 %" sobre una pared lisa debe ignorarse */
     config->confianza_frenar_mil = 600;
     config->solape_camino_mil = 60;
     config->cerca_mil = OBS_CERCA_MIL;

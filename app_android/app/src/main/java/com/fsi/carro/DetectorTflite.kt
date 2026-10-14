@@ -51,6 +51,7 @@ class DetectorTflite(private val contexto: Context) {
     companion object {
         const val ARCHIVO_MODELO = "efficientdet_lite0.tflite"
         const val UMBRAL = 0.4f   // por debajo de esta confianza no se cuenta como detección
+        const val UMBRAL_CAJAS = 0.6f   // para las cajas que se fusionan con el detector de color: 60 % (un "refrigerator 43 %" sobre una pared lisa debe ignorarse)
     }
 
     private val modelo: ByteBuffer = cargarModelo()
@@ -245,7 +246,7 @@ class DetectorTflite(private val contexto: Context) {
         val cajas = (salidas[indiceCajas] as Array<Array<FloatArray>>)[0]
         val cantidad = Math.min(Math.min((salidas[indiceCantidad] as FloatArray)[0].toInt(), confianzas.size), cajas.size)
         for (i in 0 until cantidad) {
-            if (confianzas[i] >= UMBRAL) {
+            if (confianzas[i] >= UMBRAL_CAJAS) {
                 val numero = clases[i].toInt()
                 val caja = cajas[i]
                 resultado.add(DeteccionCaja(numero, etiquetas.getOrNull(numero) ?: "clase $numero", confianzas[i],

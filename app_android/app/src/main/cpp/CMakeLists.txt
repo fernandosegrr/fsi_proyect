@@ -5,6 +5,7 @@
 #  - obstaculos.c     : detector de obstáculos por color de piso (también en ../nucleo_c).
 #  - navegador.c      : cerebro del modo semiautónomo (también en ../nucleo_c).
 #  - calibracion.c    : calibración del carro (arranque, ms por cm, frenado, ms por grado), también en ../nucleo_c.
+#  - video_stats.c, prueba_obstaculo.c : estadística del video del carro y cuentas de la prueba de obstáculos (también en ../nucleo_c).
 # El resultado es libcarro_nativo.so, que Kotlin carga con System.loadLibrary.
 
 cmake_minimum_required(VERSION 3.22)
@@ -24,6 +25,8 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/calibracion.c
     ${NUCLEO_C}/fusion.c
     ${NUCLEO_C}/movimiento_visual.c
+    ${NUCLEO_C}/video_stats.c
+    ${NUCLEO_C}/prueba_obstaculo.c
 )
 
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})

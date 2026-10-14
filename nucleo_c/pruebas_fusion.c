@@ -97,7 +97,7 @@ static void pruebas_configuracion(void)
     int i;
 
     fusion_config_defecto(&c);
-    caso("config por defecto: vigencia 300 ms, confianza minima 0.4, para frenar 0.6", c.vigencia_ms == 300 && c.confianza_min_mil == 400 &&
+    caso("config por defecto: vigencia 300 ms, confianza minima 0.6, para frenar 0.6", c.vigencia_ms == 300 && c.confianza_min_mil == 600 &&
          c.confianza_frenar_mil == 600);
     caso("config por defecto: los limites de cercania son los del detector de color (834 y 667)", c.cerca_mil == OBS_CERCA_MIL && c.media_mil == OBS_MEDIA_MIL);
     caso("config por defecto es valida", fusion_config_es_valida(&c));
@@ -191,6 +191,48 @@ static void pruebas_cajas(void)
     caso("la misma caja con el borde en 833 (2) sube a 3 y no pasa de 3", cercania_de(333, 833, 300, 800) == 3 && cercania_de(100, 900, 0, 1000) == 3);
     caso("una caja chica con el borde en 600 se queda en cercania 1", cercania_de(500, 600, 450, 550) == 1);
     caso("una caja de alto cero o invertida no revienta", cercania_de(600, 600, 450, 550) == 1 && cercania_de(700, 500, 450, 550) == 1);
+}
+
+/* ── Confianza mínima del modelo ───────────────────────────────────────── */
+
+/* Un "refrigerator 43 %" sobre una pared lisa (el detector de color no ve nada) debe ignorarse. */
+static void pruebas_confianza_minima(void)
+{
+    int codigo;
+    const int refrigerator = 71;   /* la clase da igual: aquí se prueba que la confianza baja la descarta antes de mirar la clase */
+
+    fusion_config_defecto(&cfg);
+    caso("la confianza minima por defecto es 60 %", cfg.confianza_min_mil == 600);
+
+    detector_libre();                       /* pared lisa: el detector de color no ve ningún obstáculo */
+    modelo_vacio(1000);
+    caja_cerca_en_camino(refrigerator, 430);
+    codigo = decidir(1100);
+    caso("pared lisa + 'refrigerator 43 %' grande y cerca en el camino: se IGNORA (severidad NINGUNA, sin aviso)",
+         codigo == FUS_OK && sal.severidad == FUS_SEV_NINGUNA && sal.aviso == 0 && sal.zona[ZONA_CENTRO].hay_obstaculo == 0);
+
+    detector_libre();
+    modelo_vacio(1000);
+    caja_cerca_en_camino(refrigerator, 599);
+    codigo = decidir(1100);
+    caso("una caja con 59.9 % tampoco cuenta", codigo == FUS_OK && sal.severidad == FUS_SEV_NINGUNA && sal.aviso == 0);
+
+    detector_libre();
+    modelo_vacio(1000);
+    caja_cerca_en_camino(refrigerator, 430);
+    cfg.clases_interes[0] = cfg.clases_interes[1] = cfg.clases_interes[2] = 0xFFFFFFFFu;   /* aunque la clase sea "de interés" */
+    codigo = decidir(1100);
+    caso("aunque todas las clases sean de interés, con 43 % se ignora", codigo == FUS_OK && sal.severidad == FUS_SEV_NINGUNA && sal.aviso == 0);
+    fusion_config_defecto(&cfg);
+
+    detector_libre();
+    modelo_vacio(1000);
+    caja_cerca_en_camino(refrigerator, 650);
+    cfg.clases_interes[0] = cfg.clases_interes[1] = cfg.clases_interes[2] = 0xFFFFFFFFu;
+    codigo = decidir(1100);
+    caso("la misma caja con 65 % SÍ se toma en cuenta (control: la prueba de arriba no pasa por no haber modelo)",
+         codigo == FUS_OK && (sal.severidad != FUS_SEV_NINGUNA || sal.aviso != 0));
+    fusion_config_defecto(&cfg);
 }
 
 /* ── El detector manda ─────────────────────────────────────────────────── */
@@ -344,6 +386,9 @@ static void pruebas_modelo_aporta(void)
          sal.zona[ZONA_CENTRO].hay_obstaculo == 1 && sal.zona[ZONA_CENTRO].cercania == 3 && sal.fuente == FUS_FUENTE_MODELO &&
          sal.severidad == FUS_SEV_PARAR && sal.detector_solo_decide == 0 && sal.clase_en_camino == 62);
 
+    /* El caso "solo avisa" existe solo si la confianza mínima es MENOR que la de frenar: por defecto las dos son 0.6, así que aquí se baja
+     * la mínima a 0.4 a propósito (como era antes). */
+    cfg.confianza_min_mil = 400;
     modelo_vacio(1000);
     caja_cerca_en_camino(62, 500);   /* menos seguro que 0.6 */
     decidir(1100);
@@ -365,6 +410,8 @@ static void pruebas_modelo_aporta(void)
     decidir(1100);
     caso("una caja con confianza 0.3 (menos que la minima 0.4) no cuenta ni como aviso", sal.zona[ZONA_CENTRO].hay_obstaculo == 0 && sal.aviso == 0 &&
          sal.severidad == FUS_SEV_NINGUNA);
+
+    cfg.confianza_min_mil = 600;   /* de vuelta al valor por defecto */
 
     /* Varias cajas: gana la mas cercana. */
     detector_libre();
@@ -513,6 +560,7 @@ int main(void)
 {
     pruebas_configuracion();
     pruebas_cajas();
+    pruebas_confianza_minima();
     pruebas_detector_manda();
     pruebas_caducidad();
     pruebas_modelo_aporta();

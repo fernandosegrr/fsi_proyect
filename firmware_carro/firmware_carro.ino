@@ -88,7 +88,8 @@ static void iniciar_watchdog_hardware()
 /* Crea la red WiFi propia del carro (punto de acceso). */
 static void iniciar_wifi()
 {
-  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD, WIFI_CANAL);   /* canal fijo */
+  WiFi.setSleep(false);                                 /* sin ahorro de energía del radio: menos retraso y menos tropiezos */
   WiFi.setTxPower(WIFI_POTENCIA_TX);
 }
 

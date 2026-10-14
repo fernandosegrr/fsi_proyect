@@ -757,6 +757,57 @@ static void pruebas_pausa_entre_movimientos(void)
     caso("una recta de varios tramos no se detiene a la mitad", paradas_en_recta == 0 && nav.estado == NAV_TERMINADO);
 }
 
+/* Vigilancia del video: un hueco largo sin cuadros detiene el carro y NO lo reanuda solo cuando el video vuelve. */
+static void pruebas_video_perdido(void)
+{
+    int x_antes, y_antes, i, sin_movimiento = 1;
+
+    /* Hueco corto (300 ms, menos del límite): el carro sigue. */
+    preparar(RECTA, N(RECTA));
+    correr(500);
+    caso("con cuadros cada 50 ms el carro avanza", nav.estado == NAV_SIGUIENDO && sim.cmd_previo == NAV_CMD_FORWARD);
+    sim.periodo_cuadro_ms = 0;                      /* se cae el video */
+    correr(300);
+    sim.periodo_cuadro_ms = NAV_TICK_MS;            /* vuelve */
+    sim.proximo_cuadro_ms = sim.t_ms;
+    correr(300);
+    caso("un hueco de 300 ms de video no detiene el carro", nav.estado == NAV_SIGUIENDO && nav.motivo_error == NAV_MOTIVO_NINGUNO);
+
+    /* Hueco largo (700 ms): STOP y ERROR por falta de video. */
+    preparar(RECTA, N(RECTA));
+    correr(500);
+    sim.periodo_cuadro_ms = 0;
+    correr(NAV_MAX_HUECO_VIDEO_MS + 3 * NAV_TICK_MS);
+    caso("un hueco de video mayor al límite detiene el carro (ERROR por falta de video)",
+         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO && sim.cmd_previo == NAV_CMD_STOP);
+    x_antes = nav.x_mm;
+    y_antes = nav.y_mm;
+
+    /* El video vuelve: el carro NO reanuda; sigue detenido hasta una orden nueva. */
+    sim.periodo_cuadro_ms = NAV_TICK_MS;
+    sim.proximo_cuadro_ms = sim.t_ms;
+    for (i = 0; i < 100; i++) {                    /* 5 segundos más, con el frente libre */
+        correr(NAV_TICK_MS);
+        if (sim.cmd_previo != NAV_CMD_STOP) {
+            sin_movimiento = 0;
+        }
+    }
+    caso("cuando el video vuelve el carro NO reanuda solo: sigue en STOP y en ERROR",
+         sin_movimiento && nav.estado == NAV_ERROR && nav.x_mm == x_antes && nav.y_mm == y_antes);
+
+    /* Solo una ruta nueva lo vuelve a mover. */
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_comenzar(&nav, sim.t_ms);
+    correr(500);
+    caso("con una ruta nueva vuelve a avanzar", nav.estado == NAV_SIGUIENDO && sim.cmd_previo == NAV_CMD_FORWARD);
+
+    /* La vigilancia empieza con el primer cuadro: sin cámara (fuente de botones, cuadros siempre o nunca) no se dispara sola. */
+    preparar(RECTA, N(RECTA));
+    sim.periodo_cuadro_ms = 0;                      /* nunca llega un cuadro */
+    correr(2000);
+    caso("si nunca llegó un cuadro no se vigila el hueco (la ruta decide por tiempo, como antes)", nav.motivo_error != NAV_MOTIVO_SIN_VIDEO);
+}
+
 static void pruebas_giro_visual(void)
 {
     int rumbo;
@@ -939,6 +990,7 @@ int main(void)
     pruebas_deriva();
     pruebas_calibracion();
     pruebas_giro_visual();
+    pruebas_video_perdido();
     pruebas_pausa_entre_movimientos();
     pruebas_giro_visual_con_retraso();
     pruebas_textos();

@@ -401,6 +401,8 @@ void navegador_iniciar(Navegador *nav)
     nav->t_detenido_ms = 0;
     nav->asentando = 0;
     nav->asentar_hasta_ms = 0;
+    nav->usa_camara = 0;
+    nav->t_ultimo_cuadro_ms = 0;
     nav->x_mm = nav->y_mm = nav->rumbo_grados = 0;
     nav->base_x_mm = nav->base_y_mm = nav->base_rumbo_grados = 0;
     nav->seg_ms = 0;
@@ -485,6 +487,8 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
         return NAV_ERR_ESTADO;
     }
     nav->t_ultimo_ms = ahora_ms;
+    nav->usa_camara = 0;               /* se activa con el primer cuadro de obstáculos de esta ruta */
+    nav->t_ultimo_cuadro_ms = ahora_ms;
     nav->cmd_actual = NAV_CMD_STOP;
     nav->seg_ms = 0;
     nav->frames_bloqueado = 0;
@@ -755,7 +759,15 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     }
     nav->t_ultimo_ms = ahora_ms;
 
+    /* Vigilancia del video: si ya llegaban cuadros y pasa más de NAV_MAX_HUECO_VIDEO_MS sin uno nuevo, el carro no ve lo que
+     * hay delante: se detiene y queda en ERROR. ERROR no se sale solo (ni cuando el video vuelva): hace falta una ruta nueva. */
+    if (nav->usa_camara && nav->estado != NAV_ESPERANDO && nav->estado != NAV_TERMINADO && nav->estado != NAV_ERROR &&
+        (uint32_t)(ahora_ms - nav->t_ultimo_cuadro_ms) > NAV_MAX_HUECO_VIDEO_MS) {
+        ir_a_error(nav, NAV_MOTIVO_SIN_VIDEO);
+    }
     if (obs != NULL) {
+        nav->usa_camara = 1;
+        nav->t_ultimo_cuadro_ms = ahora_ms;
         registrar_cuadro(nav, ahora_ms, obs);
     }
     nav->seg_ms += (int)dt;           /* el comando anterior estuvo activo estos dt ms */

@@ -122,6 +122,13 @@
                 android:fontFamily="monospace"
                 android:textSize="12sp" />
 
+            <TextView
+                android:id="@+id/texto_video"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textSize="12sp" />
+
             <Button
                 android:id="@+id/boton_fuente_video"
                 android:layout_width="match_parent"

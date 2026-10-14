@@ -64,6 +64,8 @@ class ControlActivity : Activity() {
         calibracion.aplicarAlNavegador()
         logica = ControlLogica(EnlaceOkHttp()) { mostrarEstado() }
         semi = ModoSemiautonomo(logica) { mostrarEstado() }
+        semi.leerCalibracion = { calibracion.leer() }
+        PruebaObstaculoNativa.iniciarResumen()
         val configVision = ConfigVision(this)
         camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo })
         findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
@@ -82,6 +84,12 @@ class ControlActivity : Activity() {
             nombreRuta = "Zigzag"
             mostrarEstado()
         }
+        findViewById<Button>(R.id.boton_ruta_prueba_obstaculo).setOnClickListener {
+            rutaElegida = ModoSemiautonomo.RUTA_PRUEBA_OBSTACULO
+            nombreRuta = "Prueba de obstáculo (recta de 1 m)"
+            mostrarEstado()
+        }
+        findViewById<Button>(R.id.boton_reiniciar_prueba).setOnClickListener { semi.reiniciarPrueba() }
         findViewById<Button>(R.id.boton_iniciar_ruta).setOnClickListener { semi.iniciar(rutaElegida) }
         findViewById<Button>(R.id.boton_cancelar_ruta).setOnClickListener { semi.cancelar() }
         findViewById<Button>(R.id.boton_obstaculo_izquierda).setOnClickListener { semi.alternarObstaculo(0) }
@@ -224,6 +232,8 @@ class ControlActivity : Activity() {
             "Punto: ${e[NavegadorNativa.E_OBJETIVO]} de ${e[NavegadorNativa.E_PUNTOS] - 1}   Esquivadas: ${e[NavegadorNativa.E_ESQUIVADAS]}\n" +
             (if (fuenteCamara) "Cámara: ${if (camara.abierta) "ABIERTA" else "cerrada"}  ${"%.1f".format(java.util.Locale.US, camara.fps)} fps\n" else "") +
             "Posición estimada: x=${e[NavegadorNativa.E_X_MM] / 10} cm  y=${e[NavegadorNativa.E_Y_MM] / 10} cm  rumbo=${e[NavegadorNativa.E_RUMBO]}°\n" +
+            (if (fuenteCamara && camara.esVideoCarro) camara.textoVideo() + "\n" else "") +
+            (if (semi.textoPrueba.isNotEmpty()) semi.textoPrueba + "\n" else "") +
             semi.mensaje
     }
 }

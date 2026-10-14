@@ -45,6 +45,13 @@ class ControlLogica(
     private var comandoActivo: String? = null   // el botón que se mantiene presionado
     private var pingEnviadoNs = 0L
     private var esperandoPong = false
+    // Medida STOP → respuesta del carro (prueba de obstáculos): se cuentan los PING enviados y los PONG recibidos; el PONG del PING que
+    // sale justo después del STOP es el que cierra la medida (los anteriores todavía en camino no cuentan).
+    private var pingsEnviados = 0
+    private var pongsRecibidos = 0
+    private var pongObjetivo = 0
+    private var stopEnviadoNs = 0L
+    private var alRespuestaStop: ((Long) -> Unit)? = null
 
     // ── Temporizadores ────────────────────────────────────────────────────
 
@@ -63,6 +70,7 @@ class ControlLogica(
             if (conexion == Conexion.CONECTADO) {
                 pingEnviadoNs = System.nanoTime()
                 esperandoPong = true
+                pingsEnviados++
                 enviar("PING")
             }
             manejador.postDelayed(this, PING_MS)
@@ -131,6 +139,21 @@ class ControlLogica(
         }
     }
 
+    /**
+     * Como parar(), pero justo después del STOP manda un PING y, cuando vuelve su PONG (el carro ya procesó el STOP porque los mensajes
+     * llegan en orden), avisa con los ms que pasaron desde que salió el STOP. Lo usa la prueba de obstáculos.
+     */
+    fun pararConRespuesta(alRespuesta: (Long) -> Unit) {
+        stopEnviadoNs = System.nanoTime()
+        parar()
+        pingEnviadoNs = System.nanoTime()
+        esperandoPong = true
+        pingsEnviados++
+        pongObjetivo = pingsEnviados
+        alRespuestaStop = alRespuesta
+        enviar("PING")
+    }
+
     /** Dejar de repetir el comando y enviar STOP. */
     fun parar() {
         comandoActivo = null
@@ -144,12 +167,24 @@ class ControlLogica(
         Log.i(EnlaceOkHttp.ETIQUETA, "conexión abierta")
         manejador.removeCallbacks(tareaReintento)
         esperandoPong = false
+        pingsEnviados = 0
+        pongsRecibidos = 0
+        pongObjetivo = 0
+        alRespuestaStop = null
         cambiarEstado(Conexion.CONECTADO)
         manejador.removeCallbacks(tareaPing)
         manejador.post(tareaPing)   // primer PING ya, luego cada 800 ms
     }
 
     override fun alMensaje(texto: String) {
+        if (texto == "PONG") {
+            pongsRecibidos++
+            val aviso = alRespuestaStop
+            if (aviso != null && pongsRecibidos >= pongObjetivo) {
+                alRespuestaStop = null
+                aviso(Math.round((System.nanoTime() - stopEnviadoNs) / 1.0e6))
+            }
+        }
         if (texto == "PONG" && esperandoPong) {
             esperandoPong = false
             latenciaMs = Math.round((System.nanoTime() - pingEnviadoNs) / 1.0e6)

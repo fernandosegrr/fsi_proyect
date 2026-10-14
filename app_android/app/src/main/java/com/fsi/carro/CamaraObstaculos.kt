@@ -76,7 +76,9 @@ class CuadroAnalizado(
     val fusion: IntArray? = null,          // FusionNativa.ENTEROS_RESULTADO enteros si se usó el modelo de objetos
     val modelo: ResultadoModelo? = null,   // lo último que dijo el modelo cuando se fusionó este cuadro
     val msFusion: Double = 0.0,
-    val giro: GiroVisual? = null           // lo que se vio girar respecto al cuadro anterior
+    val giro: GiroVisual? = null,          // lo que se vio girar respecto al cuadro anterior
+    val marcaMs: Long = 0L,                // hora (SystemClock.elapsedRealtime) en que el cuadro LLEGÓ al teléfono
+    val msHastaResultado: Double = 0.0     // ms desde que llegó hasta que el detector (y la fusión) terminaron
 ) {
     /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
     val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
@@ -139,6 +141,11 @@ class CamaraObstaculos(
         private set
 
     private var ultimoTomado = -1L          // solo se usa desde el hilo principal
+
+    /** El cuadro que devolvió la última llamada a tomarCuadroNuevo() (con su hora de llegada y sus tiempos): lo lee la prueba de obstáculos. */
+    @Volatile
+    var cuadroTomado: CuadroAnalizado? = null
+        private set
     private var contadorCuadros = 0L
 
     // Estadística por ventana de un segundo.
@@ -241,6 +248,12 @@ class CamaraObstaculos(
      */
     val latenciaVisualMs: Int get() = if (videoCarro != null) LATENCIA_VIDEO_CARRO_MS else 0
 
+    /** Texto para la pantalla de visión: los números del video del carro y un aviso si NO va por la red del carro. Vacío con la cámara del teléfono. */
+    fun textoVideo(): String {
+        val v = videoCarro ?: return ""
+        return "Video del carro (últimos 10 s): " + v.textoEstadistica() + (if (!v.redEsDelCarro) "\n⚠ EL VIDEO NO VA POR LA RED DEL CARRO: " + v.red else "")
+    }
+
     /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
     val esVideoCarro: Boolean get() = videoCarro != null
 
@@ -256,7 +269,7 @@ class CamaraObstaculos(
         cuentaMarcas = 0
         ajustarTamanoSalida()
         inicioVentanaMs = SystemClock.elapsedRealtime()
-        val video = VideoCarro(url, { bytes, largo -> alJpegDelCarro(bytes, largo) }, { texto ->
+        val video = VideoCarro(contexto, url, { bytes, largo -> alJpegDelCarro(bytes, largo) }, { texto ->
             if (texto.isEmpty()) {
                 error = ""
             } else {
@@ -274,6 +287,7 @@ class CamaraObstaculos(
     /** Un JPEG del carro: se decodifica, se reduce al tamaño de análisis y entra a la misma cadena que los cuadros del teléfono. */
     private fun alJpegDelCarro(bytes: ByteArray, largo: Int) {
         try {
+            val llegadaMs = SystemClock.elapsedRealtime()
             val inicio = System.nanoTime()
             val mapa = BitmapFactory.decodeByteArray(bytes, 0, largo)
             if (mapa == null) {
@@ -314,7 +328,7 @@ class CamaraObstaculos(
                 inicioVentanaMs = SystemClock.elapsedRealtime()
                 Log.i(ETIQUETA, "video del carro entregando cuadros (${w}x${h})")
             }
-            analizar(ancho, alto, pixeles, inicio, System.nanoTime())
+            analizar(ancho, alto, pixeles, inicio, System.nanoTime(), llegadaMs)
         } catch (e: Exception) {
             Log.w(ETIQUETA, "error procesando un cuadro del carro: ${e.javaClass.simpleName}: ${e.message}")
         }
@@ -497,17 +511,18 @@ class CamaraObstaculos(
     }
 
     private fun procesar(imagen: Image) {
+        val llegadaMs = SystemClock.elapsedRealtime()
         val inicio = System.nanoTime()
         ajustarTamanoSalida()
         val ancho = anchoSalida
         val alto = altoSalida
         val pixeles = IntArray(ancho * alto)
         convertir(imagen, pixeles, ancho, alto)
-        analizar(ancho, alto, pixeles, inicio, System.nanoTime())
+        analizar(ancho, alto, pixeles, inicio, System.nanoTime(), llegadaMs)
     }
 
     /** Todo lo que se hace con un cuadro ya convertido a RGB (en `rgb`) y a ARGB (`pixeles`): detector, giro visual, modelo y fusión. */
-    private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long) {
+    private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long, llegadaMs: Long) {
         val config = configActual()
         val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         val fin = System.nanoTime()
@@ -553,7 +568,8 @@ class CamaraObstaculos(
 
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
-            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual)
+            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual,
+            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble())
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
@@ -670,6 +686,7 @@ class CamaraObstaculos(
             return null
         }
         ultimoTomado = cuadro.numero
+        cuadroTomado = cuadro
         val resumen = cuadro.zonas.copyOf(10)   // las zonas fusionadas si se usa el modelo
         if (cuadro.resultado[ObstaculosNativa.CODIGO] != 0) {
             resumen[ObstaculosNativa.CODIGO] = cuadro.resultado[ObstaculosNativa.CODIGO]
