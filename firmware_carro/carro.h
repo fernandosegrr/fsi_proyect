@@ -42,9 +42,17 @@ void carro_iniciar(void);
 void carro_recibir_comando(const char *texto);
 
 /* Respuesta que hay que mandarle de vuelta al cliente por el WebSocket para ese mensaje, o NULL si no hay que contestar
- * nada. Hoy solo PING → "PONG": la app mide con ese ida y vuelta la latencia y comprueba que la conexión sigue viva.
- * No toca los motores ni el watchdog (carro_recibir_comando ya trata PING aparte). */
+ * nada. PING → "PONG" (la app mide con ese ida y vuelta la latencia y comprueba que la conexión sigue viva);
+ * MODO_MANUAL → "ACK_MANUAL" y MODO_AUTO → "ACK_AUTO" (confirman el perfil de velocidad). Llamar DESPUÉS de carro_recibir_comando:
+ * el ACK confirma que el perfil ya quedó puesto. No toca los motores ni el watchdog. */
 const char *carro_respuesta(const char *texto);
+
+/* Perfil de velocidad actual: PERFIL_MANUAL (0) o PERFIL_AUTO (1), ver config.h. */
+int carro_perfil(void);
+
+/* Vuelve al perfil AUTO (el más seguro). El .ino lo llama junto con carro_detener() al conectarse y desconectarse un cliente WebSocket;
+ * carro_iniciar() y el watchdog también lo hacen. STOP y EBRAKE NO cambian el perfil. */
+void carro_poner_perfil_auto(void);
 
 /* Frena todo de inmediato y vuelve al estado "STOP". Además de STOP/EBRAKE
  * lo usa el .ino al conectarse o desconectarse un cliente WebSocket. */

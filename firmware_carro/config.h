@@ -66,35 +66,35 @@
 #define VELOCIDAD        255   /* adelante y atrás */
 #define VELOCIDAD_GIRO   255   /* motor activo en un pivote */
 
-/* ── Ajuste para ir en línea recta (0 a 255) ──────────────────────────────
- * Al avanzar o retroceder cada lado puede llevar una potencia distinta para compensar que un lado empuje más que el otro (llantas,
- * motores). Los dos motores van al máximo, así que el lado que empuja MÁS se baja: si el carro se desvía a la DERECHA, el izquierdo
- * empuja más → baja VELOCIDAD_IZQ (por ejemplo 235). Si se desvía a la IZQUIERDA, baja VELOCIDAD_DER. Los pivotes no se tocan.
- * Con los dos igual a VELOCIDAD no hay ajuste. Las pruebas compilan con los valores de aquí (las que comparan contra el firmware
- * original suponen 255 y 255). */
-/* VELOCIDAD_CRUCERO: potencia con la que el carro AVANZA/RETROCEDE después del arranque a plena potencia (ver ARRANQUE_PLENO_MS).
- * 255 = todo como estaba validado. EXPERIMENTO (PENDIENTE HARDWARE): 210, para frenar más corto (a menos velocidad el carro recorre menos
- * mientras llega el STOP). Antes, con menos de 255 desde parado, los motores solo zumbaban sin arrancar; por eso ahora el arranque va a plena
- * potencia y SOLO después baja a la velocidad de crucero (un motor ya girando necesita menos fuerza). Si zumba o se detiene al bajar, volver a 255.
- * Los pivotes (VELOCIDAD_GIRO) no se tocan. Al cambiar la velocidad hay que volver a CALIBRAR el avance y el frenado (ms por cm). */
-#ifndef VELOCIDAD_CRUCERO
-#define VELOCIDAD_CRUCERO 210
-#endif
-/* Ajuste por lado: el izquierdo va a 252/255 del crucero (medido con 255: 255 se desviaba 14.5 cm a la derecha a 150 cm, 248 se pasó 16 cm a la
- * izquierda → recta cerca de 252). Con crucero 255 da 252 y 255, igual que antes. */
-#ifndef VELOCIDAD_IZQ
-#define VELOCIDAD_IZQ    (VELOCIDAD_CRUCERO * 252 / 255)
-#endif
-#ifndef VELOCIDAD_DER
-#define VELOCIDAD_DER    VELOCIDAD_CRUCERO
-#endif
+/* ── PERFILES DE VELOCIDAD (0 a 255) ───────────────────────────────────────
+ * El carro tiene DOS perfiles. Solo cambian la potencia al AVANZAR/RETROCEDER después del arranque; los pivotes (VELOCIDAD_GIRO) y el
+ * arranque a plena potencia (VELOCIDAD) son iguales en los dos.
+ *   PERFIL_MANUAL: velocidad máxima, para manejar con los botones de la app. Ajuste recto VALIDADO a 255 (a 150 cm: 3 cm de desvío).
+ *   PERFIL_AUTO:   velocidad limitada (210), para las rutas del modo semiautónomo y la prueba de obstáculos: a menos velocidad el carro
+ *                  recorre menos mientras llega el STOP (el frenado ante un obstáculo mejora). Comprobado en el carro: arranca, va más
+ *                  lento y frena bien. El ajuste recto de este perfil (207/210) es el del manual escalado y está PENDIENTE de medir.
+ * Cómo se elige: la app manda MODO_MANUAL o MODO_AUTO (sin parámetros; el carro contesta ACK_MANUAL o ACK_AUTO). Si el carro se mueve al
+ * cambiar de perfil, primero se detiene (STOP). Al ARRANCAR, al conectarse o reconectarse el WebSocket y tras el watchdog el perfil es
+ * siempre AUTO (el más seguro): la app pide MODO_MANUAL explícitamente cuando quiere correr a máxima velocidad.
+ *
+ * Ajuste para ir en línea recta (cada perfil tiene el suyo): al avanzar o retroceder cada lado puede llevar una potencia distinta para
+ * compensar que un lado empuje más que el otro (llantas, motores). El lado que empuja MÁS se baja: si el carro se desvía a la DERECHA,
+ * baja VELOCIDAD_IZQ; si se desvía a la IZQUIERDA, baja VELOCIDAD_DER. Medido a 255 a 150 cm: con 255/255 se desviaba 14.5 cm a la derecha,
+ * con 248 se pasó 16 cm a la izquierda y con 252 (más el arranque a plena potencia) quedó a 3 cm.
+ *
+ * ARRANQUE_PLENO_MS: al ARRANCAR avanzando o retrocediendo los dos motores van al 100 % durante este tiempo y después se aplica el ajuste
+ * de lado del perfil. Con menos de 255 desde parado los motores solo zumbaban sin arrancar; con el arranque a plena potencia sí arrancan
+ * (probado a 210). Con 0 no hay arranque a plena potencia. */
+#define PERFIL_MANUAL                    0   /* índices de los perfiles */
+#define PERFIL_AUTO                      1
 
-/* Al ARRANCAR avanzando o retrocediendo los dos motores van al 100 % durante este tiempo y después se aplica el ajuste por lado.
- * Medido: con el izquierdo un poco más flojo (248 o 252) arrancaba más tarde que el derecho, el carro giraba unos grados a la
- * izquierda al salir y terminaba ~15 cm de lado a 150 cm. Con 0 no hay arranque a plena potencia. */
-#ifndef ARRANQUE_PLENO_MS
-#define ARRANQUE_PLENO_MS 250u
-#endif
+#define PERFIL_MANUAL_VELOCIDAD_IZQ    252   /* validado a 255: 252 el izquierdo, 255 el derecho */
+#define PERFIL_MANUAL_VELOCIDAD_DER    255
+#define PERFIL_MANUAL_ARRANQUE_PLENO_MS 250u
+
+#define PERFIL_AUTO_VELOCIDAD_IZQ      207   /* 210 * 252 / 255 (mismo cociente izquierdo/derecho que el validado a 255) */
+#define PERFIL_AUTO_VELOCIDAD_DER      210
+#define PERFIL_AUTO_ARRANQUE_PLENO_MS  250u
 
 /* ── Tiempos (milisegundos) ───────────────────────────────────────────────
  * Si se cambia TIEMPO_WATCHDOG_MS hay que revisar el heartbeat de pagina.h

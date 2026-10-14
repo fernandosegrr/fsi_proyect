@@ -50,6 +50,20 @@ async def hablar():
         await ws.send("PING")
         caso("los comandos desconocidos no se contestan", await asyncio.wait_for(ws.recv(), 2) == "PONG")
 
+        # Perfiles: ACK, STOP primero si se mueve, el mismo perfil no frena, el watchdog y la reconexion vuelven a AUTO.
+        await ws.send("MODO_MANUAL")
+        caso("MODO_MANUAL se contesta con ACK_MANUAL", await asyncio.wait_for(ws.recv(), 2) == "ACK_MANUAL")
+        await ws.send("FORWARD")
+        await ws.send("MODO_MANUAL")
+        caso("MODO_MANUAL repetido se contesta igual (idempotente)", await asyncio.wait_for(ws.recv(), 2) == "ACK_MANUAL")
+        await ws.send("MODO_AUTO")
+        caso("MODO_AUTO se contesta con ACK_AUTO", await asyncio.wait_for(ws.recv(), 2) == "ACK_AUTO")
+        await ws.send("MODO_MANUAL")
+        await asyncio.wait_for(ws.recv(), 2)
+        await ws.send("FORWARD")
+        await asyncio.sleep(1.3)                    # sin heartbeat: salta el watchdog y el perfil vuelve a AUTO
+        await ws.send("STOP")
+        await asyncio.sleep(0.1)
         await ws.send("REVERSE")                    # con heartbeat de 250 ms no hay watchdog
         for _ in range(6):
             await asyncio.sleep(0.25)
@@ -80,10 +94,12 @@ async def principal():
         servidor.terminate()
         salida = servidor.communicate(timeout=5)[0]
 
-    caso("el watchdog salta una vez tras FORWARD + solo PING", salida.count("WATCHDOG: motores detenidos") == 1)
+    caso("el watchdog salta tras FORWARD + solo PING (y otra vez tras el FORWARD sin heartbeat de los perfiles)", salida.count("WATCHDOG: motores detenidos") == 2)
     caso("se imprime el comando desconocido y se ignora", "DESCONOCIDO (ignorado): 'HOLA'" in salida)
     caso("MOVE:FWD:50 se trata como desconocido", "DESCONOCIDO (ignorado): 'MOVE:FWD:50'" in salida)
-    caso("con heartbeat de 250 ms el watchdog no salta de nuevo", salida.count("WATCHDOG") == 1)
+    caso("con heartbeat de 250 ms el watchdog no salta de nuevo", salida.count("WATCHDOG") == 2)
+    caso("cambiar de perfil con el carro en marcha imprime STOP por cambio de perfil (una vez: MODO_AUTO en marcha)", salida.count("STOP por cambio de perfil") == 1)
+    caso("el perfil cambia a MANUAL y a AUTO", "Perfil: MANUAL" in salida and "Perfil: AUTO" in salida)
     caso("se imprimen los ms desde el mensaje anterior", " ms  REVERSE" in salida)
     caso("se imprime la desconexion", "DESCONEXION: motores detenidos" in salida)
     print("\n--- salida del servidor ---\n" + salida)

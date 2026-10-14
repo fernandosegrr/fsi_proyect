@@ -3,12 +3,14 @@ servidor_falso.py - Servidor WebSocket FALSO que imita al carro real (solo para 
 
 GUIA DE LECTURA
  1. Escucha en 0.0.0.0:8080, ruta /ws (como el carro: servidor en el puerto 80, ruta /ws).
- 2. Solo acepta los comandos del firmware: FORWARD, REVERSE, LEFT, RIGHT, STOP, EBRAKE, PING
+ 2. Solo acepta los comandos del firmware: FORWARD, REVERSE, LEFT, RIGHT, STOP, EBRAKE, PING, MODO_MANUAL y MODO_AUTO
     (texto plano, sin parametros). Cualquier otro texto se imprime y se ignora.
  3. PING se contesta con PONG. OJO: el carro REAL no contesta nada; el PONG se agrego aqui
     para poder medir la latencia desde la app (ver docs/pruebas_control.md).
  4. Watchdog de 1000 ms como el firmware: si hay motores en marcha y no llega un comando real
     en 1000 ms, imprime "WATCHDOG: motores detenidos". PING NO renueva el reloj (igual que en el carro).
+ 4b. PERFILES de velocidad como el firmware: MODO_MANUAL se contesta con ACK_MANUAL y MODO_AUTO con ACK_AUTO. Si el carro se mueve y el perfil
+    cambia, primero se detiene (imprime "STOP por cambio de perfil"). Al conectarse un cliente y tras el watchdog el perfil vuelve a AUTO.
  5. Un solo cliente a la vez: si se conecta otro, se cierra el anterior (como el carro).
  6. Cada mensaje se imprime con la hora y los ms desde el mensaje anterior.
 
@@ -25,7 +27,7 @@ import time
 
 from websockets.asyncio.server import serve
 
-COMANDOS_VALIDOS = {"FORWARD", "REVERSE", "LEFT", "RIGHT", "STOP", "EBRAKE", "PING"}
+COMANDOS_VALIDOS = {"FORWARD", "REVERSE", "LEFT", "RIGHT", "STOP", "EBRAKE", "PING", "MODO_MANUAL", "MODO_AUTO"}
 COMANDOS_MOVIMIENTO = {"FORWARD", "REVERSE", "LEFT", "RIGHT"}
 RUTA = "/ws"
 WATCHDOG_S = 1.0          # igual que TIEMPO_WATCHDOG_MS del firmware (1000 ms)
@@ -37,6 +39,7 @@ estado = {
     "motores_en_marcha": False,
     "ultimo_comando_real": 0.0,  # reloj del ultimo comando que NO es PING
     "ultimo_mensaje": None,      # para los ms desde el mensaje anterior
+    "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
 }
 
 
@@ -76,7 +79,17 @@ async def procesar(conexion, mensaje):
         await conexion.send("PONG")        # no renueva el watchdog
         return
 
-    estado["ultimo_comando_real"] = time.monotonic()
+    estado["ultimo_comando_real"] = time.monotonic()      # un MODO_* tambien cuenta como comando real (renueva el watchdog)
+    if mensaje in ("MODO_MANUAL", "MODO_AUTO"):
+        nuevo = "MANUAL" if mensaje == "MODO_MANUAL" else "AUTO"
+        if nuevo != estado["perfil"]:
+            if estado["motores_en_marcha"]:
+                imprimir("             STOP por cambio de perfil")
+                estado["motores_en_marcha"] = False
+            estado["perfil"] = nuevo
+            imprimir("             Perfil: %s" % nuevo)
+        await conexion.send("ACK_" + nuevo)
+        return
     estado["motores_en_marcha"] = mensaje in COMANDOS_MOVIMIENTO
 
 
@@ -88,6 +101,7 @@ async def atender(conexion):
         await anterior.close(1000, "otro cliente")
     estado["cliente"] = conexion
     estado["motores_en_marcha"] = False     # el firmware hace hardStop al conectar
+    estado["perfil"] = "AUTO"               # y deja el perfil AUTO
     estado["ultimo_mensaje"] = None
     imprimir("CONEXION desde %s:%s" % conexion.remote_address[:2])
     try:
@@ -98,6 +112,7 @@ async def atender(conexion):
         if estado["cliente"] is conexion:
             estado["cliente"] = None
             estado["motores_en_marcha"] = False
+            estado["perfil"] = "AUTO"
 
 
 async def vigilar_watchdog():
@@ -106,6 +121,7 @@ async def vigilar_watchdog():
         await asyncio.sleep(REVISION_WATCHDOG_S)
         if estado["motores_en_marcha"] and time.monotonic() - estado["ultimo_comando_real"] > WATCHDOG_S:
             estado["motores_en_marcha"] = False
+            estado["perfil"] = "AUTO"            # tras el watchdog el perfil vuelve a AUTO
             imprimir("WATCHDOG: motores detenidos")
 
 

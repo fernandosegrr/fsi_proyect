@@ -124,3 +124,10 @@
 - Pruebas en PC: todas las suites sin fallos (navegador 134, calibración 132, obstáculos 144, piso 57, fusión 72, movimiento 66, video 14, prueba de obstáculo 16, firmware 56). App compilada e instalada.
 - EXPERIMENTO: firmware con velocidad de crucero 210 (arranque a plena potencia y luego 210) cargado en el DevKit; falta comprobar en el carro que arranca, va recto y no se detiene, y recalibrar avance y frenado.
 - PENDIENTE HARDWARE: prueba «Esquivar objeto grande (1.4 m)» con la mochila a mitad de camino (`docs/prueba_obstaculos.md`); medir el retroceso en la calibración (opcional, paso 6).
+
+## LOTE 4 (lotes `docs/trabajos/lote4_1.md` a `lote4_6.md`)
+
+### Trabajo A: perfiles de velocidad MANUAL (255) y AUTO (210) — hecho
+- Firmware con dos perfiles (`MODO_MANUAL`/`MODO_AUTO`, `ACK_*`, STOP si cambia en movimiento, AUTO al arrancar/reconectar/watchdog); la app abre en manual, las rutas esperan el `ACK_AUTO` 1 s, la calibración siempre en AUTO. Detalle en `docs/perfiles_velocidad.md`.
+- Calibración medida a 210 (leída del teléfono): 51.7 ms/cm, frenado 1.4 cm, retroceso 44.4 ms/cm; `docs/latencia.md` recalculado: 8.5 cm hasta frenar con el obstáculo cerca (14.9 a 255).
+- Pruebas en PC: firmware 87, servidor falso 14. PENDIENTE HARDWARE: rectas de 150 cm en los dos perfiles; repetir el giro izquierdo de la calibración (valor sospechoso).

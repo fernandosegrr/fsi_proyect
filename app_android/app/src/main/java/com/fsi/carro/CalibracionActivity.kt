@@ -131,6 +131,7 @@ class CalibracionActivity : Activity() {
         intent.getStringExtra("direccion")?.let { campoDireccion.setText(it) }
 
         logica = ControlLogica(EnlaceOkHttp()) { mostrarConexion() }
+        logica.perfilDeseado = ControlLogica.Perfil.AUTO   // la calibración SIEMPRE en el perfil AUTO (210): es la velocidad a la que andan las rutas
         val configVision = ConfigVision(this)
         camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) })
 
@@ -186,9 +187,13 @@ class CalibracionActivity : Activity() {
 
     private fun conectado() = logica.conexion == ControlLogica.Conexion.CONECTADO
 
+    /** Conectado Y con el perfil AUTO confirmado por el carro: sin eso las pruebas medirían otra velocidad (firmware viejo o perfil MANUAL). */
+    private fun listoParaProbar() = conectado() && logica.perfilConfirmado == ControlLogica.Perfil.AUTO
+
     private fun mostrarConexion() {
         textoConexion.text = when (logica.conexion) {
-            ControlLogica.Conexion.CONECTADO -> "Conectado al carro" + (logica.latenciaMs?.let { " · latencia $it ms" } ?: "")
+            ControlLogica.Conexion.CONECTADO -> "Conectado al carro" + (logica.latenciaMs?.let { " · latencia $it ms" } ?: "") +
+                (if (logica.perfilConfirmado == ControlLogica.Perfil.AUTO) " · perfil AUTO (210) confirmado" else " · esperando que el carro confirme el perfil AUTO (sin eso no se puede probar)")
             ControlLogica.Conexion.RECONECTANDO -> "Reconectando con el carro..."
             else -> "Sin conexión con el carro (las pruebas del carro no funcionan)"
         }
@@ -413,10 +418,10 @@ class CalibracionActivity : Activity() {
         botonProbar.isEnabled = when (paso) {
             Paso.INTRO -> true
             Paso.REACCION -> estadoReaccion == 0 && reacciones.size < TOQUES_REACCION
-            Paso.ARRANQUE -> conectado() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
+            Paso.ARRANQUE -> listoParaProbar() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO ->
-                conectado() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
-            Paso.GIRO_VISUAL -> conectado() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
+                listoParaProbar() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
+            Paso.GIRO_VISUAL -> listoParaProbar() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
             else -> false
         }
         botonYa.isEnabled = (paso == Paso.REACCION && estadoReaccion != 0) || (paso == Paso.ARRANQUE && arrancando)

@@ -17,6 +17,10 @@
  *     (STOP) y se cierra la cámara.
  *  6b. Antes de cada ruta el navegador usa la CALIBRACION guardada del carro (CalibracionActivity); si falta
  *     calibrar algo se muestra un aviso en el panel semiautónomo y se usan valores por defecto.
+ *  6c. PERFILES DE VELOCIDAD: esta pantalla abre en MANUAL (pide MODO_MANUAL al abrir y al reconectar, 255) y muestra el perfil; al pasar a
+ *     Semiautónomo pide MODO_AUTO (210). Las rutas y la prueba de obstáculo no arrancan sin el ACK_AUTO del carro (ver ModoSemiautonomo).
+ *     En MANUAL la detección de obstáculos NO frena (la cámara ni siquiera se usa para decidir): el que maneja es el usuario; el botón STOP
+ *     y el comando EBRAKE del firmware siguen disponibles para frenar. Ver docs/obstaculos.md.
  *  7. Para pruebas se puede abrir por adb con otra dirección:
  *       adb shell am start -n com.fsi.carro/.ControlActivity --es direccion ws://localhost:8080/ws
  */
@@ -63,6 +67,7 @@ class ControlActivity : Activity() {
         calibracion = CalibracionGuardada(this)
         calibracion.aplicarAlNavegador()
         logica = ControlLogica(EnlaceOkHttp()) { mostrarEstado() }
+        logica.perfilDeseado = ControlLogica.Perfil.MANUAL   // esta pantalla abre en manual: pide MODO_MANUAL al abrir y al reconectar
         semi = ModoSemiautonomo(logica) { mostrarEstado() }
         semi.leerCalibracion = { calibracion.leer() }
         PruebaObstaculoNativa.iniciarResumen()
@@ -186,6 +191,7 @@ class ControlActivity : Activity() {
     private fun cambiarModo(semiautonomo: Boolean) {
         semi.cancelar("Cambio de modo")
         modoSemi = semiautonomo
+        logica.pedirPerfil(if (modoSemi) ControlLogica.Perfil.AUTO else ControlLogica.Perfil.MANUAL)   // semiautónomo = velocidad limitada; manual = máxima
         panelManual.visibility = if (modoSemi) View.GONE else View.VISIBLE
         panelSemi.visibility = if (modoSemi) View.VISIBLE else View.GONE
         Log.i("NAV", "modo=${if (modoSemi) "SEMIAUTONOMO" else "MANUAL"}")
@@ -217,8 +223,20 @@ class ControlActivity : Activity() {
             ControlLogica.Conexion.DESCONECTADO -> getString(R.string.estado_desconectado)
         }
         val latencia = logica.latenciaMs?.let { "$it ms" } ?: "—"
-        textoEstado.text = getString(R.string.estado_con_latencia, estado, latencia)
+        textoEstado.text = getString(R.string.estado_con_latencia, estado, latencia) + "\n" + textoPerfil()
         mostrarSemiautonomo()
+    }
+
+    /** El perfil de velocidad: el que se pidió y si el carro ya lo confirmó. */
+    private fun textoPerfil(): String {
+        val deseado = logica.perfilDeseado
+        val confirmado = logica.perfilConfirmado
+        return when {
+            logica.conexion != ControlLogica.Conexion.CONECTADO -> "Perfil: ${deseado.texto} (se pedirá al conectar)"
+            confirmado == deseado -> "Perfil: ${deseado.texto} ✓ confirmado por el carro"
+            confirmado != null -> "Perfil: el carro está en ${confirmado.texto}, se pidió ${deseado.texto}..."
+            else -> "Perfil: pidiendo ${deseado.texto}... (si no se confirma, el firmware del carro es viejo)"
+        }
     }
 
     /** Textos del panel semiautónomo: estado del navegador y los interruptores de obstáculos. */
@@ -229,7 +247,7 @@ class ControlActivity : Activity() {
         findViewById<Button>(R.id.boton_obstaculo_izquierda).text = getString(R.string.obstaculo_izquierda, if (semi.obstaculoSimulado[0]) si else no)
         findViewById<Button>(R.id.boton_obstaculo_centro).text = getString(R.string.obstaculo_centro, if (semi.obstaculoSimulado[1]) si else no)
         findViewById<Button>(R.id.boton_obstaculo_derecha).text = getString(R.string.obstaculo_derecha, if (semi.obstaculoSimulado[2]) si else no)
-        findViewById<Button>(R.id.boton_iniciar_ruta).isEnabled = !semi.activo
+        findViewById<Button>(R.id.boton_iniciar_ruta).isEnabled = !semi.activo && !semi.esperandoPerfil
         findViewById<Button>(R.id.boton_fuente).text = getString(if (fuenteCamara) R.string.fuente_camara else R.string.fuente_botones)
         val e = NavegadorNativa.estado()
         textoNav.text = (calibracion.avisoSiFalta()?.let { "⚠ $it\n" } ?: "") +

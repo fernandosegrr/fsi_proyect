@@ -131,10 +131,12 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
       if (c.id() != client->id()) c.close();
     }
     carro_detener();  /* estado limpio al conectar */
+    carro_poner_perfil_auto();   /* y siempre en el perfil AUTO: la app pide MODO_MANUAL si lo quiere */
     Serial.printf("WS Cliente conectado: #%u\n", client->id());
 
   } else if (type == WS_EVT_DISCONNECT) {
     carro_detener();
+    carro_poner_perfil_auto();
     Serial.println("WS Desconectado — freno de emergencia activado.");
 
   } else if (type == WS_EVT_DATA) {
@@ -146,7 +148,7 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
       memcpy(comando, data, n);
       comando[n] = '\0';
       carro_recibir_comando(comando);
-      /* PING → PONG: la app mide la latencia con el ida y vuelta (la respuesta la decide carro.c). */
+      /* PING → PONG (la app mide la latencia con el ida y vuelta) y MODO_MANUAL/MODO_AUTO → ACK_MANUAL/ACK_AUTO: la respuesta la decide carro.c. */
       const char *respuesta = carro_respuesta(comando);
       if (respuesta != NULL) {
         client->text(respuesta);

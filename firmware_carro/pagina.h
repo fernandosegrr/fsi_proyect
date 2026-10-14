@@ -208,10 +208,18 @@ const char html[] PROGMEM = R"=====(
         isConnecting = false;
         setStatus(true);
 
+        // Esta página es de control MANUAL: pide el perfil de velocidad máxima (el carro arranca en AUTO, 210).
+        ws.send('MODO_MANUAL');
+
         // Ping cada 800 ms para mantener el watchdog del ESP32 y la conexión viva
-        // cuando el celular está en reposo (pantalla apagada)
+        // cuando el celular está en reposo (pantalla apagada). Cada 4 pings (3.2 s) se repite MODO_MANUAL:
+        // si el carro volvió a AUTO por el watchdog, así se repone (repetirlo en el mismo perfil no frena nada).
+        let pings = 0;
         pingInterval = setInterval(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) ws.send('PING');
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('PING');
+            if (++pings % 4 === 0) ws.send('MODO_MANUAL');
+          }
         }, 800);
       };
 

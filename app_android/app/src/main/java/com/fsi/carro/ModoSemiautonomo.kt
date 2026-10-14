@@ -34,6 +34,7 @@ class ModoSemiautonomo(
         const val ETIQUETA = "NAV"
         const val TICK_MS = 50L
         const val TIMEOUT_CAMARA_MS = 1000L   // sin cuadros nuevos durante este tiempo: se cancela la ruta
+        const val PERFIL_ESPERA_MS = 1000L    // tiempo máximo para que el carro confirme el perfil AUTO antes de arrancar una ruta
 
         // Rutas de prueba: [columna0, fila0, columna1, fila1, ...], cada punto vecino del anterior.
         // Cuadrado de 2 celdas por lado (40 cm) y zigzag de escalones de 1 celda.
@@ -89,6 +90,10 @@ class ModoSemiautonomo(
     var activo = false
         private set
 
+    /** true mientras se espera (máximo 1 s) la confirmación ACK_AUTO del carro antes de arrancar la ruta. */
+    var esperandoPerfil = false
+        private set
+
     /** Último mensaje para mostrar en pantalla (por ejemplo por qué se canceló). */
     var mensaje = ""
         private set
@@ -107,8 +112,38 @@ class ModoSemiautonomo(
 
     // ── Lo que llama la pantalla ──────────────────────────────────────────
 
-    /** Carga la ruta y empieza a seguirla. Devuelve false (y deja un mensaje) si no se pudo. */
+    /**
+     * Pide la ruta: primero revisa la conexión y la cámara; después manda MODO_AUTO y la ruta SOLO arranca cuando el carro contesta ACK_AUTO
+     * (máximo PERFIL_ESPERA_MS = 1 s). Si no contesta, no se arranca y queda un ERROR claro. Devuelve false si no se pudo ni empezar a pedir.
+     */
     fun iniciar(ruta: IntArray): Boolean {
+        if (activo || esperandoPerfil) {
+            return false
+        }
+        if (logica.conexion != ControlLogica.Conexion.CONECTADO) {
+            mensaje = "Sin conexión con el carro"
+            alCambiar()
+            return false
+        }
+        esperandoPerfil = true
+        mensaje = "Pidiendo al carro el perfil AUTO (velocidad limitada)..."
+        alCambiar()
+        logica.confirmarPerfil(ControlLogica.Perfil.AUTO, PERFIL_ESPERA_MS) { confirmado ->
+            esperandoPerfil = false
+            if (confirmado) {
+                comenzarRuta(ruta)
+            } else {
+                mensaje = "ERROR: el carro no confirmó el perfil AUTO (ACK_AUTO) en 1 s: la ruta NO arrancó. ¿Está cargado el firmware nuevo en el DevKit? " +
+                    "Revisa la conexión y vuelve a tocar Iniciar."
+                Log.e(ETIQUETA, "ruta no iniciada: sin ACK_AUTO en ${PERFIL_ESPERA_MS} ms")
+                alCambiar()
+            }
+        }
+        return true
+    }
+
+    /** Carga la ruta y empieza a seguirla (ya con el perfil AUTO confirmado). Devuelve false (y deja un mensaje) si no se pudo. */
+    private fun comenzarRuta(ruta: IntArray): Boolean {
         if (activo) {
             return false
         }
@@ -162,6 +197,10 @@ class ModoSemiautonomo(
 
     /** Cancela la ruta: STOP inmediato. Se puede llamar aunque no esté activo. */
     fun cancelar(motivo: String = "Cancelado") {
+        if (esperandoPerfil) {
+            logica.cancelarConfirmacion()   // se canceló mientras esperaba el ACK: no arranca
+            esperandoPerfil = false
+        }
         val estabaActivo = activo
         activo = false
         manejador.removeCallbacks(tarea)
@@ -316,8 +355,8 @@ class ModoSemiautonomo(
     /** Cierra una pasada: calcula el retraso y los cm (en C), lo escribe en el log y en pantalla, y cancela la ruta de prueba. */
     private fun terminarPasada(marca: Long, msDetectar: Double, msStopEnviado: Int, msRespuesta: Int, cercania: Int, zona: Int, origen: String, latenciaVideo: Int) {
         val cal = leerCalibracion()
-        val msPorCmX10 = if (cal.size > CalibracionNativa.CAL_MS_POR_CM_X10) cal[CalibracionNativa.CAL_MS_POR_CM_X10] else 263
-        val frenadoMm = if (cal.size > CalibracionNativa.CAL_FRENADO_MM) cal[CalibracionNativa.CAL_FRENADO_MM] else 9
+        val msPorCmX10 = if (cal.size > CalibracionNativa.CAL_MS_POR_CM_X10) cal[CalibracionNativa.CAL_MS_POR_CM_X10] else 517
+        val frenadoMm = if (cal.size > CalibracionNativa.CAL_FRENADO_MM) cal[CalibracionNativa.CAL_FRENADO_MM] else 14
         val retraso = PruebaObstaculoNativa.retrasoMs(msStopEnviado, msRespuesta, latenciaVideo)
         val cmX10 = PruebaObstaculoNativa.cmX10(retraso, msPorCmX10, frenadoMm)
         PruebaObstaculoNativa.agregar(retraso, cmX10)

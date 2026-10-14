@@ -145,7 +145,7 @@ static void prueba_watchdog(void)
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");          /* t = 0 */
     reloj_ms = 1000; vuelta_loop();
-    caso("watchdog: a 1000 ms exactos NO frena", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("watchdog: a 1000 ms exactos NO frena", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
     reloj_ms = 1001; vuelta_loop();
     caso("watchdog: a 1001 ms frena todo", pines_son(0, 0, 0, 0));
     caso("watchdog: escribe el mensaje de serie", mensajes_serie == 1);
@@ -157,7 +157,7 @@ static void prueba_watchdog(void)
     carro_recibir_comando("FORWARD");
     reloj_ms = 900;  carro_recibir_comando("FORWARD");
     reloj_ms = 1500; vuelta_loop();
-    caso("heartbeat: FORWARD repetido renueva el watchdog", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("heartbeat: FORWARD repetido renueva el watchdog", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
     reloj_ms = 1901; vuelta_loop();
     caso("heartbeat: 1001 ms después del último, frena", pines_son(0, 0, 0, 0));
 
@@ -212,24 +212,24 @@ static void prueba_respuesta_ping(void)
     }
 }
 
-/* Arranque a plena potencia: los dos motores al 100 % los primeros ARRANQUE_PLENO_MS y después el ajuste por lado. */
+/* Arranque a plena potencia: los dos motores al 100 % los primeros PERFIL_AUTO_ARRANQUE_PLENO_MS y después el ajuste por lado. */
 static void prueba_arranque_pleno(void)
 {
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
     caso("FORWARD: al arrancar los dos motores van al 100 %", pines_son(0, 255, 255, 0));
-    reloj_ms = ARRANQUE_PLENO_MS - 1;
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS - 1;
     vuelta_loop();
     caso("FORWARD: un ms antes de terminar el arranque siguen al 100 %", pines_son(0, 255, 255, 0));
-    reloj_ms = ARRANQUE_PLENO_MS;
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS;
     vuelta_loop();
-    caso("FORWARD: al terminar el arranque se aplica el ajuste por lado", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("FORWARD: al terminar el arranque se aplica el ajuste por lado", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
 
     reiniciar_mundo(0);
     carro_recibir_comando("REVERSE");
-    reloj_ms = ARRANQUE_PLENO_MS;
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS;
     vuelta_loop();
-    caso("REVERSE: igual, ajuste por lado después del arranque", pines_son(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER));
+    caso("REVERSE: igual, ajuste por lado después del arranque", pines_son(PERFIL_AUTO_VELOCIDAD_IZQ, 0, 0, PERFIL_AUTO_VELOCIDAD_DER));
 
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
@@ -255,7 +255,124 @@ static void prueba_arranque_pleno(void)
     reloj_ms = 400;
     carro_recibir_comando("HOLA");
     vuelta_loop();
-    caso("un comando desconocido en pleno arranque no evita el ajuste al terminar", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("un comando desconocido en pleno arranque no evita el ajuste al terminar", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
+}
+
+/* ── Perfiles de velocidad: MODO_MANUAL (255) y MODO_AUTO (210) ───────────── */
+
+static void prueba_perfiles(void)
+{
+    /* Por defecto el perfil es AUTO (el seguro) y trae el ajuste de 210. */
+    reiniciar_mundo(0);
+    caso("al arrancar el perfil es AUTO", carro_perfil() == PERFIL_AUTO);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("AUTO: FORWARD tras el arranque a plena potencia va a 207 (izq) y 210 (der)", pines_son(0, 207, 210, 0) && PERFIL_AUTO_VELOCIDAD_IZQ == 207 && PERFIL_AUTO_VELOCIDAD_DER == 210);
+
+    /* MODO_MANUAL / MODO_AUTO se contestan con ACK y cambian el perfil. */
+    caso("MODO_MANUAL se contesta con ACK_MANUAL", carro_respuesta("MODO_MANUAL") != NULL && strcmp(carro_respuesta("MODO_MANUAL"), "ACK_MANUAL") == 0);
+    caso("MODO_AUTO se contesta con ACK_AUTO", carro_respuesta("MODO_AUTO") != NULL && strcmp(carro_respuesta("MODO_AUTO"), "ACK_AUTO") == 0);
+    caso("textos parecidos (minusculas, con espacios, con parametro) no se contestan",
+         carro_respuesta("modo_manual") == NULL && carro_respuesta("MODO_MANUAL ") == NULL && carro_respuesta("MODO_AUTO:1") == NULL &&
+         carro_respuesta("MODO") == NULL && carro_respuesta("ACK_AUTO") == NULL);
+
+    /* Perfil MANUAL: 255 con el ajuste validado (252 / 255) y el mismo arranque. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    caso("MODO_MANUAL cambia el perfil a MANUAL", carro_perfil() == PERFIL_MANUAL);
+    caso("MODO_MANUAL con el carro parado no escribe ningun PWM", escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
+    carro_recibir_comando("FORWARD");
+    caso("MANUAL: FORWARD arranca los dos motores a 255", pines_son(0, 255, 255, 0));
+    reloj_ms = PERFIL_MANUAL_ARRANQUE_PLENO_MS - 1; vuelta_loop();
+    caso("MANUAL: un ms antes del fin del arranque siguen a 255", pines_son(0, 255, 255, 0));
+    reloj_ms = PERFIL_MANUAL_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("MANUAL: tras el arranque va a 252 (izq) y 255 (der), el ajuste validado", pines_son(0, 252, 255, 0) &&
+         PERFIL_MANUAL_VELOCIDAD_IZQ == 252 && PERFIL_MANUAL_VELOCIDAD_DER == 255 && PERFIL_MANUAL_ARRANQUE_PLENO_MS == 250u);
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("REVERSE");
+    reloj_ms = PERFIL_MANUAL_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("MANUAL: REVERSE tras el arranque va a 252 (izq) y 255 (der)", pines_son(252, 0, 0, 255));
+
+    /* Los pivotes van a 255 en los dos perfiles. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("LEFT");
+    caso("AUTO: el pivote a la izquierda sigue a 255", pines_son(0, 0, 255, 0));
+    carro_recibir_comando("STOP");
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("RIGHT");
+    caso("MANUAL: el pivote a la derecha sigue a 255", pines_son(0, 255, 0, 0));
+
+    /* Cambiar de perfil con el carro en movimiento: primero STOP. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 400; vuelta_loop();
+    caso("(antes de cambiar) AUTO avanzando a 207 / 210", pines_son(0, 207, 210, 0));
+    carro_recibir_comando("MODO_MANUAL");
+    caso("MODO_MANUAL con el carro en movimiento: primero STOP (los 4 pines en 0) y perfil MANUAL", pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_MANUAL);
+    reloj_ms = 1500; vuelta_loop();
+    caso("... y no se reanuda solo (ni con el ajuste del arranque)", pines_son(0, 0, 0, 0));
+    carro_recibir_comando("FORWARD");
+    caso("... el siguiente FORWARD se vuelve a aplicar (el MODO no cuenta como comando de movimiento)", pines_son(0, 255, 255, 0));
+    reloj_ms += PERFIL_MANUAL_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("... y va a 252 / 255", pines_son(0, 252, 255, 0));
+    carro_recibir_comando("MODO_AUTO");
+    caso("MODO_AUTO en movimiento (MANUAL -> AUTO): primero STOP", pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO);
+
+    /* El mismo perfil otra vez NO frena (la app lo repite de vez en cuando). */
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 300; vuelta_loop();
+    {
+        int antes = escrituras_pwm;
+
+        reloj_ms = 400; carro_recibir_comando("MODO_MANUAL");
+        caso("MODO_MANUAL repetido en MANUAL y en marcha: no frena ni escribe nada", escrituras_pwm == antes && pines_son(0, 252, 255, 0));
+        reloj_ms = 1300; vuelta_loop();
+        caso("... pero renueva el watchdog como cualquier comando real (a 900 ms del MODO sigue en marcha)", pines_son(0, 252, 255, 0));
+        reloj_ms = 1401; vuelta_loop();
+        caso("... y frena 1001 ms despues", pines_son(0, 0, 0, 0));
+    }
+
+    /* STOP y EBRAKE no cambian el perfil. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("FORWARD");
+    carro_recibir_comando("STOP");
+    caso("STOP no cambia el perfil", carro_perfil() == PERFIL_MANUAL);
+    carro_recibir_comando("FORWARD");
+    carro_recibir_comando("EBRAKE");
+    caso("EBRAKE no cambia el perfil", carro_perfil() == PERFIL_MANUAL);
+
+    /* PING y comandos desconocidos tampoco. */
+    carro_recibir_comando("PING");
+    carro_recibir_comando("HOLA");
+    caso("PING y un comando desconocido no cambian el perfil", carro_perfil() == PERFIL_MANUAL);
+    carro_recibir_comando("MODO_MANUALX");
+    carro_recibir_comando("modo_auto");
+    caso("MODO_MANUALX y modo_auto (no son comandos) no cambian el perfil", carro_perfil() == PERFIL_MANUAL);
+
+    /* Perder la señal (watchdog) vuelve a AUTO. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 1001; vuelta_loop();
+    caso("el watchdog frena y devuelve el perfil a AUTO", pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO);
+
+    /* Conectar o desconectar el cliente (lo hace el .ino con carro_detener + carro_poner_perfil_auto). */
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_detener();
+    caso("carro_detener por si solo no cambia el perfil (lo usa STOP)", carro_perfil() == PERFIL_MANUAL);
+    carro_poner_perfil_auto();
+    caso("carro_poner_perfil_auto (al conectar o reconectar un cliente) deja el perfil AUTO", carro_perfil() == PERFIL_AUTO);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_iniciar();
+    caso("carro_iniciar (arranque) deja el perfil AUTO", carro_perfil() == PERFIL_AUTO);
+
+    /* En los dos perfiles el arranque a plena potencia es de 250 ms. */
+    caso("el arranque a plena potencia es de 250 ms en los dos perfiles", PERFIL_MANUAL_ARRANQUE_PLENO_MS == 250u && PERFIL_AUTO_ARRANQUE_PLENO_MS == 250u);
 }
 
 static void prueba_desconocido(void)
@@ -272,7 +389,7 @@ static void prueba_desconocido(void)
     reloj_ms = 600; carro_recibir_comando("HOLA");
     caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
     reloj_ms = 1500; vuelta_loop();
-    caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
     reloj_ms = 1601; vuelta_loop();
     caso("... y frena 1001 ms después del desconocido", pines_son(0, 0, 0, 0));
 
@@ -318,9 +435,9 @@ static void prueba_desbordamiento(void)
     reiniciar_mundo(0xFFFFFF00u);
     carro_recibir_comando("FORWARD");
     reloj_ms = 0x00000100u; vuelta_loop();            /* pasaron 512 ms */
-    caso("desbordamiento: 512 ms después del FORWARD sigue en marcha", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("desbordamiento: 512 ms después del FORWARD sigue en marcha", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
     reloj_ms = 0x000002E8u; vuelta_loop();            /* pasaron 1000 ms exactos */
-    caso("desbordamiento: 1000 ms exactos NO frena", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("desbordamiento: 1000 ms exactos NO frena", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
     reloj_ms = 0x000002E9u; vuelta_loop();            /* 1001 ms */
     caso("desbordamiento: 1001 ms frena", pines_son(0, 0, 0, 0));
 
@@ -351,6 +468,7 @@ static char     o_comando_actual[64];
 static uint32_t o_ultimo_keepalive;
 static int      o_pleno_modo;      /* modelo del arranque a plena potencia */
 static uint32_t o_pleno_hasta;
+static int      o_perfil;          /* modelo del perfil de velocidad: 0 = MANUAL, 1 = AUTO */
 
 static void o_set_motors(int m1a, int m1b, int m2a, int m2b)
 {
@@ -360,11 +478,11 @@ static void o_set_motors(int m1a, int m1b, int m2a, int m2b)
 
 static void o_apply_motors(const char *dir, int spd)
 {
-    /* La única diferencia deliberada con el original: avanzar y retroceder usan el ajuste por lado (VELOCIDAD_IZQ/DER) para ir recto. */
+    /* La única diferencia deliberada con el original: avanzar y retroceder usan el ajuste por lado (PERFIL_AUTO_VELOCIDAD_IZQ/DER) para ir recto. */
     (void)spd;
     o_pleno_modo = 0;
-    if      (!strcmp(dir, "FORWARD")) { o_set_motors(0, 255, 255, 0); o_pleno_modo = 1; o_pleno_hasta = hw_millis() + ARRANQUE_PLENO_MS; }
-    else if (!strcmp(dir, "REVERSE")) { o_set_motors(255, 0, 0, 255); o_pleno_modo = 2; o_pleno_hasta = hw_millis() + ARRANQUE_PLENO_MS; }
+    if      (!strcmp(dir, "FORWARD")) { o_set_motors(0, 255, 255, 0); o_pleno_modo = 1; o_pleno_hasta = hw_millis() + 250u; }
+    else if (!strcmp(dir, "REVERSE")) { o_set_motors(255, 0, 0, 255); o_pleno_modo = 2; o_pleno_hasta = hw_millis() + 250u; }
     else if (!strcmp(dir, "LEFT"))    o_set_motors(0,   0,   255, 0);
     else if (!strcmp(dir, "RIGHT"))   o_set_motors(0,   255, 0,   0);
 }
@@ -378,6 +496,17 @@ static void o_hard_stop(void)
 
 static void o_execute(const char *cmd)
 {
+    if (!strcmp(cmd, "MODO_MANUAL") || !strcmp(cmd, "MODO_AUTO")) {   /* perfil: si cambia y el carro se mueve, primero STOP */
+        int nuevo = !strcmp(cmd, "MODO_AUTO");
+
+        if (nuevo != o_perfil) {
+            if (o_motores_en_marcha) {
+                o_hard_stop();
+            }
+            o_perfil = nuevo;
+        }
+        return;
+    }
     if (!strcmp(cmd, o_comando_actual) && strcmp(cmd, "STOP") && strcmp(cmd, "EBRAKE")) {
         return;
     }
@@ -404,12 +533,15 @@ static void o_recibir(const char *msg)
 static void o_loop(void)
 {
     if (o_pleno_modo != 0 && (int32_t)(hw_millis() - o_pleno_hasta) >= 0) {
-        if (o_pleno_modo == 1) o_set_motors(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
-        else                  o_set_motors(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
+        int izq = o_perfil ? 207 : 252, der = o_perfil ? 210 : 255;   /* los dos perfiles de config.h */
+
+        if (o_pleno_modo == 1) o_set_motors(0, izq, der, 0);
+        else                  o_set_motors(izq, 0, 0, der);
         o_pleno_modo = 0;
     }
     if (o_motores_en_marcha && (uint32_t)(hw_millis() - o_ultimo_usuario) > 1000) {
         o_hard_stop();
+        o_perfil = 1;   /* el watchdog devuelve el perfil AUTO */
     }
     if ((uint32_t)(hw_millis() - o_ultimo_keepalive) >= 2000) {
         o_keepalive = 1;
@@ -423,6 +555,7 @@ static void o_reiniciar(void)
 {
     memset(o_pwm, 0, sizeof o_pwm);
     o_pleno_modo = 0;
+    o_perfil = 1;
     o_keepalive = 0;
     o_ultimo_usuario = 0;
     o_motores_en_marcha = 0;
@@ -449,7 +582,8 @@ static void prueba_diferencial(uint32_t reloj_inicial, const char *nombre)
 {
     static const char *entradas[] = {
         "FORWARD", "REVERSE", "LEFT", "RIGHT", "STOP", "EBRAKE", "PING",
-        "HOLA", "", "FORWARDX", "forward", "FORWARD", "FORWARD", "PING"
+        "HOLA", "", "FORWARDX", "forward", "FORWARD", "FORWARD", "PING",
+        "MODO_MANUAL", "MODO_AUTO", "MODO_MANUAL", "MODO_MANUAL", "MODO_AUTOX"
     };
     const int n_entradas = (int)(sizeof entradas / sizeof entradas[0]);
     long pasos = 300000, distintos = 0;
@@ -490,6 +624,7 @@ int main(void)
     prueba_ping();
     prueba_respuesta_ping();
     prueba_arranque_pleno();
+    prueba_perfiles();
     prueba_desconocido();
     prueba_keepalive();
     prueba_desbordamiento();
