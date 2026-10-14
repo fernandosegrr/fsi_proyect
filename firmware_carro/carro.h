@@ -41,6 +41,11 @@ void carro_iniciar(void);
  * Renueva el reloj del watchdog (salvo con PING) y ejecuta el comando. */
 void carro_recibir_comando(const char *texto);
 
+/* Respuesta que hay que mandarle de vuelta al cliente por el WebSocket para ese mensaje, o NULL si no hay que contestar
+ * nada. Hoy solo PING → "PONG": la app mide con ese ida y vuelta la latencia y comprueba que la conexión sigue viva.
+ * No toca los motores ni el watchdog (carro_recibir_comando ya trata PING aparte). */
+const char *carro_respuesta(const char *texto);
+
 /* Frena todo de inmediato y vuelve al estado "STOP". Además de STOP/EBRAKE
  * lo usa el .ino al conectarse o desconectarse un cliente WebSocket. */
 void carro_detener(void);

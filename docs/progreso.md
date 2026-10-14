@@ -96,3 +96,7 @@
 - Hecho: `nucleo_c/movimiento_visual.c/.h` (huella de columnas de la mitad de arriba, corrimiento con subpíxel, rango de al menos un tercio del ancho, "sin confianza" si la escena es lisa, ambigua o débil), campo de visión en `CalibracionCarro` (`cal_ajustar_fov`), el navegador corta el giro cuando la cámara ve el ángulo (tiempo de respaldo, cuadros del arranque ignorados, compensación del retraso de la cámara), JNI y app (giro visual en la pantalla de visión, paso 6 opcional en la calibración), `docs/giro_visual.md`.
 - Pruebas en PC: movimiento visual 60 casos (corrimientos de 1 a 80 px con y sin ruido, escena uniforme sin confianza, giro de 90° acumulado), navegador 96 (carro simulado 20 % lento: 72° sin cámara y 92° con cámara; con 320 ms de retraso), calibración 110, fusión 67, piso 57, detector 144, trayectoria 28; todas pasan. La app compila.
 - PENDIENTE HARDWARE: probar el giro visual con el teléfono girado a mano, hacer el paso 6 de la calibración con el carro, medir el retraso real y poner `ponerLatenciaVisual` cuando la app reciba el video de la Freenove.
+
+## EXTRA: firmware nuevo
+- Hecho: `firmware_carro` ya no da el aviso "TWDT already initialized" (reconfigura el vigilante que el núcleo ya inició) y contesta `PONG` a `PING`. Pruebas de PC (`pruebas_firmware`): 49 casos, 0 fallos (44 anteriores + 5 de PONG); compila para la DevKit.
+- PENDIENTE HARDWARE: cargar con `scripts/cargar.ps1 nuevo` y comprobar el arranque (sin el error, con "Watchdog de hardware: 5000 ms") y la latencia PING/PONG en la pantalla de control.

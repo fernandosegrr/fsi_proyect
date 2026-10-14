@@ -189,6 +189,29 @@ static void prueba_ping(void)
     caso("PING con carro parado no escribe nada", escrituras_pwm == 0);
 }
 
+static void prueba_respuesta_ping(void)
+{
+    caso("PING se contesta con PONG", carro_respuesta("PING") != NULL && strcmp(carro_respuesta("PING"), "PONG") == 0);
+    caso("los comandos de movimiento y STOP no se contestan", carro_respuesta("FORWARD") == NULL && carro_respuesta("REVERSE") == NULL &&
+         carro_respuesta("LEFT") == NULL && carro_respuesta("RIGHT") == NULL && carro_respuesta("STOP") == NULL && carro_respuesta("EBRAKE") == NULL);
+    caso("un texto desconocido, vacio, en minusculas o parecido a PING no se contesta", carro_respuesta("") == NULL && carro_respuesta("ping") == NULL &&
+         carro_respuesta("PINGX") == NULL && carro_respuesta("PIN") == NULL && carro_respuesta("PONG") == NULL);
+    caso("texto NULL: no se contesta ni revienta", carro_respuesta(NULL) == NULL);
+    /* Contestar no cambia nada del carro: sigue sin renovar el watchdog ni mover motores. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    {
+        int antes = escrituras_pwm;
+
+        reloj_ms = 500;
+        carro_recibir_comando("PING");
+        (void)carro_respuesta("PING");
+        reloj_ms = 1001;
+        vuelta_loop();
+        caso("contestar el PING no renueva el watchdog (frena a 1001 ms del FORWARD) ni mueve los motores", escrituras_pwm > antes && pines_son(0, 0, 0, 0));
+    }
+}
+
 static void prueba_desconocido(void)
 {
     /* Igual que el original: no mueve motores, pero renueva el watchdog y
@@ -407,6 +430,7 @@ int main(void)
     prueba_repetidos();
     prueba_watchdog();
     prueba_ping();
+    prueba_respuesta_ping();
     prueba_desconocido();
     prueba_keepalive();
     prueba_desbordamiento();

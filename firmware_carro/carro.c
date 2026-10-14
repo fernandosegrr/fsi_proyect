@@ -144,6 +144,14 @@ void carro_recibir_comando(const char *texto)
     ejecutar_comando(texto);
 }
 
+const char *carro_respuesta(const char *texto)
+{
+    if (texto != NULL && strcmp(texto, "PING") == 0) {
+        return "PONG";
+    }
+    return NULL;
+}
+
 /* Freno inmediato (el antiguo hardStop). Lo usan STOP, EBRAKE, el watchdog
  * y los eventos de conexión/desconexión del WebSocket. */
 void carro_detener(void)

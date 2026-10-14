@@ -88,6 +88,6 @@ actual.
 
 ## Pendientes que vienen de la pantalla de control (app)
 
-- **El firmware no contesta `PONG` a `PING`.** La app mide la latencia PING-PONG y el servidor falso sí contesta; con el carro real la latencia se verá "—". Para medirla por WiFi habría que hacer que el firmware conteste `PONG` (cambia el protocolo: hacerlo aparte y con la placa).
+- **RESUELTO (compilado, falta probarlo en la placa): el firmware ahora contesta `PONG` a `PING`** (`carro_respuesta` en `carro.c`, probado en PC; `firmware_carro.ino` la manda por el WebSocket). La app puede medir la latencia PING-PONG por WiFi. PENDIENTE HARDWARE: cargar `firmware_carro` con `scripts/cargar.ps1 nuevo`, abrir la pantalla de control y comprobar que aparece la latencia.
 - **Silencio del carro y tiempo de espera de lectura.** La app no cierra la conexión por silencio (readTimeout 0 en OkHttp). Comprobarlo con el carro real durante más de 10 s sin tráfico de vuelta.
 - **Un solo cliente.** Al conectar la app, el firmware cierra al cliente anterior (página web u otro teléfono); la app lo toma como una caída y reintenta cada 2 s, lo que podría "pelearse" con la otra conexión. Probar con el carro.

@@ -8,9 +8,10 @@
  * WebSocket y las funciones hw_... viven aquí.
  *
  * Este archivo NO decide nada sobre los motores: solo recibe mensajes y se
- * los pasa a carro.c (carro_recibir_comando), que es C estándar. Las únicas
- * "decisiones" que quedan aquí son las que obliga la librería WebSocket
- * (aceptar un solo cliente y validar el formato del frame).
+ * los pasa a carro.c (carro_recibir_comando), que es C estándar, y manda de
+ * vuelta lo que carro.c pide (PING → PONG). Las únicas "decisiones" que quedan
+ * aquí son las que obliga la librería WebSocket (aceptar un solo cliente y
+ * validar el formato del frame).
  */
 
 #include <WiFi.h>
@@ -57,7 +58,12 @@ static void hw_iniciar_pwm()
   ledcAttach(PIN_MOTOR_DER_B, PWM_FRECUENCIA_HZ, PWM_BITS);
 }
 
-/* Watchdog de hardware: reinicia el chip si loop() deja de ejecutarse. */
+/* Watchdog de hardware: reinicia el chip si loop() deja de ejecutarse.
+ *
+ * El núcleo de Arduino-ESP32 3.x (IDF 5) YA inicia este vigilante (TWDT) antes de setup(); llamar a esp_task_wdt_init
+ * daba el error "TWDT already initialized" y, peor, dejaba el tiempo del núcleo y no el de WATCHDOG_HW_MS. Por eso primero se
+ * RECONFIGURA el que ya existe, y solo si todavía no estaba iniciado (ESP_ERR_INVALID_STATE) se inicia uno nuevo. Que esta
+ * tarea (loop) ya estuviera suscrita (ESP_ERR_INVALID_ARG) tampoco es un error. */
 static void iniciar_watchdog_hardware()
 {
   const esp_task_wdt_config_t wdt_config = {
@@ -65,8 +71,18 @@ static void iniciar_watchdog_hardware()
     .idle_core_mask = 0,
     .trigger_panic  = true
   };
-  esp_task_wdt_init(&wdt_config);
-  esp_task_wdt_add(NULL);
+  esp_err_t error = esp_task_wdt_reconfigure(&wdt_config);
+  if (error == ESP_ERR_INVALID_STATE) {
+    error = esp_task_wdt_init(&wdt_config);
+  }
+  if (error != ESP_OK) {
+    Serial.printf("Watchdog de hardware: ERROR al configurar (%s)\n", esp_err_to_name(error));
+  }
+  error = esp_task_wdt_add(NULL);
+  if (error != ESP_OK && error != ESP_ERR_INVALID_ARG) {
+    Serial.printf("Watchdog de hardware: ERROR al suscribir loop() (%s)\n", esp_err_to_name(error));
+  }
+  Serial.printf("Watchdog de hardware: %d ms\n", WATCHDOG_HW_MS);
 }
 
 /* Crea la red WiFi propia del carro (punto de acceso). */
@@ -129,6 +145,11 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
       memcpy(comando, data, n);
       comando[n] = '\0';
       carro_recibir_comando(comando);
+      /* PING → PONG: la app mide la latencia con el ida y vuelta (la respuesta la decide carro.c). */
+      const char *respuesta = carro_respuesta(comando);
+      if (respuesta != NULL) {
+        client->text(respuesta);
+      }
     }
   }
 }
