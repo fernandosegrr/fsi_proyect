@@ -91,3 +91,29 @@ cerca), `ms_detectar` (de la llegada del cuadro a que el detector terminó), `ms
 | ms por cm hacia atrás | sin medir | 44.4 (22.5 cm/s) |
 
 La calibración está en `docs/calibracion.md`. La app usa 51.7 ms/cm y 1.4 cm si no puede leer la calibración guardada.
+
+## Trabajo D: pasos para bajar la latencia del video (antes y después)
+
+Regla del trabajo: se mide antes y después de cada paso; **si no gana 5 ms, se descarta**. Lo que no se pudo medir sin las placas queda como PENDIENTE HARDWARE con los pasos para medirlo; los números de «antes» son los ya medidos en este documento y en `docs/camara_prueba.md`.
+
+| Paso | Qué se hizo (en el código) | Antes (medido) | Después | Estado |
+|---|---|---|---|---|
+| 1. Compresión JPEG en la cámara | Registro `JPEG_MS` (línea cada 5 s por el puerto serie: compresor, cuadros, ms medio/mín/máx, tamaño) y comparación al arrancar de **4 compresores** sobre cuadros reales: `frame2jpg` (jpge de esp32-camera, el de siempre), JPEGENC 4:2:0 calidad media, 4:4:4 y 4:2:0 calidad baja (`camara_prueba/src/JPEGENC`, **Apache-2.0**, copiada tal cual de bitbank2/JPEGENC, hashes en `LEEME.txt`). `/control?comp=esp`, `420`, `444` o `baja` cambia el compresor en vivo (vuelve a `frame2jpg` al reiniciar). | `frame2jpg` calidad 50: 105 a 107 ms por cuadro en QVGA (`docs/camara_prueba.md`); en HQVGA falta el dato fino | **PENDIENTE HARDWARE** | Compila; falta correr en la cámara |
+| 2. Cuadro más reciente sin acumulación | Ya estaba: casilla única entre captura y compresión (el cuadro viejo se tira y se cuenta en `descartados`), `CAMERA_GRAB_LATEST`, `/stats` con `edad_ms` y `edad_max_ms` (edad del cuadro). Nuevo en la app: cola de 1 también entre las etapas del teléfono (paso 4) y el hilo de lectura deja siempre vacío el búfer del socket. | edad ~135 ms en HQVGA (etapa 1 de este documento) | sin cambio en la cámara | Confirmado en el código; no había nada que ganar |
+| 3. `TCP_NODELAY`, `setSleep(false)`, canal fijo | Cámara: `TCP_NODELAY` en el socket del stream (ya estaba), `WiFi.setSleep(false)` (ya estaba) y canal del punto de acceso fijo (`WIFI_CANAL` 1, ya estaba). **Nuevo:** `TCP_NODELAY` también en el WebSocket del carro (`client->client()->setNoDelay(true)` al conectar, `firmware_carro.ino`) para que el STOP no espere al algoritmo de Nagle. | PING/PONG por WiFi medido: 30 ms (etapa 4 de este documento) | **PENDIENTE HARDWARE**: repetir el PING/PONG de la app con el firmware nuevo | Compila |
+| 4. `VideoCarro` en hilos | La cadena del video del carro ahora son **3 hilos** (lectura del socket → decodificación → análisis) con **cola de 1** entre cada par (el cuadro viejo se tira) y objetos reutilizados (JPEG, mapa de bits `inBitmap` y arreglos de pixeles). Registro `MODO_STATS` cada 5 s con fps, hueco máximo, huecos > 300 ms, **ms de llegada a decisión**, descartados y bytes/s. | Una sola función hacía leer + decodificar + analizar: si el análisis tardaba, los cuadros se acumulaban en el búfer del socket (retraso que crece) | Con la cámara FALSA (sin cámara real): llegada→decisión 10 a 12 ms, 0 descartados a ~9 fps (`docs/latencia_modos.md`, sección 3) | La mejora real (menos retraso con una red lenta) **PENDIENTE HARDWARE**: comparar `MODO_STATS` con el carro |
+| 5. Antes y después | Esta tabla. | | | La columna «Después» se llena con las pasadas de `docs/latencia_modos.md` |
+
+### Cómo medir los pasos 1 y 3 (PENDIENTE HARDWARE)
+
+1. Cargar la cámara (`scripts\cargar.ps1 camara`). Al arrancar, el puerto serie (monitor de `cargar.ps1`) escribe las líneas `JPEG_MS comparacion comp=... compresion=... ms jpeg_medio=... B fps=... edad_hasta_fin_de_compresion=... ms` de los 4 compresores. Anotar cada una aquí.
+2. Criterio: un compresor reemplaza a `frame2jpg` solo si (a) gana **al menos 5 ms** de compresión (o de edad) y (b) la app decodifica bien sus JPEG y **el color del piso que mide el detector es el mismo** (`Piso (RGB)` en la pantalla de visión, ±3 niveles: JPEGENC lee RGB565 con el orden de bytes de la ESP32 y se supuso «primero el byte alto»; si los colores salen cambiados el supuesto es el contrario). Mientras tanto el compresor predeterminado **sigue siendo `frame2jpg`**.
+3. Con el compresor elegido: `http://192.168.4.2/control?comp=420` (por ejemplo), abrir el video en la app 1 minuto y leer `JPEG_MS` y `MODO_STATS`.
+4. PING/PONG del WebSocket: «Iniciar» una ruta con el firmware nuevo y comparar el `ms_respuesta` de `OBST_PRUEBA` con los ~30 ms de antes.
+
+| Compresor | Compresión (ms) HQVGA | JPEG medio (B) | fps | Edad hasta fin de compresión (ms) | ¿La app lo decodifica? | ¿Mismo color de piso? | ¿Gana ≥ 5 ms? |
+|---|---|---|---|---|---|---|---|
+| frame2jpg q50 | | | | | sí | sí | — |
+| JPEGENC 4:2:0 media | | | | | | | |
+| JPEGENC 4:4:4 media | | | | | | | |
+| JPEGENC 4:2:0 baja | | | | | | | |

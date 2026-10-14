@@ -164,7 +164,16 @@ function Preparar-Sketch {
             if (-not (Test-Path $sketch)) {
                 Fallar 'No existe camara_prueba\ (se crea en el trabajo H2). Nada que cargar todavia.'
             }
-            return $sketch
+            # Copia temporal FUERA del repositorio con el sketch y el codigo C del detector (nucleo_c): el modo de video CELDAS usa EL MISMO codigo que el telefono,
+            # sin reescribirlo ni duplicarlo en el repositorio. Un sketch de Arduino solo compila lo que esta en su carpeta.
+            $destino = Join-Path $carpetaTemporal 'camara\camara_prueba'
+            if (Test-Path $destino) { Remove-Item -Recurse -Force $destino }
+            New-Item -ItemType Directory -Force -Path $destino | Out-Null
+            Copy-Item -Path (Join-Path $sketch '*') -Destination $destino -Recurse
+            foreach ($archivo in @('obstaculos.c', 'obstaculos.h', 'paquete_celdas.c', 'paquete_celdas.h')) {
+                Copy-Item (Join-Path $raiz "nucleo_c\$archivo") $destino
+            }
+            return $destino
         }
     }
 }

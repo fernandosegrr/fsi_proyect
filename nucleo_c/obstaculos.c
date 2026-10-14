@@ -1069,34 +1069,16 @@ static int ajustar_brillo(ModeloPiso *trabajo, MapaColores celdas, const Rejilla
     return 1;
 }
 
-int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *rgb,
-                               int ancho, int alto, int avanzando, unsigned int ahora_ms,
-                               ResultadoObstaculos *resultado)
+/* Todo el análisis a partir de las celdas ya promediadas (`celdas`) y la rejilla (con la franja ya calculada): es lo MISMO para una imagen completa y para las
+ * celdas que manda la cámara del carro (modo CELDAS), así los dos dan el mismo resultado (se prueba en pruebas_celdas.c). `resultado` ya viene limpio. */
+static int analizar_celdas_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, MapaColores celdas, Rejilla rejilla,
+                                  int avanzando, unsigned int ahora_ms, ResultadoObstaculos *resultado)
 {
-    MapaColores celdas;
     MapaCeldas candidatas;
-    Rejilla rejilla;
     GruposPiso franja, piso;
     ModeloPiso trabajo;
-    int fila_minima, codigo, franja_ok, g, c;
+    int fila_minima, franja_ok, g, c;
     int piso_celdas, total_celdas, hay_obstaculo;
-
-    if (resultado == NULL) {
-        return OBS_ERR_IMAGEN_NULA;
-    }
-    limpiar_resultado(resultado);
-    if (rgb == NULL || modelo == NULL) {
-        return OBS_ERR_IMAGEN_NULA;
-    }
-    codigo = calcular_rejilla(ancho, alto, &rejilla);
-    if (codigo != OBS_OK) {
-        return codigo;
-    }
-    if (config == NULL || !config_es_valida(config)) {
-        return OBS_ERR_CONFIG;
-    }
-    calcular_franja(config, &rejilla);
-    promediar_celdas(rgb, &rejilla, celdas);
 
     /* El modelo se trabaja en una copia: si hay un error no cambia. */
     trabajo = *modelo;
@@ -1215,6 +1197,98 @@ int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *model
     }
     *modelo = trabajo;
     return OBS_OK;
+}
+
+int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *rgb,
+                               int ancho, int alto, int avanzando, unsigned int ahora_ms,
+                               ResultadoObstaculos *resultado)
+{
+    MapaColores celdas;
+    Rejilla rejilla;
+    int codigo;
+
+    if (resultado == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    limpiar_resultado(resultado);
+    if (rgb == NULL || modelo == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    codigo = calcular_rejilla(ancho, alto, &rejilla);
+    if (codigo != OBS_OK) {
+        return codigo;
+    }
+    if (config == NULL || !config_es_valida(config)) {
+        return OBS_ERR_CONFIG;
+    }
+    calcular_franja(config, &rejilla);
+    promediar_celdas(rgb, &rejilla, celdas);
+    return analizar_celdas_modelo(config, modelo, celdas, rejilla, avanzando, ahora_ms, resultado);
+}
+
+int obstaculos_promediar(const unsigned char *rgb, int ancho, int alto, unsigned char *celdas, int capacidad, int *columnas, int *filas)
+{
+    Rejilla rejilla;
+    MapaColores mapa;
+    int codigo, fila, columna, c;
+
+    if (rgb == NULL || celdas == NULL || columnas == NULL || filas == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    codigo = calcular_rejilla(ancho, alto, &rejilla);
+    if (codigo != OBS_OK) {
+        return codigo;
+    }
+    if (capacidad < rejilla.columnas * rejilla.filas * 3) {
+        return OBS_ERR_TAMANO;
+    }
+    promediar_celdas(rgb, &rejilla, mapa);
+    for (fila = 0; fila < rejilla.filas; fila++) {
+        for (columna = 0; columna < rejilla.columnas; columna++) {
+            for (c = 0; c < 3; c++) {
+                celdas[(fila * rejilla.columnas + columna) * 3 + c] = mapa[fila][columna][c];
+            }
+        }
+    }
+    *columnas = rejilla.columnas;
+    *filas = rejilla.filas;
+    return OBS_OK;
+}
+
+int obstaculos_analizar_modelo_celdas(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *celdas, int columnas, int filas,
+                                      int avanzando, unsigned int ahora_ms, ResultadoObstaculos *resultado)
+{
+    MapaColores mapa;
+    Rejilla rejilla;
+    int codigo, fila, columna, c;
+
+    if (resultado == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    limpiar_resultado(resultado);
+    if (celdas == NULL || modelo == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    if (columnas <= 0 || filas <= 0 || columnas > OBS_MAX_COLUMNAS || filas > OBS_MAX_FILAS) {
+        return OBS_ERR_TAMANO;
+    }
+    /* La rejilla de una imagen de (columnas * 10) x (filas * 10) píxeles: la misma que da la imagen original (las filas o columnas sueltas de más no cuentan). */
+    codigo = calcular_rejilla(columnas * OBS_LADO_CELDA, filas * OBS_LADO_CELDA, &rejilla);
+    if (codigo != OBS_OK) {
+        return codigo;
+    }
+    if (config == NULL || !config_es_valida(config)) {
+        return OBS_ERR_CONFIG;
+    }
+    calcular_franja(config, &rejilla);
+    for (fila = 0; fila < filas; fila++) {
+        for (columna = 0; columna < columnas; columna++) {
+            for (c = 0; c < 3; c++) {
+                mapa[fila][columna][c] = celdas[(fila * columnas + columna) * 3 + c];
+            }
+        }
+    }
+    return analizar_celdas_modelo(config, modelo, mapa, rejilla, avanzando, ahora_ms, resultado);
 }
 
 int obstaculos_analizar_con(const ConfigObstaculos *config, const unsigned char *rgb,

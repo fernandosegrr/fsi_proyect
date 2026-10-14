@@ -1,0 +1,11 @@
+JPEGENC (bitbank2/JPEGENC): copiada tal cual de https://github.com/bitbank2/JPEGENC (carpeta src, rama master) el 14 oct 2026.
+Licencia: Apache-2.0 (archivo LICENSE de esta carpeta y cabecera SPDX de cada archivo).
+Se usa solo para comparar la compresion JPEG contra frame2jpg (docs/latencia.md). El firmware sigue usando frame2jpg por defecto.
+
+SHA-256:
+  JPEGENC.h    e48963e57adf97ff0e98be78a0cdba901d7b10738d6ba8b7e9dea7b2017c997d
+  JPEGENC.cpp  929c3fad3d18be2675ef1e9182eaaaffd71e9adad14e7383aeba40fab1cb6807
+  jpegenc.inl  073a033585a57fb3b8ca52372b9834b0a14a0c9218138eb01e98cfdc4eec1dbd
+  LICENSE      63fefff6dd199d109389e0f413579387e9ca9cfdeeae961ecdbcb120d08432e0
+
+UNICO CAMBIO A LO ORIGINAL: jpegenc.inl se renombro a jpegenc_inl.h y JPEGENC.cpp lo incluye con ese nombre, porque el compilador de Arduino no copia archivos .inl a la compilacion.

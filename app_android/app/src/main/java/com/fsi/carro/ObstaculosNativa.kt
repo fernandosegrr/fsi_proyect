@@ -139,6 +139,12 @@ object ObstaculosNativa {
     external fun analizarConfig(rgb: ByteArray, ancho: Int, alto: Int, config: IntArray, avanzando: Boolean, ahoraMs: Long): IntArray
 
     /** Empieza a aprender el piso: desde el siguiente cuadro cada cuadro analizado se suma (el carro debe estar QUIETO). Solo desde el hilo de la cámara. */
+    /**
+     * Igual que analizarConfig pero con las CELDAS ya promediadas por la cámara del carro (modo de video celdas): `celdas` trae columnas * filas * 3 bytes (R, G, B de cada celda,
+     * fila por fila). El resultado es el mismo que daría la imagen completa. «Aprender piso» no funciona con este modo.
+     */
+    external fun analizarCeldasConfig(celdas: ByteArray, columnas: Int, filas: Int, config: IntArray, avanzando: Boolean, ahoraMs: Long): IntArray
+
     external fun aprenderPisoIniciar()
 
     /** Termina de aprender el piso con lo acumulado y deja ese modelo (23 enteros, posiciones APR_*). Solo desde el hilo de la cámara. */

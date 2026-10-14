@@ -66,6 +66,7 @@ class VisionActivity : Activity() {
     private lateinit var textoVideo: TextView
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
+    private lateinit var botonModoVideo: Button   // modo de video del carro: jpeg, raw o celdas (Trabajo I)
     private lateinit var botonFlujo: Button        // «Flujo del piso» (movimiento_piso.h): apagado por defecto
     private lateinit var botonCorredor: Button     // controles que se agregan por código debajo de «Fuente del video» (ver agregarControlesExtra)
     private lateinit var campoCorredor: EditText
@@ -392,6 +393,17 @@ class VisionActivity : Activity() {
         }
         padre.addView(botonCorredor, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
 
+        botonModoVideo = Button(this)
+        botonModoVideo.setOnClickListener {
+            configuracion.modoVideo = ModoVideo.siguiente(configuracion.modoVideo)
+            if (configuracion.fuenteCarro) {
+                camara.cerrar()
+                abrirCamara()   // se vuelve a abrir con el modo nuevo (la cámara del carro lo cambia con /control?modo=)
+            }
+            mostrarValoresDeBarras()
+        }
+        padre.addView(botonModoVideo, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
+
         botonFlujo = Button(this)
         botonFlujo.setOnClickListener {
             configuracion.flujoActivo = !configuracion.flujoActivo
@@ -455,6 +467,8 @@ class VisionActivity : Activity() {
         botonCualquiera.text = "Modelo: cualquier objeto (sin clase): ${if (configuracion.cualquierObjeto) "SÍ" else "NO"} (tocar para cambiar)"
         barraCualquiera.progress = configuracion.umbralCualquieraMil - CualquieraNativa.UMBRAL_MIN_MIL
         textoCualquiera.text = textoUmbralCualquiera()
+        botonModoVideo.text = "Modo de video del carro: ${configuracion.modoVideo}" +
+            (if (::camara.isInitialized && camara.esVideoCarro && camara.modoVideo != configuracion.modoVideo) " (en uso: ${camara.modoVideo}, falló el pedido)" else "") + " (tocar para cambiar: jpeg, raw, celdas)"
         botonFlujo.text = "Flujo del piso (solo con el carro avanzando): ${if (configuracion.flujoActivo) "SÍ" else "NO"} (tocar para cambiar)"
         botonCorredor.text = "Corredor de trayectoria: ${if (configuracion.corredorActivo) "SÍ" else "NO"} (tocar para cambiar)"
         campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,

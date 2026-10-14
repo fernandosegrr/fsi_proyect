@@ -43,6 +43,28 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
+
+#define COMPRESOR_JPEGENC 1   /* 1 = incluye JPEGENC (src/JPEGENC, Apache-2.0) para compararlo con frame2jpg; el compresor de siempre sigue siendo frame2jpg salvo /control?comp= */
+#if COMPRESOR_JPEGENC
+#include "src/JPEGENC/JPEGENC.h"
+#endif
+
+/* Modos de video RAW y CELDAS (Trabajo I). CELDAS usa el MISMO código C del detector del teléfono (nucleo_c/obstaculos.c y paquete_celdas.c); scripts\cargar.ps1 los
+ * copia junto al sketch al compilar. Si no están (por ejemplo al abrir el sketch suelto en el IDE de Arduino), solo se compilan jpeg y raw. */
+#if defined(__has_include)
+#  if __has_include("obstaculos.h") && __has_include("paquete_celdas.h")
+#    define MODO_CELDAS_DISPONIBLE 1
+#  endif
+#endif
+#ifndef MODO_CELDAS_DISPONIBLE
+#  define MODO_CELDAS_DISPONIBLE 0
+#endif
+#if MODO_CELDAS_DISPONIBLE
+#include <WiFiUdp.h>
+#include "obstaculos.h"
+#include "paquete_celdas.h"
+#endif
 
 #if defined(__has_include)
 #  if __has_include("secretos.h")
@@ -119,6 +141,57 @@ struct Medida {
   uint32_t jpegMedio, descartados;
 };
 
+/* ── Compresor JPEG (Trabajo D) ─────────────────────────────────────────── */
+
+#define COMP_ESP     0   /* frame2jpg (jpge de esp32-camera): el de siempre */
+#define COMP_ENC420  1   /* JPEGENC, submuestreo de color 4:2:0, calidad media */
+#define COMP_ENC444  2   /* JPEGENC, 4:4:4, calidad media */
+#define COMP_ENCLOW  3   /* JPEGENC, 4:2:0, calidad baja (el archivo más chico) */
+#define COMP_N       4
+static volatile int compresor = COMP_ESP;   /* al reiniciar vuelve a frame2jpg */
+
+static const char *nombre_compresor(int c)
+{
+  switch (c) {
+  case COMP_ENC420: return "jpegenc_420";
+  case COMP_ENC444: return "jpegenc_444";
+  case COMP_ENCLOW: return "jpegenc_420_baja";
+  default:          return "frame2jpg";
+  }
+}
+
+/* ── Modo de video (Trabajo I) ──────────────────────────────────────────── */
+
+#define MODO_JPEG    0   /* de siempre: /stream con JPEG */
+#define MODO_RAW     1   /* /raw: el cuadro RGB565 sin comprimir */
+#define MODO_CELDAS  2   /* promedio RGB de cada celda de 10x10 por UDP al teléfono (puerto 4210); el JPEG sigue en /stream */
+#define PUERTO_UDP   4210
+static volatile int modoVideo = MODO_JPEG;   /* al reiniciar vuelve a jpeg */
+
+static const char *nombre_modo(int m)
+{
+  switch (m) {
+  case MODO_RAW:    return "raw";
+  case MODO_CELDAS: return "celdas";
+  default:          return "jpeg";
+  }
+}
+
+/* Lo que mide el modo celdas (para /stats y la línea MODO_CAM). */
+static volatile uint32_t celdasEnviadas = 0;      /* paquetes UDP mandados */
+static volatile uint64_t celdasUsTotal = 0;       /* tiempo total de convertir + promediar + armar + mandar */
+static volatile uint32_t celdasMaxUs = 0;
+static volatile uint32_t ipCliente = 0;           /* IPv4 del teléfono (la dirección de donde llegó el último HOLA) */
+static volatile uint16_t puertoCliente = 0;
+static volatile uint32_t holaMs = 0;              /* hora (millis) del último HOLA; 0 = ninguno */
+static volatile uint32_t pingsContestados = 0;
+
+static inline bool cliente_celdas_vigente()
+{
+  uint32_t h = holaMs;
+  return h != 0 && ipCliente != 0 && (millis() - h) < 5000;   /* el teléfono repite HOLA cada segundo; sin noticias en 5 s se deja de mandar */
+}
+
 static const char *nombre_formato(pixformat_t f)
 {
   switch (f) {
@@ -184,6 +257,7 @@ static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static Acum acum;                       /* lo que va del segundo actual */
 static volatile uint32_t totalCapturados = 0, totalDescartados = 0, totalComprimidos = 0;
 static volatile uint64_t totalCompUs = 0;
+static uint32_t compMinUs = 0xFFFFFFFFu, compMaxUs = 0;   /* de la ventana actual del registro JPEG_MS */
 static const int ANILLO = 5;
 static Acum anillo[ANILLO];             /* últimos 5 segundos, uno por segundo */
 static uint32_t anilloMs[ANILLO];
@@ -212,6 +286,8 @@ static void sumar_compresion(int64_t us)
   portENTER_CRITICAL(&mux);
   acum.comprimidos++;
   acum.sumCompUs += us;
+  if ((uint32_t)us < compMinUs) compMinUs = (uint32_t)us;
+  if ((uint32_t)us > compMaxUs) compMaxUs = (uint32_t)us;
   portEXIT_CRITICAL(&mux);
   __atomic_fetch_add(&totalComprimidos, 1u, __ATOMIC_RELAXED);
   __atomic_fetch_add(&totalCompUs, (uint64_t)us, __ATOMIC_RELAXED);
@@ -441,6 +517,100 @@ static bool pedir_reinicio(const Config &nueva)
   return ok;
 }
 
+#if MODO_CELDAS_DISPONIBLE
+/* ── Modo CELDAS: promedio RGB de cada celda de 10x10 por UDP ──────────── */
+
+static WiFiUDP udpEscucha;   /* solo la usa tarea_udp (recibe HOLA y PING) */
+static WiFiUDP udpCeldas;    /* solo la usa la tarea de captura (manda los paquetes de celdas) */
+static uint8_t *rgb888 = NULL;
+static size_t rgb888Cap = 0;
+static uint32_t numeroCelda = 0;
+
+/* Convierte el cuadro RGB565 (la cámara manda primero el byte alto de cada píxel) a RGB888, promedia las celdas con obstaculos_promediar (el mismo código del detector del
+ * teléfono), arma el paquete (paquete_celdas.c) y lo manda al teléfono que dijo HOLA. `t0_us` es la hora en que se capturó el cuadro. */
+static void enviar_celdas(camera_fb_t *fb, int64_t t0_us)
+{
+  static uint8_t celdas[PAQ_MAX_COLUMNAS * PAQ_MAX_FILAS * 3];
+  static uint8_t paquete[PAQ_MAX_TOTAL];
+  if (fb->format != PIXFORMAT_RGB565) return;
+  const int w = fb->width, h = fb->height;
+  const size_t necesario = (size_t)w * h * 3;
+  if (necesario > rgb888Cap) {
+    free(rgb888);
+    rgb888 = (uint8_t *)ps_malloc(necesario);
+    rgb888Cap = rgb888 ? necesario : 0;
+  }
+  if (!rgb888) return;
+  int64_t a = esp_timer_get_time();
+  const uint8_t *origen = fb->buf;
+  uint8_t *destino = rgb888;
+  for (size_t i = 0; i < (size_t)w * h; i++) {
+    const uint8_t alto = origen[2 * i], bajo = origen[2 * i + 1];
+    const uint8_t r5 = alto >> 3, g6 = ((alto & 7) << 3) | (bajo >> 5), b5 = bajo & 0x1F;
+    destino[0] = (uint8_t)((r5 << 3) | (r5 >> 2));
+    destino[1] = (uint8_t)((g6 << 2) | (g6 >> 4));
+    destino[2] = (uint8_t)((b5 << 3) | (b5 >> 2));
+    destino += 3;
+  }
+  int columnas = 0, filas = 0;
+  if (obstaculos_promediar(rgb888, w, h, celdas, (int)sizeof celdas, &columnas, &filas) != OBS_OK) return;
+  DatosPaquete d;
+  d.numero = ++numeroCelda;
+  d.ms_captura = (uint32_t)((esp_timer_get_time() - t0_us) / 1000);
+  d.ancho = w;
+  d.alto = h;
+  d.columnas = columnas;
+  d.filas = filas;
+  const int largo = paquete_armar(paquete, (int)sizeof paquete, &d, celdas);
+  if (largo <= 0 || largo > PAQ_LIMITE_UDP) return;
+  IPAddress destinoIp((uint32_t)ipCliente);
+  if (udpCeldas.beginPacket(destinoIp, puertoCliente)) {
+    udpCeldas.write(paquete, (size_t)largo);
+    udpCeldas.endPacket();
+  }
+  const uint32_t us = (uint32_t)(esp_timer_get_time() - a);
+  celdasEnviadas++;
+  celdasUsTotal += us;
+  if (us > celdasMaxUs) celdasMaxUs = us;
+}
+
+/* Atiende el puerto UDP 4210: "HOLA" (el teléfono pide las celdas; se responde "HOLA-OK" y se recuerda su dirección y puerto, sin IP fija) y "PING n" (se responde
+ * "PONG n" enseguida: el teléfono mide con eso el ida y vuelta de la red). */
+static void tarea_udp(void *)
+{
+  udpEscucha.begin(PUERTO_UDP);
+  char buf[48];
+  for (;;) {
+    int n = udpEscucha.parsePacket();
+    if (n <= 0) {
+      vTaskDelay(pdMS_TO_TICKS(1));
+      continue;
+    }
+    int leidos = udpEscucha.read(buf, sizeof(buf) - 1);
+    if (leidos < 0) leidos = 0;
+    buf[leidos] = 0;
+    IPAddress ip = udpEscucha.remoteIP();
+    uint16_t puerto = udpEscucha.remotePort();
+    if (strncmp(buf, "HOLA", 4) == 0) {
+      const bool nuevo = !cliente_celdas_vigente() || (uint32_t)ip != ipCliente || puerto != puertoCliente;
+      ipCliente = (uint32_t)ip;
+      puertoCliente = puerto;
+      holaMs = millis() ? millis() : 1;
+      if (nuevo) Serial.printf("[udp] cliente de celdas: %s:%u\n", ip.toString().c_str(), (unsigned)puerto);
+      udpEscucha.beginPacket(ip, puerto);
+      udpEscucha.printf("HOLA-OK %s", nombre_modo(modoVideo));
+      udpEscucha.endPacket();
+    } else if (strncmp(buf, "PING", 4) == 0) {
+      udpEscucha.beginPacket(ip, puerto);
+      udpEscucha.print("PONG");
+      udpEscucha.print(buf + 4);   /* devuelve el número que mandó el teléfono */
+      udpEscucha.endPacket();
+      pingsContestados++;
+    }
+  }
+}
+#endif
+
 /* ── Tubería: captura (núcleo 0) ───────────────────────────────────────── */
 
 static void tarea_captura(void *)
@@ -454,7 +624,8 @@ static void tarea_captura(void *)
       xSemaphoreGive(reinicioHecho);
       continue;
     }
-    if (demanda <= 0) {
+    const bool paraCeldas = (modoVideo == MODO_CELDAS) && cliente_celdas_vigente();
+    if (demanda <= 0 && !paraCeldas) {
       ultimoT = 0;
       if (casillaFb) vaciar_casilla();   /* sin nadie que lo pida, el cuadro de la casilla envejece: se devuelve */
       vTaskDelay(pdMS_TO_TICKS(10));
@@ -474,6 +645,15 @@ static void tarea_captura(void *)
     }
     sumar_captura(ultimoT ? t - ultimoT : 0);
     ultimoT = t;
+#if MODO_CELDAS_DISPONIBLE
+    if (paraCeldas) {
+      enviar_celdas(fb, t);                /* primero las celdas (lo urgente); el JPEG para ver sigue en paralelo, con menos prioridad */
+      if (demanda <= 0) {                  /* nadie pide el JPEG: el cuadro no hace falta */
+        esp_camera_fb_return(fb);
+        continue;
+      }
+    }
+#endif
 
     xSemaphoreTake(candadoCasilla, portMAX_DELAY);
     if (casillaFb) {                       /* el consumidor no llegó a tiempo: el viejo se descarta */
@@ -487,6 +667,57 @@ static void tarea_captura(void *)
 }
 
 /* ── Tubería: toma, compresión y envío ─────────────────────────────────── */
+
+#if COMPRESOR_JPEGENC
+static JPEGENC codificador;   /* grande (2 KB de búfer interno): estático, no en la pila */
+
+/* JPEGENC: de RGB565 a JPEG en memoria. La cámara entrega cada píxel con el byte alto primero y JPEGENC lee palabras de 16 bits en el orden del procesador: se
+ * intercambian los bytes del cuadro antes (el cuadro se devuelve a la cámara justo después, así que se puede modificar). */
+static bool comprimir_jpegenc(camera_fb_t *fb, uint8_t **salida, size_t *largo)
+{
+  if (fb->format != PIXFORMAT_RGB565) return false;
+  const int w = fb->width, h = fb->height;
+  const size_t capacidad = (size_t)w * h / 2 + 4096;
+  uint8_t *buf = (uint8_t *)heap_caps_malloc(capacidad, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!buf) buf = (uint8_t *)malloc(capacidad);
+  if (!buf) return false;
+  uint8_t *p = fb->buf;
+  for (size_t i = 0; i + 1 < (size_t)w * h * 2; i += 2) {
+    uint8_t a = p[i];
+    p[i] = p[i + 1];
+    p[i + 1] = a;
+  }
+  JPEGENCODE je;
+  const uint8_t submuestreo = (compresor == COMP_ENC444) ? JPEGE_SUBSAMPLE_444 : JPEGE_SUBSAMPLE_420;
+  const uint8_t calidad = (compresor == COMP_ENCLOW) ? JPEGE_Q_LOW : JPEGE_Q_MED;
+  int n = 0;
+  bool ok = false;
+  if (codificador.open(buf, (int)capacidad) == JPEGE_SUCCESS &&
+      codificador.encodeBegin(&je, w, h, JPEGE_PIXEL_RGB565, submuestreo, calidad) == JPEGE_SUCCESS &&
+      codificador.addFrame(&je, fb->buf, w * 2) == JPEGE_SUCCESS) {
+    n = codificador.close();
+    ok = n > 0;
+  } else {
+    codificador.close();
+  }
+  if (!ok) {
+    free(buf);
+    return false;
+  }
+  *salida = buf;
+  *largo = (size_t)n;
+  return true;
+}
+#endif
+
+/* Comprime un cuadro con el compresor elegido (frame2jpg por defecto). El resultado se libera con free(). */
+static bool comprimir_cuadro(camera_fb_t *fb, uint8_t **salida, size_t *largo)
+{
+#if COMPRESOR_JPEGENC
+  if (compresor != COMP_ESP) return comprimir_jpegenc(fb, salida, largo);
+#endif
+  return frame2jpg(fb, (uint8_t)cfg.calidad, salida, largo);
+}
 
 /* Toma el cuadro MÁS RECIENTE de la casilla y lo deja como JPEG. Devuelve false si no llegó ninguno. */
 static bool siguiente_jpeg(Cuadro &c, uint32_t esperaMs)
@@ -512,7 +743,7 @@ static bool siguiente_jpeg(Cuadro &c, uint32_t esperaMs)
   int64_t a = esp_timer_get_time();
   uint8_t *salida = NULL;
   size_t largo = 0;
-  bool ok = frame2jpg(fb, (uint8_t)cfg.calidad, &salida, &largo);
+  bool ok = comprimir_cuadro(fb, &salida, &largo);
   esp_camera_fb_return(fb);                /* ya se puede reutilizar el búfer de la cámara */
   sumar_compresion(esp_timer_get_time() - a);
   xSemaphoreGive(candadoUso);
@@ -797,6 +1028,20 @@ static esp_err_t manejar_captura(httpd_req_t *req)
   return r;
 }
 
+/* Toma el cuadro MÁS RECIENTE de la casilla tal como salió de la cámara (RGB565, sin comprimir). Si devuelve un cuadro, quien llama debe devolverlo con
+ * esp_camera_fb_return() y soltar candadoUso. Devuelve NULL (sin tomar nada) si no llegó ninguno. */
+static camera_fb_t *tomar_cuadro_crudo(uint32_t esperaMs)
+{
+  if (xSemaphoreTake(hayCuadro, pdMS_TO_TICKS(esperaMs)) != pdTRUE) return NULL;
+  if (xSemaphoreTake(candadoUso, pdMS_TO_TICKS(3000)) != pdTRUE) return NULL;
+  xSemaphoreTake(candadoCasilla, portMAX_DELAY);
+  camera_fb_t *fb = casillaFb;
+  casillaFb = NULL;
+  xSemaphoreGive(candadoCasilla);
+  if (!fb) xSemaphoreGive(candadoUso);
+  return fb;
+}
+
 static uint8_t *envioBuf = NULL;
 static size_t envioCap = 0;
 
@@ -850,6 +1095,71 @@ static void tarea_stream(void *arg)
   vTaskDelete(NULL);
 }
 
+/* Tarea que manda el cuadro CRUDO (RGB565) a un cliente, como partes de un multipart igual que el MJPEG. Cada parte trae: Content-Length, X-Ancho, X-Alto, X-Numero y
+ * X-Ms-Captura-Envio (ms entre la captura y el inicio del envío); los bytes son los de la cámara (alto, bajo) de cada píxel RGB565. */
+static void tarea_raw(void *arg)
+{
+  httpd_req_t *req = (httpd_req_t *)arg;
+  int fd = httpd_req_to_sockfd(req);
+  ajustar_socket(fd);
+  static const char CABECERA[] =
+    "HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace;boundary=cuadro\r\n"
+    "Cache-Control: no-store\r\nPragma: no-cache\r\nConnection: close\r\n\r\n";
+  bool ok = enviar_todo(fd, (const uint8_t *)CABECERA, sizeof(CABECERA) - 1);
+  int sinCuadro = 0;
+  uint32_t numero = 0;
+
+  demanda_mas();
+  while (ok) {
+    camera_fb_t *fb = tomar_cuadro_crudo(1500);
+    if (!fb) {
+      if (++sinCuadro > 5) break;
+      continue;
+    }
+    sinCuadro = 0;
+    const int64_t t0 = (int64_t)fb->timestamp.tv_sec * 1000000LL + fb->timestamp.tv_usec;
+    char cab[220];
+    int n = snprintf(cab, sizeof(cab),
+                     "--cuadro\r\nContent-Type: application/x-rgb565\r\nContent-Length: %u\r\nX-Ancho: %d\r\nX-Alto: %d\r\nX-Numero: %u\r\nX-Ms-Captura-Envio: %u\r\n\r\n",
+                     (unsigned)fb->len, (int)fb->width, (int)fb->height, (unsigned)++numero, (unsigned)((esp_timer_get_time() - t0) / 1000));
+    const size_t largo = fb->len;
+    int64_t a = esp_timer_get_time();
+    ok = enviar_todo(fd, (const uint8_t *)cab, (size_t)n) && enviar_todo(fd, fb->buf, largo) && enviar_todo(fd, (const uint8_t *)"\r\n", 2);
+    int64_t b = esp_timer_get_time();
+    esp_camera_fb_return(fb);
+    xSemaphoreGive(candadoUso);
+    if (ok) sumar_envio(b - a, b - t0, largo);
+  }
+  demanda_menos();
+  Serial.println("[http] raw terminado");
+  httpd_sess_trigger_close(servidor, fd);
+  httpd_req_async_handler_complete(req);
+  streamActivo = false;
+  vTaskDelete(NULL);
+}
+
+static esp_err_t manejar_raw(httpd_req_t *req)
+{
+  log_peticion(req);
+  if (jpegDelSensor || cfg.fmt != PIXFORMAT_RGB565) {
+    return responder_503(req, "el modo raw necesita la camara en RGB565");
+  }
+  if (streamActivo) {
+    return responder_503(req, "ya hay un stream activo");
+  }
+  httpd_req_t *copia = NULL;
+  if (httpd_req_async_handler_begin(req, &copia) != ESP_OK) {
+    return httpd_resp_send_500(req);
+  }
+  streamActivo = true;
+  if (xTaskCreatePinnedToCore(tarea_raw, "raw", 8192, copia, 3, NULL, 1) != pdPASS) {
+    streamActivo = false;
+    httpd_req_async_handler_complete(copia);
+    return ESP_FAIL;
+  }
+  return ESP_OK;
+}
+
 static esp_err_t manejar_stream(httpd_req_t *req)
 {
   log_peticion(req);
@@ -874,9 +1184,40 @@ static esp_err_t manejar_control(httpd_req_t *req)
   log_peticion(req);
   char consulta[48];
   char valor[10];
+  if (httpd_req_get_url_query_str(req, consulta, sizeof(consulta)) == ESP_OK &&
+      httpd_query_key_value(consulta, "comp", valor, sizeof(valor)) == ESP_OK) {
+    /* Compresor JPEG: esp (frame2jpg), 420, 444 o baja (JPEGENC). Vuelve a frame2jpg al reiniciar. */
+    int nuevo = -1;
+    if (strcmp(valor, "esp") == 0) nuevo = COMP_ESP;
+#if COMPRESOR_JPEGENC
+    else if (strcmp(valor, "420") == 0) nuevo = COMP_ENC420;
+    else if (strcmp(valor, "444") == 0) nuevo = COMP_ENC444;
+    else if (strcmp(valor, "baja") == 0) nuevo = COMP_ENCLOW;
+#endif
+    if (nuevo < 0) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "comp debe ser esp, 420, 444 o baja (JPEGENC debe estar compilado)");
+    compresor = nuevo;
+    Serial.printf("[http] compresor -> %s\n", nombre_compresor(nuevo));
+    httpd_resp_set_type(req, "text/plain");
+    return httpd_resp_send(req, nombre_compresor(nuevo), HTTPD_RESP_USE_STRLEN);
+  }
+  if (httpd_req_get_url_query_str(req, consulta, sizeof(consulta)) == ESP_OK &&
+      httpd_query_key_value(consulta, "modo", valor, sizeof(valor)) == ESP_OK) {
+    /* Modo de video: jpeg (de siempre), raw (/raw) o celdas (UDP 4210). Al reiniciar la cámara vuelve a jpeg. */
+    int nuevo = -1;
+    if (strcmp(valor, "jpeg") == 0) nuevo = MODO_JPEG;
+    else if (strcmp(valor, "raw") == 0) nuevo = MODO_RAW;
+#if MODO_CELDAS_DISPONIBLE
+    else if (strcmp(valor, "celdas") == 0) nuevo = MODO_CELDAS;
+#endif
+    if (nuevo < 0) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "modo debe ser jpeg, raw o celdas (celdas necesita nucleo_c compilado)");
+    modoVideo = nuevo;
+    Serial.printf("[http] modo de video -> %s\n", nombre_modo(nuevo));
+    httpd_resp_set_type(req, "text/plain");
+    return httpd_resp_send(req, nombre_modo(nuevo), HTTPD_RESP_USE_STRLEN);
+  }
   if (httpd_req_get_url_query_str(req, consulta, sizeof(consulta)) != ESP_OK ||
       httpd_query_key_value(consulta, "size", valor, sizeof(valor)) != ESP_OK) {
-    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "uso: /control?size=qqvga|hqvga|qvga|vga");
+    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "uso: /control?size=qqvga|hqvga|qvga|vga  o  /control?comp=esp|420|444|baja  o  /control?modo=jpeg|raw|celdas");
   }
   Config nueva = cfg;
   if (strcmp(valor, "qvga") == 0) nueva.tam = FRAMESIZE_QVGA;
@@ -897,16 +1238,19 @@ static esp_err_t manejar_stats(httpd_req_t *req)
 {
   log_peticion(req);
   Resumen r = resumir(3);   /* últimos 3 segundos */
-  char json[800];
+  char json[1200];
   int n = snprintf(json, sizeof(json),
     "{\"fps_captura\":%.1f,\"fps_envio\":%.1f,\"ms_captura\":%.1f,\"ms_compresion\":%.1f,\"ms_envio\":%.1f,"
     "\"edad_ms\":%.0f,\"edad_max_ms\":%.0f,\"envio_max_ms\":%.0f,\"descartados\":%u,\"descartados_total\":%u,\"jpeg_medio_bytes\":%.0f,\"stream\":%s,"
     "\"rssi\":%d,\"rssi_min_10s\":%d,\"reconexiones\":%u,\"heap_libre\":%u,\"psram_libre\":%u,\"uptime_s\":%u,"
-    "\"config\":{\"xclk_mhz\":%d,\"formato\":\"%s\",\"tam\":\"%s\",\"calidad\":%d,\"sensor\":\"%s\"}}",
+    "\"config\":{\"xclk_mhz\":%d,\"formato\":\"%s\",\"tam\":\"%s\",\"calidad\":%d,\"sensor\":\"%s\",\"compresor\":\"%s\"},"
+    "\"modo\":\"%s\",\"bytes_s\":%.0f,\"celdas_enviadas\":%u,\"celdas_ms\":%.2f,\"celdas_max_ms\":%.2f,\"cliente_celdas\":%s,\"pings\":%u}",
     r.fpsCaptura, r.fpsEnvio, r.msCaptura, r.msCompresion, r.msEnvio, r.edadMs, r.edadMaxMs, r.envioMaxMs,
     (unsigned)r.descartados, (unsigned)totalDescartados, r.jpegMedio, streamActivo ? "true" : "false",
     WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, rssi_minimo_10s(), (unsigned)reconexiones, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
-    (unsigned)(millis() / 1000), cfg.xclkMHz, nombre_formato(cfg.fmt), nombre_tam(cfg.tam), cfg.calidad, nombreSensor);
+    (unsigned)(millis() / 1000), cfg.xclkMHz, nombre_formato(cfg.fmt), nombre_tam(cfg.tam), cfg.calidad, nombreSensor, nombre_compresor(compresor),
+    nombre_modo(modoVideo), r.fpsEnvio * r.jpegMedio, (unsigned)celdasEnviadas, celdasEnviadas ? celdasUsTotal / 1000.0 / celdasEnviadas : 0.0,
+    celdasMaxUs / 1000.0, cliente_celdas_vigente() ? "true" : "false", (unsigned)pingsContestados);
   if (n <= 0 || n >= (int)sizeof(json)) return httpd_resp_send_500(req);
   httpd_resp_set_type(req, "application/json");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
@@ -919,7 +1263,7 @@ static void iniciar_servidor()
   httpd_config_t c = HTTPD_DEFAULT_CONFIG();
   c.server_port = 80;
   c.stack_size = 10240;
-  c.max_uri_handlers = 8;
+  c.max_uri_handlers = 10;
   c.lru_purge_enable = true;
   c.send_wait_timeout = 2;
   if (httpd_start(&servidor, &c) != ESP_OK) {
@@ -930,13 +1274,14 @@ static void iniciar_servidor()
     { "/",        HTTP_GET, manejar_indice,  NULL },
     { "/capture", HTTP_GET, manejar_captura, NULL },
     { "/stream",  HTTP_GET, manejar_stream,  NULL },
+    { "/raw",     HTTP_GET, manejar_raw,     NULL },
     { "/control", HTTP_GET, manejar_control, NULL },
     { "/stats",   HTTP_GET, manejar_stats,   NULL },
   };
   for (size_t i = 0; i < sizeof(rutas) / sizeof(rutas[0]); i++) {
     httpd_register_uri_handler(servidor, &rutas[i]);
   }
-  Serial.println("[http] servidor listo en el puerto 80 (/, /capture, /stream, /control, /stats)");
+  Serial.println("[http] servidor listo en el puerto 80 (/, /capture, /stream, /raw, /control, /stats)");
 }
 
 /* ── Autoprueba: la placa se pide a sí misma las rutas (sin PC ni teléfono) ─ */
@@ -971,6 +1316,25 @@ static size_t autopedir(const char *ruta, uint32_t maxMs, uint8_t *primeros, siz
   return total;
 }
 
+/* Trabajo D: comprime 60 cuadros seguidos con cada compresor (sin enviarlos) y escribe una línea JPEG_MS por compresor; al final deja frame2jpg. */
+static void comparar_compresores()
+{
+  for (int c = 0; c < COMP_N; c++) {
+#if !COMPRESOR_JPEGENC
+    if (c != COMP_ESP) continue;
+#endif
+    compresor = c;
+    Medida m = medir_pipeline(60);
+    if (!m.ok) {
+      Serial.printf("JPEG_MS comparacion comp=%s SIN CUADROS SUFICIENTES\n", nombre_compresor(c));
+      continue;
+    }
+    Serial.printf("JPEG_MS comparacion comp=%s tam=%s compresion=%.1f ms jpeg_medio=%u B fps=%.1f edad_hasta_fin_de_compresion=%.0f ms\n", nombre_compresor(c),
+                  nombre_tam(cfg.tam), m.msComp, (unsigned)m.jpegMedio, m.fps, m.edadMs);
+  }
+  compresor = COMP_ESP;
+}
+
 static void autoprueba()
 {
   Serial.println("[autoprueba] la placa se pide a si misma las rutas (por 127.0.0.1; no mide el WiFi)");
@@ -994,6 +1358,7 @@ static void autoprueba()
   autopedir("/stats", 3000, cuerpo, sizeof(cuerpo) - 1, &cuadros, &estado);
   const char *json = strstr((const char *)cuerpo, "\r\n\r\n");
   Serial.printf("[autoprueba] /stats despues del stream: %s\n", json ? json + 4 : "(sin cuerpo)");
+  comparar_compresores();
 }
 
 static void tarea_autoprueba(void *)
@@ -1052,6 +1417,28 @@ static bool esperar_conexion()
 
 /* ── Arranque y ciclo ──────────────────────────────────────────────────── */
 
+/* Registro JPEG_MS (una línea cada 5 s, solo números): cuánto tardó la compresión de cada cuadro en esta ventana. */
+static void registrar_jpeg_ms()
+{
+  static uint32_t comp0 = 0;
+  static uint64_t us0 = 0;
+  uint32_t n, minUs, maxUs;
+  uint64_t us;
+  portENTER_CRITICAL(&mux);
+  n = totalComprimidos - comp0;
+  us = totalCompUs - us0;
+  minUs = compMinUs;
+  maxUs = compMaxUs;
+  compMinUs = 0xFFFFFFFFu;
+  compMaxUs = 0;
+  portEXIT_CRITICAL(&mux);
+  comp0 = totalComprimidos;
+  us0 = totalCompUs;
+  if (n == 0) return;   /* nadie pidió cuadros en esta ventana */
+  Serial.printf("JPEG_MS comp=%s n=%u medio=%.1f min=%.1f max=%.1f tam=%s q=%d\n", nombre_compresor(compresor), (unsigned)n, us / 1000.0f / n, minUs / 1000.0f,
+                maxUs / 1000.0f, nombre_tam(cfg.tam), cfg.calidad);
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -1081,7 +1468,7 @@ void setup()
   }
 
   /* La captura corre en el núcleo 0; la compresión y el envío, en el 1. */
-  xTaskCreatePinnedToCore(tarea_captura, "captura", 4096, NULL, 4, NULL, 0);
+  xTaskCreatePinnedToCore(tarea_captura, "captura", 16384, NULL, 4, NULL, 0);   /* 16 KB: el modo celdas usa ~10 KB de pila al promediar */
 
 #if MODO_BARRIDO
   if (!jpegDelSensor) barrido();
@@ -1100,6 +1487,12 @@ void setup()
   }
   reiniciar_estadisticas();
   iniciar_servidor();
+#if MODO_CELDAS_DISPONIBLE
+  xTaskCreatePinnedToCore(tarea_udp, "udp", 4096, NULL, 2, NULL, 1);
+  Serial.printf("[udp] escuchando HOLA y PING en el puerto %d (modo celdas disponible)\n", PUERTO_UDP);
+#else
+  Serial.println("[udp] modo celdas NO compilado (faltan obstaculos.h / paquete_celdas.h)");
+#endif
 #if AUTOPRUEBA
   /* En otra tarea: así loop() sigue tomando las estadísticas mientras corre. */
   xTaskCreatePinnedToCore(tarea_autoprueba, "autoprueba", 8192, NULL, 1, NULL, 0);
@@ -1140,6 +1533,10 @@ void loop()
   if (millis() - ultimoEstado >= PERIODO_ESTADO_MS) {
     ultimoEstado = millis();
     Resumen r = resumir(5);
+    registrar_jpeg_ms();
+    Serial.printf("MODO_CAM modo=%s fps_envio=%.1f bytes_s=%.0f edad_ms=%.0f celdas_enviadas=%u celdas_ms=%.2f cliente_celdas=%s\n", nombre_modo(modoVideo), r.fpsEnvio,
+                  r.fpsEnvio * r.jpegMedio, r.edadMs, (unsigned)celdasEnviadas, celdasEnviadas ? celdasUsTotal / 1000.0 / celdasEnviadas : 0.0,
+                  cliente_celdas_vigente() ? "si" : "no");
     Serial.printf("[estado] wifi=%s ip=%s %s q%d %s %dMHz stream=%s | captura=%.1f fps (%.0f ms entre cuadros) | envio=%.1f fps, %.0f ms (max %.0f) | compresion=%.0f ms | edad=%.0f ms (max %.0f) | descartados=%u | JPEG=%.0f B | RSSI=%d dBm | heap=%u B, PSRAM=%u B\n",
                   WiFi.status() == WL_CONNECTED ? "conectado" : "SIN CONEXION",
                   WiFi.localIP().toString().c_str(), nombre_tam(cfg.tam), cfg.calidad, nombre_formato(cfg.fmt), cfg.xclkMHz,

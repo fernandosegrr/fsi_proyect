@@ -386,8 +386,9 @@ class ModoSemiautonomo(
         val zona = bloqueoZona
         val origen = bloqueoFuente
         val latenciaVideo = fuente.latenciaVisualMs
+        val modoVideo = fuente.modoVideo
         logica.pararConRespuesta { msRespuesta ->
-            manejador.post { terminarPasada(marca, msDetectar, msStop, msRespuesta.toInt(), cercania, zona, origen, latenciaVideo) }
+            manejador.post { terminarPasada(marca, msDetectar, msStop, msRespuesta.toInt(), cercania, zona, origen, latenciaVideo, modoVideo) }
         }
         msStop = (SystemClock.elapsedRealtime() - marca).toInt()   // desde que llegó el cuadro hasta que el STOP salió
     }
@@ -395,7 +396,7 @@ class ModoSemiautonomo(
     private var msStop = 0
 
     /** Cierra una pasada: calcula el retraso y los cm (en C), lo escribe en el log y en pantalla, y cancela la ruta de prueba. */
-    private fun terminarPasada(marca: Long, msDetectar: Double, msStopEnviado: Int, msRespuesta: Int, cercania: Int, zona: Int, origen: String, latenciaVideo: Int) {
+    private fun terminarPasada(marca: Long, msDetectar: Double, msStopEnviado: Int, msRespuesta: Int, cercania: Int, zona: Int, origen: String, latenciaVideo: Int, modoVideo: String) {
         val cal = leerCalibracion()
         val msPorCmX10 = if (cal.size > CalibracionNativa.CAL_MS_POR_CM_X10) cal[CalibracionNativa.CAL_MS_POR_CM_X10] else 517
         val frenadoMm = if (cal.size > CalibracionNativa.CAL_FRENADO_MM) cal[CalibracionNativa.CAL_FRENADO_MM] else 14
@@ -403,8 +404,8 @@ class ModoSemiautonomo(
         val cmX10 = PruebaObstaculoNativa.cmX10(retraso, msPorCmX10, frenadoMm)
         PruebaObstaculoNativa.agregar(retraso, cmX10)
         val linea = String.format(java.util.Locale.US,
-            "marca_cuadro_ms=%d ms_detectar=%.1f ms_stop=%d ms_respuesta=%d cercania=%d zona=%s fuente=%s latencia_video_ms=%d retraso_total_ms=%d cm_recorridos=%.1f (a %.1f ms/cm + frenado %.1f cm)",
-            marca, msDetectar, msStopEnviado, msRespuesta, cercania, NOMBRE_ZONA[zona], origen, latenciaVideo, retraso, cmX10 / 10.0, msPorCmX10 / 10.0, frenadoMm / 10.0)
+            "marca_cuadro_ms=%d ms_detectar=%.1f ms_stop=%d ms_respuesta=%d cercania=%d zona=%s fuente=%s modo_video=%s latencia_video_ms=%d retraso_total_ms=%d cm_recorridos=%.1f (a %.1f ms/cm + frenado %.1f cm)",
+            marca, msDetectar, msStopEnviado, msRespuesta, cercania, NOMBRE_ZONA[zona], origen, modoVideo, latenciaVideo, retraso, cmX10 / 10.0, msPorCmX10 / 10.0, frenadoMm / 10.0)
         Log.i(ETIQUETA_PRUEBA, linea)
         val r = PruebaObstaculoNativa.resumen()
         textoPrueba = String.format(java.util.Locale.US,

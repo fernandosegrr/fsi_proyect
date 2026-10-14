@@ -46,3 +46,5 @@ nucleo_c/pruebas_cualquiera.exe
 app_android/modelos_extra/
 nucleo_c/pruebas_movimiento_piso
 nucleo_c/pruebas_movimiento_piso.exe
+nucleo_c/pruebas_celdas
+nucleo_c/pruebas_celdas.exe

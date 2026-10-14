@@ -35,6 +35,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraAccessException
@@ -314,12 +315,23 @@ class CamaraObstaculos(
      * Retraso (ms) entre lo que pasa y el cuadro que llega: 0 con la cámara del teléfono; con el video del carro ~320 ms (medido,
      * docs/latencia.md). El navegador lo usa para no contar el giro de los cuadros que todavía muestran al carro sin girar.
      */
-    val latenciaVisualMs: Int get() = if (videoCarro != null) LATENCIA_VIDEO_CARRO_MS else 0
+    val latenciaVisualMs: Int get() {
+        if (videoCarro == null) {
+            return 0
+        }
+        // jpeg: la medida con cronómetro (docs/latencia.md). raw y celdas: ms de la cámara (captura a envío) + la mitad del ida y vuelta de la red; es una ESTIMACIÓN (no incluye
+        // lo que tarda en bajar un cuadro entero por WiFi en raw) hasta que se mida con cronómetro (docs/latencia_modos.md).
+        if (modoVideo == ModoVideo.JPEG || cuentaCamara.get() == 0L) {
+            return LATENCIA_VIDEO_CARRO_MS
+        }
+        return (sumaCamaraMs.get() / cuentaCamara.get() + ultimoRttMs.get() / 2).toInt()
+    }
 
     /** Texto para la pantalla de visión: los números del video del carro y un aviso si NO va por la red del carro. Vacío con la cámara del teléfono. */
     fun textoVideo(): String {
         val v = videoCarro ?: return ""
-        return "Video del carro (últimos 10 s): " + v.textoEstadistica() + (if (!v.redEsDelCarro) "\n⚠ EL VIDEO NO VA POR LA RED DEL CARRO: " + v.red else "")
+        return "Video del carro, modo ${v.modo} (últimos 10 s): " + v.textoEstadistica() + (if (!v.redEsDelCarro) "\n⚠ EL VIDEO NO VA POR LA RED DEL CARRO: " + v.red else "") +
+            (if (avisoModoVideo.isNotEmpty()) "\n⚠ $avisoModoVideo" else "")
     }
 
     /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
@@ -337,6 +349,9 @@ class CamaraObstaculos(
         cuentaMarcas = 0
         ajustarTamanoSalida()
         inicioVentanaMs = SystemClock.elapsedRealtime()
+        avisoModoVideo = ""
+        sumaCamaraMs.set(0)
+        cuentaCamara.set(0)
         val video = VideoCarro(contexto, url, { bytes, largo -> alJpegDelCarro(bytes, largo) }, { texto ->
             if (texto.isEmpty()) {
                 error = ""
@@ -344,61 +359,335 @@ class CamaraObstaculos(
                 error = texto
                 abierta = false
             }
-        })
+        }, ConfigVision(contexto).modoVideo,
+            { bytes, largo, w, h, numero, msCamara -> alCrudoDelCarro(bytes, largo, w, h, numero, msCamara) },
+            { paquete -> alCeldasDelCarro(paquete) },
+            { rtt -> ultimoRttMs.set(rtt.toLong()); estadisticaModo.rtt(rtt) },
+            { modoFallido, motivo ->
+                avisoModoVideo = "El modo de video «$modoFallido» falló ($motivo): sigo con JPEG."
+                Log.w(ETIQUETA, avisoModoVideo)
+            })
         videoCarro = video
         Log.i(ETIQUETA, "abriendo el video del carro $url")
+        iniciarCadena()
         video.iniciar()
         activarModelo(usarModelo())
         return true
     }
 
-    /** Un JPEG del carro: se decodifica, se reduce al tamaño de análisis y entra a la misma cadena que los cuadros del teléfono. */
-    private fun alJpegDelCarro(bytes: ByteArray, largo: Int) {
-        try {
-            val llegadaMs = SystemClock.elapsedRealtime()
-            val inicio = System.nanoTime()
-            val mapa = BitmapFactory.decodeByteArray(bytes, 0, largo)
-            if (mapa == null) {
-                Log.w(ETIQUETA, "un cuadro del carro no se pudo decodificar ($largo bytes)")
-                return
-            }
-            val w = mapa.width
-            val h = mapa.height
-            if (w != tamanoSensor.width || h != tamanoSensor.height) {
-                tamanoSensor = Size(w, h)
-                tablasListas = false
-            }
-            ajustarTamanoSalida()
-            val fuente = IntArray(w * h)
-            mapa.getPixels(fuente, 0, w, 0, 0, w, h)
-            mapa.recycle()
-            val ancho = anchoSalida
-            val alto = altoSalida
-            val pixeles = IntArray(ancho * alto)
-            var posicion = 0
-            var indice = 0
-            for (y in 0 until alto) {
-                val fila = tablaY[y] * w
-                for (x in 0 until ancho) {
-                    val p = fuente[fila + tablaX[x]]
-                    val r = (p shr 16) and 0xFF
-                    val g = (p shr 8) and 0xFF
-                    val b = p and 0xFF
-                    rgb[posicion] = r.toByte()
-                    rgb[posicion + 1] = g.toByte()
-                    rgb[posicion + 2] = b.toByte()
-                    posicion += 3
-                    pixeles[indice++] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+    // ── La cadena del video del carro: lectura → decodificación → análisis ──
+    // Tres hilos con una COLA DE 1 entre cada etapa: si una etapa va más lenta, el cuadro viejo se TIRA y la siguiente toma el más nuevo (nunca se acumula retraso,
+    // ni en la cola ni en el búfer del socket: el hilo de lectura siempre lo deja vacío). Los objetos de cada cuadro se reutilizan (sin crear basura en cada cuadro).
+
+    /** Un JPEG recién llegado. */
+    private class CuadroJpeg {
+        var bytes = ByteArray(32 * 1024)
+        var largo = 0
+        var llegadaMs = 0L
+        var inicioNs = 0L
+    }
+
+    /** Un cuadro ya decodificado a pixeles ARGB. */
+    private class CuadroDecodificado {
+        var pixeles = IntArray(0)
+        var ancho = 0
+        var alto = 0
+        var llegadaMs = 0L
+        var inicioNs = 0L
+        var bytesJpeg = 0
+    }
+
+    /** Una cola con lugar para UN solo elemento: poner() deja el nuevo y devuelve el que estaba (ya viejo) para reciclarlo. */
+    private class ColaDeUno<T : Any> {
+        private val candado = Object()
+        private var valor: T? = null
+        private var cerrada = false
+
+        fun poner(nuevo: T): T? = synchronized(candado) {
+            val viejo = valor
+            valor = nuevo
+            candado.notifyAll()
+            viejo
+        }
+
+        /** Espera hasta `esperaMs` un elemento. Devuelve null si pasó el tiempo o si la cola se cerró. */
+        fun tomar(esperaMs: Long): T? = synchronized(candado) {
+            val limite = SystemClock.elapsedRealtime() + esperaMs
+            while (valor == null && !cerrada) {
+                val resta = limite - SystemClock.elapsedRealtime()
+                if (resta <= 0) {
+                    return null
                 }
+                try { candado.wait(resta) } catch (e: InterruptedException) { return null }
             }
-            if (!abierta) {
-                abierta = true
-                inicioVentanaMs = SystemClock.elapsedRealtime()
-                Log.i(ETIQUETA, "video del carro entregando cuadros (${w}x${h})")
+            val v = valor
+            valor = null
+            v
+        }
+
+        fun cerrar() = synchronized(candado) {
+            cerrada = true
+            valor = null
+            candado.notifyAll()
+        }
+
+        /** Vuelve a dejarla lista para usarse (después de cerrar). */
+        fun abrir() = synchronized(candado) {
+            cerrada = false
+            valor = null
+        }
+    }
+
+    private val colaJpeg = ColaDeUno<CuadroJpeg>()
+    private val colaDecodificada = ColaDeUno<CuadroDecodificado>()
+    private val librosJpeg = java.util.concurrent.ConcurrentLinkedQueue<CuadroJpeg>()
+    private val librosDecodificados = java.util.concurrent.ConcurrentLinkedQueue<CuadroDecodificado>()
+    private var hiloDecodificador: Thread? = null
+    private var hiloAnalisis: Thread? = null
+    @Volatile
+    private var cadenaActiva = false
+    private var mapaReutilizable: Bitmap? = null
+    private val estadisticaModo = EstadisticaModo { modoVideo }
+
+    /** El modo de video en uso (ModoVideo): jpeg, raw o celdas. Si el que se pidió falló, es jpeg. */
+    val modoVideo: String get() = videoCarro?.modo ?: ModoVideo.JPEG
+
+    /** Si el modo de video pedido falló y la app volvió a jpeg: el aviso para la pantalla ("" si no pasó nada). */
+    @Volatile
+    var avisoModoVideo: String = ""
+        private set
+
+    /** Lo que se calcula como retraso de las cámaras de los modos raw y celdas: ms de la cámara (captura a envío) + la mitad del ida y vuelta de la red. */
+    private val sumaCamaraMs = java.util.concurrent.atomic.AtomicLong(0)
+    private val cuentaCamara = java.util.concurrent.atomic.AtomicLong(0)
+    private val ultimoRttMs = java.util.concurrent.atomic.AtomicLong(0)
+
+    private fun iniciarCadena() {
+        colaJpeg.abrir()
+        colaDecodificada.abrir()
+        colaCeldas.abrir()
+        ultimoNumeroCeldas = -1
+        cadenaActiva = true
+        hiloCeldas = Thread({ cicloCeldas() }, "video-celdas").also { it.start() }
+        hiloDecodificador = Thread({ cicloDecodificador() }, "video-decodifica").also { it.start() }
+        hiloAnalisis = Thread({ cicloAnalisisVideo() }, "video-analiza").also { it.start() }
+    }
+
+    private fun detenerCadena() {
+        cadenaActiva = false
+        colaJpeg.cerrar()
+        colaDecodificada.cerrar()
+        colaCeldas.cerrar()
+        try { hiloCeldas?.join(500) } catch (e: InterruptedException) { /* seguimos */ }
+        hiloCeldas = null
+        try { hiloDecodificador?.join(500) } catch (e: InterruptedException) { /* seguimos */ }
+        try { hiloAnalisis?.join(500) } catch (e: InterruptedException) { /* seguimos */ }
+        hiloDecodificador = null
+        hiloAnalisis = null
+        mapaReutilizable = null
+    }
+
+    /** Etapa 1 (hilo de lectura de VideoCarro): copia el JPEG a un objeto libre y lo deja en la cola; el hilo vuelve ya a leer el socket. */
+    private fun alJpegDelCarro(bytes: ByteArray, largo: Int) {
+        if (modoVideo == ModoVideo.CELDAS) {
+            estadisticaModo.jpegParalelo()   // el JPEG paralelo del modo celdas solo se cuenta (fps): no se decodifica ni se analiza
+            return
+        }
+        val c = librosJpeg.poll() ?: CuadroJpeg()
+        if (c.bytes.size < largo) {
+            c.bytes = ByteArray(largo + 4096)
+        }
+        System.arraycopy(bytes, 0, c.bytes, 0, largo)
+        c.largo = largo
+        c.llegadaMs = SystemClock.elapsedRealtime()
+        c.inicioNs = System.nanoTime()
+        val viejo = colaJpeg.poner(c)
+        if (viejo != null) {
+            estadisticaModo.descartado()
+            librosJpeg.offer(viejo)
+        }
+    }
+
+    /** Modo raw: el cuadro RGB565 (primero el byte alto de cada píxel) pasa a ARGB y entra directo a la etapa de análisis, sin decodificar. */
+    private fun alCrudoDelCarro(bytes: ByteArray, largo: Int, w: Int, h: Int, numero: Int, msCamara: Int) {
+        val llegadaMs = SystemClock.elapsedRealtime()
+        val inicioNs = System.nanoTime()
+        estadisticaModo.camara(msCamara)
+        sumaCamaraMs.addAndGet(msCamara.toLong())
+        cuentaCamara.incrementAndGet()
+        val d = librosDecodificados.poll() ?: CuadroDecodificado()
+        if (d.pixeles.size != w * h) {
+            d.pixeles = IntArray(w * h)
+        }
+        var o = 0
+        for (i in 0 until w * h) {
+            val alto = bytes[o].toInt() and 0xFF
+            val bajo = bytes[o + 1].toInt() and 0xFF
+            o += 2
+            val r5 = alto shr 3
+            val g6 = ((alto and 7) shl 3) or (bajo shr 5)
+            val b5 = bajo and 0x1F
+            val r = (r5 shl 3) or (r5 shr 2)
+            val g = (g6 shl 2) or (g6 shr 4)
+            val b = (b5 shl 3) or (b5 shr 2)
+            d.pixeles[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        }
+        d.ancho = w
+        d.alto = h
+        d.llegadaMs = llegadaMs
+        d.inicioNs = inicioNs
+        d.bytesJpeg = largo
+        val viejo = colaDecodificada.poner(d)
+        if (viejo != null) {
+            estadisticaModo.descartado()
+            librosDecodificados.offer(viejo)
+        }
+    }
+
+    // ── Modo celdas: los paquetes UDP con el promedio de cada celda entran a su propia etapa de análisis (cola de 1) ──
+    private val colaCeldas = ColaDeUno<PaqueteCeldas>()
+    private var hiloCeldas: Thread? = null
+    private var ultimoNumeroCeldas = -1
+
+    /** Etapa 1 de las celdas (hilo UDP): cuenta lo que falta y deja el paquete en la cola. */
+    private fun alCeldasDelCarro(p: PaqueteCeldas) {
+        if (ultimoNumeroCeldas != -1 && p.numero - ultimoNumeroCeldas > 1) {
+            estadisticaModo.perdidos(p.numero - ultimoNumeroCeldas - 1)
+        }
+        ultimoNumeroCeldas = p.numero
+        estadisticaModo.camara(p.msCamara)
+        sumaCamaraMs.addAndGet(p.msCamara.toLong())
+        cuentaCamara.incrementAndGet()
+        if (colaCeldas.poner(p) != null) {
+            estadisticaModo.descartado()
+        }
+    }
+
+    /** Etapa 2 de las celdas: dibuja las celdas como cuadro (cada celda de 10x10 de un color) y corre el detector sobre ellas. */
+    private fun cicloCeldas() {
+        while (cadenaActiva) {
+            val p = colaCeldas.tomar(1000) ?: continue
+            try {
+                val ancho = p.columnas * ObstaculosNativa.LADO_CELDA
+                val alto = p.filas * ObstaculosNativa.LADO_CELDA
+                val pixeles = IntArray(ancho * alto)
+                for (f in 0 until p.filas) {
+                    for (c in 0 until p.columnas) {
+                        val k = (f * p.columnas + c) * 3
+                        val argb = (0xFF shl 24) or ((p.celdas[k].toInt() and 0xFF) shl 16) or ((p.celdas[k + 1].toInt() and 0xFF) shl 8) or (p.celdas[k + 2].toInt() and 0xFF)
+                        for (y in 0 until ObstaculosNativa.LADO_CELDA) {
+                            val fila = (f * ObstaculosNativa.LADO_CELDA + y) * ancho + c * ObstaculosNativa.LADO_CELDA
+                            java.util.Arrays.fill(pixeles, fila, fila + ObstaculosNativa.LADO_CELDA, argb)
+                        }
+                    }
+                }
+                if (!abierta) {
+                    abierta = true
+                    inicioVentanaMs = SystemClock.elapsedRealtime()
+                    Log.i(ETIQUETA, "celdas del carro entregando cuadros (${p.columnas}x${p.filas} celdas de una imagen ${p.ancho}x${p.alto})")
+                }
+                val inicioNs = System.nanoTime()
+                analizar(ancho, alto, pixeles, inicioNs, System.nanoTime(), p.llegadaMs, p.celdas, p.columnas, p.filas)
+                estadisticaModo.cuadro(p.llegadaMs, SystemClock.elapsedRealtime(), p.bytes)
+            } catch (e: Exception) {
+                Log.w(ETIQUETA, "error procesando celdas del carro: ${e.javaClass.simpleName}: ${e.message}")
             }
-            analizar(ancho, alto, pixeles, inicio, System.nanoTime(), llegadaMs)
-        } catch (e: Exception) {
-            Log.w(ETIQUETA, "error procesando un cuadro del carro: ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    /** Etapa 2: decodifica el JPEG más nuevo (reutilizando el mapa de bits) a pixeles y se lo deja a la etapa de análisis. */
+    private fun cicloDecodificador() {
+        while (cadenaActiva) {
+            val jpeg = colaJpeg.tomar(1000) ?: continue
+            try {
+                val opciones = BitmapFactory.Options()
+                opciones.inMutable = true
+                opciones.inBitmap = mapaReutilizable
+                var mapa: Bitmap? = try {
+                    BitmapFactory.decodeByteArray(jpeg.bytes, 0, jpeg.largo, opciones)
+                } catch (e: IllegalArgumentException) {
+                    opciones.inBitmap = null   // el mapa guardado no es del tamaño de este cuadro: se hace uno nuevo
+                    BitmapFactory.decodeByteArray(jpeg.bytes, 0, jpeg.largo, opciones)
+                }
+                if (mapa == null) {
+                    Log.w(ETIQUETA, "un cuadro del carro no se pudo decodificar (${jpeg.largo} bytes)")
+                    continue
+                }
+                mapaReutilizable = mapa
+                val w = mapa.width
+                val h = mapa.height
+                val d = librosDecodificados.poll() ?: CuadroDecodificado()
+                if (d.pixeles.size != w * h) {
+                    d.pixeles = IntArray(w * h)
+                }
+                mapa.getPixels(d.pixeles, 0, w, 0, 0, w, h)
+                d.ancho = w
+                d.alto = h
+                d.llegadaMs = jpeg.llegadaMs
+                d.inicioNs = jpeg.inicioNs
+                d.bytesJpeg = jpeg.largo
+                mapa = null
+                val viejo = colaDecodificada.poner(d)
+                if (viejo != null) {
+                    estadisticaModo.descartado()
+                    librosDecodificados.offer(viejo)
+                }
+            } catch (e: Exception) {
+                Log.w(ETIQUETA, "error decodificando un cuadro del carro: ${e.javaClass.simpleName}: ${e.message}")
+            } finally {
+                librosJpeg.offer(jpeg)
+            }
+        }
+    }
+
+    /** Etapa 3: reduce al tamaño de análisis y entra a la misma cadena que los cuadros del teléfono (detector, giro visual, modelo y fusión). */
+    private fun cicloAnalisisVideo() {
+        while (cadenaActiva) {
+            val d = colaDecodificada.tomar(1000)
+            estadisticaModo.revisar(SystemClock.elapsedRealtime())   // también sin cuadros: así se ve cuándo el video se detiene
+            if (d == null) {
+                continue
+            }
+            try {
+                val w = d.ancho
+                val h = d.alto
+                if (w != tamanoSensor.width || h != tamanoSensor.height) {
+                    tamanoSensor = Size(w, h)
+                    tablasListas = false
+                }
+                ajustarTamanoSalida()
+                val fuente = d.pixeles
+                val ancho = anchoSalida
+                val alto = altoSalida
+                val pixeles = IntArray(ancho * alto)
+                var posicion = 0
+                var indice = 0
+                for (y in 0 until alto) {
+                    val fila = tablaY[y] * w
+                    for (x in 0 until ancho) {
+                        val p = fuente[fila + tablaX[x]]
+                        val r = (p shr 16) and 0xFF
+                        val g = (p shr 8) and 0xFF
+                        val b = p and 0xFF
+                        rgb[posicion] = r.toByte()
+                        rgb[posicion + 1] = g.toByte()
+                        rgb[posicion + 2] = b.toByte()
+                        posicion += 3
+                        pixeles[indice++] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                    }
+                }
+                if (!abierta) {
+                    abierta = true
+                    inicioVentanaMs = SystemClock.elapsedRealtime()
+                    Log.i(ETIQUETA, "video del carro entregando cuadros (${w}x${h})")
+                }
+                analizar(ancho, alto, pixeles, d.inicioNs, System.nanoTime(), d.llegadaMs)
+                estadisticaModo.cuadro(d.llegadaMs, SystemClock.elapsedRealtime(), d.bytesJpeg)
+            } catch (e: Exception) {
+                Log.w(ETIQUETA, "error procesando un cuadro del carro: ${e.javaClass.simpleName}: ${e.message}")
+            } finally {
+                librosDecodificados.offer(d)
+            }
         }
     }
 
@@ -409,6 +698,7 @@ class CamaraObstaculos(
         activarModelo(false)
         videoCarro?.detener()
         videoCarro = null
+        detenerCadena()
         try { sesion?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando sesión: ${e.message}") }
         try { dispositivo?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando cámara: ${e.message}") }
         sesion = null
@@ -590,14 +880,16 @@ class CamaraObstaculos(
     }
 
     /** Todo lo que se hace con un cuadro ya convertido a RGB (en `rgb`) y a ARGB (`pixeles`): detector, giro visual, modelo y fusión. */
-    private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long, llegadaMs: Long) {
+    private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long, llegadaMs: Long,
+                         celdas: ByteArray? = null, columnasCeldas: Int = 0, filasCeldas: Int = 0) {
         val config = configActual()
         if (pedirAprender) {   // el aprendizaje empieza justo antes de este cuadro: así este cuadro ya se suma
             pedirAprender = false
             ObstaculosNativa.aprenderPisoIniciar()
             aprendiendoHasta = SystemClock.elapsedRealtime() + APRENDER_PISO_MS
         }
-        val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
+        val resultado = if (celdas != null) ObstaculosNativa.analizarCeldasConfig(celdas, columnasCeldas, filasCeldas, config, avanzando(), SystemClock.elapsedRealtime())
+            else ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         if (aprendiendoHasta != 0L && SystemClock.elapsedRealtime() >= aprendiendoHasta) {
             terminarDeAprenderPiso(config)
         }
@@ -614,7 +906,8 @@ class CamaraObstaculos(
 
         // Giro visual: cuánto giró el carro respecto al cuadro anterior (se compara la mitad de arriba).
         val ahoraCuadroMs = SystemClock.elapsedRealtime()
-        val mv = MovimientoVisualNativa.procesar(rgb, ancho, alto, fovEfectivoX10)
+        // Con las celdas no hay imagen: no se puede medir el giro visual (el giro se hace por tiempo, con la calibración) ni correr el modelo de objetos.
+        val mv = if (celdas == null) MovimientoVisualNativa.procesar(rgb, ancho, alto, fovEfectivoX10) else IntArray(32)
         val cuadrosAbarcados = mv[MovimientoVisualNativa.CUADROS].coerceIn(1, marcasCuadrosMs.size - 1)
         val dtMs = if (cuentaMarcas < cuadrosAbarcados) 0 else (ahoraCuadroMs - marcasCuadrosMs[(cuentaMarcas - cuadrosAbarcados) % marcasCuadrosMs.size]).toInt()
         marcasCuadrosMs[cuentaMarcas % marcasCuadrosMs.size] = ahoraCuadroMs
@@ -637,7 +930,7 @@ class CamaraObstaculos(
         var msFusion = 0.0
         var cualquiera: IntArray? = null
         val m = modelo
-        if (m != null && m.activo && resultado[ObstaculosNativa.CODIGO] == 0) {
+        if (celdas == null && m != null && m.activo && resultado[ObstaculosNativa.CODIGO] == 0) {
             val ahoraMs = SystemClock.elapsedRealtime()
             // Modo «cualquier objeto»: el modelo entrega las cajas desde 0.01 de confianza y el filtro (umbral, tamaño, posición, persistencia) se hace en C.
             val cfgCual = configCualquiera()
@@ -696,7 +989,7 @@ class CamaraObstaculos(
         // Flujo del piso (solo si está activado): se compara con un cuadro de ~200 ms antes y, si el color marcó algo lejano en un piso con textura consistente, se baja.
         var flujo: IntArray? = null
         val cfgFlujo = configFlujo()
-        if (cfgFlujo.size >= FlujoNativa.ENTEROS_CONFIG && cfgFlujo[FlujoNativa.CFG_ACTIVO] == 1 && resultado[ObstaculosNativa.CODIGO] == 0) {
+        if (celdas == null && cfgFlujo.size >= FlujoNativa.ENTEROS_CONFIG && cfgFlujo[FlujoNativa.CFG_ACTIVO] == 1 && resultado[ObstaculosNativa.CODIGO] == 0) {
             flujo = analizarFlujo(cfgFlujo, ancho, alto, llegadaMs)
             if (flujo != null && flujo[FlujoNativa.R_EVALUADO] == 1) {
                 val base = fusion ?: if (hayObstaculo(resultado)) FusionNativa.decidir(configFusion ?: FusionNativa.configDefecto(), resultado, sinCajas, 0L, SystemClock.elapsedRealtime()) else null

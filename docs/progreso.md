@@ -147,3 +147,9 @@
 ### Trabajo G: flujo del piso — hecho (apagado por defecto)
 - `movimiento_piso.c/.h` + `fusion_aplicar_flujo` + registro `FLUJO_DIAG` + botón «Flujo del piso» (detalle y límites medidos en `docs/flujo_piso.md`).
 - Pruebas en PC: `pruebas_movimiento_piso` 54 casos. PENDIENTE HARDWARE: medir ms del análisis y pasadas sobre piso de 2 colores, con caja con dibujo y sobre piso negro/liso (pasos en `docs/flujo_piso.md`, sección 5).
+
+### Trabajo D: latencia del video — hecho en código, medidas PENDIENTE HARDWARE
+- JPEG_MS + comparación `frame2jpg`/JPEGENC al arrancar, `TCP_NODELAY` en el WebSocket, cadena de 3 hilos con cola de 1 y `MODO_STATS` (tabla antes/después en `docs/latencia.md`).
+
+### Trabajo I: modos de video raw y celdas — hecho en código, comparación PENDIENTE HARDWARE
+- Modos jpeg/raw/celdas en la cámara y en la app, entrada por celdas del detector (`pruebas_celdas` 40 casos), fallback a jpeg, probado en el teléfono con una cámara falsa. Tabla vacía y pasos de las 9 pasadas en `docs/latencia_modos.md`.

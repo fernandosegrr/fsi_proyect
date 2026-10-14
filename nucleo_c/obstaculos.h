@@ -252,6 +252,20 @@ int obstaculos_analizar_modelo(const ConfigObstaculos *config, ModeloPiso *model
                                int ancho, int alto, int avanzando, unsigned int ahora_ms,
                                ResultadoObstaculos *resultado);
 
+/* ── Entrada por CELDAS (modo de video CELDAS del carro, docs/latencia_modos.md) ──────────────────────────────────────────────────────────────────────
+ * La cámara del carro puede calcular ella misma el promedio RGB de cada celda de 10x10 píxeles (con obstaculos_promediar, ESTE mismo código) y mandar solo eso
+ * por UDP; el teléfono analiza las celdas con obstaculos_analizar_modelo_celdas. Las dos entradas dan EXACTAMENTE el mismo resultado (pruebas_celdas.c). */
+
+/* Promedia la imagen RGB (ancho x alto x 3 bytes) en celdas de OBS_LADO_CELDA x OBS_LADO_CELDA píxeles. Deja en `celdas` (capacidad `capacidad` bytes) columnas * filas * 3
+ * bytes (R, G, B de cada celda, fila por fila) y en *columnas y *filas el tamaño de la rejilla. Las filas o columnas de píxeles que no completan una celda no cuentan.
+ * Devuelve OBS_OK o OBS_ERR_IMAGEN_NULA / OBS_ERR_TAMANO. */
+int obstaculos_promediar(const unsigned char *rgb, int ancho, int alto, unsigned char *celdas, int capacidad, int *columnas, int *filas);
+
+/* Igual que obstaculos_analizar_modelo pero con las celdas ya promediadas (columnas * filas * 3 bytes, como las deja obstaculos_promediar). Los demás argumentos y códigos
+ * son los de obstaculos_analizar_modelo. */
+int obstaculos_analizar_modelo_celdas(const ConfigObstaculos *config, ModeloPiso *modelo, const unsigned char *celdas, int columnas, int filas,
+                                      int avanzando, unsigned int ahora_ms, ResultadoObstaculos *resultado);
+
 /* ── Aprender el piso (botón «Aprender piso») ──────────────────────────────
  * Con el carro QUIETO, durante ~1 s se le dan al acumulador los cuadros (obstaculos_aprender_cuadro) y al final se agrupan los colores de TODA la zona
  * de avance (no solo de la franja de abajo): hasta K grupos, descartando los de poco apoyo (OBS_APOYO_MIN_PCT). El resultado reemplaza el modelo del piso. */

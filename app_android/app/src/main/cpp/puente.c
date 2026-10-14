@@ -34,6 +34,7 @@
 #include "corredor.h"
 #include "cualquiera.h"
 #include "movimiento_piso.h"
+#include "paquete_celdas.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -221,6 +222,28 @@ static int analizar_arreglo(JNIEnv *env, jbyteArray rgb, jint ancho, jint alto,
     return codigo;
 }
 
+/* Lo mismo que analizar_arreglo pero con las celdas ya promediadas por la cámara del carro (columnas * filas * 3 bytes; modo de video CELDAS). Siempre con memoria del piso. */
+static int analizar_arreglo_celdas(JNIEnv *env, jbyteArray celdas, jint columnas, jint filas, const ConfigObstaculos *config, ModeloPiso *modelo, int avanzando,
+                                   unsigned int ahora_ms, ResultadoObstaculos *resultado)
+{
+    void *datos;
+    int codigo;
+
+    if (celdas == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    if (columnas <= 0 || filas <= 0 || (long)(*env)->GetArrayLength(env, celdas) < (long)columnas * (long)filas * 3L) {
+        return OBS_ERR_TAMANO;
+    }
+    datos = (*env)->GetPrimitiveArrayCritical(env, celdas, NULL);
+    if (datos == NULL) {
+        return OBS_ERR_IMAGEN_NULA;
+    }
+    codigo = obstaculos_analizar_modelo_celdas(config, modelo, (const unsigned char *)datos, columnas, filas, avanzando, ahora_ms, resultado);
+    (*env)->ReleasePrimitiveArrayCritical(env, celdas, datos, JNI_ABORT);
+    return codigo;
+}
+
 /* Copia el resultado a los primeros 10 enteros de `salida`. */
 static void llenar_resumen(jint *salida, int codigo, const ResultadoObstaculos *resultado)
 {
@@ -284,10 +307,9 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
  *   [40] celdas marcadas en la zona de avance  [41] motivo (bits OBS_MOTIVO_*)
  *   [42...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 42 + fila * columnas + columna).
  * Si hay error, el arreglo trae solo el encabezado (con el código en [0]). */
-JNIEXPORT jintArray JNICALL
-Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
-                                                    jint ancho, jint alto, jintArray config,
-                                                    jboolean avanzando, jlong ahora_ms)
+static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray celdas, jint columnas, jint filas,
+                                       jint ancho, jint alto, jintArray config,
+                                       jboolean avanzando, jlong ahora_ms)
 {
     ResultadoObstaculos resultado;
     ConfigObstaculos cfg;
@@ -296,7 +318,6 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
     jintArray arreglo;
     int codigo, i, fila, columna, largo, g;
 
-    (void)objeto;
     for (i = 0; i < ENTEROS_DETALLE_MAXIMO; i++) {
         salida[i] = 0;
     }
@@ -341,7 +362,11 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
         modelo_inicializado = 1;
         reiniciar_modelo = 0;
     }
-    codigo = analizar_arreglo(env, rgb, ancho, alto, &cfg, &modelo_global, avanzando ? 1 : 0, (unsigned int)ahora_ms, &resultado);
+    if (celdas != NULL) {
+        codigo = analizar_arreglo_celdas(env, celdas, columnas, filas, &cfg, &modelo_global, avanzando ? 1 : 0, (unsigned int)ahora_ms, &resultado);
+    } else {
+        codigo = analizar_arreglo(env, rgb, ancho, alto, &cfg, &modelo_global, avanzando ? 1 : 0, (unsigned int)ahora_ms, &resultado);
+    }
     llenar_resumen(salida, codigo, &resultado);
     largo = ENTEROS_ENCABEZADO_DETALLE;
     if (codigo == OBS_OK) {
@@ -381,6 +406,67 @@ Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, 
     arreglo = (*env)->NewIntArray(env, largo);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, largo, salida);
+    }
+    return arreglo;
+}
+
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_analizarConfig(JNIEnv *env, jobject objeto, jbyteArray rgb,
+                                                    jint ancho, jint alto, jintArray config,
+                                                    jboolean avanzando, jlong ahora_ms)
+{
+    (void)objeto;
+    return analizar_config_comun(env, rgb, NULL, 0, 0, ancho, alto, config, avanzando, ahora_ms);
+}
+
+/* Lo mismo que analizarConfig pero con las CELDAS ya promediadas por la cámara del carro (modo de video CELDAS): `celdas` trae columnas * filas * 3 bytes (R, G, B de cada celda,
+ * fila por fila). Devuelve el mismo arreglo de enteros. El resultado es exactamente el que daría la imagen completa (se prueba en nucleo_c/pruebas_celdas.c). «Aprender piso» no
+ * funciona con este modo (necesita la imagen). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_analizarCeldasConfig(JNIEnv *env, jobject objeto, jbyteArray celdas, jint columnas, jint filas, jintArray config,
+                                                          jboolean avanzando, jlong ahora_ms)
+{
+    (void)objeto;
+    return analizar_config_comun(env, NULL, celdas, columnas, filas, 0, 0, config, avanzando, ahora_ms);
+}
+
+/* El paquete UDP de celdas (paquete_celdas.c): lee `largo` bytes de `paquete` y copia las celdas a `celdas`. Devuelve 7 enteros:
+ * [0] código (0 = bien)  [1] número de cuadro (entero con signo: puede salir negativo pasado 2 mil millones)  [2] ms de la cámara entre captura y paquete
+ * [3] ancho de la imagen  [4] alto  [5] columnas  [6] filas. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_PaqueteCeldasNativa_leer(JNIEnv *env, jobject objeto, jbyteArray paquete, jint largo, jbyteArray celdas)
+{
+    jint salida[7] = { 0, 0, 0, 0, 0, 0, 0 };
+    jintArray arreglo;
+    DatosPaquete datos;
+    static unsigned char buf[PAQ_MAX_TOTAL];
+    static unsigned char salida_celdas[PAQ_MAX_COLUMNAS * PAQ_MAX_FILAS * 3];
+    int codigo;
+
+    (void)objeto;
+    if (paquete == NULL || celdas == NULL || largo < 0 || largo > PAQ_MAX_TOTAL || (*env)->GetArrayLength(env, paquete) < largo) {
+        salida[0] = PAQ_ERR_ARGUMENTO;
+    } else {
+        (*env)->GetByteArrayRegion(env, paquete, 0, largo, (jbyte *)buf);
+        codigo = paquete_leer(buf, (int)largo, &datos, salida_celdas, (int)sizeof salida_celdas);
+        salida[0] = codigo;
+        if (codigo == PAQ_OK) {
+            if ((*env)->GetArrayLength(env, celdas) < datos.columnas * datos.filas * 3) {
+                salida[0] = PAQ_ERR_ARGUMENTO;
+            } else {
+                (*env)->SetByteArrayRegion(env, celdas, 0, datos.columnas * datos.filas * 3, (const jbyte *)salida_celdas);
+                salida[1] = (jint)datos.numero;
+                salida[2] = (jint)datos.ms_captura;
+                salida[3] = datos.ancho;
+                salida[4] = datos.alto;
+                salida[5] = datos.columnas;
+                salida[6] = datos.filas;
+            }
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, 7);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 7, salida);
     }
     return arreglo;
 }

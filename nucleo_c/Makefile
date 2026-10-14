@@ -4,7 +4,7 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso
+all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -45,6 +45,9 @@ pruebas_cualquiera: pruebas_cualquiera.c cualquiera.c cualquiera.h fusion.c fusi
 pruebas_movimiento_piso: pruebas_movimiento_piso.c movimiento_piso.c movimiento_piso.h fusion.c fusion.h corredor.c corredor.h obstaculos.c obstaculos.h
 	$(CC) $(CFLAGS) -o $@ pruebas_movimiento_piso.c movimiento_piso.c fusion.c corredor.c obstaculos.c -lm
 
+pruebas_celdas: pruebas_celdas.c paquete_celdas.c paquete_celdas.h pisos_sinteticos.c pisos_sinteticos.h obstaculos.c obstaculos.h
+	$(CC) $(CFLAGS) -o $@ pruebas_celdas.c paquete_celdas.c pisos_sinteticos.c obstaculos.c
+
 test: all
 	./pruebas_calibracion
 	./pruebas_trayectoria
@@ -59,8 +62,9 @@ test: all
 	./pruebas_pisos_dificiles
 	./pruebas_cualquiera
 	./pruebas_movimiento_piso
+	./pruebas_celdas
 
 clean:
-	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe
+	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe
 
 .PHONY: all test clean

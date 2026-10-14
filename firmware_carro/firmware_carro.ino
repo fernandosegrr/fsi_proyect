@@ -132,6 +132,7 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
     }
     carro_detener();  /* estado limpio al conectar */
     carro_poner_perfil_auto();   /* y siempre en el perfil AUTO: la app pide MODO_MANUAL si lo quiere */
+    client->client()->setNoDelay(true);   /* TCP_NODELAY: el STOP y los comandos salen sin esperar a juntarse con otros datos (algoritmo de Nagle) */
     Serial.printf("WS Cliente conectado: #%u\n", client->id());
 
   } else if (type == WS_EVT_DISCONNECT) {
