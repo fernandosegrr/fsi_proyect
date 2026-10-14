@@ -399,6 +399,8 @@ void navegador_iniciar(Navegador *nav)
     nav->cmd_actual = NAV_CMD_STOP;
     nav->t_ultimo_ms = 0;
     nav->t_detenido_ms = 0;
+    nav->asentando = 0;
+    nav->asentar_hasta_ms = 0;
     nav->x_mm = nav->y_mm = nav->rumbo_grados = 0;
     nav->base_x_mm = nav->base_y_mm = nav->base_rumbo_grados = 0;
     nav->seg_ms = 0;
@@ -629,6 +631,19 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
         }
         comando = comando_de_paso(&nav->pasos[nav->indice_paso]);
         break;
+    }
+
+    /* Entre avanzar y girar (o al revés) el carro se detiene un momento: así cada movimiento arranca desde cero, como en la
+     * calibración, y no hereda la inercia del anterior (con eso el giro de un cuadrado variaba 30 a 60 grados entre corridas). */
+    if (nav->asentando) {
+        if ((int32_t)(ahora_ms - nav->asentar_hasta_ms) < 0) {
+            return NAV_CMD_STOP;
+        }
+        nav->asentando = 0;
+    } else if (nav->cmd_actual != NAV_CMD_STOP && nav->cmd_actual != comando) {
+        nav->asentando = 1;
+        nav->asentar_hasta_ms = ahora_ms + NAV_PAUSA_ASENTAR_MS;
+        return NAV_CMD_STOP;
     }
 
     if (comando == NAV_CMD_FORWARD && bloqueo_confirmado(nav, ahora_ms)) {

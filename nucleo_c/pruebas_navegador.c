@@ -725,6 +725,38 @@ static int diferencia_de_rumbos(int a, int b)
     return (d > 180) ? 360 - d : d;
 }
 
+/* Entre avanzar y girar el carro se detiene NAV_PAUSA_ASENTAR_MS; entre dos tramos rectos seguidos no se detiene. */
+static void pruebas_pausa_entre_movimientos(void)
+{
+    int i, visto_avance = 0, stop_ms = 0, pausa_medida = -1, paradas_en_recta = 0, estaba_avanzando = 0;
+
+    preparar(ESQUINA_DERECHA, N(ESQUINA_DERECHA));
+    for (i = 0; i < 600 && pausa_medida < 0; i++) {
+        correr(NAV_TICK_MS);
+        if (sim.cmd_previo == NAV_CMD_FORWARD) {
+            visto_avance = 1;
+            stop_ms = 0;
+        } else if (visto_avance && sim.cmd_previo == NAV_CMD_STOP) {
+            stop_ms += NAV_TICK_MS;
+        } else if (visto_avance && (sim.cmd_previo == NAV_CMD_LEFT || sim.cmd_previo == NAV_CMD_RIGHT)) {
+            pausa_medida = stop_ms;
+        }
+    }
+    printf("      pausa entre avanzar y girar: %d ms (pedida %d)\n", pausa_medida, NAV_PAUSA_ASENTAR_MS);
+    caso("entre avanzar y girar el carro se detiene la pausa pedida (+- 2 ticks)", pausa_medida >= NAV_PAUSA_ASENTAR_MS - 2 * NAV_TICK_MS && pausa_medida <= NAV_PAUSA_ASENTAR_MS + 2 * NAV_TICK_MS);
+
+    preparar(RECTA, N(RECTA));
+    for (i = 0; i < 1500 && nav.estado != NAV_TERMINADO; i++) {
+        correr(NAV_TICK_MS);
+        if (sim.cmd_previo == NAV_CMD_FORWARD) {
+            estaba_avanzando = 1;
+        } else if (estaba_avanzando && sim.cmd_previo == NAV_CMD_STOP && nav.estado != NAV_TERMINADO) {
+            paradas_en_recta++;
+        }
+    }
+    caso("una recta de varios tramos no se detiene a la mitad", paradas_en_recta == 0 && nav.estado == NAV_TERMINADO);
+}
+
 static void pruebas_giro_visual(void)
 {
     int rumbo;
@@ -886,7 +918,9 @@ static void pruebas_giro_visual_con_retraso(void)
     navegador_poner_latencia_visual(&nav, 320);
     rumbo = rumbo_tras_el_primer_giro();
     printf("      carro 25 %% mas rapido con 320 ms de retraso: sin compensar %d, compensando %d\n", sin_compensar, rumbo);
-    caso("carro 25 % mas rapido con la camara retrasada 320 ms y el navegador avisado: queda a 90 grados (+-12)", diferencia_de_rumbos(rumbo, 90) <= 12);
+    /* Con la pausa de asentamiento entre avanzar y girar, el sistema se retrasa un poco más (106 contra 100 antes): sigue mucho mejor que sin compensar (131). */
+    caso("carro 25 % mas rapido con la camara retrasada 320 ms y el navegador avisado: queda a 90 grados (+-16)", diferencia_de_rumbos(rumbo, 90) <= 16);
+    caso("... y mucho mejor que sin compensar", diferencia_de_rumbos(rumbo, 90) + 10 <= diferencia_de_rumbos(sin_compensar, 90));
 
     caso("la latencia debe estar entre 0 y 1000 ms", navegador_poner_latencia_visual(&nav, 1001) == NAV_ERR_ARGUMENTO &&
          navegador_poner_latencia_visual(&nav, -1) == NAV_ERR_ARGUMENTO && navegador_poner_latencia_visual(NULL, 100) == NAV_ERR_ARGUMENTO &&
@@ -905,6 +939,7 @@ int main(void)
     pruebas_deriva();
     pruebas_calibracion();
     pruebas_giro_visual();
+    pruebas_pausa_entre_movimientos();
     pruebas_giro_visual_con_retraso();
     pruebas_textos();
 

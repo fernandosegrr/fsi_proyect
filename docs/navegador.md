@@ -163,3 +163,7 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
   botones de "Simular obstáculo" se pone o quita un obstáculo en cada zona. Cancelar o mandar la app a segundo
   plano envía STOP.
 - **Probar sin carro**: servidor falso y `adb reverse` (ver `docs/pruebas_control.md`).
+
+## Pausa entre movimientos
+
+Entre avanzar y girar (o girar y avanzar) el navegador manda STOP `NAV_PAUSA_ASENTAR_MS` = 300 ms antes del siguiente comando. Así cada movimiento arranca desde cero, igual que en la calibración, y no hereda la inercia del anterior. Con el carro real, sin esa pausa el giro de las esquinas variaba 30 a 60 grados entre corridas de un cuadrado. Entre dos tramos rectos seguidos no hay pausa. La pausa no cuenta como tiempo del paso: la posición estimada sigue siendo por tiempo de movimiento.

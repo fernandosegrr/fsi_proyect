@@ -59,6 +59,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_GIRO_MAX_PCT          150
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
+#define NAV_PAUSA_ASENTAR_MS      300    /* STOP entre avanzar y girar (y al revés): el carro termina de moverse y el giro/avance siguiente
+                                          * arranca desde cero, como en la calibración. Sin esto, el giro dependía de la inercia del avance. */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
 #define NAV_ANGULO_ESQUIVAR        90    /* grados que gira para apartarse (múltiplo de 45) */
 #define NAV_TRAMO_ESQUIVAR_CM      40    /* cuánto avanza de lado, en cm */
@@ -120,6 +122,8 @@ typedef struct {
     ComandoNav     cmd_actual;           /* el comando que se devolvió en el último tick */
     uint32_t       t_ultimo_ms;          /* hora del último tick */
     uint32_t       t_detenido_ms;        /* hora en que se detuvo por obstáculo */
+    int            asentando;            /* 1 mientras espera detenido entre dos movimientos distintos */
+    uint32_t       asentar_hasta_ms;     /* hora en que termina esa espera */
 
     /* Posición estimada: milímetros (x hacia la derecha, y hacia abajo) y rumbo en grados
      * (0 = arriba, positivo = hacia la derecha, 0 a 359). */
