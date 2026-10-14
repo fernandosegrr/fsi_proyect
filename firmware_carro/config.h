@@ -75,6 +75,13 @@
 #define VELOCIDAD_DER    VELOCIDAD
 #endif
 
+/* Al ARRANCAR avanzando o retrocediendo los dos motores van al 100 % durante este tiempo y después se aplica el ajuste por lado.
+ * Medido: con el izquierdo un poco más flojo (248 o 252) arrancaba más tarde que el derecho, el carro giraba unos grados a la
+ * izquierda al salir y terminaba ~15 cm de lado a 150 cm. Con 0 no hay arranque a plena potencia. */
+#ifndef ARRANQUE_PLENO_MS
+#define ARRANQUE_PLENO_MS 250u
+#endif
+
 /* ── Tiempos (milisegundos) ───────────────────────────────────────────────
  * Si se cambia TIEMPO_WATCHDOG_MS hay que revisar el heartbeat de pagina.h
  * (250 ms): debe seguir siendo bastante menor. */

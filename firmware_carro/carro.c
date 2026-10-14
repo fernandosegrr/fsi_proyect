@@ -29,6 +29,8 @@ static char     comando_actual[LARGO_MAX_COMANDO] = "STOP";
 static uint32_t ultimo_comando_ms   = 0;   /* hora del último comando real (no PING) */
 static uint32_t ultimo_keepalive_ms = 0;   /* hora del último pulso keep-alive */
 static int      keepalive_alto      = 0;   /* 1 mientras el pulso está en alto */
+static int      pleno_modo          = 0;   /* 1 = avanzando y 2 = retrocediendo con el arranque a plena potencia; 0 = no */
+static uint32_t pleno_hasta_ms      = 0;   /* hora en que termina el arranque a plena potencia */
 
 /* ── Motores ───────────────────────────────────────────────────────────── */
 
@@ -47,13 +49,17 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
  * derecho por su pin A (cableado probado en hardware; ver config.h). */
 static void avanzar(void)
 {
-    poner_motores(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
+    poner_motores(0, VELOCIDAD, VELOCIDAD, 0);   /* plena potencia al arrancar; luego el ajuste por lado (carro_vigilar_comunicacion) */
+    pleno_modo = 1;
+    pleno_hasta_ms = hw_millis() + ARRANQUE_PLENO_MS;
 }
 
 /* Ambos motores hacia atrás (los pines contrarios a avanzar). */
 static void retroceder(void)
 {
-    poner_motores(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
+    poner_motores(VELOCIDAD, 0, 0, VELOCIDAD);
+    pleno_modo = 2;
+    pleno_hasta_ms = hw_millis() + ARRANQUE_PLENO_MS;
 }
 
 /* Pivote a la izquierda: solo el motor derecho empuja; el izquierdo queda
@@ -61,6 +67,7 @@ static void retroceder(void)
 static void girar_izquierda(void)
 {
     poner_motores(0, 0, VELOCIDAD_GIRO, 0);
+    pleno_modo = 0;
 }
 
 /* Pivote a la derecha: solo el motor izquierdo empuja; el derecho queda
@@ -68,6 +75,7 @@ static void girar_izquierda(void)
 static void girar_derecha(void)
 {
     poner_motores(0, VELOCIDAD_GIRO, 0, 0);
+    pleno_modo = 0;
 }
 
 /* ── Comandos ──────────────────────────────────────────────────────────── */
@@ -127,6 +135,7 @@ static void ejecutar_comando(const char *texto)
 void carro_iniciar(void)
 {
     poner_motores(0, 0, 0, 0);
+    pleno_modo = 0;
     guardar_comando_actual("STOP");
     ultimo_comando_ms   = 0;
     ultimo_keepalive_ms = 0;
@@ -157,6 +166,7 @@ const char *carro_respuesta(const char *texto)
 void carro_detener(void)
 {
     poner_motores(0, 0, 0, 0);
+    pleno_modo = 0;
     guardar_comando_actual("STOP");
 }
 
@@ -165,6 +175,16 @@ void carro_detener(void)
 void carro_vigilar_comunicacion(void)
 {
     uint32_t ahora = hw_millis();
+
+    /* Terminó el arranque a plena potencia: se aplica el ajuste por lado (VELOCIDAD_IZQ / VELOCIDAD_DER). */
+    if (pleno_modo != 0 && (int32_t)(ahora - pleno_hasta_ms) >= 0) {
+        if (pleno_modo == 1) {
+            poner_motores(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
+        } else {
+            poner_motores(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
+        }
+        pleno_modo = 0;
+    }
 
     if (motores_en_marcha && (uint32_t)(ahora - ultimo_comando_ms) > TIEMPO_WATCHDOG_MS) {
         carro_detener();

@@ -76,11 +76,11 @@ static void prueba_movimientos(void)
 {
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
-    caso("FORWARD: izq usa pin B (26), der usa pin A (25), a 255", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("FORWARD: izq usa pin B (26), der usa pin A (25), a 255", pines_son(0, 255, 255, 0));
 
     reiniciar_mundo(0);
     carro_recibir_comando("REVERSE");
-    caso("REVERSE: izq usa pin A (27), der usa pin B (33), a 255", pines_son(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER));
+    caso("REVERSE: izq usa pin A (27), der usa pin B (33), a 255", pines_son(255, 0, 0, 255));
 
     reiniciar_mundo(0);
     carro_recibir_comando("LEFT");
@@ -180,7 +180,7 @@ static void prueba_ping(void)
     carro_recibir_comando("FORWARD");
     int a = escrituras_pwm;
     carro_recibir_comando("PING");
-    caso("PING no mueve ni cambia los motores", escrituras_pwm == a && pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("PING no mueve ni cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
     carro_recibir_comando("FORWARD");
     caso("PING no cambia el comando activo (FORWARD sigue ignorado)", escrituras_pwm == a);
 
@@ -212,6 +212,52 @@ static void prueba_respuesta_ping(void)
     }
 }
 
+/* Arranque a plena potencia: los dos motores al 100 % los primeros ARRANQUE_PLENO_MS y después el ajuste por lado. */
+static void prueba_arranque_pleno(void)
+{
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    caso("FORWARD: al arrancar los dos motores van al 100 %", pines_son(0, 255, 255, 0));
+    reloj_ms = ARRANQUE_PLENO_MS - 1;
+    vuelta_loop();
+    caso("FORWARD: un ms antes de terminar el arranque siguen al 100 %", pines_son(0, 255, 255, 0));
+    reloj_ms = ARRANQUE_PLENO_MS;
+    vuelta_loop();
+    caso("FORWARD: al terminar el arranque se aplica el ajuste por lado", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("REVERSE");
+    reloj_ms = ARRANQUE_PLENO_MS;
+    vuelta_loop();
+    caso("REVERSE: igual, ajuste por lado después del arranque", pines_son(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 100;
+    carro_recibir_comando("STOP");
+    reloj_ms = 1000;
+    vuelta_loop();
+    caso("STOP en pleno arranque: se queda detenido (el ajuste no revive los motores)", pines_son(0, 0, 0, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 100;
+    carro_recibir_comando("LEFT");
+    reloj_ms = 1000;
+    carro_recibir_comando("LEFT");
+    vuelta_loop();
+    caso("girar en pleno arranque: el pivote sigue al 100 % y no se pisa con el ajuste", pines_son(0, 0, 255, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 100;
+    carro_recibir_comando("HOLA");
+    reloj_ms = 400;
+    carro_recibir_comando("HOLA");
+    vuelta_loop();
+    caso("un comando desconocido en pleno arranque no evita el ajuste al terminar", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+}
+
 static void prueba_desconocido(void)
 {
     /* Igual que el original: no mueve motores, pero renueva el watchdog y
@@ -224,7 +270,7 @@ static void prueba_desconocido(void)
     carro_recibir_comando("FORWARD");
     int a = escrituras_pwm;
     reloj_ms = 600; carro_recibir_comando("HOLA");
-    caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
+    caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
     reloj_ms = 1500; vuelta_loop();
     caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 1601; vuelta_loop();
@@ -303,6 +349,8 @@ static uint32_t o_ultimo_usuario;
 static int      o_motores_en_marcha;
 static char     o_comando_actual[64];
 static uint32_t o_ultimo_keepalive;
+static int      o_pleno_modo;      /* modelo del arranque a plena potencia */
+static uint32_t o_pleno_hasta;
 
 static void o_set_motors(int m1a, int m1b, int m2a, int m2b)
 {
@@ -314,8 +362,9 @@ static void o_apply_motors(const char *dir, int spd)
 {
     /* La única diferencia deliberada con el original: avanzar y retroceder usan el ajuste por lado (VELOCIDAD_IZQ/DER) para ir recto. */
     (void)spd;
-    if      (!strcmp(dir, "FORWARD")) o_set_motors(0,   VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
-    else if (!strcmp(dir, "REVERSE")) o_set_motors(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
+    o_pleno_modo = 0;
+    if      (!strcmp(dir, "FORWARD")) { o_set_motors(0, 255, 255, 0); o_pleno_modo = 1; o_pleno_hasta = hw_millis() + ARRANQUE_PLENO_MS; }
+    else if (!strcmp(dir, "REVERSE")) { o_set_motors(255, 0, 0, 255); o_pleno_modo = 2; o_pleno_hasta = hw_millis() + ARRANQUE_PLENO_MS; }
     else if (!strcmp(dir, "LEFT"))    o_set_motors(0,   0,   255, 0);
     else if (!strcmp(dir, "RIGHT"))   o_set_motors(0,   255, 0,   0);
 }
@@ -323,6 +372,7 @@ static void o_apply_motors(const char *dir, int spd)
 static void o_hard_stop(void)
 {
     o_set_motors(0, 0, 0, 0);
+    o_pleno_modo = 0;
     strcpy(o_comando_actual, "STOP");
 }
 
@@ -353,6 +403,11 @@ static void o_recibir(const char *msg)
 
 static void o_loop(void)
 {
+    if (o_pleno_modo != 0 && (int32_t)(hw_millis() - o_pleno_hasta) >= 0) {
+        if (o_pleno_modo == 1) o_set_motors(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
+        else                  o_set_motors(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
+        o_pleno_modo = 0;
+    }
     if (o_motores_en_marcha && (uint32_t)(hw_millis() - o_ultimo_usuario) > 1000) {
         o_hard_stop();
     }
@@ -367,6 +422,7 @@ static void o_loop(void)
 static void o_reiniciar(void)
 {
     memset(o_pwm, 0, sizeof o_pwm);
+    o_pleno_modo = 0;
     o_keepalive = 0;
     o_ultimo_usuario = 0;
     o_motores_en_marcha = 0;
@@ -433,6 +489,7 @@ int main(void)
     prueba_watchdog();
     prueba_ping();
     prueba_respuesta_ping();
+    prueba_arranque_pleno();
     prueba_desconocido();
     prueba_keepalive();
     prueba_desbordamiento();
