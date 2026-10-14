@@ -127,3 +127,26 @@ Todo lo que necesita el carro real:
 - Los grados de los giros son aproximados (a ojo, con marcas de 90°): error de unos 5 a 10°.
 - El carro cambia con la batería: hay que recalibrar cuando se descarga, cambia el piso o el peso.
 - Se supone que el arranque es el mismo para avanzar y para girar.
+
+## Valores medidos en el carro real (leídos de `calibracion.txt` del teléfono)
+
+| Valor | 13 oct, motores a 255 | 14 oct 09:10, perfil AUTO (210) |
+|---|---|---|
+| `medidos` | 15 | 47 (todo + retroceso) |
+| arranque | 0 ms | 0 ms |
+| avance | 26.3 ms/cm (38 cm/s) | **51.7 ms/cm (19.3 cm/s)** |
+| frenado al avanzar | 0.9 cm | **1.4 cm** |
+| giro izquierda | 7.8 ms/° | **12.0 ms/°** |
+| giro derecha | 7.4 ms/° | **8.2 ms/°** |
+| frenado del giro izq. / der. | 0 / 0 ° | **38.9° / 0°** |
+| retroceso | sin medir | **44.4 ms/cm (22.5 cm/s)** |
+| campo de visión | 60° (sin calibrar) | 60° (sin calibrar) |
+
+Notas:
+- El avance y el retroceso bajaron al ir a 210 (los pivotes siguen a 255). Con el retroceso medido, los reintentos de esquive retroceden
+  15 cm con 44.4 ms/cm.
+- **Los giros no deberían haber cambiado** (los pivotes siguen a 255) y cambiaron mucho: el izquierdo pasó de 7.8 a 12.0 ms/° y su «frenado»
+  de 0° a 38.9°. Eso parece ruido de la medición (pocas pruebas, o la batería) y no una propiedad del carro. Con 38.9° de frenado el navegador
+  pide un giro izquierdo de 90° de solo ~610 ms, y si el frenado real es ~0 el carro se quedará corto. **Conviene repetir el giro a la
+  izquierda** (paso 4 de la calibración) antes de confiar en las rutas con giros.
+- Cm hasta frenar con estos valores: ver `docs/latencia.md` (8.5 cm con el obstáculo cerca, a 210).

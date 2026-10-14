@@ -3,9 +3,12 @@
 Meta del proyecto: **menos de 300 ms** desde que el obstáculo aparece en la cámara hasta que el
 carro recibe el STOP. Aquí se suma toda la cadena con lo medido y se dice qué es suposición.
 
-**Velocidad del carro: 38 cm/s** (calibración real: 26.3 ms por cm) y **0.9 cm de frenado** después del STOP
-(`docs/calibracion.md`, medido en el carro el 13 oct 2026). A esa velocidad, **cada 100 ms de retraso son 3.8 cm**.
-La cuenta es: `cm = retraso_ms / 26.3 + 0.9` (hecha en `nucleo_c/prueba_obstaculo.c`, con pruebas en PC).
+**Velocidad del carro en el perfil AUTO (210): 19.3 cm/s** (calibración real: 51.7 ms por cm) y **1.4 cm de frenado** después del STOP
+(`docs/calibracion.md`, medido en el carro el 14 oct 2026, leído de `calibracion.txt` del teléfono). A esa velocidad, **cada 100 ms de
+retraso son 1.9 cm**. La cuenta es: `cm = retraso_ms / 51.7 + 1.4` (hecha en `nucleo_c/prueba_obstaculo.c`, con pruebas en PC).
+
+Antes (perfil a 255, 13 oct): 38 cm/s (26.3 ms por cm) y 0.9 cm de frenado, `cm = retraso_ms / 26.3 + 0.9`. Las dos columnas de las cuentas de
+abajo muestran el antes y el después.
 
 ## La cadena, etapa por etapa (medida)
 
@@ -22,21 +25,30 @@ La cuenta es: `cm = retraso_ms / 26.3 + 0.9` (hecha en `nucleo_c/prueba_obstacul
 4. **Tick del navegador (50 ms) y envío del STOP por WebSocket.** El tick espera entre 0 y 50 ms (25 ms en promedio). El ida y vuelta
    PING/PONG por WiFi con el carro real se midió en la app: **30 ms** (el STOP tarda la mitad, ~15 ms, en llegar).
 5. **Firmware: del STOP a los motores a cero**: en la misma vuelta del `loop` (`carro_detener`), unos milisegundos. No medido.
-6. **Frenado mecánico: 0.9 cm** (medido en la calibración).
+6. **Frenado mecánico: 1.4 cm a 210** (0.9 cm a 255; medido en la calibración).
 
-## Suma y distancia recorrida a 38 cm/s (26.3 ms/cm, frenado 0.9 cm)
+## Suma y distancia recorrida: a 210 (51.7 ms/cm, frenado 1.4 cm) y, para comparar, a 255 (26.3 ms/cm, frenado 0.9 cm)
 
-- **Obstáculo cerca (el caso que importa para frenar)**: 320 + 7 + 0 + 25 (tick, promedio) + 15 (STOP por WiFi) = **367 ms**
-  → el carro avanza 367 / 26.3 + 0.9 = **14.9 cm** antes de quedar detenido. En el peor caso del tick (+25 ms): 392 ms → **15.8 cm**.
-- **Obstáculo de cercanía 2 a un lado** (cuadros cada 80 ms): 367 + 160 = **527 ms** → **20.9 cm**.
-  Con cuadros cada 120 ms: 367 + 240 = 607 ms → **24.0 cm**. Como es lejano, hay margen.
+| Caso | Retraso | cm a 210 (AUTO) | cm a 255 (antes) |
+|---|---|---|---|
+| Obstáculo cerca (cercanía 3, o 2 al centro), tick promedio | 367 ms | **8.5** | 14.9 |
+| Lo mismo, peor caso del tick (+25 ms) | 392 ms | **9.0** | 15.8 |
+| Cercanía 2 a un lado, cuadros cada 80 ms (+160 ms) | 527 ms | **11.6** | 20.9 |
+| Cercanía 2 a un lado, cuadros cada 120 ms (+240 ms) | 607 ms | **13.1** | 24.0 |
+
+Cuentas: obstáculo cerca = 320 (video) + 7 (detectar) + 0 (antirrebote) + 25 (tick, promedio) + 15 (STOP por WiFi) = **367 ms**; a 210 el carro
+avanza 367 / 51.7 + 1.4 = **8.5 cm** antes de quedar detenido (a 255: 367 / 26.3 + 0.9 = 14.9 cm). Son cuentas con la calibración, no una
+medida de cm con cinta: **la prueba con el termo a 210 «frenó bien»**, pero falta la serie de pasadas con cinta (PENDIENTE HARDWARE).
+OJO: el retraso (367 ms) se midió a 255; el STOP y el video no dependen de la velocidad, así que se supone el mismo.
+
+- Con «frenar desde lejos en el centro» (video del carro) el STOP sale con cercanía 1 (2 cuadros y 60 ms), antes que la cercanía 2: más margen todavía.
 - La meta de 300 ms **no se cumple** con esta cámara: solo el video ya son 320 ms.
 
 Lo que sí se puede hacer:
 
-- bajar la velocidad: la distancia es `velocidad × retraso` + frenado: a 19 cm/s serían ~8 cm; a 38 cm/s, ~15 cm;
-- elegir `OBS_CERCA_MIL` y la inclinación de la cámara para que la **cercanía 3 empiece al menos a ~21 cm** del carro (15.8 cm de la
-  cadena + 5 cm de margen). Hay que medir con una cinta a cuántos cm del carro queda la fila donde empieza la cercanía 3;
+- bajar la velocidad: la distancia es `velocidad × retraso` + frenado: a 19 cm/s (perfil AUTO, **ya hecho**) son ~8.5 cm; a 38 cm/s eran ~15 cm;
+- elegir `OBS_CERCA_MIL` y la inclinación de la cámara para que la **cercanía 3 empiece al menos a ~14 cm** del carro (9.0 cm de la
+  cadena a 210 + 5 cm de margen; eran ~21 cm a 255). Hay que medir con una cinta a cuántos cm del carro queda la fila donde empieza la cercanía 3;
 - atacar la cámara: la compresión por software y el reloj del sensor son lo que más pesa (`docs/camara_prueba.md`).
 
 ## Vigilancia del video (fail-safe)
@@ -68,3 +80,14 @@ cerca), `ms_detectar` (de la llegada del cuadro a que el detector terminó), `ms
 - La serie de pasadas de la prueba de obstáculos con el carro real (pasos en `docs/prueba_obstaculos.md`).
 - Si los tropiezos del video desaparecen con el canal fijo y sin ahorro de energía (cargar los dos firmwares nuevos: `scripts\cargar.ps1 nuevo` y `camara`).
 - A cuántos cm del carro queda cada cercanía.
+
+## Valores de calibración usados (resumen)
+
+| | 255 (13 oct) | 210 (14 oct, AUTO) |
+|---|---|---|
+| ms por cm | 26.3 | 51.7 |
+| cm/s | 38 | 19.3 |
+| frenado | 0.9 cm | 1.4 cm |
+| ms por cm hacia atrás | sin medir | 44.4 (22.5 cm/s) |
+
+La calibración está en `docs/calibracion.md`. La app usa 51.7 ms/cm y 1.4 cm si no puede leer la calibración guardada.
