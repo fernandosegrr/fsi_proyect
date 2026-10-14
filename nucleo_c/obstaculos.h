@@ -69,8 +69,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 
 /* Solo se buscan obstáculos en la zona de avance: de la FILA MÍNIMA hacia abajo. Las filas de
  * arriba (el fondo del cuarto, paredes lejanas) se ignoran. La fila mínima es una proporción del
- * alto: 500‰ = la mitad inferior (en 24 filas, de la fila 12 a la 23). */
-#define OBS_FILA_MINIMA_MIL      500
+ * alto: 500‰ = la mitad inferior (en 24 filas, de la fila 12 a la 23); por defecto 440‰ (de la fila 10 en 24 filas). */
+#define OBS_FILA_MINIMA_MIL      440   /* validado en el carro real (ver docs/obstaculos.md): mira un poco más arriba que la mitad inferior */
 
 /* ── Parámetros a calibrar ─────────────────────────────────────────────────
  * Los colores se comparan sobre el promedio de cada celda (cada canal de 0 a 255).
@@ -85,7 +85,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  *      UMBRAL_BRILLO. Esto tolera degradados de luz, pero no una caja muy oscura.
  * Si no cumple ninguna, la celda es NO PISO.
  */
-#define UMBRAL_COLOR      60   /* suma |dR|+|dG|+|dB|, de 0 a 765 (valor POR DEFECTO, ver ConfigObstaculos) */
+#define UMBRAL_COLOR      40   /* suma |dR|+|dG|+|dB|, de 0 a 765 (valor POR DEFECTO validado en el carro real, ver docs/obstaculos.md) */
 #define UMBRAL_CROMA      30   /* suma de diferencias del color normalizado, de 0 a 512 */
 #define UMBRAL_BRILLO    150   /* |(R+G+B) - (R+G+B de referencia)|, de 0 a 765 */
 #define SUMA_MIN_CROMA    90   /* debajo de este R+G+B el color normalizado no es confiable */
@@ -97,7 +97,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 
 /* Una zona tiene obstáculo si hay al menos MIN_CELDAS celdas "no piso" confirmadas.
  * Una celda "no piso" aislada (sin ninguna vecina "no piso") se descarta como ruido. */
-#define MIN_CELDAS          6   /* valor POR DEFECTO, ver ConfigObstaculos */
+#define MIN_CELDAS          7   /* valor POR DEFECTO validado en el carro real, ver docs/obstaculos.md y ConfigObstaculos */
 
 /* Cercanía según la fila más baja (la más cercana al carro) que alcanza el obstáculo. Los
  * límites también son proporciones del alto (en 24 filas: media desde la fila 16 y cerca desde

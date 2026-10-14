@@ -71,7 +71,7 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->t_cancelar_ms = 0xFFFFFFFFu;
 }
 
-int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania)
+int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas)
 {
     EventoObstaculo *e;
 
@@ -83,7 +83,13 @@ int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, 
     e->t_fin_ms = t_fin_ms;
     e->zona = zona;
     e->cercania = cercania;
+    e->celdas = celdas;
     return 0;
+}
+
+int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania)
+{
+    return sim_agregar_obstaculo_celdas(sim, t_ini_ms, t_fin_ms, zona, cercania, 10);
 }
 
 /* Rumbo en grados enteros, de 0 a 359. */
@@ -104,7 +110,8 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
     switch (comando) {
     case NAV_CMD_FORWARD:
     case NAV_CMD_REVERSE:
-        distancia = (long)dt * 10000 / sim->real.ms_por_cm_x10 * sim->pct_avance / 100;   /* 1 mm = 100 centésimas */
+        /* 1 mm = 100 centésimas; hacia atrás el carro real puede tener otros ms por cm (cal_ms_por_cm_atras_x10) */
+        distancia = (long)dt * 10000 / ((comando == NAV_CMD_REVERSE) ? cal_ms_por_cm_atras_x10(&sim->real) : sim->real.ms_por_cm_x10) * sim->pct_avance / 100;
         if (comando == NAV_CMD_REVERSE) {
             distancia = -distancia;
         }
@@ -135,7 +142,9 @@ static void armar_cuadro(const Simulador *sim, uint32_t t_ms, ResultadoObstaculo
 
         if (t_ms >= e->t_ini_ms && t_ms < e->t_fin_ms) {
             cuadro->zona[e->zona].hay_obstaculo = 1;
-            cuadro->zona[e->zona].celdas = 10;
+            if (e->celdas > cuadro->zona[e->zona].celdas) {
+                cuadro->zona[e->zona].celdas = e->celdas;
+            }
             if (e->cercania > cuadro->zona[e->zona].cercania) {
                 cuadro->zona[e->zona].cercania = e->cercania;
             }

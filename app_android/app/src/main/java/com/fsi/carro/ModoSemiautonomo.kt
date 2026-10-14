@@ -41,6 +41,9 @@ class ModoSemiautonomo(
         val RUTA_ZIGZAG = intArrayOf(0, 5, 0, 4, 1, 4, 1, 3, 2, 3, 2, 2, 3, 2)
         // Prueba de obstáculos: una recta de 5 celdas (1 m). Al frenar por un obstáculo la pasada se mide y la ruta se cancela (el carro queda detenido).
         val RUTA_PRUEBA_OBSTACULO = intArrayOf(2, 8, 2, 7, 2, 6, 2, 5, 2, 4, 2, 3)
+        // Ruta para esquivar un objeto grande: recta de 7 celdas (1.4 m). A diferencia de la de arriba NO se cancela al frenar: el carro esquiva
+        // (gira, mira, retrocede y reintenta si hace falta) y sigue hasta el final. También anota OBST_PRUEBA en el primer frenado.
+        val RUTA_ESQUIVAR_OBJETO = intArrayOf(2, 8, 2, 7, 2, 6, 2, 5, 2, 4, 2, 3, 2, 2, 2, 1)
         const val ETIQUETA_PRUEBA = "OBST_PRUEBA"
         const val MOTIVO_SIN_VIDEO = 5   // MotivoErrorNav en navegador.h: NAV_MOTIVO_SIN_VIDEO
         val NOMBRE_ZONA = arrayOf("IZQUIERDA", "CENTRO", "DERECHA")
@@ -57,6 +60,8 @@ class ModoSemiautonomo(
 
     private var ultimoCuadroMs = 0L
     private var ultimoEstadoCentro = -1
+    private var ultimaFaseLog = -1      // para escribir en el log solo cuando cambia la maniobra de esquivar
+    private var ultimosReintentosLog = -1
 
     // ── Prueba "Obstáculos: cámara" ─────────────────────────────────────
     /** La calibración guardada (la pone la pantalla de control): se usan ms por cm y frenado para convertir el retraso en cm. */
@@ -107,7 +112,7 @@ class ModoSemiautonomo(
         if (activo) {
             return false
         }
-        modoPruebaObstaculo = ruta.contentEquals(RUTA_PRUEBA_OBSTACULO)
+        modoPruebaObstaculo = (ruta === RUTA_PRUEBA_OBSTACULO)   // la ruta de esquivar tiene otros puntos, pero igual se mide el primer frenado
         bloqueoMarcaMs = 0L
         resumenEscrito = false
         if (logica.conexion != ControlLogica.Conexion.CONECTADO) {
@@ -138,6 +143,14 @@ class ModoSemiautonomo(
         }
         Log.i(ETIQUETA, "ruta iniciada (${ruta.size / 2} puntos)")
         mensaje = ""
+        // El retroceso de los reintentos de esquive es CIEGO (no hay cámara atrás): se avisa siempre, y si no se calibró, que usa el del avance.
+        val calAtras = leerCalibracion()
+        if (calAtras.size > CalibracionNativa.CAL_MEDIDOS && calAtras[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_ATRAS == 0) {
+            Log.w(ETIQUETA, "retroceso SIN calibrar: los reintentos de esquive retroceden con los ms por cm del avance")
+            mensaje = "Aviso: retroceso sin calibrar (usa el valor del avance). Si hay que esquivar un objeto grande el carro puede retroceder hasta 15 cm: deja libre el espacio de atrás."
+        }
+        ultimaFaseLog = -1
+        ultimosReintentosLog = -1
         ultimoComando = NavegadorNativa.CMD_STOP
         ultimoCuadroMs = SystemClock.elapsedRealtime()
         ultimoEstadoCentro = -1
@@ -197,8 +210,18 @@ class ModoSemiautonomo(
         }
         // Giro con la cámara: lo que se vio girar entre los dos últimos cuadros corrige el giro por tiempo del navegador.
         fuente?.tomarGiroNuevo()?.let { NavegadorNativa.aporteVisual(it.giroX10, it.dtMs, it.confiable) }
+        if (cuadro != null) {
+            // Celdas de obstáculo de cada zona (de la cámara): el navegador elige el lado con más espacio libre. Con los botones no se sabe (-1).
+            val detalle = fuente?.cuadroTomado?.resultado
+            if (fuente != null && detalle != null && detalle.size > ObstaculosNativa.CELDAS_ZONA + 2) {
+                NavegadorNativa.ponerCeldas(detalle[ObstaculosNativa.CELDAS_ZONA], detalle[ObstaculosNativa.CELDAS_ZONA + 1], detalle[ObstaculosNativa.CELDAS_ZONA + 2])
+            } else {
+                NavegadorNativa.ponerCeldas(-1, -1, -1)
+            }
+        }
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
+        registrarEsquive()
 
         if (comando != ultimoComando) {
             ultimoComando = comando
@@ -222,6 +245,21 @@ class ModoSemiautonomo(
             escribirResumenDePrueba()
         }
         alCambiar()
+    }
+
+    /** Escribe en el log los cambios de la maniobra de esquivar (giro, mirar, retroceso, reintentos) para revisarla después de la prueba. */
+    private fun registrarEsquive() {
+        val e = NavegadorNativa.estado()
+        val fase = if (e[NavegadorNativa.E_ESTADO] == NavegadorNativa.ESQUIVANDO) e[NavegadorNativa.E_FASE] else -1
+        val reintentos = e[NavegadorNativa.E_REINTENTOS]
+        if (fase != ultimaFaseLog || reintentos != ultimosReintentosLog) {
+            ultimaFaseLog = fase
+            ultimosReintentosLog = reintentos
+            if (fase >= 0) {
+                val nombre = arrayOf("GIRAR", "AVANZAR_DE_LADO", "VOLVER", "MIRAR", "RETROCEDER", "ASENTAR").getOrElse(fase) { "?" }
+                Log.i(ETIQUETA, "esquivar fase=$nombre reintentos=$reintentos rumbo=${e[NavegadorNativa.E_RUMBO]} x_mm=${e[NavegadorNativa.E_X_MM]} y_mm=${e[NavegadorNativa.E_Y_MM]}")
+            }
+        }
     }
 
     /** Lleva la racha de cuadros con un obstáculo cerca (cercanía 2 o más en cualquier zona) y guarda cómo era el PRIMERO. */

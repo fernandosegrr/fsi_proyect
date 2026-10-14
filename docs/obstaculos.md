@@ -138,6 +138,26 @@ lejana dentro de la zona de avance (cercanía 1: el navegador solo frena desde c
 pared); franja tapada con y sin modelo; validación de los campos nuevos; y el piso de baldosas a 240x176. Con una mutación (aprender las celdas dudosas)
 una prueba falla como debe. Las 144 pruebas anteriores (`pruebas_obstaculos.c`) siguen pasando sin cambios.
 
+## Valores por defecto validados en el carro real
+
+Son los que trae el código (`nucleo_c/obstaculos.h`) y los que usa una app recién instalada: un teléfono nuevo funciona **sin tocar sliders**.
+Salen de lo que el usuario ajustó en vivo con el carro real, la cámara del carro (HQVGA 240x176, 12 fps) y su piso: con fila mínima ~440,
+celdas mínimas entre 6 y 8 (se tomó 7, el centro) y umbral de color 40 el piso vacío no dio falsas alarmas (0 de 270 muestras) y la mochila
+se vio desde ~80 cm. Son valores de ESE piso y ESA luz: en otro lugar puede hacer falta retocarlos.
+
+| Valor | Defecto | Unidades | Por qué |
+|---|---|---|---|
+| `OBS_FILA_MINIMA_MIL` (fila mínima) | **440** (antes 500) | milésimas del alto (440 = 44 %; en 17 filas, desde la fila 7; en 24, desde la 10) | Mira un poco más arriba de la mitad de la imagen: el objeto entra en la zona de avance antes (más margen para frenar con ~0.4 s de retraso) sin llegar al fondo del cuarto. Más bajo (número mayor) = ignora más lo lejano. |
+| `MIN_CELDAS` | **7** (antes 6) | celdas de 10x10 px | Cuántas celdas "no piso" hacen falta en una zona para contarla. Con 240x176 un objeto ocupa pocas celdas. Más alto = menos falsas alarmas pero no ve objetos chicos; entre 6 y 8 funcionó en las pruebas. |
+| `UMBRAL_COLOR` | **40** (antes 60) | suma \|dR\|+\|dG\|+\|dB\| de 0 a 765 | Qué tanto debe cambiar el color de una celda para dejar de ser "piso". Más bajo = ve objetos más parecidos al piso; si el piso vacío da falsas alarmas, súbelo. (El teléfono de pruebas quedó con 119 porque se retocó después; el defecto del código es 40.) |
+| Modelo de objetos (`usarModelo`) | **NO** | sí/no (preferencia de la app) | EfficientDet-Lite0 no reconoce objetos con la cámara del carro (nunca vio el termo; inventa «person» y «refrigerator»). Solo suma retraso y falsos positivos. |
+| «Frenar desde lejos en el centro» | **activo con el video del carro**, apagado con la cámara del teléfono | automático (la app lo pone al iniciar la ruta) | Con el retraso del video y 38 cm/s el STOP llega ~17 cm tarde: un obstáculo lejano (cercanía 1) al centro ya frena, tras 2 cuadros y 60 ms (`NAV_MS_CONFIRMAR_CENTRO_LEJOS`). |
+| Grupos del piso (K) / aprendizaje | 4 / 20 milésimas por cuadro | colores / ‰ por cuadro | Sin cambios: ya eran los defectos (`OBS_GRUPOS_DEFECTO`, `OBS_APRENDIZAJE_DEFECTO`). |
+
+Notas: las preferencias del teléfono (`shared_prefs/vision.xml`) tienen prioridad sobre estos valores; en un teléfono con valores viejos, el botón
+«Restablecer» de la pantalla de visión vuelve a ellos. Las pruebas de PC de la mecánica de la fila mínima y de los objetos de 6 celdas usan una
+configuración explícita (`config_clasica`: 500, 6 y 60) y hay una prueba que comprueba estos defectos.
+
 ## Parámetros a calibrar con el carro real
 
 Todos están en `nucleo_c/obstaculos.h`. Los valores actuales son de partida, pensados para
@@ -149,7 +169,7 @@ estructura `ConfigObstaculos` (`obstaculos_config_defecto` da los valores por de
 La pantalla de visión de la app los ajusta con barras sin recompilar (ver `docs/vision_huawei.md`).
 Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen siendo constantes.
 
-- `UMBRAL_COLOR` = 60 (suma de diferencias por canal, 0 a 765). Súbelo si el piso limpio da
+- `UMBRAL_COLOR` = 40 (antes 60; suma de diferencias por canal, 0 a 765). Súbelo si el piso limpio da
   falsas alarmas; bájalo si no ve cajas parecidas al piso.
 - `UMBRAL_CROMA` = 30 y `UMBRAL_BRILLO` = 150: controlan cuánto cambio de luz se tolera.
   Si hay falsas alarmas por degradados de luz, sube `UMBRAL_BRILLO`; si una caja oscura o
@@ -158,12 +178,12 @@ Una configuración no válida da `OBS_ERR_CONFIG`. Los demás parámetros siguen
 - `MAX_VARIACION_REF` = 40: cuánto puede variar la franja de referencia. Con un piso con
   textura o baldosas hay que subirlo; con uno muy liso se puede bajar para detectar antes
   un objeto debajo del carro.
-- `MIN_CELDAS` = 6: tamaño mínimo (en celdas de 10x10) para contar una zona. Más alto = menos
+- `MIN_CELDAS` = 7 (antes 6): tamaño mínimo (en celdas de 10x10) para contar una zona. Más alto = menos
   falsas alarmas pero no ve objetos pequeños.
 - `OBS_MEDIA_MIL` = 667 y `OBS_CERCA_MIL` = 834 (proporciones del alto): dónde cambian las
   cercanías. Hay que relacionarlas con la distancia real (por ejemplo, a cuántos cm del carro está la fila 20) y
   con la distancia de frenado del carro.
-- `fila_minima_mil` (fila mínima) = 500 (`OBS_FILA_MINIMA_MIL`): **proporción del alto** (0 a 1000
+- `fila_minima_mil` (fila mínima) = 440 (antes 500; `OBS_FILA_MINIMA_MIL`): **proporción del alto** (0 a 1000
   milésimas; 500 = 0.5 = la mitad inferior; el antiguo "12 de 24" equivale a 500). Se convierte a
   la primera fila de celdas, contando desde arriba, que cuenta como zona de avance
   (`filas * fila_minima_mil / 1000`). Las filas de arriba se ignoran, aunque tengan

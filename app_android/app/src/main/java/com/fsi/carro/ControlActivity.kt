@@ -90,6 +90,11 @@ class ControlActivity : Activity() {
             nombreRuta = "Prueba de obstáculo (recta de 1 m)"
             mostrarEstado()
         }
+        findViewById<Button>(R.id.boton_ruta_esquivar).setOnClickListener {
+            rutaElegida = ModoSemiautonomo.RUTA_ESQUIVAR_OBJETO
+            nombreRuta = "Esquivar objeto grande (recta de 1.4 m, no se cancela al frenar)"
+            mostrarEstado()
+        }
         findViewById<Button>(R.id.boton_reiniciar_prueba).setOnClickListener { semi.reiniciarPrueba() }
         findViewById<Button>(R.id.boton_iniciar_ruta).setOnClickListener { semi.iniciar(rutaElegida) }
         findViewById<Button>(R.id.boton_cancelar_ruta).setOnClickListener { semi.cancelar() }

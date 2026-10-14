@@ -619,17 +619,19 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
 
 /* ── Calibración del carro ─────────────────────────────────────────────── */
 
-/* La calibración se pasa a Kotlin como 9 enteros, en este orden (el mismo de CalibracionCarro):
+/* La calibración se pasa a Kotlin como 10 enteros, en este orden (el mismo de CalibracionCarro):
  *   [0] medidos  [1] arranque_ms  [2] ms_por_cm_x10  [3] frenado_mm
  *   [4] ms_por_grado_izq_x10  [5] ms_por_grado_der_x10
  *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10  [8] fov_grados_x10 (campo de visión de la cámara)
- * Las funciones que cambian la calibración devuelven 10 enteros: [0] = código (0 = bien) y [1..9] = la
+ *   [9] ms_por_cm_atras_x10 (ms por cm RETROCEDIENDO; vale solo si el bit CAL_MEDIDO_ATRAS está en `medidos`)
+ * Las funciones que cambian la calibración devuelven 11 enteros: [0] = código (0 = bien) y [1..10] = la
  * calibración resultante (sin cambios si hubo error). */
-#define ENTEROS_CALIBRACION 9
+#define ENTEROS_CALIBRACION 10
 
 /* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
 static CalibracionCarro calibracion_global;
 static int calibracion_inicializada = 0;
+static int celdas_zona_global[3] = { -1, -1, -1 };   /* celdas de obstáculo de cada zona del último cuadro (-1 = no se sabe: se estiman) */
 static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
 
@@ -660,6 +662,7 @@ static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *ca
     cal->frenado_grados_izq_x10 = (int)datos[6];
     cal->frenado_grados_der_x10 = (int)datos[7];
     cal->fov_grados_x10 = (int)datos[8];
+    cal->ms_por_cm_atras_x10 = (int)datos[9];
     return 1;
 }
 
@@ -679,6 +682,7 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
     salida[7] = cal->frenado_grados_izq_x10;
     salida[8] = cal->frenado_grados_der_x10;
     salida[9] = cal->fov_grados_x10;
+    salida[10] = cal->ms_por_cm_atras_x10;
     arreglo = (*env)->NewIntArray(env, 1 + ENTEROS_CALIBRACION);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
@@ -778,6 +782,25 @@ Java_com_fsi_carro_CalibracionNativa_ajustarAvance(JNIEnv *env, jobject objeto, 
     }
     n = leer_dos_listas(env, ms, mm, lista_ms, lista_mm);
     codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_avance(&cal, n, lista_ms, lista_mm);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Ajusta el retroceso con los tiempos (ms de REVERSE) y lo que retrocedió el carro (mm). Solo cambia los ms por cm hacia atrás. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarRetroceso(JNIEnv *env, jobject objeto, jintArray calibracion,
+                                                       jintArray ms, jintArray mm)
+{
+    CalibracionCarro cal;
+    int lista_ms[CAL_MAX_PUNTOS], lista_mm[CAL_MAX_PUNTOS];
+    int n, codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    n = leer_dos_listas(env, ms, mm, lista_ms, lista_mm);
+    codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_retroceso(&cal, n, lista_ms, lista_mm);
     return devolver_calibracion(env, codigo, &cal);
 }
 
@@ -912,7 +935,7 @@ Java_com_fsi_carro_NavegadorNativa_ponerCalibracion(JNIEnv *env, jobject objeto,
 static Navegador navegador_global;
 static int navegador_inicializado = 0;
 
-#define ENTEROS_ESTADO_NAVEGADOR 9
+#define ENTEROS_ESTADO_NAVEGADOR 11
 
 static Navegador *obtener_navegador(void)
 {
@@ -995,6 +1018,18 @@ Java_com_fsi_carro_NavegadorNativa_frenarLejosCentro(JNIEnv *env, jobject objeto
     return navegador_poner_frenar_lejos_centro(obtener_navegador(), (int)activo);
 }
 
+/* Dice cuántas celdas de obstáculo tiene cada zona en el cuadro que se va a mandar al siguiente tick (con -1 no se sabe). Sirve para
+ * que el navegador elija el lado con MÁS espacio libre al esquivar (ver elegir_lado en navegador.c). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerCeldas(JNIEnv *env, jobject objeto, jint izquierda, jint centro, jint derecha)
+{
+    (void)env;
+    (void)objeto;
+    celdas_zona_global[ZONA_IZQUIERDA] = (int)izquierda;
+    celdas_zona_global[ZONA_CENTRO] = (int)centro;
+    celdas_zona_global[ZONA_DERECHA] = (int)derecha;
+}
+
 /* Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giro_x10` en grados por 10 (positivo a la derecha),
  * `dt_ms` el tiempo entre esos cuadros y `confiable` si la cámara estaba segura (ver navegador_aporte_visual). */
 JNIEXPORT void JNICALL
@@ -1023,17 +1058,17 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
         for (z = 0; z < OBS_ZONAS; z++) {
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
-            resultado.zona[z].celdas = resultado.zona[z].hay_obstaculo ? MIN_CELDAS : 0;
+            resultado.zona[z].celdas = (celdas_zona_global[z] >= 0) ? celdas_zona_global[z] : (resultado.zona[z].hay_obstaculo ? MIN_CELDAS : 0);
         }
         cuadro = &resultado;
     }
     return (jint)navegador_tick(obtener_navegador(), (uint32_t)ahora_ms, cuadro);
 }
 
-/* Estado para mostrar en pantalla (9 enteros):
+/* Estado para mostrar en pantalla (11 enteros):
  *   [0] estado (0 ESPERANDO ... 6 ERROR, ver navegador.h)  [1] x en mm  [2] y en mm
  *   [3] rumbo en grados  [4] punto objetivo  [5] total de puntos  [6] esquivadas
- *   [7] motivo del error  [8] último comando (0 a 4) */
+ *   [7] motivo del error  [8] último comando (0 a 4)  [9] reintentos de esquive  [10] fase de esquivar (NAV_FASE_*) */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_NavegadorNativa_estado(JNIEnv *env, jobject objeto)
 {
@@ -1051,6 +1086,8 @@ Java_com_fsi_carro_NavegadorNativa_estado(JNIEnv *env, jobject objeto)
     salida[6] = nav->esquivadas;
     salida[7] = (jint)nav->motivo_error;
     salida[8] = (jint)nav->cmd_actual;
+    salida[9] = nav->reintentos;
+    salida[10] = nav->fase;
     arreglo = (*env)->NewIntArray(env, ENTEROS_ESTADO_NAVEGADOR);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_ESTADO_NAVEGADOR, salida);

@@ -2,8 +2,8 @@
  * CalibracionNativa.kt — Declara las funciones en C de la calibración del carro (nucleo_c/calibracion.c).
  *
  * GUÍA DE LECTURA
- *  1. La calibración viaja como un IntArray de 9 enteros (índices CAL_* más abajo). Las funciones que
- *     la cambian devuelven 10 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
+ *  1. La calibración viaja como un IntArray de 10 enteros (índices CAL_* más abajo). Las funciones que
+ *     la cambian devuelven 11 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
  *  2. Los decimales van multiplicados por 10 (sufijo _x10): 420 = 42.0 ms por cm.
  *  3. Cómo se mide (lo hace CalibracionActivity): arranque, avance (varios tiempos), giro a la
  *     izquierda y giro a la derecha. Ver docs/calibracion.md.
@@ -16,7 +16,7 @@ object CalibracionNativa {
         System.loadLibrary("carro_nativo")
     }
 
-    // Posiciones dentro de la calibración (8 enteros).
+    // Posiciones dentro de la calibración (10 enteros).
     const val CAL_MEDIDOS = 0
     const val CAL_ARRANQUE_MS = 1
     const val CAL_MS_POR_CM_X10 = 2
@@ -26,7 +26,8 @@ object CalibracionNativa {
     const val CAL_FRENADO_GRADOS_IZQ_X10 = 6
     const val CAL_FRENADO_GRADOS_DER_X10 = 7
     const val CAL_FOV_GRADOS_X10 = 8    // campo de visión horizontal de la cámara, grados por 10 (600 = 60.0)
-    const val ENTEROS = 9
+    const val CAL_MS_POR_CM_ATRAS_X10 = 9   // ms por cm RETROCEDIENDO por 10; vale solo si el bit MEDIDO_ATRAS está puesto (si no, se usa el del avance)
+    const val ENTEROS = 10
 
     // Bits de "medidos" / "faltantes".
     const val MEDIDO_ARRANQUE = 1
@@ -35,6 +36,7 @@ object CalibracionNativa {
     const val MEDIDO_GIRO_DER = 8
     const val MEDIDO_TODO = 15          // los cuatro obligatorios: arranque, avance y los dos giros
     const val MEDIDO_FOV = 16           // opcional: el campo de visión de la cámara (giro visual)
+    const val MEDIDO_ATRAS = 32         // opcional: los ms por cm al retroceder (si falta, se usa el del avance)
 
     const val LADO_IZQUIERDA = -1
     const val LADO_DERECHA = 1
@@ -46,7 +48,7 @@ object CalibracionNativa {
     const val ERR_RANGO = -3
     const val ERR_TEXTO = -4
 
-    /** Calibración por defecto (la de ejemplo): [código, 8 enteros]. */
+    /** Calibración por defecto (la de ejemplo): [código, 10 enteros]. */
     external fun defecto(): IntArray
 
     /** Promedio de los valores sin los datos atípicos (los que se alejan mucho de la mediana). */
@@ -57,6 +59,9 @@ object CalibracionNativa {
 
     /** Ajusta el avance con los tiempos (ms) y lo que avanzó el carro (mm): [código, calibración]. */
     external fun ajustarAvance(calibracion: IntArray, ms: IntArray, mm: IntArray): IntArray
+
+    /** Ajusta el retroceso con los tiempos (ms de REVERSE) y lo que retrocedió el carro (mm): [código, calibración]. Solo cambia los ms por cm hacia atrás. */
+    external fun ajustarRetroceso(calibracion: IntArray, ms: IntArray, mm: IntArray): IntArray
 
     /** Ajusta el giro de un lado con los tiempos (ms) y los grados girados por 10: [código, calibración]. */
     external fun ajustarGiro(calibracion: IntArray, lado: Int, ms: IntArray, gradosX10: IntArray): IntArray
@@ -79,7 +84,7 @@ object CalibracionNativa {
     /** Lee el texto de aTexto: [código, calibración]. */
     external fun deTexto(texto: String): IntArray
 
-    /** Separa el resultado [código, calibración...] en el código y la calibración de 8 enteros. */
+    /** Separa el resultado [código, calibración...] en el código y la calibración de 10 enteros. */
     fun desempaquetar(resultado: IntArray): Pair<Int, IntArray> =
         Pair(resultado[0], resultado.copyOfRange(1, 1 + ENTEROS))
 

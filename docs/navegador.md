@@ -167,3 +167,88 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
 ## Pausa entre movimientos
 
 Entre avanzar y girar (o girar y avanzar) el navegador manda STOP `NAV_PAUSA_ASENTAR_MS` = 300 ms antes del siguiente comando. Así cada movimiento arranca desde cero, igual que en la calibración, y no hereda la inercia del anterior. Con el carro real, sin esa pausa el giro de las esquinas variaba 30 a 60 grados entre corridas de un cuadrado. Entre dos tramos rectos seguidos no hay pausa. La pausa no cuenta como tiempo del paso: la posición estimada sigue siendo por tiempo de movimiento.
+
+## Objetos grandes: por qué terminaba en ERROR y cómo reintenta ahora
+
+### El caso que fallaba (la mochila)
+
+Con un obstáculo grande y cerca, el carro se detenía, giraba 90° para apartarse y **mientras avanzaba de lado** (fase 1) volvía a ver el
+objeto al frente con cercanía 3. El código antiguo (`tick_esquivando`) lo trataba como "apareció algo nuevo" y pasaba a ERROR
+(`NAV_MOTIVO_ESQUIVANDO`) con un solo cuadro. Había **dos causas distintas** que daban el mismo síntoma:
+
+1. **El cuadro viejo.** Con el video del carro el cuadro llega ~320 ms tarde. Justo al terminar el giro el navegador todavía recibía cuadros
+   de cuando el carro giraba (el objeto aún al frente) y los tomaba como si fueran del carro ya apuntando a otro lado. Como la cercanía 3 se
+   confirma con UN cuadro, bastaba uno para el ERROR. Este caso **no es un obstáculo real**: es una falsa alarma por el retraso.
+2. **El objeto sigue ahí de verdad.** Si el objeto es muy ancho (la mochila, una pared, una esquina) o el carro está muy cerca de él, tras
+   girar 90° el frente SIGUE ocupado: el carro tiene el objeto al lado y sigue "viéndolo" al frente. Avanzar sería chocar.
+
+Además, cuando los dos lados estaban ocupados (pared de lado a lado) el carro esperaba `NAV_TIMEOUT_ESQUIVAR_MS` (4 s) y terminaba en
+ERROR `LADOS_BLOQUEADOS`; eso no cambia (ver "Qué no resuelve").
+
+### La maniobra nueva (fases de ESQUIVANDO)
+
+```
+        GIRAR (90°) ──► MIRAR ──(frente libre)──► AVANZAR 40 cm ──► VOLVER ──► REINCORPORANDO
+                          │
+                  (frente muy cerca)
+                          ▼
+                    RETROCEDER 15 cm ──► ASENTAR 300 ms ──► GIRAR (45° extra, luego 90° extra) ──► MIRAR ...
+                          (máximo NAV_MAX_REINTENTOS = 2; con los dos agotados y el frente aún muy cerca → STOP + ERROR)
+```
+
+- **MIRAR** (arregla la causa 1): después de cada giro el carro queda en STOP y espera `NAV_PAUSA_ASENTAR_MS` (300 ms) **más el retraso del
+  video** (`latencia_visual_ms`, 320 con la cámara del carro) y decide con un cuadro que llegó **después** de esa espera, es decir, que
+  muestra el carro ya quieto. Si no llega ningún cuadro en `NAV_MIRAR_MAX_ESPERA_MS` (500 ms) se decide como libre (y si la cámara se
+  hubiera caído, el vigilante de video ya habría dado ERROR). Costo: ~0.6 s más por esquivada con el video del carro.
+- **"Sigue muy cerca"** (causa 2) = zona central con cercanía `NAV_CERCANIA_MUY_CERCA` (3), la misma condición que antes daba ERROR.
+- **Reintento:** retrocede, gira del **mismo lado** un ángulo **extra** (1.er reintento `NAV_ANGULO_REINTENTO_1` = 45°, 2.º
+  `NAV_ANGULO_REINTENTO_2` = 90°; en total 90 → 135 → 225° desde la dirección original) y vuelve a MIRAR. Cada giro extra deja
+  al carro mirando más lejos del objeto que tiene al lado.
+- **VOLVER:** deshace el giro acumulado (`angulo_total`): hasta 180° gira al lado contrario; tras dos reintentos (225°) es más corto seguir
+  girando hacia el mismo lado los 135° que faltan para completar la vuelta. Después REINCORPORANDO calcula el camino a la ruta con la posición
+  estimada, como siempre.
+- **No cambia:** mientras AVANZA de lado, si aparece algo muy cerca al frente sigue siendo ERROR (no se esquiva en cadena), y el máximo de
+  esquivadas (`NAV_MAX_ESQUIVADAS` = 3) también.
+
+### El retroceso es CIEGO (riesgo)
+
+El carro no tiene cámara ni sensor atrás. Para retroceder solo manda REVERSE durante un tiempo: si detrás hay una persona, una pared, una
+silla o un escalón, **lo golpea o se cae sin enterarse**. Por eso:
+
+- La distancia está limitada por una constante visible, `NAV_RETROCESO_CM` = **15 cm** (contando lo que el carro sigue al frenar), y aún
+  así hay un tope absoluto de tiempo, `NAV_RETROCESO_MAX_MS` = 2000 ms, aunque una calibración mala pidiera más (probado en PC con
+  500 ms/cm hacia atrás).
+- **No subir** `NAV_RETROCESO_CM` sin tener cámara o sensor trasero.
+- Antes de una ruta con obstáculos grandes, deja libre al menos ~30 cm detrás del carro **y** de cada punto donde pueda esquivar.
+- La app avisa al iniciar la ruta si el retroceso no está calibrado (ver abajo) y escribe `esquivar fase=RETROCEDER ...` en el log (`NAV`).
+
+### Retroceso calibrado
+
+`CalibracionCarro` tiene `ms_por_cm_atras_x10` (bit `CAL_MEDIDO_ATRAS` = 32, **opcional**: no cuenta para "todo calibrado"). En la pantalla
+de calibración es el paso **6 «Retroceso»**: se mide **igual que el avance** (REVERSE durante 1000, 2000 y 3000 ms, 3 veces cada uno, y
+escribes cuántos cm retrocedió; deja unos 80 cm libres detrás). El arranque y el frenado se toman de los del avance. Si no se calibró,
+`cal_ms_por_cm_atras_x10` devuelve los ms por cm del avance y la app lo avisa (`Retroceso sin calibrar...`). La posición estimada también usa
+el retroceso calibrado (`cal_ms_a_mm_atras`).
+
+### Elección del lado de giro
+
+Antes siempre se prefería la izquierda si estaba libre. Ahora, si los dos lados están **libres** (zona sin obstáculo) se elige el que tiene
+**menos celdas de obstáculo** en la imagen (`zona_celdas`, que la app manda cuadro a cuadro desde el detector): más espacio libre. Con las mismas
+celdas (empate) se mantiene el comportamiento de siempre (izquierda). Si solo un lado está libre se usa ese; si ninguno, no se gira (pared).
+
+### Pruebas en PC (`nucleo_c/pruebas_navegador.c`, función `pruebas_esquive_objetos_grandes`)
+
+Elección del lado (4 casos); objeto grande que ocupa el centro y la izquierda (se aparta por la derecha); pared de lado a lado (ERROR
+`LADOS_BLOQUEADOS`, sin retroceder); objeto que desaparece tras el giro (no retrocede); un reintento; esquina con dos reintentos (secuencia
+`RIGHT, REVERSE, RIGHT, REVERSE, RIGHT`, giros de 90, 45 y 90°); reintentos agotados (ERROR con STOP y sin tercer reintento); duración del
+retroceso (750 ms = 15 cm con el ejemplo); retroceso calibrado (1500 ms con 100 ms/cm) y tope absoluto de 2000 ms; cuadro viejo por retraso de
+video (falsa alarma sin avisar el retraso, sin falsa alarma al avisarlo); cancelar mientras retrocede; posición estimada con retroceso
+calibrado.
+
+### Qué no resuelve
+
+- Pared o mueble de lado a lado (los tres lados ocupados): sigue esperando 4 s y dando ERROR; no gira ni retrocede.
+- Un objeto angosto que el carro ve tarde (ver `docs/prueba_obstaculos.md`) puede tocarse antes de frenar; los reintentos no cambian eso.
+- Mientras retrocede, el carro no ve lo que hay detrás (ver arriba).
+- Tras 225° (dos reintentos) el carro avanza de lado 40 cm en una dirección casi opuesta a la ruta; la reincorporación usa la posición estimada
+  por tiempo, que acumula error en cada giro y retroceso.

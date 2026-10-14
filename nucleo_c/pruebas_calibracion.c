@@ -529,8 +529,10 @@ static void pruebas_fov(void)
     cal_defecto(&cal);
     cal.medidos = 31;
     caso("el bit del FOV (16) hace medidos = 31, que sigue siendo valido", cal_es_valida(&cal));
-    cal.medidos = 32;
-    caso("medidos = 32 no es valido", !cal_es_valida(&cal));
+    cal.medidos = 63;
+    caso("medidos = 63 (los seis bits, con FOV y retroceso) es valido", cal_es_valida(&cal));
+    cal.medidos = 64;
+    caso("medidos = 64 no es valido", !cal_es_valida(&cal));
 
     /* Texto: el FOV viaja, y los textos viejos (sin FOV) se siguen leyendo. */
     cal_defecto(&cal);
@@ -547,6 +549,84 @@ static void pruebas_fov(void)
          "ms_por_grado_der_x10=100\nfrenado_grados_izq_x10=0\nfrenado_grados_der_x10=0\nfov_grados_x10=5\n", &leida) == CAL_ERR_TEXTO);
 }
 
+
+/* ── Retroceso: ms por cm hacia atrás (opcional) ───────────────────────── */
+
+static void pruebas_retroceso(void)
+{
+    CalibracionCarro cal, antes, leida;
+    char texto[CAL_LARGO_TEXTO];
+    /* Un carro que avanza a 40 ms/cm pero RETROCEDE más lento, a 60 ms/cm, con arranque 100 ms y frenado 30 mm. */
+    const int ms3[3] = { 1000, 2000, 3000 };
+    const int mm3_atras[3] = { 150, 316, 483 };   /* (ms - 100) / 6 ms por mm con un frenado de ~ -10 mm: valores medidos "reales" */
+
+    cal_defecto(&cal);
+    caso("por defecto el retroceso NO esta medido y usa los ms por cm del avance",
+         !cal_retroceso_medido(&cal) && cal_ms_por_cm_atras_x10(&cal) == cal.ms_por_cm_x10);
+    cal.arranque_ms = 100;
+    cal.ms_por_cm_x10 = 400;
+    cal.frenado_mm = 30;
+    caso("sin medir, si cambia el avance, el retroceso lo sigue (400 en vez de los 500 del campo guardado)", cal_ms_por_cm_atras_x10(&cal) == 400);
+    caso("sin medir: 15 cm hacia atras tardan lo mismo que 15 cm hacia adelante", cal_cm_a_ms_atras(&cal, 15) == cal_cm_a_ms(&cal, 15));
+    caso("sin medir: 100 + (150 - 30) * 4 = 580 ms para 15 cm", cal_cm_a_ms_atras(&cal, 15) == 580);
+
+    antes = cal;
+    caso("cal_ajustar_retroceso con 3 puntos: CAL_OK, marca el bit y calcula unos 60 ms/cm",
+         cal_ajustar_retroceso(&cal, 3, ms3, mm3_atras) == CAL_OK && (cal.medidos & CAL_MEDIDO_ATRAS) &&
+         cal.ms_por_cm_atras_x10 >= 585 && cal.ms_por_cm_atras_x10 <= 615);
+    caso("ajustar el retroceso NO cambia el avance, el frenado ni el arranque",
+         cal.ms_por_cm_x10 == antes.ms_por_cm_x10 && cal.frenado_mm == antes.frenado_mm && cal.arranque_ms == antes.arranque_ms &&
+         cal.ms_por_grado_izq_x10 == antes.ms_por_grado_izq_x10);
+    caso("ya medido: el retroceso usa su propio valor (unos 60 ms/cm)", cal_retroceso_medido(&cal) && cal_ms_por_cm_atras_x10(&cal) == cal.ms_por_cm_atras_x10);
+    caso("retroceso medido: 15 cm hacia atras tardan mas que hacia adelante (carro mas lento hacia atras)",
+         cal_cm_a_ms_atras(&cal, 15) > cal_cm_a_ms(&cal, 15));
+    caso("ida y vuelta del retroceso: ms -> mm + frenado = 150 mm (+-3)",
+         valor_absoluto(cal_ms_a_mm_atras(&cal, cal_cm_a_ms_atras(&cal, 15)) + cal.frenado_mm - 150) <= 3);
+    caso("retroceso: 0 cm, cm negativos o menos que el frenado (2 cm) = 0 ms",
+         cal_cm_a_ms_atras(&cal, 0) == 0 && cal_cm_a_ms_atras(&cal, -4) == 0 && cal_cm_a_ms_atras(&cal, 2) == 0);
+    caso("retroceso: antes del arranque no se ha movido", cal_ms_a_mm_atras(&cal, 100) == 0 && cal_ms_a_mm_atras(&cal, 50) == 0);
+    caso("retroceso con NULL no revienta", cal_cm_a_ms_atras(NULL, 15) == 0 && cal_ms_a_mm_atras(NULL, 500) == 0 && !cal_retroceso_medido(NULL) &&
+         cal_ms_por_cm_atras_x10(NULL) == MS_POR_CM * 10);
+
+    cal = antes;
+    {
+        const int ms_mal[3] = { 1000, 2000, 3000 };
+        const int mm_mal[3] = { 400, 300, 200 };   /* "retrocedio menos con mas tiempo" */
+        const int ms_igual[2] = { 1000, 1000 };
+        const int mm_igual[2] = { 200, 250 };
+        const int ms_corto[2] = { 50, 2000 };     /* una prueba mas corta que el arranque */
+        const int mm_corto[2] = { 10, 400 };
+        const int mm_enorme[3] = { 1, 2, 3 };     /* 100 s por mm: fuera de rango */
+
+        caso("retroceso que 'retrocede menos con mas tiempo': CAL_ERR_DATOS y no cambia nada",
+             cal_ajustar_retroceso(&cal, 3, ms_mal, mm_mal) == CAL_ERR_DATOS && memcmp(&cal, &antes, sizeof cal) == 0);
+        caso("retroceso con todos los tiempos iguales: CAL_ERR_DATOS", cal_ajustar_retroceso(&cal, 2, ms_igual, mm_igual) == CAL_ERR_DATOS);
+        caso("retroceso con una prueba mas corta que el arranque: CAL_ERR_DATOS", cal_ajustar_retroceso(&cal, 2, ms_corto, mm_corto) == CAL_ERR_DATOS);
+        caso("retroceso con resultado absurdo: CAL_ERR_RANGO y no cambia nada",
+             cal_ajustar_retroceso(&cal, 3, ms3, mm_enorme) == CAL_ERR_RANGO && memcmp(&cal, &antes, sizeof cal) == 0);
+        caso("retroceso: argumentos nulos o una sola prueba son CAL_ERR_ARGUMENTO",
+             cal_ajustar_retroceso(NULL, 3, ms3, mm3_atras) == CAL_ERR_ARGUMENTO && cal_ajustar_retroceso(&cal, 3, NULL, mm3_atras) == CAL_ERR_ARGUMENTO &&
+             cal_ajustar_retroceso(&cal, 1, ms3, mm3_atras) == CAL_ERR_ARGUMENTO);
+    }
+
+    /* Texto: la clave nueva viaja, y los textos de antes (sin ella) se siguen leyendo. */
+    cal_defecto(&cal);
+    cal.medidos = CAL_MEDIDO_TODO | CAL_MEDIDO_ATRAS;
+    cal.ms_por_cm_x10 = 400;
+    cal.ms_por_cm_atras_x10 = 612;
+    caso("el texto exportado trae ms_por_cm_atras_x10 y se lee de vuelta igual",
+         cal_a_texto(&cal, texto, sizeof texto) > 0 && strstr(texto, "ms_por_cm_atras_x10=612\n") != NULL &&
+         cal_de_texto(texto, &leida) == CAL_OK && memcmp(&cal, &leida, sizeof cal) == 0 && cal_retroceso_medido(&leida));
+    caso("un texto de antes (sin la clave del retroceso) se lee y el retroceso queda sin medir (usa el avance)",
+         cal_de_texto("medidos=15\narranque_ms=140\nms_por_cm_x10=420\nfrenado_mm=25\nms_por_grado_izq_x10=90\nms_por_grado_der_x10=110\n"
+                      "frenado_grados_izq_x10=50\nfrenado_grados_der_x10=40\n", &leida) == CAL_OK && !cal_retroceso_medido(&leida) &&
+         cal_ms_por_cm_atras_x10(&leida) == 420);
+    caso("ms_por_cm_atras_x10 fuera de rango en el texto es error",
+         cal_de_texto("medidos=0\narranque_ms=0\nms_por_cm_x10=500\nfrenado_mm=0\nms_por_grado_izq_x10=100\n"
+                      "ms_por_grado_der_x10=100\nfrenado_grados_izq_x10=0\nfrenado_grados_der_x10=0\nms_por_cm_atras_x10=1\n", &leida) == CAL_ERR_TEXTO);
+    caso("el texto con todas las claves cabe en CAL_LARGO_TEXTO", cal_a_texto(&cal, texto, CAL_LARGO_TEXTO) > 0);
+}
+
 int main(void)
 {
     pruebas_estadistica();
@@ -555,6 +635,7 @@ int main(void)
     pruebas_conversiones();
     pruebas_texto();
     pruebas_fov();
+    pruebas_retroceso();
     pruebas_sin_ruido();
     pruebas_ruido();
     pruebas_disparates();

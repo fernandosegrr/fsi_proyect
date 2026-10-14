@@ -28,6 +28,7 @@ typedef struct {
     uint32_t t_fin_ms;
     int zona;        /* ZONA_IZQUIERDA, ZONA_CENTRO o ZONA_DERECHA */
     int cercania;    /* 1 a 3 */
+    int celdas;      /* cuántas celdas de obstáculo ve el detector en esa zona (por defecto 10) */
 } EventoObstaculo;
 
 /* Un cambio de comando en la bitácora. */
@@ -85,6 +86,9 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados);
 
 /* Agrega un obstáculo programado. Devuelve 0 si cupo, -1 si no. */
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania);
+
+/* Igual que sim_agregar_obstaculo pero con el número de celdas de obstáculo de la zona (sirve para probar la elección del lado). */
+int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas);
 
 /* Corre el ciclo durante `duracion_ms`. Devuelve el último comando. */
 ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms);

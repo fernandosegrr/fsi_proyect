@@ -189,9 +189,10 @@ static void calcular_pose(Navegador *nav)
     switch (nav->cmd_actual) {
     case NAV_CMD_FORWARD:
     case NAV_CMD_REVERSE:
-        distancia = cal_ms_a_mm(&nav->cal, nav->seg_ms);   /* milímetros recorridos */
         if (nav->cmd_actual == NAV_CMD_REVERSE) {
-            distancia = -distancia;
+            distancia = -cal_ms_a_mm_atras(&nav->cal, nav->seg_ms);   /* milímetros hacia atrás (con la calibración del retroceso) */
+        } else {
+            distancia = cal_ms_a_mm(&nav->cal, nav->seg_ms);          /* milímetros recorridos */
         }
         direccion = indice_direccion(nav->base_rumbo_grados);
         nav->x_mm = nav->base_x_mm + DIR_X[direccion] * distancia / 1000;
@@ -268,30 +269,55 @@ static ComandoNav comando_de_paso(const Paso *paso)
     return (paso->valor > 0) ? NAV_CMD_RIGHT : NAV_CMD_LEFT;
 }
 
-/* Comando de la fase de esquivar actual: 0 = girar para apartarse, 1 = avanzar de lado,
- * 2 = girar de vuelta (al lado contrario del primer giro). */
-static ComandoNav comando_de_fase(const Navegador *nav)
+/* Para deshacer el giro de la esquivada (angulo_total grados hacia `lado`): si fue de 180 grados o menos se gira de vuelta hacia el lado
+ * CONTRARIO esos grados; si fue más (225 tras dos reintentos) es más corto seguir girando hacia el MISMO lado los 360 - total que faltan. */
+static int lado_de_vuelta(const Navegador *nav)
 {
-    if (nav->fase == 1) {
-        return NAV_CMD_FORWARD;
-    }
-    if (nav->fase == 0) {
-        return (nav->lado < 0) ? NAV_CMD_LEFT : NAV_CMD_RIGHT;
-    }
-    return (nav->lado < 0) ? NAV_CMD_RIGHT : NAV_CMD_LEFT;
+    return (nav->angulo_total <= 180) ? -nav->lado : nav->lado;
 }
 
-/* Cuánto debe durar cada fase de esquivar, en ms. */
+static int grados_de_vuelta(const Navegador *nav)
+{
+    return (nav->angulo_total <= 180) ? nav->angulo_total : 360 - nav->angulo_total;
+}
+
+/* Comando de la fase de esquivar actual (ver NAV_FASE_*). Mirar y asentar son STOP. */
+static ComandoNav comando_de_fase(const Navegador *nav)
+{
+    switch (nav->fase) {
+    case NAV_FASE_AVANZAR:    return NAV_CMD_FORWARD;
+    case NAV_FASE_GIRAR:      return (nav->lado < 0) ? NAV_CMD_LEFT : NAV_CMD_RIGHT;
+    case NAV_FASE_VOLVER:     return (lado_de_vuelta(nav) < 0) ? NAV_CMD_LEFT : NAV_CMD_RIGHT;
+    case NAV_FASE_RETROCEDER: return NAV_CMD_REVERSE;
+    default:                  return NAV_CMD_STOP;   /* MIRAR y ASENTAR */
+    }
+}
+
+/* Tiempo de retroceso: NAV_RETROCESO_CM cm con la calibración del retroceso, sin pasar nunca de NAV_RETROCESO_MAX_MS. */
+static int ms_de_retroceso(const Navegador *nav)
+{
+    int ms = cal_cm_a_ms_atras(&nav->cal, NAV_RETROCESO_CM);
+
+    return (ms > NAV_RETROCESO_MAX_MS) ? NAV_RETROCESO_MAX_MS : ms;
+}
+
+/* Cuánto debe durar cada fase de esquivar, en ms (las de STOP las controla la hora, no esta duración). */
 static int duracion_fase(const Navegador *nav, int fase)
 {
-    if (fase == 1) {
+    if (fase == NAV_FASE_AVANZAR) {
         return cal_cm_a_ms(&nav->cal, NAV_TRAMO_ESQUIVAR_CM);
     }
-    /* La fase 0 gira hacia el lado elegido y la 2 hacia el contrario: cada lado tiene su tiempo. */
-    if (fase == 0) {
-        return cal_grados_a_ms(&nav->cal, (nav->lado < 0) ? -NAV_ANGULO_ESQUIVAR : NAV_ANGULO_ESQUIVAR);
+    /* Girar va hacia el lado elegido y volver hacia el otro (o el mismo, ver lado_de_vuelta): cada lado tiene su tiempo. */
+    if (fase == NAV_FASE_GIRAR) {
+        return cal_grados_a_ms(&nav->cal, (nav->lado < 0) ? -nav->angulo_giro : nav->angulo_giro);
     }
-    return cal_grados_a_ms(&nav->cal, (nav->lado < 0) ? NAV_ANGULO_ESQUIVAR : -NAV_ANGULO_ESQUIVAR);
+    if (fase == NAV_FASE_VOLVER) {
+        return cal_grados_a_ms(&nav->cal, (lado_de_vuelta(nav) < 0) ? -grados_de_vuelta(nav) : grados_de_vuelta(nav));
+    }
+    if (fase == NAV_FASE_RETROCEDER) {
+        return ms_de_retroceso(nav);
+    }
+    return 0;
 }
 
 static void ir_a_error(Navegador *nav, MotivoErrorNav motivo)
@@ -429,10 +455,22 @@ void navegador_iniciar(Navegador *nav)
     nav->t_bloqueo_ms = 0;
     nav->t_libre_ms = 0;
     nav->bloqueo_inmediato = 0;
+    for (z = 0; z < OBS_ZONAS; z++) {
+        nav->zona_celdas[z] = 0;
+    }
     nav->esquivadas = 0;
     nav->lado = -1;
-    nav->fase = 0;
+    nav->fase = NAV_FASE_GIRAR;
     nav->ms_fase = 0;
+    nav->reintentos = 0;
+    nav->angulo_giro = NAV_ANGULO_ESQUIVAR;
+    nav->angulo_total = 0;
+    nav->t_mirar_ms = 0;
+}
+
+int navegador_retroceso_calibrado(const Navegador *nav)
+{
+    return nav != NULL && cal_retroceso_medido(&nav->cal);
 }
 
 int navegador_poner_calibracion(Navegador *nav, const CalibracionCarro *cal)
@@ -547,6 +585,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_hay[z] = obs->zona[z].hay_obstaculo;
         nav->zona_cercania[z] = obs->zona[z].cercania;
+        nav->zona_celdas[z] = obs->zona[z].celdas;
         if (nav->zona_hay[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cercania[z] >= 1 &&
             nav->zona_cercania[z] < NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* frenar desde lejos: cercanía 1 en el centro también bloquea (se confirma con menos tiempo) */
@@ -681,6 +720,23 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
     return comando;
 }
 
+/* Elige hacia dónde apartarse: -1 izquierda, +1 derecha, 0 ninguno. Solo cuentan los lados SIN obstáculo (zona libre). Si los dos
+ * están libres, se prefiere el que tiene MENOS celdas de obstáculo en la imagen (más espacio libre); con el mismo número, la izquierda
+ * (como siempre). Si ninguno está libre no se gira: el carro espera y, pasado NAV_TIMEOUT_ESQUIVAR_MS, ERROR (pared que ocupa todo el frente). */
+static int elegir_lado(const Navegador *nav)
+{
+    int izquierda_libre = !nav->zona_hay[ZONA_IZQUIERDA];
+    int derecha_libre = !nav->zona_hay[ZONA_DERECHA];
+
+    if (izquierda_libre && derecha_libre) {
+        return (nav->zona_celdas[ZONA_DERECHA] < nav->zona_celdas[ZONA_IZQUIERDA]) ? 1 : -1;
+    }
+    if (izquierda_libre) {
+        return -1;
+    }
+    return derecha_libre ? 1 : 0;
+}
+
 /* DETENIDO_OBSTACULO: STOP. Si el frente se libera (varios cuadros seguidos), sigue. Si no,
  * tras una pausa elige un lado libre para esquivar; si no hay ninguno, espera hasta el
  * tiempo máximo y entonces ERROR. */
@@ -698,20 +754,18 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         return tick_siguiendo(nav, ahora_ms);
     }
     if (espera >= NAV_PAUSA_MS && nav->frames_recibidos >= 1) {
-        nav->lado = 0;
-        if (!nav->zona_hay[ZONA_IZQUIERDA]) {
-            nav->lado = -1;   /* izquierda libre (se prefiere sobre la derecha) */
-        } else if (!nav->zona_hay[ZONA_DERECHA]) {
-            nav->lado = 1;
-        }
+        nav->lado = elegir_lado(nav);
         if (nav->lado != 0) {
             if (nav->esquivadas >= NAV_MAX_ESQUIVADAS) {
                 ir_a_error(nav, NAV_MOTIVO_MAX_ESQUIVADAS);
                 return NAV_CMD_STOP;
             }
             nav->esquivadas++;
-            nav->fase = 0;
+            nav->fase = NAV_FASE_GIRAR;
             nav->ms_fase = 0;
+            nav->reintentos = 0;
+            nav->angulo_giro = NAV_ANGULO_ESQUIVAR;
+            nav->angulo_total = 0;
             nav->estado = NAV_ESQUIVANDO;
             return comando_de_fase(nav);
         }
@@ -722,26 +776,88 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
     return NAV_CMD_STOP;
 }
 
-/* ESQUIVANDO: gira hacia el lado libre, avanza un tramo fijo y gira de vuelta. Mientras
- * avanza de lado, si aparece algo MUY cerca al frente, ERROR (no se esquiva en cadena). */
+/* MIRAR (dentro de ESQUIVANDO): el carro acaba de girar y está en STOP. Antes de avanzar hacia donde apunta hay que MIRAR de verdad, y
+ * mirar no es solo leer el último cuadro: con el video del carro ese cuadro todavía muestra el carro girando (llega ~320 ms tarde). Se espera
+ * NAV_PAUSA_ASENTAR_MS (el carro termina de moverse) más el retraso de la cámara, y se usa un cuadro que haya llegado DESPUÉS de eso.
+ *   - Frente libre (o la cámara no mandó cuadros nuevos a tiempo): sigue la maniobra normal, avanzar de lado.
+ *   - Frente muy cerca (zona central, cercanía NAV_CERCANIA_MUY_CERCA): reintento (retroceder + girar más) o, si ya se agotaron, ERROR. */
+static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
+{
+    uint32_t espera = ahora_ms - nav->t_mirar_ms;
+    uint32_t listo_ms = (uint32_t)(NAV_PAUSA_ASENTAR_MS + nav->latencia_visual_ms);
+    int cuadro_nuevo, bloqueado;
+
+    if (espera < listo_ms) {
+        return NAV_CMD_STOP;
+    }
+    /* cuadro_nuevo: el último cuadro llegó después de la espera (es decir, muestra el carro ya quieto). */
+    cuadro_nuevo = nav->usa_camara && (uint32_t)(nav->t_ultimo_cuadro_ms - (nav->t_mirar_ms + listo_ms)) < 0x80000000u;
+    if (!cuadro_nuevo && espera < listo_ms + NAV_MIRAR_MAX_ESPERA_MS) {
+        return NAV_CMD_STOP;   /* todavía no llega un cuadro útil: se sigue esperando (un poco más) */
+    }
+    bloqueado = cuadro_nuevo && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA;
+
+    nav->ms_fase = 0;
+    if (!bloqueado) {
+        nav->fase = NAV_FASE_AVANZAR;
+        return NAV_CMD_FORWARD;
+    }
+    if (nav->reintentos >= NAV_MAX_REINTENTOS) {
+        ir_a_error(nav, NAV_MOTIVO_ESQUIVANDO);   /* se agotaron los reintentos y el frente sigue muy cerca: como antes, ERROR */
+        return NAV_CMD_STOP;
+    }
+    nav->reintentos++;
+    nav->angulo_giro = (nav->reintentos == 1) ? NAV_ANGULO_REINTENTO_1 : NAV_ANGULO_REINTENTO_2;
+    nav->fase = NAV_FASE_RETROCEDER;
+    return NAV_CMD_REVERSE;
+}
+
+/* ESQUIVANDO: gira hacia el lado libre, MIRA, avanza un tramo fijo y gira de vuelta. Si al mirar el frente sigue muy cerca, reintenta
+ * (retrocede NAV_RETROCESO_CM, gira más y vuelve a mirar). Mientras avanza de lado, si aparece algo MUY cerca al frente, ERROR (no se esquiva
+ * en cadena). */
 static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 {
     int fase_lista;
 
-    if ((nav->fase == 0 || nav->fase == 2) && nav->cmd_actual == comando_de_fase(nav)) {
-        fase_lista = giro_terminado(nav, NAV_ANGULO_ESQUIVAR, duracion_fase(nav, nav->fase), nav->ms_fase);   /* un giro: con la cámara si se puede */
+    if (nav->fase == NAV_FASE_MIRAR) {
+        return tick_mirar(nav, ahora_ms);
+    }
+    if (nav->fase == NAV_FASE_ASENTAR) {   /* quieto un momento después de retroceder, y luego gira más */
+        if (nav->ms_fase + NAV_TICK_MS / 2 < NAV_PAUSA_ASENTAR_MS) {
+            return NAV_CMD_STOP;
+        }
+        nav->fase = NAV_FASE_GIRAR;
+        nav->ms_fase = 0;
+        return comando_de_fase(nav);
+    }
+
+    if ((nav->fase == NAV_FASE_GIRAR || nav->fase == NAV_FASE_VOLVER) && nav->cmd_actual == comando_de_fase(nav)) {
+        int grados = (nav->fase == NAV_FASE_GIRAR) ? nav->angulo_giro : grados_de_vuelta(nav);
+
+        fase_lista = giro_terminado(nav, grados, duracion_fase(nav, nav->fase), nav->ms_fase);   /* un giro: con la cámara si se puede */
     } else {
         fase_lista = (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav, nav->fase));
     }
     if (fase_lista) {
-        nav->fase++;
         nav->ms_fase = 0;
-        if (nav->fase > 2) {
+        switch (nav->fase) {
+        case NAV_FASE_GIRAR:        /* terminó de girar: queda quieto a mirar si el frente está libre */
+            nav->angulo_total += nav->angulo_giro;
+            nav->fase = NAV_FASE_MIRAR;
+            nav->t_mirar_ms = ahora_ms;
+            return NAV_CMD_STOP;
+        case NAV_FASE_RETROCEDER:   /* terminó de retroceder: quieto un momento y gira más */
+            nav->fase = NAV_FASE_ASENTAR;
+            return NAV_CMD_STOP;
+        case NAV_FASE_AVANZAR:
+            nav->fase = NAV_FASE_VOLVER;
+            break;
+        default:                    /* VOLVER: terminó la esquivada */
             nav->estado = NAV_REINCORPORANDO;
             return NAV_CMD_STOP;
         }
     }
-    if (nav->fase == 1 && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= 3 &&
+    if (nav->fase == NAV_FASE_AVANZAR && nav->zona_hay[ZONA_CENTRO] && nav->zona_cercania[ZONA_CENTRO] >= NAV_CERCANIA_MUY_CERCA &&
         bloqueo_confirmado(nav, ahora_ms)) {
         ir_a_error(nav, NAV_MOTIVO_ESQUIVANDO);
         return NAV_CMD_STOP;

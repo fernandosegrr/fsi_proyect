@@ -27,7 +27,7 @@ class CalibracionGuardada(contexto: Context) {
     private val aplicacion = contexto.applicationContext
     private val preferencias = aplicacion.getSharedPreferences("calibracion", Context.MODE_PRIVATE)
 
-    /** La calibración guardada (8 enteros) o la de por defecto. */
+    /** La calibración guardada (10 enteros) o la de por defecto. */
     fun leer(): IntArray {
         val texto = preferencias.getString("texto", null)
         if (texto != null) {
@@ -48,6 +48,14 @@ class CalibracionGuardada(contexto: Context) {
         val cal = leer()
         return if (cal[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_FOV != 0) cal[CalibracionNativa.CAL_FOV_GRADOS_X10] else 0
     }
+
+    /** true si los ms por cm al RETROCEDER están medidos (si no, los reintentos de esquive usan los del avance). */
+    fun retrocesoCalibrado(): Boolean = leer()[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_ATRAS != 0
+
+    /** Aviso si el retroceso no se calibró (lo usan la pantalla de control y la de calibración), o null si ya está. */
+    fun avisoRetroceso(): String? =
+        if (retrocesoCalibrado()) null
+        else "Retroceso sin calibrar: al retroceder para reintentar un esquive se usa la velocidad del avance. Mídelo en «Calibración del carro» (paso 6, opcional)."
 
     /** true si ya se midió todo (arranque, avance y los dos giros). */
     fun estaCompleta(): Boolean = CalibracionNativa.faltantes(leer()) == 0

@@ -170,6 +170,12 @@
                 android:text="@string/reiniciar_prueba" />
         </LinearLayout>
 
+        <Button
+            android:id="@+id/boton_ruta_esquivar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/ruta_esquivar" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

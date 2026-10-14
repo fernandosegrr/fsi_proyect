@@ -68,6 +68,21 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PAUSA_ASENTAR_MS      300    /* STOP entre avanzar y girar (y al revés): el carro termina de moverse y el giro/avance siguiente
                                           * arranca desde cero, como en la calibración. Sin esto, el giro dependía de la inercia del avance. */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
+
+/* REINTENTOS DE ESQUIVE (ver docs/navegador.md, "Objetos grandes"). Después del giro de apartarse, el carro se queda quieto un momento y MIRA:
+ * si el obstáculo SIGUE MUY CERCA al frente (cercanía NAV_CERCANIA_MUY_CERCA en la zona central), no avanza hacia él: RETROCEDE un poco
+ * (por tiempo), gira del MISMO lado un ángulo extra (el 1.er reintento NAV_ANGULO_REINTENTO_1 grados, el 2.º NAV_ANGULO_REINTENTO_2) y vuelve
+ * a mirar. Con NAV_MAX_REINTENTOS reintentos agotados y el frente todavía bloqueado: STOP y ERROR (NAV_MOTIVO_ESQUIVANDO, como antes). */
+#define NAV_MAX_REINTENTOS          2
+#define NAV_ANGULO_REINTENTO_1     45    /* grados EXTRA del primer reintento (se suman a los 90 del giro de apartarse) */
+#define NAV_ANGULO_REINTENTO_2     90    /* grados EXTRA del segundo reintento */
+#define NAV_CERCANIA_MUY_CERCA      3    /* con esta cercanía en el centro, "sigue muy cerca" (la misma que ya hacía ERROR al esquivar) */
+#define NAV_MIRAR_MAX_ESPERA_MS   500    /* si tras la espera de arriba no llega ningún cuadro nuevo, se decide sin él (libre) */
+/* RETROCESO CIEGO: el carro NO tiene cámara ni sensor atrás. Para ir hacia atrás solo sabe cuánto tiempo mandó REVERSE; si hay algo detrás
+ * (una persona, una pared, un escalón) lo golpea o se cae sin enterarse. Por eso la distancia está LIMITADA a NAV_RETROCESO_CM (contando lo que
+ * el carro sigue de frenado) y además a NAV_RETROCESO_MAX_MS aunque la calibración pida más. Úsalo solo con el espacio de atrás libre. */
+#define NAV_RETROCESO_CM           15    /* cm que retrocede en cada reintento: NO subir sin tener sensor o cámara trasera */
+#define NAV_RETROCESO_MAX_MS     2000    /* tope absoluto del tiempo de retroceso, pase lo que pase con la calibración */
 #define NAV_ANGULO_ESQUIVAR        90    /* grados que gira para apartarse (múltiplo de 45) */
 #define NAV_TRAMO_ESQUIVAR_CM      40    /* cuánto avanza de lado, en cm */
 #define NAV_MAX_ESQUIVADAS          3    /* máximo de esquivadas en una misma ruta */
@@ -102,6 +117,15 @@ typedef enum {
     NAV_MOTIVO_PLAN,               /* no se pudo calcular el camino de regreso a la ruta */
     NAV_MOTIVO_SIN_VIDEO           /* la cámara dejó de mandar cuadros más de NAV_MAX_HUECO_VIDEO_MS: se detuvo y NO reanuda sola */
 } MotivoErrorNav;
+
+/* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
+ * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
+#define NAV_FASE_GIRAR        0   /* girar hacia `lado` angulo_giro grados */
+#define NAV_FASE_AVANZAR      1   /* avanzar de lado NAV_TRAMO_ESQUIVAR_CM */
+#define NAV_FASE_VOLVER       2   /* deshacer el giro (angulo_total) */
+#define NAV_FASE_MIRAR        3   /* STOP: espera a que el carro pare y a que llegue un cuadro que lo muestre parado, y decide */
+#define NAV_FASE_RETROCEDER   4   /* REVERSE NAV_RETROCESO_CM cm (ciego) */
+#define NAV_FASE_ASENTAR      5   /* STOP NAV_PAUSA_ASENTAR_MS antes de girar otra vez */
 
 /* Códigos de retorno de las funciones de configuración. */
 #define NAV_OK                 0
@@ -155,11 +179,17 @@ typedef struct {
     uint32_t t_libre_ms;         /* hora del primer cuadro de la racha con el frente libre */
     int bloqueo_inmediato;       /* 1 si en la racha hubo un cuadro de confirmación inmediata */
 
+    int zona_celdas[OBS_ZONAS];  /* cuántas celdas de obstáculo tenía cada zona en el último cuadro (para elegir el lado con más espacio) */
+
     /* Esquivar. */
     int esquivadas;
     int lado;                    /* -1 = izquierda, +1 = derecha */
-    int fase;                    /* 0 = girar para apartarse, 1 = avanzar de lado, 2 = girar de vuelta */
+    int fase;                    /* NAV_FASE_*: qué hace ahora la maniobra de esquivar */
     int ms_fase;
+    int reintentos;              /* cuántos reintentos (retroceder + girar más) lleva esta esquivada */
+    int angulo_giro;             /* grados que debe girar la fase GIRAR actual (90 la primera vez; 45 o 90 en los reintentos) */
+    int angulo_total;            /* grados girados hacia `lado` en total desde que empezó la esquivada (para deshacerlos al final) */
+    uint32_t t_mirar_ms;         /* hora en que el carro quedó quieto para mirar si el frente está libre */
 } Navegador;
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
@@ -204,6 +234,9 @@ int navegador_poner_frenar_lejos_centro(Navegador *nav, int activo);
  * Solo cuenta mientras el carro está girando (LEFT o RIGHT) y después del retardo de arranque (los cuadros durante el arranque se
  * ignoran: el carro todavía no se mueve). El giro se corta cuando la cámara ve el ángulo pedido (con el tiempo como respaldo). */
 void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int confiable);
+
+/* 1 si el retroceso de los reintentos usa una calibración medida de verdad (CAL_MEDIDO_ATRAS); 0 si usa los ms por cm del avance (sin medir). */
+int navegador_retroceso_calibrado(const Navegador *nav);
 
 /* Texto del comando tal como lo entiende el firmware ("FORWARD", "STOP"...). */
 const char *navegador_texto_comando(ComandoNav comando);

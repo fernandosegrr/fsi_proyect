@@ -3,7 +3,7 @@
  * distancias y giros en tiempos reales (el carro no tiene encoders ni IMU).
  *
  * GUÍA DE LECTURA
- *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → GIRO_VISUAL → RESUMEN.
+ *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN.
  *       - REACCION: mide tu tiempo de reacción (toca cuando el botón se pone verde).
  *       - ARRANQUE: manda FORWARD y tú tocas "YA SE MOVIÓ" cuando ves moverse las ruedas; el
  *         arranque es ese tiempo menos tu reacción. 5 repeticiones, se descartan los datos raros.
@@ -11,6 +11,8 @@
  *         cm avanzó (el carro frena solo después del STOP: mídelo hasta que se detenga del todo).
  *       - GIRO_IZQ / GIRO_DER: igual con LEFT y RIGHT (500, 1000 y 1500 ms), anotando los grados
  *         aproximados (con marcas de 90 grados en el piso). Cada lado por separado.
+ *       - RETROCESO (opcional): igual que el AVANCE pero con REVERSE; mide los ms por cm hacia atrás. Lo usan los reintentos de esquive
+ *         (el carro retrocede 15 cm) y, si no se mide, se usa el valor del avance con un aviso.
  *       - GIRO_VISUAL (opcional): gira 90 grados a la derecha con la calibración ya medida mientras la cámara (la que alimenta al
  *         detector) mide cuánto vio girar; tú escribes cuántos grados giró de verdad. Con eso se ajusta el campo de visión (FOV)
  *         de la cámara, que convierte píxeles en grados (docs/giro_visual.md).
@@ -54,9 +56,10 @@ class CalibracionActivity : Activity() {
         const val TOQUES_ARRANQUE = 5
         const val REACCION_POR_DEFECTO_MS = 180             // si no se midió la reacción
         const val ESPERA_MAXIMA_ARRANQUE_MS = 3000L         // si no tocas en este tiempo, se detiene el carro
+        private const val LADO_ATRAS = 2                    // en ajustarGrupo: 0 = avance, -1 / 1 = giros, 2 = retroceso
     }
 
-    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, GIRO_VISUAL, RESUMEN }
+    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN }
 
     private val principal = Handler(Looper.getMainLooper())
     private lateinit var logica: ControlLogica
@@ -87,6 +90,7 @@ class CalibracionActivity : Activity() {
     private val avance = Array(TIEMPOS_AVANCE.size) { ArrayList<Int>() }      // mm por prueba
     private val giroIzq = Array(TIEMPOS_GIRO.size) { ArrayList<Int>() }       // grados x10
     private val giroDer = Array(TIEMPOS_GIRO.size) { ArrayList<Int>() }
+    private val retroceso = Array(TIEMPOS_AVANCE.size) { ArrayList<Int>() }   // mm hacia atrás por prueba (opcional)
     private val fovReal = ArrayList<Int>()      // grados x10 que el usuario midió en el piso en cada giro de la prueba visual
     private val fovVisual = ArrayList<Int>()    // grados x10 que la cámara vio girar en ese mismo giro
     private var visualActualX10 = 0             // lo que la cámara va viendo en el giro de esta prueba
@@ -239,6 +243,7 @@ class CalibracionActivity : Activity() {
         Paso.AVANCE -> cuantas(avance) >= totalPruebas()
         Paso.GIRO_IZQ -> cuantas(giroIzq) >= totalPruebas()
         Paso.GIRO_DER -> cuantas(giroDer) >= totalPruebas()
+        Paso.RETROCESO -> true     // es opcional: si no se mide, el retroceso usa el valor del avance
         Paso.GIRO_VISUAL -> true   // es opcional
         Paso.RESUMEN -> true
     }
@@ -248,6 +253,7 @@ class CalibracionActivity : Activity() {
         Paso.AVANCE -> avance
         Paso.GIRO_IZQ -> giroIzq
         Paso.GIRO_DER -> giroDer
+        Paso.RETROCESO -> retroceso
         else -> null
     }
 
@@ -255,11 +261,15 @@ class CalibracionActivity : Activity() {
     private fun tiempoActual(): Int {
         val datos = datosDelPaso() ?: return 0
         val indice = (cuantas(datos) / REPETICIONES).coerceAtMost(TIEMPOS_AVANCE.size - 1)
-        return if (paso == Paso.AVANCE) TIEMPOS_AVANCE[indice] else TIEMPOS_GIRO[indice]
+        return if (esPasoLineal()) TIEMPOS_AVANCE[indice] else TIEMPOS_GIRO[indice]
     }
+
+    /** true en los pasos donde se mide una distancia en cm (avance y retroceso); false en los de giro. */
+    private fun esPasoLineal() = paso == Paso.AVANCE || paso == Paso.RETROCESO
 
     private fun comandoDelPaso() = when (paso) {
         Paso.AVANCE -> "FORWARD"
+        Paso.RETROCESO -> "REVERSE"
         Paso.GIRO_IZQ -> "LEFT"
         else -> "RIGHT"
     }
@@ -284,7 +294,8 @@ class CalibracionActivity : Activity() {
                     "El botón STOP de arriba siempre detiene el carro. Toca «Siguiente» para empezar."
                 textoDatos.text = guardada.avisoSiFalta() ?: "Ya hay una calibración completa guardada."
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = "Solo calibrar el giro con la cámara (salta al paso 6 y conserva la calibración guardada)"
+                botonProbar.text = "Solo calibrar el giro con la cámara (salta al paso 7 y conserva la calibración guardada)"
+                textoDatos.text = textoDatos.text.toString() + (guardada.avisoRetroceso()?.let { "\n" + it } ?: "")
             }
             Paso.REACCION -> {
                 textoTitulo.text = "1. Tu tiempo de reacción"
@@ -313,15 +324,20 @@ class CalibracionActivity : Activity() {
                 textoDatos.text = "Tiempos (ms, con tu reacción dentro): " + toquesArranque.joinToString(", ") +
                     "\nFaltan: ${(TOQUES_ARRANQUE - toquesArranque.size).coerceAtLeast(0)}"
             }
-            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> {
+            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> {
                 val hechas = cuantas(datos!!)
-                val unidad = if (paso == Paso.AVANCE) "cm" else "grados"
+                val unidad = if (esPasoLineal()) "cm" else "grados"
                 textoTitulo.text = when (paso) {
                     Paso.AVANCE -> "3. Avance en línea recta"
                     Paso.GIRO_IZQ -> "4. Giro a la izquierda"
-                    else -> "5. Giro a la derecha"
+                    Paso.GIRO_DER -> "5. Giro a la derecha"
+                    else -> "6. Retroceso en línea recta (opcional)"
                 }
-                textoInstruccion.text = if (paso == Paso.AVANCE)
+                textoInstruccion.text = if (paso == Paso.RETROCESO)
+                    "MÍDELO IGUAL QUE EL AVANCE, pero el carro va en REVERSA. Pon el carro en la marca de salida y deja unos 80 cm LIBRES DETRÁS (el carro no ve hacia atrás). " +
+                        "Toca «Probar»: retrocede un tiempo fijo y se detiene. Espera a que pare del todo y escribe CUÁNTOS CM retrocedió (de la marca a las ruedas). " +
+                        "Lo usa el carro cuando tiene que retroceder 15 cm para reintentar un esquive. Si no quieres medirlo, toca «Siguiente»: usará el valor del avance."
+                else if (paso == Paso.AVANCE)
                     "Pon el carro en la marca de salida, mirando hacia adelante. Toca «Probar»: avanza un tiempo fijo y se detiene. " +
                         "Espera a que pare del todo y escribe CUÁNTOS CM avanzó (de la marca de salida a las ruedas). " +
                         "Cada vez, vuelve a poner el carro en la marca."
@@ -342,7 +358,7 @@ class CalibracionActivity : Activity() {
                 textoDatos.text = armarTabla(datos)
             }
             Paso.GIRO_VISUAL -> {
-                textoTitulo.text = "6. Giro con la cámara (opcional)"
+                textoTitulo.text = "7. Giro con la cámara (opcional)"
                 textoInstruccion.text = "La cámara también puede medir cuánto gira el carro. Para que convierta bien píxeles en grados hay que ajustar su campo de visión: " +
                     "con el carro alineado a una marca de 90 grados, mirando una pared o muebles con detalles (no una pared lisa), toca «Probar»: gira a la " +
                     "DERECHA lo que la calibración dice que son 90 grados. Después escribe cuántos grados giró de verdad. Se repite hasta 3 veces. " +
@@ -381,11 +397,11 @@ class CalibracionActivity : Activity() {
 
     /** Tabla de lo anotado: una línea por tiempo con sus repeticiones. */
     private fun armarTabla(datos: Array<ArrayList<Int>>): String {
-        val tiempos = if (paso == Paso.AVANCE) TIEMPOS_AVANCE else TIEMPOS_GIRO
+        val tiempos = if (esPasoLineal()) TIEMPOS_AVANCE else TIEMPOS_GIRO
         val sb = StringBuilder()
         for (i in tiempos.indices) {
             val valores = datos[i].map {
-                if (paso == Paso.AVANCE) String.format(Locale.US, "%.1f cm", it / 10.0) else String.format(Locale.US, "%.0f°", it / 10.0)
+                if (esPasoLineal()) String.format(Locale.US, "%.1f cm", it / 10.0) else String.format(Locale.US, "%.0f°", it / 10.0)
             }
             sb.append(String.format(Locale.US, "%4d ms: %s\n", tiempos[i], if (valores.isEmpty()) "-" else valores.joinToString("  ")))
         }
@@ -398,7 +414,7 @@ class CalibracionActivity : Activity() {
             Paso.INTRO -> true
             Paso.REACCION -> estadoReaccion == 0 && reacciones.size < TOQUES_REACCION
             Paso.ARRANQUE -> conectado() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
-            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER ->
+            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO ->
                 conectado() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
             Paso.GIRO_VISUAL -> conectado() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
             else -> false
@@ -406,7 +422,7 @@ class CalibracionActivity : Activity() {
         botonYa.isEnabled = (paso == Paso.REACCION && estadoReaccion != 0) || (paso == Paso.ARRANQUE && arrancando)
         botonRepetir.isEnabled = !ocupado && when (paso) {
             Paso.ARRANQUE -> toquesArranque.isNotEmpty()
-            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantas(datosDelPaso()!!) > 0
+            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> cuantas(datosDelPaso()!!) > 0
             Paso.GIRO_VISUAL -> fovReal.isNotEmpty()
             else -> false
         }
@@ -425,7 +441,7 @@ class CalibracionActivity : Activity() {
             }
             Paso.REACCION -> empezarReaccion()
             Paso.ARRANQUE -> empezarArranque()
-            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> empezarPruebaDeTiempo()
+            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> empezarPruebaDeTiempo()
             Paso.GIRO_VISUAL -> empezarGiroVisual()
             else -> {}
         }
@@ -609,7 +625,7 @@ class CalibracionActivity : Activity() {
                 }
             }
             Paso.ARRANQUE -> if (toquesArranque.isNotEmpty()) toquesArranque.removeAt(toquesArranque.size - 1)
-            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> {
+            Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> {
                 val datos = datosDelPaso()!!
                 if (esperandoDato) {
                     esperandoDato = false   // se cancela la prueba que esperaba su dato: se repite
@@ -653,6 +669,11 @@ class CalibracionActivity : Activity() {
         cal = ajustarGrupo(sb, cal, "Avance", avance, TIEMPOS_AVANCE, 0)
         cal = ajustarGrupo(sb, cal, "Giro izquierda", giroIzq, TIEMPOS_GIRO, CalibracionNativa.LADO_IZQUIERDA)
         cal = ajustarGrupo(sb, cal, "Giro derecha", giroDer, TIEMPOS_GIRO, CalibracionNativa.LADO_DERECHA)
+        if (cuantas(retroceso) > 0) {
+            cal = ajustarGrupo(sb, cal, "Retroceso", retroceso, TIEMPOS_AVANCE, LADO_ATRAS)
+        } else if (cal[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_ATRAS == 0) {
+            sb.append("Retroceso: sin medir (los reintentos de esquive usan el valor del avance; el carro retrocede 15 cm a ciegas)\n")
+        }
 
         if (fovReal.isNotEmpty()) {
             // El campo de visión con el que se midió la prueba (el de la cámara si no estaba calibrado) es el que se ajusta.
@@ -673,6 +694,8 @@ class CalibracionActivity : Activity() {
         sb.append("\n")
         sb.append(String.format(Locale.US, "ms por cm: %.1f   frenado: %.1f cm\n",
             cal[CalibracionNativa.CAL_MS_POR_CM_X10] / 10.0, cal[CalibracionNativa.CAL_FRENADO_MM] / 10.0))
+        sb.append(String.format(Locale.US, "ms por cm hacia atrás: %.1f %s\n", cal[CalibracionNativa.CAL_MS_POR_CM_ATRAS_X10] / 10.0,
+            if (cal[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_ATRAS != 0) "(medido)" else "(sin medir: se usa el del avance, ${cal[CalibracionNativa.CAL_MS_POR_CM_X10] / 10.0})"))
         sb.append(String.format(Locale.US, "ms por grado: izq %.1f, der %.1f   frenado: izq %.1f°, der %.1f°\n",
             cal[CalibracionNativa.CAL_MS_GRADO_IZQ_X10] / 10.0, cal[CalibracionNativa.CAL_MS_GRADO_DER_X10] / 10.0,
             cal[CalibracionNativa.CAL_FRENADO_GRADOS_IZQ_X10] / 10.0, cal[CalibracionNativa.CAL_FRENADO_GRADOS_DER_X10] / 10.0))
@@ -701,8 +724,11 @@ class CalibracionActivity : Activity() {
             sb.append("$nombre: sin medir (faltan datos de al menos 2 tiempos)\n")
             return cal
         }
-        val respuesta = if (lado == 0) CalibracionNativa.ajustarAvance(cal, ms.toIntArray(), valores.toIntArray())
-                        else CalibracionNativa.ajustarGiro(cal, lado, ms.toIntArray(), valores.toIntArray())
+        val respuesta = when (lado) {
+            0 -> CalibracionNativa.ajustarAvance(cal, ms.toIntArray(), valores.toIntArray())
+            LADO_ATRAS -> CalibracionNativa.ajustarRetroceso(cal, ms.toIntArray(), valores.toIntArray())
+            else -> CalibracionNativa.ajustarGiro(cal, lado, ms.toIntArray(), valores.toIntArray())
+        }
         val (codigo, nueva) = CalibracionNativa.desempaquetar(respuesta)
         if (codigo != CalibracionNativa.OK) {
             sb.append("$nombre: ${CalibracionNativa.textoError(codigo)}\n")

@@ -22,6 +22,7 @@
     <string name="ruta_cuadrado">Ruta: Cuadrado</string>
     <string name="ruta_zigzag">Ruta: Zigzag</string>
     <string name="ruta_prueba_obstaculo">Ruta: Prueba de obstáculo (1 m)</string>
+    <string name="ruta_esquivar">Ruta: Esquivar objeto grande (1.4 m)</string>
     <string name="reiniciar_prueba">Borrar cuentas de la prueba</string>
     <string name="boton_iniciar_ruta">Iniciar</string>
     <string name="boton_cancelar_ruta">Cancelar</string>

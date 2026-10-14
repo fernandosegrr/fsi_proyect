@@ -309,8 +309,8 @@ static void pruebas_ruido_y_limites(void)
 
     rellenar(PISO);
     ruido(8);
-    rectangulo_celdas(8, 0, 23, 10, CAJA);
-    caso("objeto solo en la mitad superior de la imagen: se ignora", verificar(0, 0, 0));
+    rectangulo_celdas(8, 0, 23, 9, CAJA);
+    caso("objeto solo en la mitad superior de la imagen (filas 0-9): se ignora", verificar(0, 0, 0));
 
     rellenar(PISO);
     ruido(8);
@@ -468,6 +468,16 @@ static void pruebas_configuracion(void)
     }
 }
 
+/* Los valores que eran el defecto ANTES de validarlos en el carro real (fila minima 500, 6 celdas, umbral 60): las pruebas de mecanica
+ * (fila limite, objetos de 6 celdas) se escribieron con ellos y siguen valiendo con esta configuracion explicita. */
+static void config_clasica(ConfigObstaculos *config)
+{
+    obstaculos_config_defecto(config);
+    config->fila_minima_mil = 500;
+    config->min_celdas = 6;
+    config->umbral_color = 60;
+}
+
 /* FILA_MINIMA: las filas de arriba de esa fila se ignoran; la cercanía sigue saliendo de la fila más baja. */
 static void pruebas_fila_minima(void)
 {
@@ -475,8 +485,9 @@ static void pruebas_fila_minima(void)
     ResultadoObstaculos r;
 
     obstaculos_config_defecto(&config);
-    caso("config por defecto: fila_minima = mitad inferior (12)",
-         config.fila_minima_mil == OBS_FILA_MINIMA_MIL && config.fila_minima_mil == 500);
+    caso("config por defecto (validada en el carro real): fila_minima 440, min_celdas 7, umbral_color 40",
+         config.fila_minima_mil == OBS_FILA_MINIMA_MIL && config.fila_minima_mil == 440 && config.min_celdas == 7 && config.umbral_color == 40);
+    config_clasica(&config);   /* el resto de este grupo prueba la mecanica de la fila minima con los valores de siempre */
 
     /* Un objeto lejano, todo por encima de la fila minima (filas 4 a 8). */
     rellenar(PISO);
@@ -493,7 +504,7 @@ static void pruebas_fila_minima(void)
     config.fila_minima_mil = mil_de(4, OBS_FILAS);
     obstaculos_analizar_con(&config, imagen, g_ancho, g_alto, &r);
     caso("fila_minima 4: se cuentan las 30 celdas del objeto", r.zona[ZONA_CENTRO].celdas == 30);
-    obstaculos_config_defecto(&config);
+    config_clasica(&config);
 
     /* Objeto justo en la fila limite (filas 12 y 13). */
     rellenar(PISO);
@@ -505,7 +516,7 @@ static void pruebas_fila_minima(void)
     caso("fila_minima 13: queda solo la fila 13 (6 celdas): sigue contando", verificar_con(&config, 0, 1, 0));
     config.fila_minima_mil = mil_de(14, OBS_FILAS);
     caso("fila_minima 14: las filas 12-13 quedan arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
-    obstaculos_config_defecto(&config);
+    config_clasica(&config);
 
     /* La cercania sigue saliendo de la fila MAS BAJA del objeto, sea cual sea fila_minima. */
     rellenar(PISO);
@@ -518,7 +529,7 @@ static void pruebas_fila_minima(void)
     caso("fila_minima 18: cercania 3 igual (la fila mas baja no cambia)", verificar_con(&config, 0, 3, 0));
     config.fila_minima_mil = mil_de(22, OBS_FILAS);
     caso("fila_minima 22: el objeto acaba en la fila 21, queda arriba del limite: se ignora", verificar_con(&config, 0, 0, 0));
-    obstaculos_config_defecto(&config);
+    config_clasica(&config);
 
     rellenar(PISO);
     ruido(8);
@@ -526,7 +537,7 @@ static void pruebas_fila_minima(void)
     caso("objeto filas 6-14: cercania 1 (fila baja 14 < 16)", verificar_con(&config, 0, 1, 0));
     config.fila_minima_mil = mil_de(14, OBS_FILAS);
     caso("fila_minima 14: solo cuenta la fila 14 (6 celdas), cercania 1", verificar_con(&config, 0, 1, 0));
-    obstaculos_config_defecto(&config);
+    config_clasica(&config);
 
     /* Valores validos en los extremos y no validos. */
     rellenar(PISO);

@@ -999,6 +999,240 @@ static void pruebas_giro_visual_con_retraso(void)
          navegador_poner_latencia_visual(&nav, 0) == NAV_OK);
 }
 
+
+/* ── Casos: objetos grandes, reintentos de esquive y elección del lado ──── */
+
+/* Hora (ms) del n-ésimo cambio (empezando en 1) a `comando`; -1 si no hubo tantos. */
+static long enesimo_cambio_a(ComandoNav comando, int n)
+{
+    int i;
+
+    for (i = 0; i < sim.n_cambios; i++) {
+        if (sim.cambios[i].comando == comando && --n == 0) {
+            return (long)sim.cambios[i].t_ms;
+        }
+    }
+    return -1;
+}
+
+/* Cuánto duró el n-ésimo tramo con `comando` (hasta el siguiente cambio de comando); -1 si no hay. */
+static long duracion_del_tramo(ComandoNav comando, int n)
+{
+    int i;
+
+    for (i = 0; i + 1 < sim.n_cambios; i++) {
+        if (sim.cambios[i].comando == comando && --n == 0) {
+            return (long)sim.cambios[i + 1].t_ms - (long)sim.cambios[i].t_ms;
+        }
+    }
+    return -1;
+}
+
+/* Lista la ruta RECTA con la calibración `cal` (la del navegador y la del carro simulado son la misma). */
+static void preparar_con_calibracion(const CalibracionCarro *cal)
+{
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, cal);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    sim_iniciar(&sim, RECTA[0].columna, RECTA[0].fila, 0);
+    sim.real = *cal;
+    navegador_comenzar(&nav, 0);
+}
+
+/* Un cuadro armado a mano: el centro muy cerca y las celdas de cada lado como se pidan (sin obstáculo en los lados). */
+static ResultadoObstaculos cuadro_con_celdas(int celdas_izq, int celdas_der)
+{
+    ResultadoObstaculos cuadro;
+
+    memset(&cuadro, 0, sizeof cuadro);
+    cuadro.zona[ZONA_CENTRO].hay_obstaculo = 1;
+    cuadro.zona[ZONA_CENTRO].cercania = 3;
+    cuadro.zona[ZONA_CENTRO].celdas = 12;
+    cuadro.zona[ZONA_IZQUIERDA].celdas = celdas_izq;
+    cuadro.zona[ZONA_DERECHA].celdas = celdas_der;
+    return cuadro;
+}
+
+/* Primer giro de apartarse con esos cuadros: LEFT o RIGHT (STOP si no giró). */
+static ComandoNav primer_giro_con_celdas(int celdas_izq, int celdas_der)
+{
+    ResultadoObstaculos cuadro = cuadro_con_celdas(celdas_izq, celdas_der);
+    ResultadoObstaculos libre;
+    uint32_t t;
+
+    memset(&libre, 0, sizeof libre);
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t < 3000; t += NAV_TICK_MS) {
+        ComandoNav comando = navegador_tick(&nav, t, (t < 1000) ? &libre : &cuadro);
+
+        if (nav.estado == NAV_ESQUIVANDO && (comando == NAV_CMD_LEFT || comando == NAV_CMD_RIGHT)) {
+            return comando;
+        }
+    }
+    return NAV_CMD_STOP;
+}
+
+static void pruebas_esquive_objetos_grandes(void)
+{
+    CalibracionCarro cal;
+    long t_stop, t_atras, t_giro;
+    int i;
+
+    /* ── Elección del lado: el que tiene menos celdas de obstáculo ── */
+    caso("lado: los dos libres y la derecha con menos celdas de obstaculo (1 contra 4): gira a la DERECHA", primer_giro_con_celdas(4, 1) == NAV_CMD_RIGHT);
+    caso("lado: los dos libres y la izquierda con menos celdas (1 contra 4): gira a la IZQUIERDA", primer_giro_con_celdas(1, 4) == NAV_CMD_LEFT);
+    caso("lado: los dos libres con las mismas celdas (empate): conserva el comportamiento de siempre, IZQUIERDA", primer_giro_con_celdas(3, 3) == NAV_CMD_LEFT);
+    caso("lado: los dos libres sin celdas (0 y 0): IZQUIERDA como siempre", primer_giro_con_celdas(0, 0) == NAV_CMD_LEFT);
+
+    /* ── Objeto grande que ocupa todo el frente (centro e izquierda): se aparta por la derecha, que está libre ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_CENTRO, 3, 30);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_IZQUIERDA, 3, 25);
+    correr(30000);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    caso("objeto grande (centro e izquierda ocupados): se aparta por la DERECHA (RIGHT primero) y llega al destino",
+         t_stop >= 0 && sim_primer_cambio_a(&sim, NAV_CMD_RIGHT, (uint32_t)t_stop) > t_stop && sim_primer_cambio_a(&sim, NAV_CMD_LEFT, (uint32_t)t_stop) > 0 &&
+         nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
+    caso("... y no necesito reintentos ni retroceder (el obstaculo ya no esta al mirar)", nav.reintentos == 0 && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0);
+    if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
+        informar_posicion("objeto grande");
+    }
+
+    /* ── Pared: ocupa los tres lados, no hay hacia dónde apartarse: espera y ERROR como antes ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_DERECHA, 3, 40);
+    correr(9000);
+    caso("pared de lado a lado: no gira ni retrocede (sin lado libre), ERROR por LADOS_BLOQUEADOS y STOP",
+         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
+         sim_contar_cambios_a(&sim, NAV_CMD_LEFT) == 0 && sim_contar_cambios_a(&sim, NAV_CMD_RIGHT) == 0 && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+
+    /* ── El obstáculo desaparece tras el giro: al mirar está libre, sin retroceder ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 3000, ZONA_CENTRO, 3);
+    correr(30000);
+    caso("obstaculo que desaparece tras el giro: no retrocede, avanza de lado y llega", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
+         nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 150));
+
+    /* ── Sigue muy cerca tras el giro, y al 1.er reintento (retroceder 15 cm + 45 grados) ya está libre ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 4300, ZONA_CENTRO, 3);   /* aún está al terminar el giro (2900) y el retroceso; se va antes del 1.er reintento */
+    correr(40000);
+    caso("sigue muy cerca tras el giro: UN reintento (un retroceso) y despues avanza y llega al destino",
+         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1 && nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 150));
+    if (!(sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1 && nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
+        informar_posicion("un reintento");
+        printf("      reversas=%d\n", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE));
+    }
+
+    /* ── Esquina: pared de frente y a la izquierda; tras el giro a la derecha la otra pared tapa el frente hasta el 2.º reintento ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6100, ZONA_CENTRO, 3, 30);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_IZQUIERDA, 3, 30);
+    correr(60000);
+    caso("esquina: gira a la derecha, reintenta DOS veces (45 y 90 grados mas) y al final sale y llega",
+         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2 && nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
+    caso("esquina: la secuencia es RIGHT, REVERSE, RIGHT, REVERSE, RIGHT (siempre del mismo lado)",
+         enesimo_cambio_a(NAV_CMD_RIGHT, 3) > enesimo_cambio_a(NAV_CMD_REVERSE, 2) && enesimo_cambio_a(NAV_CMD_REVERSE, 2) > enesimo_cambio_a(NAV_CMD_RIGHT, 2) &&
+         enesimo_cambio_a(NAV_CMD_RIGHT, 2) > enesimo_cambio_a(NAV_CMD_REVERSE, 1) && enesimo_cambio_a(NAV_CMD_REVERSE, 1) > enesimo_cambio_a(NAV_CMD_RIGHT, 1));
+    if (!(nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2)) {
+        informar_posicion("esquina");
+    }
+    t_giro = enesimo_cambio_a(NAV_CMD_RIGHT, 1);
+    caso("esquina: los giros duran 90, 45 y 90 grados (900, 450 y 900 ms con 10 ms por grado; +-100 ms)",
+         t_giro > 0 && valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 1) - 900)) <= 100 && valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 2) - 450)) <= 100 &&
+         valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 3) - 900)) <= 100);
+
+    /* ── 2 reintentos agotados y el frente sigue muy cerca: ERROR y STOP como antes ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
+    correr(40000);
+    caso("obstaculo que nunca se va: 2 retrocesos y ERROR (ESQUIVANDO) con STOP, sin un tercer reintento",
+         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_ESQUIVANDO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2 &&
+         nav.reintentos == NAV_MAX_REINTENTOS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("... y despues del ERROR el carro no se mueve mas (STOP en los comandos que siguen)",
+         navegador_tick(&nav, sim.t_ms + 50, NULL) == NAV_CMD_STOP && navegador_tick(&nav, sim.t_ms + 100, NULL) == NAV_CMD_STOP);
+    if (!(nav.estado == NAV_ERROR && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2)) {
+        informar_posicion("reintentos agotados");
+    }
+
+    /* ── Cuánto retrocede: 15 cm (750 ms con 50 ms/cm) ── */
+    t_atras = duracion_del_tramo(NAV_CMD_REVERSE, 1);
+    printf("      retroceso: %ld ms\n", t_atras);
+    caso("cada retroceso dura 15 cm de motor: 750 ms con la calibracion de ejemplo (50 ms/cm), +-60", valor_absoluto((int)(t_atras - 750)) <= 60 &&
+         valor_absoluto((int)(duracion_del_tramo(NAV_CMD_REVERSE, 2) - 750)) <= 60);
+
+    /* ── Retroceso calibrado: si el carro va más lento hacia atrás (100 ms/cm), el tiempo se duplica y la distancia sigue siendo 15 cm ── */
+    cal_defecto(&cal);
+    cal.medidos |= CAL_MEDIDO_ATRAS;
+    cal.ms_por_cm_atras_x10 = 1000;
+    preparar_con_calibracion(&cal);
+    sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
+    correr(60000);
+    caso("retroceso calibrado a 100 ms/cm: el retroceso dura 1500 ms (los mismos 15 cm), +-60", valor_absoluto((int)(duracion_del_tramo(NAV_CMD_REVERSE, 1) - 1500)) <= 60);
+    caso("el navegador sabe que el retroceso esta calibrado", navegador_retroceso_calibrado(&nav) && !navegador_retroceso_calibrado(NULL));
+    cal_defecto(&cal);
+    preparar_con_calibracion(&cal);
+    caso("sin calibrar el retroceso, el navegador lo dice (para que la app avise)", !navegador_retroceso_calibrado(&nav));
+
+    /* ── Tope absoluto: aunque la calibración pida mucho (500 ms/cm hacia atrás = 7500 ms), NO pasa de NAV_RETROCESO_MAX_MS ── */
+    cal_defecto(&cal);
+    cal.medidos |= CAL_MEDIDO_ATRAS;
+    cal.ms_por_cm_atras_x10 = 5000;
+    preparar_con_calibracion(&cal);
+    sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
+    correr(80000);
+    caso("calibracion absurda (500 ms/cm hacia atras): el retroceso se corta en NAV_RETROCESO_MAX_MS (2000 ms), +-60",
+         duracion_del_tramo(NAV_CMD_REVERSE, 1) > 0 && duracion_del_tramo(NAV_CMD_REVERSE, 1) <= NAV_RETROCESO_MAX_MS + 60);
+
+    /* ── Con retraso de video: el primer cuadro después del giro todavía muestra el carro girando ── */
+    /* El obstaculo (visto con 320 ms de retraso) sigue en los cuadros hasta 3220, aunque el carro ya esta quieto desde 2900. */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 3220, ZONA_CENTRO, 3);
+    correr(40000);
+    caso("sin avisar el retraso, el cuadro viejo parece un obstaculo: retrocede de mas (falsa alarma)", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) >= 1);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_latencia_visual(&nav, 320);
+    sim_agregar_obstaculo(&sim, 1500, 3220, ZONA_CENTRO, 3);
+    correr(40000);
+    caso("avisando el retraso de 320 ms, espera un cuadro posterior: no retrocede y llega", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
+         nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
+
+    /* ── Cancelar mientras retrocede: STOP al instante ── */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
+    correr(3000);
+    for (i = 0; i < 40 && nav.cmd_actual != NAV_CMD_REVERSE; i++) {
+        correr(NAV_TICK_MS);
+    }
+    caso("(antes de cancelar) el carro esta retrocediendo", nav.cmd_actual == NAV_CMD_REVERSE && nav.estado == NAV_ESQUIVANDO);
+    navegador_cancelar(&nav);
+    caso("cancelar mientras retrocede: ESPERANDO y STOP en el siguiente tick", nav.estado == NAV_ESPERANDO && navegador_tick(&nav, sim.t_ms, NULL) == NAV_CMD_STOP);
+
+    /* ── Sin cámara no hay a quién mirar: no se retrocede jamas (el obstaculo nunca se vio) ── */
+    preparar(RECTA, N(RECTA));
+    sim.periodo_cuadro_ms = 0;
+    sim_agregar_obstaculo(&sim, 0, 9999999, ZONA_CENTRO, 3);
+    correr(15000);
+    caso("sin cuadros de la camara el carro ni se detiene ni retrocede (llega por tiempo)", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 && nav.estado == NAV_TERMINADO);
+
+    /* ── El retroceso entra en la posición estimada (con la calibración del retroceso) ── */
+    cal_defecto(&cal);
+    cal.medidos |= CAL_MEDIDO_ATRAS;
+    cal.ms_por_cm_atras_x10 = 1000;
+    preparar_con_calibracion(&cal);
+    sim_agregar_obstaculo(&sim, 1500, 4800, ZONA_CENTRO, 3);
+    correr(60000);
+    caso("con retroceso calibrado distinto del avance, la posicion estimada sigue cerca de la real al terminar (+-120 mm)",
+         nav.estado == NAV_TERMINADO && valor_absoluto(nav.x_mm - sim_x_mm(&sim)) <= 120 && valor_absoluto(nav.y_mm - sim_y_mm(&sim)) <= 120 && cerca_de(2, 3, 150));
+    if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
+        informar_posicion("retroceso calibrado");
+    }
+}
+
 int main(void)
 {
     pruebas_sin_obstaculos();
@@ -1014,6 +1248,7 @@ int main(void)
     pruebas_video_perdido();
     pruebas_pausa_entre_movimientos();
     pruebas_giro_visual_con_retraso();
+    pruebas_esquive_objetos_grandes();
     pruebas_textos();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);

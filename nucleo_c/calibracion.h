@@ -43,6 +43,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define CAL_MEDIDO_GIRO_DER   8
 #define CAL_MEDIDO_TODO      15   /* los cuatro bits obligatorios: arranque, avance y los dos giros */
 #define CAL_MEDIDO_FOV       16   /* opcional: el campo de visión de la cámara (giro visual); no cuenta para "todo" */
+#define CAL_MEDIDO_ATRAS     32   /* opcional: los ms por cm al RETROCEDER; no cuenta para "todo" (si falta se usa el del avance) */
 
 /* Lado de un giro. */
 #define CAL_LADO_IZQUIERDA  -1
@@ -58,6 +59,7 @@ typedef struct {
     int frenado_grados_izq_x10;     /* grados (por 10) que sigue girando después del STOP, a la izquierda */
     int frenado_grados_der_x10;     /* idem a la derecha */
     int fov_grados_x10;             /* campo de visión HORIZONTAL de la cámara, en grados por 10 (600 = 60.0), para medir el giro con la cámara */
+    int ms_por_cm_atras_x10;        /* ms por cada cm RETROCEDIENDO, por 10. Solo vale si el bit CAL_MEDIDO_ATRAS está puesto; si no, se usa ms_por_cm_x10 */
 } CalibracionCarro;
 
 /* Códigos de retorno. */
@@ -116,6 +118,11 @@ int cal_ajustar_avance(CalibracionCarro *cal, int n, const int *ms, const int *m
  * girados por 10 (grados_x10). */
 int cal_ajustar_giro(CalibracionCarro *cal, int lado, int n, const int *ms, const int *grados_x10);
 
+/* Prueba de RETROCESO: igual que cal_ajustar_avance pero mandando REVERSE; guarda SOLO los ms por cm hacia atrás (ms_por_cm_atras_x10) y
+ * marca el bit CAL_MEDIDO_ATRAS. El arranque y el frenado se toman de los del avance (no se miden aparte). Mismos códigos de error; si hay
+ * error no cambia nada. Se mide igual que el avance: varios tiempos y los cm que recorrió hacia atrás. */
+int cal_ajustar_retroceso(CalibracionCarro *cal, int n, const int *ms, const int *mm);
+
 /* Calibra el campo de visión de la cámara con UN giro medido: el carro giró `real_x10` grados de verdad (por 10, medidos en el piso)
  * y la cámara, con el campo de visión actual, midió `visual_x10`. El giro visual es proporcional al campo de visión, así que el nuevo
  * valor es el actual por real / visual. Marca el bit FOV. CAL_ERR_DATOS si algún valor no es positivo; CAL_ERR_RANGO si el resultado
@@ -135,6 +142,19 @@ int cal_cm_a_ms(const CalibracionCarro *cal, int cm);
  * arranque que esperar) y el frenado (`frena` = 0: el carro NO se va a detener al final del tramo, sigue
  * avanzando en el tramo siguiente). Lo usa el navegador para encadenar tramos rectos sin parar. */
 int cal_cm_a_ms_tramo(const CalibracionCarro *cal, int cm, int arranca, int frena);
+
+/* Ms por cm (por 10) que se usan al RETROCEDER: los medidos si el bit CAL_MEDIDO_ATRAS está puesto; si no, los del avance (el retroceso
+ * no calibrado se trata como si fuera igual que avanzar; la app avisa). */
+int cal_ms_por_cm_atras_x10(const CalibracionCarro *cal);
+
+/* 1 si los ms por cm hacia atrás están medidos de verdad (bit CAL_MEDIDO_ATRAS). */
+int cal_retroceso_medido(const CalibracionCarro *cal);
+
+/* Como cal_cm_a_ms pero RETROCEDIENDO (con el arranque y el frenado del avance y los ms por cm hacia atrás). 0 si el frenado ya cubre la distancia. */
+int cal_cm_a_ms_atras(const CalibracionCarro *cal, int cm);
+
+/* Cuántos mm retrocedió el carro tras `ms` de REVERSE (sin contar el frenado). */
+int cal_ms_a_mm_atras(const CalibracionCarro *cal, int ms);
 
 /* Lo mismo para girar `grados` (positivo = derecha, negativo = izquierda): se usa el lado. */
 int cal_grados_a_ms(const CalibracionCarro *cal, int grados);

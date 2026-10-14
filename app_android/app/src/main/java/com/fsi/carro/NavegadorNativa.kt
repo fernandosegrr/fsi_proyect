@@ -7,7 +7,7 @@
  *  2. Hay UN solo navegador (en C). Se usa en este orden:
  *       cargarRuta() → comenzar() → tick() cada 50 ms → (cancelar() si hace falta).
  *  3. tick() devuelve el comando que el carro debe mantener (un número de 0 a 4).
- *  4. estado() devuelve 9 enteros para mostrar en pantalla (índices más abajo).
+ *  4. estado() devuelve 11 enteros para mostrar en pantalla (índices más abajo).
  *  Todo se llama desde el hilo principal.
  */
 package com.fsi.carro
@@ -44,6 +44,8 @@ object NavegadorNativa {
     const val E_ESQUIVADAS = 6
     const val E_MOTIVO_ERROR = 7
     const val E_COMANDO = 8
+    const val E_REINTENTOS = 9   // reintentos de esquive de la esquivada actual (retroceder + girar más)
+    const val E_FASE = 10        // fase de la maniobra de esquivar (NAV_FASE_* en navegador.h)
 
     /** Le dice al navegador qué calibración del carro usar (8 enteros, ver CalibracionNativa). Se aplica a la próxima ruta que se cargue. Devuelve 0 o un código de error. */
     external fun ponerCalibracion(calibracion: IntArray): Int
@@ -72,6 +74,9 @@ object NavegadorNativa {
 
     /** 1 = además de lo de siempre, un obstáculo LEJANO (cercanía 1) en el centro también frena, tras 2 cuadros y 60 ms. Para el video del carro. */
     external fun frenarLejosCentro(activo: Int): Int
+
+    /** Dice cuántas celdas de obstáculo tiene cada zona en el cuadro que va al siguiente tick (-1 = no se sabe). El navegador elige el lado con menos celdas. */
+    external fun ponerCeldas(izquierda: Int, centro: Int, derecha: Int)
 
     /**
      * Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giroX10` en grados por 10 (positivo a la derecha), `dtMs` el tiempo

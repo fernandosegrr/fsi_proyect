@@ -37,3 +37,18 @@ Las cuentas están en `nucleo_c/prueba_obstaculo.c` (probadas en PC); la medici�
 ## Si el video se corta a mitad de la ruta
 
 El carro frena y queda en ERROR «DETENIDO: se perdió el video» y NO reanuda solo cuando el video vuelve: hay que iniciar otra ruta.
+
+## Prueba «Esquivar objeto grande» (ruta con la mochila a mitad de camino)
+
+Para ver los reintentos de esquive (`docs/navegador.md`, «Objetos grandes»). **No** cancela la ruta al frenar: el carro frena, esquiva, reintenta
+si hace falta y sigue hasta el final. El primer frenado igualmente anota `OBST_PRUEBA`.
+
+1. Misma preparación de arriba (firmwares cargados, video del carro, modelo en NO). En **Control**: Conectar → **Semiautónomo** → «Obstáculos:
+   **cámara**» → **«Ruta: Esquivar objeto grande (1.4 m)»**. (Opcional: mide el retroceso en «Calibración del carro» paso 6; si no, la app avisa
+   «retroceso sin calibrar» y usa el del avance.)
+2. Pon el carro en una marca mirando a 1.6 m libres. **Detrás del carro deja al menos 40 cm libres** (retrocede ciego hasta 15 cm por reintento).
+3. Pon la **mochila grande a 60 cm de frente**, centrada, y espacio libre de al menos 50 cm a sus dos lados.
+4. Toca **Iniciar**. Observa y anota: ¿frena?, ¿gira?, ¿retrocede?, ¿cuántas veces?, ¿termina en TERMINADO o en ERROR?, ¿toca la mochila?
+5. Repite 5 veces. Variantes: (a) mochila pegada a una pared a su izquierda (debe apartarse a la derecha); (b) mochila en una esquina.
+6. Para leer los números (antes: `adb logcat -G 16M` y `adb logcat -c`; después `adb logcat -d -v time NAV:D OBST_PRUEBA:D VIDEO_STATS:D *:S`):
+   líneas `NAV esquivar fase=GIRAR|MIRAR|RETROCEDER|ASENTAR|AVANZAR_DE_LADO|VOLVER reintentos=N ...` y la línea `fin: ...` con el estado final.

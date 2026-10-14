@@ -16,6 +16,8 @@ app `CalibracionActivity` (asistente paso a paso), `CalibracionNativa`, `Calibra
 3. **FRENADO** (cm): cuánto sigue avanzando el carro después del STOP.
 4. **MS_POR_GRADO** (ms por grado) **de cada lado**: izquierda y derecha por separado, porque el giro se
    hace con un solo motor y no es simétrico. También se mide cuántos grados sigue girando tras el STOP.
+5. **MS_POR_CM_ATRÁS** (opcional): cuánto tiempo de motor hace falta para RETROCEDER 1 cm. Lo usa el reintento de esquive (el carro
+   retrocede 15 cm, ver `docs/navegador.md`). Si no se mide se usa el del avance y la app avisa.
 
 El modelo es:  `distancia = (tiempo − arranque) × velocidad + frenado`  (y lo mismo con grados).
 
@@ -34,9 +36,11 @@ Conecta el carro (ws://192.168.4.1/ws por defecto). El botón **STOP** de la pan
    a las ruedas) y escríbelo. Vuelve a poner el carro en la marca cada vez.
 4. **Giro a la izquierda** y **Giro a la derecha**: igual, con 500, 1000 y 1500 ms (3 veces cada uno).
    Alinea el carro con una marca de 90 grados y anota los grados que giró, aproximados.
-5. **Giro con la cámara (opcional)**: calibra el campo de visión de la cámara para medir el giro con ella (`docs/giro_visual.md`): el carro gira 90°
+5. **Retroceso (opcional)**: se mide **igual que el avance**, pero el carro recibe REVERSE (1000, 2000 y 3000 ms, 3 veces cada uno). Deja
+   unos **80 cm libres detrás** del carro (no ve hacia atrás), mide cuántos cm retrocedió y escríbelo. Si no quieres medirlo toca «Siguiente».
+6. **Giro con la cámara (opcional)**: calibra el campo de visión de la cámara para medir el giro con ella (`docs/giro_visual.md`): el carro gira 90°
    a la derecha según la calibración mientras la cámara mide; tú escribes los grados que giró de verdad (hasta 3 pruebas).
-6. **Resumen**: la app calcula todo en C y muestra los valores. «Usar estos valores» los guarda y el
+7. **Resumen**: la app calcula todo en C y muestra los valores. «Usar estos valores» los guarda y el
    navegador los usa en la próxima ruta. «Copiar» deja el texto en el portapapeles. «Borrar» vuelve a los
    valores por defecto.
 
@@ -79,11 +83,13 @@ ms_por_grado_der_x10=115
 frenado_grados_izq_x10=60
 frenado_grados_der_x10=40
 fov_grados_x10=600
+ms_por_cm_atras_x10=420
 ```
 
 `_x10` quiere decir "por 10": `ms_por_cm_x10=420` son 42.0 ms por cm. `medidos` suma bits: 1 arranque, 2 avance,
-4 giro izquierdo, 8 giro derecho (15 = todo medido) y 16 el campo de visión de la cámara (opcional). `fov_grados_x10` es el campo de visión
-horizontal de la cámara (600 = 60.0 grados); los textos guardados sin esa línea se siguen leyendo.
+4 giro izquierdo, 8 giro derecho (15 = todo medido), 16 el campo de visión de la cámara y 32 el retroceso (los dos últimos son opcionales y no cuentan para «todo medido»). `fov_grados_x10` es el campo de visión
+horizontal de la cámara (600 = 60.0 grados); `ms_por_cm_atras_x10` son los ms por cm hacia atrás (vale solo con el bit 32; si no, se usa `ms_por_cm_x10`). Los textos guardados
+sin esas líneas se siguen leyendo.
 
 ## Si no se calibró
 
