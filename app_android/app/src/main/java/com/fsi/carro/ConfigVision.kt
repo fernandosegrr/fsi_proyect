@@ -75,6 +75,21 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getBoolean("usar_modelo", false)
         set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
 
+    // ── Modo «cualquier objeto» del modelo de objetos (cualquiera.h): APAGADO por defecto ──
+    /** true = el modelo de objetos se usa solo para saber que hay una caja sobre el piso, ignorando la clase (necesita el modelo encendido). */
+    var cualquierObjeto: Boolean
+        get() = preferencias.getBoolean("cualquier_objeto", false)
+        set(valor) = preferencias.edit().putBoolean("cualquier_objeto", valor).apply()
+
+    /** Confianza que debe SUPERAR una caja, en milésimas (150 = 0.15; de 10 a 500). */
+    var umbralCualquieraMil: Int
+        get() = preferencias.getInt("umbral_cualquiera_mil", CualquieraNativa.UMBRAL_DEFECTO_MIL).coerceIn(CualquieraNativa.UMBRAL_MIN_MIL, CualquieraNativa.UMBRAL_MAX_MIL)
+        set(valor) = preferencias.edit().putInt("umbral_cualquiera_mil", valor.coerceIn(CualquieraNativa.UMBRAL_MIN_MIL, CualquieraNativa.UMBRAL_MAX_MIL)).apply()
+
+    /** Los 9 enteros de configuración del modo «cualquier objeto» (CualquieraNativa.CFG_*); los filtros de tamaño y posición son los de cualquiera.h. */
+    fun cualquieraComoArreglo(): IntArray = intArrayOf(
+        if (cualquierObjeto && usarModelo) 1 else 0, umbralCualquieraMil, 600, 500, 15, 40, 2, 500, 300)
+
     // ── Corredor de trayectoria (corredor.h): APAGADO por defecto ──
     /** true = solo frena un obstáculo que cae dentro de la huella del carro proyectada en la imagen (el que pasa por un lado solo avisa). */
     var corredorActivo: Boolean

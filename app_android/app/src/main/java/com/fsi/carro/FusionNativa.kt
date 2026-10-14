@@ -36,7 +36,8 @@ object FusionNativa {
     const val R_AVISO_ZONA = 17
     const val R_AVISO_CERCANIA = 18
     const val R_CLASE_EN_CAMINO = 19
-    const val ENTEROS_RESULTADO = 20
+    const val R_DESMENTIDOS = 20       // modo «cualquier objeto»: zonas con un falso positivo de color de cercanía baja que se desmintieron
+    const val ENTEROS_RESULTADO = 21
 
     const val FUENTE_NINGUNA = 0
     const val FUENTE_DETECTOR = 1
@@ -61,6 +62,12 @@ object FusionNativa {
      * el modelo vio el cuadro (`marcaMs`) y la hora de ahora (`ahoraMs`; el mismo reloj, SystemClock.elapsedRealtime()).
      */
     external fun decidir(config: IntArray, detector: IntArray, cajas: IntArray, marcaMs: Long, ahoraMs: Long): IntArray
+
+    /**
+     * La fusión del modo «cualquier objeto» (el color manda; ver fusion.h): `zonas` son 6 enteros (hay, cercanía de izquierda, centro y derecha) de lo que cuenta en
+     * «cualquier objeto» (CualquieraNativa.zonasDe) y `vigente` dice si ese resultado no está caducado. Devuelve el mismo formato que decidir().
+     */
+    external fun decidirCualquiera(config: IntArray, detector: IntArray, zonas: IntArray, vigente: Boolean): IntArray
 
     /** La configuración por defecto con las clases de interés puestas por NOMBRE (las que no estén en las etiquetas se saltan). */
     fun configConClases(etiquetas: List<String>, nombres: List<String> = CLASES_DE_INTERES): IntArray {

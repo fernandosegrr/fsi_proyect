@@ -1,0 +1,15 @@
+BENCH|TERMICO|INICIO|modelo=efficientdet_lite0.tflite|segundos=60
+BENCH|TERMICO|modelo=efficientdet_lite0.tflite|config=CPU-1-hilo|apertura_ms=28.53|inferencias=1264|ms_primeros_10s=43.27|ms_ultimos_10s=51.77|ms_media_60s=47.50|ms_mediana_60s=44.71|inicio=[termico=0 bateria=29.0C enchufado=true]|fin=[termico=0 bateria=29.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite0.tflite|config=GPU|apertura_ms=1025.90|inferencias=435|ms_primeros_10s=139.12|ms_ultimos_10s=136.22|ms_media_60s=138.07|ms_mediana_60s=137.97|inicio=[termico=0 bateria=29.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite0.tflite|config=NNAPI|apertura_ms=292.72|inferencias=991|ms_primeros_10s=60.63|ms_ultimos_10s=60.58|ms_media_60s=60.57|ms_mediana_60s=60.49|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+BENCH|TERMICO|FIN|modelo=efficientdet_lite0.tflite
+BENCH|TERMICO|INICIO|modelo=efficientdet_lite1.tflite|segundos=60
+BENCH|TERMICO|modelo=efficientdet_lite1.tflite|config=CPU-1-hilo|apertura_ms=34.27|inferencias=696|ms_primeros_10s=78.78|ms_ultimos_10s=95.73|ms_media_60s=86.23|ms_mediana_60s=79.48|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite1.tflite|config=GPU|apertura_ms=785.15|inferencias=276|ms_primeros_10s=218.90|ms_ultimos_10s=218.44|ms_media_60s=217.79|ms_mediana_60s=220.50|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite1.tflite|config=NNAPI|apertura_ms=247.03|inferencias=576|ms_primeros_10s=104.19|ms_ultimos_10s=104.20|ms_media_60s=104.16|ms_mediana_60s=104.09|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+BENCH|TERMICO|FIN|modelo=efficientdet_lite1.tflite
+BENCH|TERMICO|INICIO|modelo=efficientdet_lite2.tflite|segundos=60
+BENCH|TERMICO|modelo=efficientdet_lite2.tflite|config=CPU-1-hilo|apertura_ms=38.01|inferencias=454|ms_primeros_10s=119.90|ms_ultimos_10s=146.65|ms_media_60s=132.17|ms_mediana_60s=120.40|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite2.tflite|config=GPU|apertura_ms=768.39|inferencias=257|ms_primeros_10s=234.48|ms_ultimos_10s=220.53|ms_media_60s=234.35|ms_mediana_60s=237.25|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+BENCH|TERMICO|modelo=efficientdet_lite2.tflite|config=NNAPI|apertura_ms=330.11|inferencias=387|ms_primeros_10s=155.25|ms_ultimos_10s=155.64|ms_media_60s=155.32|ms_mediana_60s=155.18|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+BENCH|TERMICO|FIN|modelo=efficientdet_lite2.tflite

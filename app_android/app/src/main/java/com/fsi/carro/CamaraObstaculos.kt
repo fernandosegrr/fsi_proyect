@@ -79,7 +79,8 @@ class CuadroAnalizado(
     val giro: GiroVisual? = null,          // lo que se vio girar respecto al cuadro anterior
     val marcaMs: Long = 0L,                // hora (SystemClock.elapsedRealtime) en que el cuadro LLEGÓ al teléfono
     val msHastaResultado: Double = 0.0,    // ms desde que llegó hasta que el detector (y la fusión) terminaron
-    val corredor: IntArray? = null         // CorredorNativa.aplicar de este cuadro (null = corredor apagado)
+    val corredor: IntArray? = null,        // CorredorNativa.aplicar de este cuadro (null = corredor apagado)
+    val cualquiera: IntArray? = null       // CualquieraNativa.actualizar de este cuadro (null = modo «cualquier objeto» apagado)
 ) {
     /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
     val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
@@ -123,6 +124,7 @@ class CamaraObstaculos(
     private val avanzando: () -> Boolean = { false },   // true si el carro está avanzando ahora (solo entonces el modelo del piso aprende)
     private val usarModelo: () -> Boolean = { false },  // true si se quiere usar también el modelo de objetos (fusión)
     private val configCorredor: () -> IntArray = { IntArray(0) },   // CorredorNativa.CFG_*: vacío o activo = 0 = corredor apagado
+    private val configCualquiera: () -> IntArray = { IntArray(0) }, // CualquieraNativa.CFG_*: vacío o activo = 0 = modo «cualquier objeto» apagado
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -631,17 +633,32 @@ class CamaraObstaculos(
         var fusion: IntArray? = null
         var ultimoModelo: ResultadoModelo? = null
         var msFusion = 0.0
+        var cualquiera: IntArray? = null
         val m = modelo
         if (m != null && m.activo && resultado[ObstaculosNativa.CODIGO] == 0) {
             val ahoraMs = SystemClock.elapsedRealtime()
+            // Modo «cualquier objeto»: el modelo entrega las cajas desde 0.01 de confianza y el filtro (umbral, tamaño, posición, persistencia) se hace en C.
+            val cfgCual = configCualquiera()
+            val modoCualquiera = cfgCual.size >= CualquieraNativa.ENTEROS_CONFIG && cfgCual[CualquieraNativa.CFG_ACTIVO] == 1
+            m.umbralCajas = if (modoCualquiera) CualquieraNativa.UMBRAL_MIN_MIL / 1000f else DetectorTflite.UMBRAL_CAJAS
             m.ofrecer(pixeles, ancho, alto, ahoraMs)
             ultimoModelo = m.ultimo
             if (configFusion == null && m.etiquetas.isNotEmpty()) {
                 configFusion = FusionNativa.configConClases(m.etiquetas)
             }
             val inicioFusion = System.nanoTime()
-            fusion = FusionNativa.decidir(configFusion ?: FusionNativa.configDefecto(), resultado,
-                ultimoModelo?.cajas ?: sinCajas, ultimoModelo?.marcaMs ?: 0L, ahoraMs)
+            if (modoCualquiera) {
+                val cajasModelo = ultimoModelo?.cajas ?: sinCajas
+                val marcaModelo = ultimoModelo?.marcaMs ?: 0L
+                val cual = CualquieraNativa.actualizar(cfgCual, cajasModelo, marcaModelo, ahoraMs)
+                val barrido = CualquieraNativa.barrido(cfgCual, cajasModelo, marcaModelo, ahoraMs)
+                fusion = FusionNativa.decidirCualquiera(configFusion ?: FusionNativa.configDefecto(), resultado, CualquieraNativa.zonasDe(cual),
+                    cual[CualquieraNativa.R_CODIGO] == 0 && cual[CualquieraNativa.R_VIGENTE] == 1)
+                cualquiera = cual
+                registrarObjAny(resultado, fusion, ultimoModelo, barrido)
+            } else {
+                fusion = FusionNativa.decidir(configFusion ?: FusionNativa.configDefecto(), resultado, ultimoModelo?.cajas ?: sinCajas, ultimoModelo?.marcaMs ?: 0L, ahoraMs)
+            }
             msFusion = (System.nanoTime() - inicioFusion) / 1.0e6
         } else if (m != null && !m.activo && m.error.isNotEmpty()) {
             error = m.error   // el modelo falló: la cámara y el detector de color siguen funcionando
@@ -677,10 +694,32 @@ class CamaraObstaculos(
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
             (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual,
-            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble(), corredor)
+            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble(), corredor, cualquiera)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
+    }
+
+    /**
+     * Registro OBJ_ANY (una línea por cuadro, solo números): lo que decidió el color por zona (hay/cercanía), quién decidió la fusión, cuántas cajas desmintió y, para cada umbral
+     * (0.01, 0.05, 0.10, 0.15, 0.20 y 0.30), cuántas cajas pasan los filtros (f), cuántas además persisten (p) y la zona (z, -1 = ninguna) y cercanía (c) de la mejor.
+     */
+    private fun registrarObjAny(detector: IntArray, fusion: IntArray, modelo: ResultadoModelo?, barrido: IntArray) {
+        val sb = StringBuilder("OBJ_ANY ")
+        sb.append("ms_modelo=").append(String.format(java.util.Locale.US, "%.1f", modelo?.msTotal ?: 0.0))
+        sb.append(" color=")
+        for (z in 0..2) {
+            sb.append(detector[ObstaculosNativa.HAY_IZQUIERDA + 2 * z]).append('/').append(detector[ObstaculosNativa.CERCANIA_IZQUIERDA + 2 * z])
+            if (z < 2) sb.append(',')
+        }
+        sb.append(" decidio=").append(FusionNativa.textoFuente(fusion[FusionNativa.R_FUENTE]))
+        sb.append(" severidad=").append(fusion[FusionNativa.R_SEVERIDAD])
+        sb.append(" desmentidos=").append(fusion[FusionNativa.R_DESMENTIDOS])
+        for (u in 0 until CualquieraNativa.UMBRALES_BARRIDO) {
+            val b = 5 * u
+            sb.append(String.format(java.util.Locale.US, " u%.2f=f%d,p%d,z%d,c%d", barrido[b] / 1000.0, barrido[b + 1], barrido[b + 2], barrido[b + 3], barrido[b + 4]))
+        }
+        Log.d("OBJ_ANY", sb.toString())
     }
 
     /** Cierra el aprendizaje del piso (en C) y guarda el informe. */

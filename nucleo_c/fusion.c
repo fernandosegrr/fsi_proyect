@@ -173,6 +173,7 @@ static void limpiar_salida(ResultadoFusion *salida)
     salida->aviso_zona = ZONA_CENTRO;
     salida->aviso_cercania = 0;
     salida->clase_en_camino = -1;
+    salida->desmentidos = 0;
 }
 
 /* Anota un aviso (algo que solo se informa). Se queda con el de mayor cercanía. */
@@ -195,6 +196,26 @@ static void subir_zona(ZonaObstaculo *zona, int cercania)
     }
     if (zona->celdas < 1) {
         zona->celdas = 1;
+    }
+}
+
+/* Severidad (la mayor de las zonas, o aviso si solo hay un aviso) y quién decidió. */
+static void cerrar_salida(ResultadoFusion *salida, int uso_detector, int uso_modelo)
+{
+    salida->severidad = severidad_de_zonas(salida->zona);
+    if (salida->severidad == FUS_SEV_NINGUNA && salida->aviso) {
+        salida->severidad = FUS_SEV_AVISO;
+    }
+    if (salida->zona[0].hay_obstaculo || salida->zona[1].hay_obstaculo || salida->zona[2].hay_obstaculo) {
+        if (uso_detector && uso_modelo) {
+            salida->fuente = FUS_FUENTE_AMBOS;
+        } else if (uso_modelo) {
+            salida->fuente = FUS_FUENTE_MODELO;
+        } else {
+            salida->fuente = FUS_FUENTE_DETECTOR;
+        }
+    } else if (salida->aviso) {
+        salida->fuente = FUS_FUENTE_MODELO;   /* solo el modelo tiene algo que decir (un aviso) */
     }
 }
 
@@ -286,21 +307,70 @@ int fusion_decidir(const ConfigFusion *config, const ResultadoObstaculos *detect
     }
 
     /* 3. Severidad y quién decidió. */
-    salida->severidad = severidad_de_zonas(salida->zona);
-    if (salida->severidad == FUS_SEV_NINGUNA && salida->aviso) {
-        salida->severidad = FUS_SEV_AVISO;
+    cerrar_salida(salida, uso_detector, uso_modelo);
+    return FUS_OK;
+}
+
+int fusion_decidir_cualquiera(const ConfigFusion *config, const ResultadoObstaculos *detector, const ZonaObstaculo cualquiera[OBS_ZONAS],
+                              int cualquiera_vigente, ResultadoFusion *salida)
+{
+    int z, uso_detector = 0, uso_modelo = 0;
+
+    if (salida == NULL) {
+        return FUS_ERR_ARGUMENTO;
     }
-    if (salida->zona[0].hay_obstaculo || salida->zona[1].hay_obstaculo || salida->zona[2].hay_obstaculo) {
-        if (uso_detector && uso_modelo) {
-            salida->fuente = FUS_FUENTE_AMBOS;
-        } else if (uso_modelo) {
-            salida->fuente = FUS_FUENTE_MODELO;
-        } else {
-            salida->fuente = FUS_FUENTE_DETECTOR;
+    limpiar_salida(salida);
+    if (config == NULL || detector == NULL || cualquiera == NULL) {
+        return FUS_ERR_ARGUMENTO;
+    }
+    if (!fusion_config_es_valida(config)) {
+        return FUS_ERR_CONFIG;
+    }
+
+    /* El color manda: se copia tal cual (la regla d de fusion.h es la única forma de bajarlo). */
+    for (z = 0; z < OBS_ZONAS; z++) {
+        salida->zona[z] = detector->zona[z];
+        if (detector->zona[z].hay_obstaculo) {
+            uso_detector = 1;
         }
-    } else if (salida->aviso) {
-        salida->fuente = FUS_FUENTE_MODELO;   /* solo el modelo tiene algo que decir (un aviso) */
     }
+    salida->detector_solo_decide = (severidad_de_zonas(salida->zona) >= FUS_SEV_FRENAR) ? 1 : 0;
+    salida->modelo_vigente = cualquiera_vigente ? 1 : 0;
+    if (cualquiera_vigente) {
+        for (z = 0; z < OBS_ZONAS; z++) {
+            const ZonaObstaculo *det = &detector->zona[z];
+            const ZonaObstaculo *cual = &cualquiera[z];
+            int color_ve = det->hay_obstaculo && det->cercania > 0;
+            int color_duda = !det->hay_obstaculo && det->celdas > 0;
+
+            if (cual->hay_obstaculo && cual->cercania > 0) {
+                if (color_ve) {
+                    if (cual->cercania > det->cercania) {
+                        subir_zona(&salida->zona[z], cual->cercania);   /* a) coinciden y «cualquier objeto» lo ve más cerca: sube */
+                    }
+                    uso_modelo = 1;
+                } else if (color_duda) {
+                    subir_zona(&salida->zona[z], cual->cercania);       /* b) el color dudaba */
+                    uso_modelo = 1;
+                    uso_detector = 1;
+                } else {
+                    anotar_aviso(salida, -1, z, cual->cercania);        /* c) el color no ve nada: solo se avisa, NUNCA frena */
+                }
+            } else if (color_ve && det->cercania <= 1) {
+                salida->zona[z].hay_obstaculo = 0;                       /* d) falso positivo de color con cercanía baja: se desmiente */
+                salida->zona[z].cercania = 0;
+                salida->zona[z].celdas = 0;
+                salida->zona[z].celdas_corredor = 0;
+                salida->zona[z].fuera_corredor = 0;
+                salida->zona[z].cercania_corredor = 0;
+                salida->desmentidos++;
+            }
+        }
+    }
+    if (!(salida->zona[0].hay_obstaculo || salida->zona[1].hay_obstaculo || salida->zona[2].hay_obstaculo)) {
+        uso_detector = 0;
+    }
+    cerrar_salida(salida, uso_detector, uso_modelo);
     return FUS_OK;
 }
 

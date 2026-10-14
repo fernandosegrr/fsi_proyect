@@ -32,6 +32,7 @@
 #include "video_stats.h"
 #include "prueba_obstaculo.h"
 #include "corredor.h"
+#include "cualquiera.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -569,7 +570,7 @@ Java_com_fsi_carro_MovimientoVisualNativa_reiniciar(JNIEnv *env, jobject objeto)
 /* ── Fusión del detector de color con el modelo de objetos ─────────────── */
 
 #define ENTEROS_CONFIG_FUSION     10
-#define ENTEROS_RESULTADO_FUSION  20
+#define ENTEROS_RESULTADO_FUSION  21
 #define ENTEROS_POR_CAJA           6
 
 /* Configuración por defecto de la fusión (10 enteros):
@@ -607,7 +608,7 @@ Java_com_fsi_carro_FusionNativa_configDefecto(JNIEnv *env, jobject objeto)
  *   [0] código (0 = bien)   [1..6] zonas fusionadas (hay, cercanía; igual que ObstaculosNativa.analizar)   [7..9] ceros
  *   [10] severidad (0 a 3)  [11] fuente (0 nadie, 1 detector, 2 modelo, 3 ambos)  [12] el detector solo ya decide
  *   [13] modelo vigente  [14] edad del modelo en ms  [15] hay aviso  [16] clase del aviso  [17] zona del aviso
- *   [18] cercanía del aviso  [19] clase del objeto en el camino (-1 si no hay) */
+ *   [18] cercanía del aviso  [19] clase del objeto en el camino (-1 si no hay)  [20] zonas desmentidas (solo en el modo «cualquier objeto») */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray config, jintArray detector,
                                          jintArray cajas, jlong marca_ms, jlong ahora_ms)
@@ -703,6 +704,276 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
             salida[17] = resultado.aviso_zona;
             salida[18] = resultado.aviso_cercania;
             salida[19] = resultado.clase_en_camino;
+            salida[20] = resultado.desmentidos;
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FUSION);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_FUSION, salida);
+    }
+    return arreglo;
+}
+
+/* ── Modo «cualquier objeto» del modelo de objetos (cualquiera.c) ──────── */
+
+#define ENTEROS_CONFIG_CUALQUIERA   9
+#define ENTEROS_RESULTADO_CUALQUIERA (16 + 6 * FUS_MAX_CAJAS)
+#define UMBRALES_BARRIDO            6
+
+static EstadoCualquiera estado_cualquiera;          /* la historia del modo: solo la usa el hilo de la cámara */
+static int estado_cualquiera_iniciado = 0;
+static EstadoCualquiera estados_barrido[UMBRALES_BARRIDO];   /* una historia por cada umbral del registro OBJ_ANY */
+static int estados_barrido_iniciados = 0;
+static const int UMBRALES_BARRIDO_MIL[UMBRALES_BARRIDO] = { 10, 50, 100, 150, 200, 300 };
+
+/* Lee la configuración del modo (9 enteros): [0] activo [1] umbral_mil [2] area_max_mil [3] borde_inferior_min_mil [4] area_min_mil [5] ancho_min_mil
+ * [6] persistencia [7] solape_mil [8] vigencia_ms. Con un arreglo malo deja una configuración NO válida (el C responde con error). */
+static void leer_config_cualquiera(JNIEnv *env, jintArray config, ConfigCualquiera *cfg)
+{
+    jint datos[ENTEROS_CONFIG_CUALQUIERA];
+
+    if (config == NULL || (*env)->GetArrayLength(env, config) < ENTEROS_CONFIG_CUALQUIERA) {
+        cualq_config_defecto(cfg);
+        cfg->umbral_mil = -1;
+        return;
+    }
+    (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_CUALQUIERA, datos);
+    cfg->activo = (int)datos[0];
+    cfg->umbral_mil = (int)datos[1];
+    cfg->area_max_mil = (int)datos[2];
+    cfg->borde_inferior_min_mil = (int)datos[3];
+    cfg->area_min_mil = (int)datos[4];
+    cfg->ancho_min_mil = (int)datos[5];
+    cfg->persistencia = (int)datos[6];
+    cfg->solape_mil = (int)datos[7];
+    cfg->vigencia_ms = (int)datos[8];
+}
+
+/* Lee las cajas del modelo ([n, (clase, confianza_mil, xmin, ymin, xmax, ymax) * n]) y la marca de tiempo. Devuelve 1 si hay un resultado del modelo (aunque sea con 0 cajas). */
+static int leer_cajas_modelo(JNIEnv *env, jintArray cajas, jlong marca_ms, DeteccionesModelo *modelo)
+{
+    jint datos[1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA];
+    jsize largo;
+    int n, i;
+
+    memset(modelo, 0, sizeof *modelo);
+    modelo->marca_ms = (unsigned int)marca_ms;
+    if (cajas == NULL || (*env)->GetArrayLength(env, cajas) < 1) {
+        return 0;
+    }
+    largo = (*env)->GetArrayLength(env, cajas);
+    if (largo > 1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA) {
+        largo = 1 + FUS_MAX_CAJAS * ENTEROS_POR_CAJA;
+    }
+    (*env)->GetIntArrayRegion(env, cajas, 0, largo, datos);
+    n = (int)datos[0];
+    if (n > (int)((largo - 1) / ENTEROS_POR_CAJA)) {
+        n = (int)((largo - 1) / ENTEROS_POR_CAJA);
+    }
+    if (n > FUS_MAX_CAJAS) {
+        n = FUS_MAX_CAJAS;
+    }
+    for (i = 0; i < n; i++) {
+        modelo->cajas[i].clase = (int)datos[1 + i * ENTEROS_POR_CAJA];
+        modelo->cajas[i].confianza_mil = (int)datos[2 + i * ENTEROS_POR_CAJA];
+        modelo->cajas[i].xmin_mil = (int)datos[3 + i * ENTEROS_POR_CAJA];
+        modelo->cajas[i].ymin_mil = (int)datos[4 + i * ENTEROS_POR_CAJA];
+        modelo->cajas[i].xmax_mil = (int)datos[5 + i * ENTEROS_POR_CAJA];
+        modelo->cajas[i].ymax_mil = (int)datos[6 + i * ENTEROS_POR_CAJA];
+    }
+    modelo->n = (n > 0) ? n : 0;
+    return 1;
+}
+
+/* Procesa lo último que dijo el modelo en el modo «cualquier objeto» (ver cualquiera.h). Solo desde el hilo de la cámara. Devuelve:
+ *   [0] código (0 = bien)  [1] vigente  [2] edad del modelo en ms  [3] cajas que trajo el modelo  [4] las que pasan los filtros
+ *   [5] las que además persisten (cuentan)  [6] cuántas cuentan  [7..12] zonas izq/centro/der: hay, cercanía  [13] mejor zona (-1 = ninguna)
+ *   [14] mejor cercanía  [15] 1 si era un cuadro nuevo del modelo
+ *   [16...] por cada caja que cuenta (hasta 10): xmin, ymin, xmax, ymax (milésimas), zona, cercanía */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CualquieraNativa_actualizar(JNIEnv *env, jobject objeto, jintArray config, jintArray cajas, jlong marca_ms, jlong ahora_ms)
+{
+    jint salida[ENTEROS_RESULTADO_CUALQUIERA];
+    ConfigCualquiera cfg;
+    DeteccionesModelo modelo;
+    ResultadoCualquiera r;
+    jintArray arreglo;
+    int hay_modelo, codigo, i, z;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_CUALQUIERA; i++) {
+        salida[i] = 0;
+    }
+    salida[13] = -1;
+    if (!estado_cualquiera_iniciado) {
+        cualq_iniciar(&estado_cualquiera);
+        estado_cualquiera_iniciado = 1;
+    }
+    leer_config_cualquiera(env, config, &cfg);
+    hay_modelo = leer_cajas_modelo(env, cajas, marca_ms, &modelo);
+    codigo = cualq_actualizar(&cfg, &estado_cualquiera, hay_modelo ? &modelo : NULL, (unsigned int)ahora_ms, &r);
+    salida[0] = codigo;
+    if (codigo == CUALQ_OK) {
+        salida[1] = r.vigente;
+        salida[2] = r.edad_modelo_ms;
+        salida[3] = r.cajas_modelo;
+        salida[4] = r.pasan_filtros;
+        salida[5] = r.persistentes;
+        salida[6] = r.n_cuentan;
+        for (z = 0; z < OBS_ZONAS; z++) {
+            salida[7 + 2 * z] = r.zona[z].hay_obstaculo;
+            salida[8 + 2 * z] = r.zona[z].cercania;
+        }
+        salida[13] = r.mejor_zona;
+        salida[14] = r.mejor_cercania;
+        salida[15] = r.nuevo_cuadro;
+        for (i = 0; i < r.n_cuentan && i < FUS_MAX_CAJAS; i++) {
+            salida[16 + 6 * i] = r.cuentan[i].xmin_mil;
+            salida[17 + 6 * i] = r.cuentan[i].ymin_mil;
+            salida[18 + 6 * i] = r.cuentan[i].xmax_mil;
+            salida[19 + 6 * i] = r.cuentan[i].ymax_mil;
+            salida[20 + 6 * i] = r.zona_cuentan[i];
+            salida[21 + 6 * i] = r.cercania_cuentan[i];
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_CUALQUIERA);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_CUALQUIERA, salida);
+    }
+    return arreglo;
+}
+
+/* El barrido del registro OBJ_ANY: con las mismas cajas (las del umbral más bajo) corre el modo con cada uno de los umbrales 0.01, 0.05, 0.10, 0.15, 0.20 y 0.30 (cada
+ * uno con su propia historia de persistencia) y dice cuántas cajas pasan filtros y persistencia. `config` es la del modo (su umbral se ignora). Devuelve 6 x 5 enteros:
+ *   por umbral: [umbral_mil, cajas que pasan filtros, las que cuentan, mejor zona (-1 = ninguna), mejor cercanía]. Solo desde el hilo de la cámara. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CualquieraNativa_barrido(JNIEnv *env, jobject objeto, jintArray config, jintArray cajas, jlong marca_ms, jlong ahora_ms)
+{
+    jint salida[UMBRALES_BARRIDO * 5];
+    ConfigCualquiera cfg;
+    DeteccionesModelo modelo;
+    jintArray arreglo;
+    int hay_modelo, u, i;
+
+    (void)objeto;
+    for (i = 0; i < UMBRALES_BARRIDO * 5; i++) {
+        salida[i] = 0;
+    }
+    if (!estados_barrido_iniciados) {
+        for (u = 0; u < UMBRALES_BARRIDO; u++) {
+            cualq_iniciar(&estados_barrido[u]);
+        }
+        estados_barrido_iniciados = 1;
+    }
+    leer_config_cualquiera(env, config, &cfg);
+    hay_modelo = leer_cajas_modelo(env, cajas, marca_ms, &modelo);
+    for (u = 0; u < UMBRALES_BARRIDO; u++) {
+        ResultadoCualquiera r;
+        ConfigCualquiera c = cfg;
+
+        c.umbral_mil = UMBRALES_BARRIDO_MIL[u];
+        salida[5 * u] = c.umbral_mil;
+        salida[5 * u + 3] = -1;
+        if (cualq_actualizar(&c, &estados_barrido[u], hay_modelo ? &modelo : NULL, (unsigned int)ahora_ms, &r) == CUALQ_OK) {
+            salida[5 * u + 1] = r.pasan_filtros;
+            salida[5 * u + 2] = r.persistentes;
+            salida[5 * u + 3] = r.mejor_zona;
+            salida[5 * u + 4] = r.mejor_cercania;
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, UMBRALES_BARRIDO * 5);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, UMBRALES_BARRIDO * 5, salida);
+    }
+    return arreglo;
+}
+
+/* Olvida la historia de los dos (el modo y el barrido): por ejemplo, al encender el modo o al cerrar la cámara. */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_CualquieraNativa_reiniciar(JNIEnv *env, jobject objeto)
+{
+    int u;
+
+    (void)env;
+    (void)objeto;
+    cualq_iniciar(&estado_cualquiera);
+    estado_cualquiera_iniciado = 1;
+    for (u = 0; u < UMBRALES_BARRIDO; u++) {
+        cualq_iniciar(&estados_barrido[u]);
+    }
+    estados_barrido_iniciados = 1;
+}
+
+/* La fusión del modo «cualquier objeto» (fusion_decidir_cualquiera: el color manda). `detector` es el arreglo de analizarConfig; `zonas` son 6 enteros
+ * (hay, cercanía) de izquierda, centro y derecha de lo que cuenta en «cualquier objeto»; `vigente` es 1 si ese resultado no está caducado. Devuelve los mismos
+ * 21 enteros que FusionNativa.decidir. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FusionNativa_decidirCualquiera(JNIEnv *env, jobject objeto, jintArray config, jintArray detector, jintArray zonas, jboolean vigente)
+{
+    ConfigFusion cfg;
+    ResultadoObstaculos det;
+    ZonaObstaculo cual[OBS_ZONAS];
+    ResultadoFusion resultado;
+    jint datos_config[ENTEROS_CONFIG_FUSION];
+    jint datos_detector[ENTEROS_ENCABEZADO_DETALLE];
+    jint datos_zonas[2 * OBS_ZONAS];
+    jint salida[ENTEROS_RESULTADO_FUSION];
+    jintArray arreglo;
+    int codigo, i, z;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_FUSION; i++) {
+        salida[i] = 0;
+    }
+    salida[19] = -1;
+    memset(&det, 0, sizeof det);
+    memset(cual, 0, sizeof cual);
+    if (config == NULL || (*env)->GetArrayLength(env, config) < ENTEROS_CONFIG_FUSION || detector == NULL ||
+        (*env)->GetArrayLength(env, detector) < ENTEROS_ENCABEZADO_DETALLE || zonas == NULL || (*env)->GetArrayLength(env, zonas) < 2 * OBS_ZONAS) {
+        salida[0] = FUS_ERR_ARGUMENTO;
+    } else {
+        (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_FUSION, datos_config);
+        cfg.vigencia_ms = (int)datos_config[0];
+        cfg.confianza_min_mil = (int)datos_config[1];
+        cfg.confianza_frenar_mil = (int)datos_config[2];
+        cfg.solape_camino_mil = (int)datos_config[3];
+        cfg.cerca_mil = (int)datos_config[4];
+        cfg.media_mil = (int)datos_config[5];
+        cfg.area_grande_mil = (int)datos_config[6];
+        cfg.clases_interes[0] = (unsigned int)datos_config[7];
+        cfg.clases_interes[1] = (unsigned int)datos_config[8];
+        cfg.clases_interes[2] = (unsigned int)datos_config[9];
+        (*env)->GetIntArrayRegion(env, detector, 0, ENTEROS_ENCABEZADO_DETALLE, datos_detector);
+        (*env)->GetIntArrayRegion(env, zonas, 0, 2 * OBS_ZONAS, datos_zonas);
+        for (z = 0; z < OBS_ZONAS; z++) {
+            det.zona[z].hay_obstaculo = (int)datos_detector[1 + 2 * z];
+            det.zona[z].cercania = (int)datos_detector[2 + 2 * z];
+            det.zona[z].celdas = (int)datos_detector[35 + z];
+            cual[z].hay_obstaculo = (int)datos_zonas[2 * z];
+            cual[z].cercania = (int)datos_zonas[2 * z + 1];
+            cual[z].celdas = cual[z].hay_obstaculo ? 1 : 0;
+        }
+        codigo = fusion_decidir_cualquiera(&cfg, &det, cual, vigente ? 1 : 0, &resultado);
+        salida[0] = codigo;
+        if (codigo == FUS_OK) {
+            for (z = 0; z < OBS_ZONAS; z++) {
+                salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
+                salida[2 + 2 * z] = resultado.zona[z].cercania;
+            }
+            salida[7] = datos_detector[7];
+            salida[8] = datos_detector[8];
+            salida[9] = datos_detector[9];
+            salida[10] = resultado.severidad;
+            salida[11] = resultado.fuente;
+            salida[12] = resultado.detector_solo_decide;
+            salida[13] = resultado.modelo_vigente;
+            salida[14] = resultado.edad_modelo_ms;
+            salida[15] = resultado.aviso;
+            salida[16] = resultado.aviso_clase;
+            salida[17] = resultado.aviso_zona;
+            salida[18] = resultado.aviso_cercania;
+            salida[19] = resultado.clase_en_camino;
+            salida[20] = resultado.desmentidos;
         }
     }
     arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FUSION);

@@ -62,6 +62,10 @@ class ModeloEnHilo(private val contexto: Context) {
         private set
     private var ultimoLogModeloMs = 0L
 
+    /** Confianza mínima de las cajas que devuelve el modelo (0.6 por defecto; el modo «cualquier objeto» pide 0.01 y filtra en C). */
+    @Volatile
+    var umbralCajas = DetectorTflite.UMBRAL_CAJAS
+
     /** Mensaje de error (vacío si todo va bien). */
     @Volatile
     var error = ""
@@ -180,11 +184,12 @@ class ModeloEnHilo(private val contexto: Context) {
         val t1 = System.nanoTime()
         detector.inferir()
         val t2 = System.nanoTime()
+        detector.umbralCajas = umbralCajas
         val detecciones = detector.postprocesarCajas()
         val ahoraLog = android.os.SystemClock.elapsedRealtime()
         if (ahoraLog - ultimoLogModeloMs >= 1000L) {   // una línea por segundo: lo mejor que vio el modelo (aunque no pase el umbral)
             ultimoLogModeloMs = ahoraLog
-            Log.i("MODELO", "mejor=" + (if (detector.mejorSinUmbral.isEmpty()) "nada (menos de 20%)" else detector.mejorSinUmbral) + " | cajas_que_pasan_60%=${detecciones.size}")
+            Log.i("MODELO", "mejor=" + (if (detector.mejorSinUmbral.isEmpty()) "nada (menos de 20%)" else detector.mejorSinUmbral) + " | cajas_que_pasan_${Math.round(umbralCajas * 100f)}%=${detecciones.size}")
         }
         val t3 = System.nanoTime()
 

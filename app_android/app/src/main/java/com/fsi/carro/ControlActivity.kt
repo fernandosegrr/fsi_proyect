@@ -74,7 +74,7 @@ class ControlActivity : Activity() {
         val configVision = ConfigVision(this)
         fuenteCamara = configVision.obstaculosCamara   // se recuerda la última elección: antes siempre volvía a "botones" y la ruta corría SIN ver obstáculos
         camara = CamaraObstaculos(this, { configVision.comoArreglo().also { it[ObstaculosNativa.CFG_PISO_FIJO] = if (semi.activo) 1 else 0 } },   // en una ruta el piso no cambia (piso_fijo)
-         { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo }, { configVision.corredorComoArreglo() })
+         { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) }, { semi.avanzando }, { configVision.usarModelo }, { configVision.corredorComoArreglo() }, { configVision.cualquieraComoArreglo() })
         findViewById<Button>(R.id.boton_fuente).setOnClickListener { cambiarFuente(!fuenteCamara) }
         panelManual = findViewById(R.id.panel_manual)
         panelSemi = findViewById(R.id.panel_semi)

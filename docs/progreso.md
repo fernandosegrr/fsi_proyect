@@ -139,3 +139,7 @@
 ### Trabajo E: pisos negros y de 2 colores — hecho
 - Reproducción en PC con cuadros sintéticos y arreglos (brillo oscuro, tira ancha con apoyo mínimo, reajuste de brillo, piso fijo en rutas); botón «Aprender piso» (la ruta lo exige o confirma el último); registro `PISO_DIAG`. Detalle y números en `docs/obstaculos.md` («Pisos negros y de 2 colores»).
 - Pruebas en PC: pisos difíciles 24, obstáculos 146, piso 58. PENDIENTE HARDWARE: pasos y números a reportar en `docs/obstaculos.md` (casa: tramo de 2 colores y tramo negro; universidad: piso real).
+
+### Trabajo F: modo «cualquier objeto» — hecho (apagado por defecto)
+- `cualquiera.c/.h` + regla de fusión (el color manda) + registro `OBJ_ANY` + `scripts/analizar_obj_any.py` + benchmark Lite0/1/2 (tabla en `docs/modelo_objetos.md`).
+- Pruebas en PC: `pruebas_cualquiera` 64 casos. PENDIENTE HARDWARE: pasadas sin obstáculo y con termo/caja/mochila en piso liso, negro y de 2 colores (pasos en `docs/modelo_objetos.md`, sección 7).

@@ -97,6 +97,7 @@ typedef struct {
     int aviso_zona;                  /* zona del aviso */
     int aviso_cercania;              /* cercanía del aviso (1 a 3) */
     int clase_en_camino;             /* clase del objeto del modelo que cuenta en el camino (-1 si no hay) */
+    int desmentidos;                 /* modo «cualquier objeto»: cuántas zonas con un falso positivo de color de cercanía baja se desmintieron */
 } ResultadoFusion;
 
 /* Códigos de retorno. */
@@ -133,6 +134,18 @@ int fusion_cercania_de_caja(const ConfigFusion *config, const CajaModelo *caja);
  * ms, el mismo reloj que `marca_ms`). Devuelve FUS_OK o un código de error; con un error `salida` queda en ceros. */
 int fusion_decidir(const ConfigFusion *config, const ResultadoObstaculos *detector, const DeteccionesModelo *modelo,
                    unsigned int ahora_ms, ResultadoFusion *salida);
+
+/* MODO «CUALQUIER OBJETO» (cualquiera.h): el modelo no dice QUÉ es, solo que hay una caja sobre el piso (ya filtrada y con persistencia: `cualquiera` trae las zonas que
+ * cuentan). La regla, que se prueba en pruebas_cualquiera.c, es: EL COLOR MANDA EN SEGURIDAD.
+ *   a) El color ve obstáculo en una zona y «cualquier objeto» también (coinciden): la zona queda con la MAYOR de las dos cercanías (sube la severidad); fuente AMBOS.
+ *   b) El color DUDA (algunas celdas, menos del mínimo) y «cualquier objeto» ve algo en esa zona: se sube al valor de «cualquier objeto»; fuente AMBOS.
+ *   c) «Cualquier objeto» ve algo y el color no ve nada ni duda: solo AVISO (aviso = 1), NUNCA frena.
+ *   d) El color ve obstáculo con cercanía BAJA (1: lejos), «cualquier objeto» tiene un resultado vigente y NO ve nada en esa zona: se DESMIENTE el falso positivo de color
+ *      (la zona queda libre y se cuenta en `desmentidos`). Con cercanía 2 o 3 el color nunca se desmiente.
+ *   e) Sin resultado vigente de «cualquier objeto» (`cualquiera_vigente` = 0) no cambia nada: sale lo que vio el color.
+ * Devuelve FUS_OK o un código de error; con un error `salida` queda en ceros. */
+int fusion_decidir_cualquiera(const ConfigFusion *config, const ResultadoObstaculos *detector, const ZonaObstaculo cualquiera[OBS_ZONAS],
+                              int cualquiera_vigente, ResultadoFusion *salida);
 
 /* Texto corto en español de una fuente (para mostrar en pantalla). */
 const char *fusion_texto_fuente(int fuente);

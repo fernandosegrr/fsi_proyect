@@ -71,6 +71,9 @@ class VisionActivity : Activity() {
     private lateinit var textoCorredor: TextView
     private lateinit var botonAprenderPiso: Button   // «Aprender piso»: con el carro quieto, aprende los colores de toda la zona de abajo
     private lateinit var textoPisoAprendido: TextView
+    private lateinit var botonCualquiera: Button    // «Modelo: cualquier objeto» y su umbral de confianza (0.01 a 0.50)
+    private lateinit var barraCualquiera: SeekBar
+    private lateinit var textoCualquiera: TextView
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
     private val cuadrosSinGiro = AtomicInteger(0)        // cuadros en que la cámara no tuvo confianza
     private var ultimoNumeroGiro = -1L
@@ -150,7 +153,7 @@ class VisionActivity : Activity() {
 
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
-            { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
+            { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }, { configuracion.cualquieraComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
         camara.fovX10 = CalibracionGuardada(this).fovCalibradoX10()   // campo de visión calibrado (0 = no calibrado: se usa el de la cámara)
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
@@ -343,6 +346,29 @@ class VisionActivity : Activity() {
         var lugar = padre.indexOfChild(botonFuenteVideo) + 1
         val separacion = (8 * resources.displayMetrics.density).toInt()
 
+        botonCualquiera = Button(this)
+        botonCualquiera.setOnClickListener {
+            configuracion.cualquierObjeto = !configuracion.cualquierObjeto
+            if (configuracion.cualquierObjeto && !configuracion.usarModelo) {
+                configuracion.usarModelo = true   // el modo necesita el modelo de objetos encendido
+                camara.activarModelo(camara.abierta)
+            }
+            CualquieraNativa.reiniciar()
+            mostrarValoresDeBarras()
+        }
+        padre.addView(botonCualquiera, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
+        textoCualquiera = TextView(this)
+        textoCualquiera.typeface = android.graphics.Typeface.MONOSPACE
+        textoCualquiera.textSize = 12f
+        padre.addView(textoCualquiera, lugar++)
+        barraCualquiera = SeekBar(this)
+        barraCualquiera.max = CualquieraNativa.UMBRAL_MAX_MIL - CualquieraNativa.UMBRAL_MIN_MIL   // 0 = 0.01 ... 490 = 0.50
+        barraCualquiera.setOnSeekBarChangeListener(alMoverBarra { valor ->
+            configuracion.umbralCualquieraMil = valor + CualquieraNativa.UMBRAL_MIN_MIL
+            textoCualquiera.text = textoUmbralCualquiera()
+        })
+        padre.addView(barraCualquiera, lugar++)
+
         botonAprenderPiso = Button(this)
         botonAprenderPiso.text = "Aprender piso (carro quieto, ~1 s)"
         botonAprenderPiso.setOnClickListener {
@@ -415,7 +441,12 @@ class VisionActivity : Activity() {
         return config + "\n" + partes
     }
 
+    private fun textoUmbralCualquiera(): String = String.format(Locale.US, "Umbral de «cualquier objeto»: la caja debe SUPERAR %.2f de confianza (de 0.01 a 0.50)", configuracion.umbralCualquieraMil / 1000.0)
+
     private fun mostrarValoresDeBarras() {
+        botonCualquiera.text = "Modelo: cualquier objeto (sin clase): ${if (configuracion.cualquierObjeto) "SÍ" else "NO"} (tocar para cambiar)"
+        barraCualquiera.progress = configuracion.umbralCualquieraMil - CualquieraNativa.UMBRAL_MIN_MIL
+        textoCualquiera.text = textoUmbralCualquiera()
         botonCorredor.text = "Corredor de trayectoria: ${if (configuracion.corredorActivo) "SÍ" else "NO"} (tocar para cambiar)"
         campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,
             configuracion.corredorInclinacionX10 / 10.0, configuracion.corredorFovX10 / 10.0, configuracion.corredorMargenCm))

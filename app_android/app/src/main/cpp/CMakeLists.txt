@@ -29,6 +29,7 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/video_stats.c
     ${NUCLEO_C}/prueba_obstaculo.c
     ${NUCLEO_C}/corredor.c
+    ${NUCLEO_C}/cualquiera.c
 )
 
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})

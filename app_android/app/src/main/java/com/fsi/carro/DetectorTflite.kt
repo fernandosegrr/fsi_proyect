@@ -46,7 +46,11 @@ class DeteccionCaja(
     val ymax: Int
 )
 
-class DetectorTflite(private val contexto: Context) {
+/**
+ * El detector de objetos con TensorFlow Lite. `archivoModelo` es el nombre del .tflite: se busca primero en la carpeta de archivos de la app (modelos/<nombre>, para
+ * probar otros modelos sin meterlos al repositorio: se copian con adb) y si no está, en assets (el EfficientDet-Lite0 que viene empaquetado).
+ */
+class DetectorTflite(private val contexto: Context, private val archivoModelo: String = ARCHIVO_MODELO) {
 
     companion object {
         const val ARCHIVO_MODELO = "efficientdet_lite0.tflite"
@@ -83,9 +87,15 @@ class DetectorTflite(private val contexto: Context) {
 
     // ── Carga del modelo ──────────────────────────────────────────────────
 
+    /** El archivo del modelo: de la carpeta de archivos de la app (modelos/<nombre>) si está ahí, y si no de assets. */
+    private fun abrirModelo(): java.io.InputStream {
+        val externo = File(contexto.getExternalFilesDir(null), "modelos/" + archivoModelo)
+        return if (externo.exists()) externo.inputStream() else contexto.assets.open(archivoModelo)
+    }
+
     /** Lee el modelo de assets a un buffer directo (lo que pide el intérprete). */
     private fun cargarModelo(): ByteBuffer {
-        val bytes = contexto.assets.open(ARCHIVO_MODELO).use { it.readBytes() }
+        val bytes = abrirModelo().use { it.readBytes() }
         val buffer = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
         buffer.put(bytes)
         buffer.rewind()
@@ -95,9 +105,9 @@ class DetectorTflite(private val contexto: Context) {
     /** Las etiquetas (labels.txt) vienen empaquetadas dentro del propio archivo .tflite. */
     private fun leerEtiquetas(): List<String> {
         return try {
-            val copia = File(contexto.cacheDir, ARCHIVO_MODELO)
+            val copia = File(contexto.cacheDir, archivoModelo)
             if (!copia.exists() || copia.length() != modelo.capacity().toLong()) {
-                contexto.assets.open(ARCHIVO_MODELO).use { entrada -> copia.outputStream().use { entrada.copyTo(it) } }
+                abrirModelo().use { entrada -> copia.outputStream().use { entrada.copyTo(it) } }
             }
             ZipFile(copia).use { zip ->
                 val entrada = zip.getEntry("labelmap.txt") ?: zip.getEntry("labels.txt")
@@ -261,7 +271,7 @@ class DetectorTflite(private val contexto: Context) {
                 milesimas(c[1]), milesimas(c[3]), milesimas(c[0]), milesimas(c[2]))
         }
         for (i in 0 until cantidad) {
-            if (confianzas[i] >= UMBRAL_CAJAS) {
+            if (confianzas[i] >= umbralCajas) {
                 val numero = clases[i].toInt()
                 val caja = cajas[i]
                 resultado.add(DeteccionCaja(numero, etiquetas.getOrNull(numero) ?: "clase $numero", confianzas[i],
@@ -270,6 +280,10 @@ class DetectorTflite(private val contexto: Context) {
         }
         return resultado
     }
+
+    /** Confianza mínima para devolver una caja (0.6 por defecto; el modo «cualquier objeto» la baja hasta 0.01 y filtra después en C). */
+    @Volatile
+    var umbralCajas = UMBRAL_CAJAS
 
     /** Lo mejor que vio el modelo en el último cuadro (clase, porcentaje y caja), aunque no pasara el umbral; vacío si no vio nada. Solo texto. */
     @Volatile

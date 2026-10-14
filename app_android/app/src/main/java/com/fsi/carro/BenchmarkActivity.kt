@@ -34,6 +34,9 @@ class BenchmarkActivity : Activity() {
         const val EXTRA_MODO = "bench_modo"            // "detector" (por defecto) u "obstaculos"
         const val MODO_DETECTOR = "detector"
         const val MODO_OBSTACULOS = "obstaculos"
+        const val MODO_TERMICO = "termico"           // 60 s seguidos por configuración: ms al principio y al final, y temperatura (con bench_modelo = nombre del .tflite)
+        const val EXTRA_MODELO = "bench_modelo"      // el .tflite a medir (en la carpeta modelos/ de los archivos de la app, o en assets); por defecto EfficientDet-Lite0
+        const val SEGUNDOS_TERMICO = 60
         const val ARCHIVO_OBSTACULOS = "bench_obstaculos.txt"
         const val ARCHIVO_RESULTADOS = "bench_resultados.txt"
         const val CALENTAMIENTO = 20   // pasadas que no cuentan
@@ -79,7 +82,8 @@ class BenchmarkActivity : Activity() {
         boton.isEnabled = false
         botonObstaculos.isEnabled = false
         registro.text = ""
-        Thread { if (modo == MODO_OBSTACULOS) ejecutarObstaculos() else ejecutar() }.start()
+        val modelo = intent.getStringExtra(EXTRA_MODELO) ?: DetectorTflite.ARCHIVO_MODELO
+        Thread { when (modo) { MODO_OBSTACULOS -> ejecutarObstaculos(); MODO_TERMICO -> ejecutarTermico(modelo); else -> ejecutar() } }.start()
     }
 
     // ── Salida ────────────────────────────────────────────────────────────
@@ -133,6 +137,67 @@ class BenchmarkActivity : Activity() {
             }
             anotar("BENCH|FIN")
             mostrarEstado("Terminado. Resultados en $ARCHIVO_RESULTADOS")
+        } catch (e: Throwable) {
+            anotar("BENCH|ERROR_GENERAL|${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
+            mostrarEstado("Error: ${e.message}")
+        } finally {
+            corriendo = false
+            runOnUiThread { boton.isEnabled = true; botonObstaculos.isEnabled = true }
+        }
+    }
+
+    /**
+     * Prueba de 60 s seguidos por configuración (CPU 1 hilo, GPU y NNAPI) con UN modelo: ms de inferencia al principio (primeros 10 s) y al final (últimos 10 s), la media de
+     * los 60 s y la temperatura de la batería al empezar y al terminar (es lo que el teléfono deja leer; ver InfoDispositivo.estadoTermico). Solo números.
+     */
+    private fun ejecutarTermico(archivoModelo: String) {
+        try {
+            val nombreArchivo = "bench_termico_" + archivoModelo.removeSuffix(".tflite") + ".txt"
+            archivo = File(getExternalFilesDir(null), nombreArchivo).also { it.writeText("") }
+            anotar("BENCH|TERMICO|INICIO|modelo=$archivoModelo|segundos=$SEGUNDOS_TERMICO")
+            for (linea in InfoDispositivo.texto(this)) {
+                anotar("BENCH|dispositivo|$linea")
+            }
+            val entradas = prepararEntradas()
+            val entrada = entradas.first { it.nombre == "320x240" }
+            val configuraciones = listOf(Configuracion("CPU-1-hilo", Delegado.CPU, 1), Configuracion("GPU", Delegado.GPU, 0), Configuracion("NNAPI", Delegado.NNAPI, 0))
+            for (configuracion in configuraciones) {
+                mostrarEstado("Midiendo $archivoModelo con ${configuracion.nombre} durante $SEGUNDOS_TERMICO s...")
+                val detector = DetectorTflite(this, archivoModelo)
+                try {
+                    val aperturaMs = detector.abrir(configuracion)
+                    val imagen = BitmapFactory.decodeByteArray(entrada.jpeg, 0, entrada.jpeg.size)
+                    val antes = InfoDispositivo.estadoTermico(this)
+                    val tIni = System.nanoTime()
+                    val tiempos = ArrayList<Double>()
+                    val marcas = ArrayList<Double>()
+                    var rojo = 0
+                    while ((System.nanoTime() - tIni) / 1.0e9 < SEGUNDOS_TERMICO) {
+                        val t0 = System.nanoTime()
+                        detector.preparar(imagen)
+                        detector.inferir()
+                        detector.postprocesar()
+                        val t1 = System.nanoTime()
+                        tiempos.add((t1 - t0) / 1.0e6)
+                        marcas.add((t1 - tIni) / 1.0e9)
+                        rojo++
+                    }
+                    imagen.recycle()
+                    val despues = InfoDispositivo.estadoTermico(this)
+                    val primeros = tiempos.filterIndexed { i, _ -> marcas[i] <= 10.0 }
+                    val ultimos = tiempos.filterIndexed { i, _ -> marcas[i] >= SEGUNDOS_TERMICO - 10.0 }
+                    val media = { l: List<Double> -> if (l.isEmpty()) 0.0 else l.sum() / l.size }
+                    val mediana = { l: List<Double> -> if (l.isEmpty()) 0.0 else l.sorted()[l.size / 2] }
+                    anotar("BENCH|TERMICO|modelo=$archivoModelo|config=${configuracion.nombre}|apertura_ms=${f(aperturaMs)}|inferencias=$rojo|ms_primeros_10s=${f(media(primeros))}|" +
+                        "ms_ultimos_10s=${f(media(ultimos))}|ms_media_60s=${f(media(tiempos))}|ms_mediana_60s=${f(mediana(tiempos))}|inicio=[$antes]|fin=[$despues]")
+                } catch (e: Throwable) {
+                    anotar("BENCH|TERMICO|FALLO|modelo=$archivoModelo|config=${configuracion.nombre}|error=${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
+                } finally {
+                    detector.cerrar()
+                }
+            }
+            anotar("BENCH|TERMICO|FIN|modelo=$archivoModelo")
+            mostrarEstado("Terminado. Resultados en $nombreArchivo")
         } catch (e: Throwable) {
             anotar("BENCH|ERROR_GENERAL|${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
             mostrarEstado("Error: ${e.message}")
