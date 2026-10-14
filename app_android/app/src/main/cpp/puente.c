@@ -630,6 +630,7 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
 /* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
 static CalibracionCarro calibracion_global;
 static int calibracion_inicializada = 0;
+static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
@@ -945,6 +946,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     }
     navegador_iniciar(&navegador_global);
     navegador_poner_calibracion(&navegador_global, obtener_calibracion());   /* la calibración medida del carro */
+    navegador_poner_frenar_lejos_centro(&navegador_global, frenar_lejos_centro_global);
     navegador_poner_latencia_visual(&navegador_global, latencia_visual_global);   /* el retraso de la cámara */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
@@ -978,6 +980,19 @@ Java_com_fsi_carro_NavegadorNativa_ponerLatenciaVisual(JNIEnv *env, jobject obje
     }
     latencia_visual_global = (int)ms;
     return navegador_poner_latencia_visual(obtener_navegador(), (int)ms);
+}
+
+/* Activa (1) o desactiva (0) el frenado desde lejos en el centro (ver navegador.h). Se guarda para las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_frenarLejosCentro(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    frenar_lejos_centro_global = (int)activo;
+    return navegador_poner_frenar_lejos_centro(obtener_navegador(), (int)activo);
 }
 
 /* Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giro_x10` en grados por 10 (positivo a la derecha),

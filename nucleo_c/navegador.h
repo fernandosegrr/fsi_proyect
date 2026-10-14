@@ -45,6 +45,11 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define MS_CONFIRMAR_LEJOS         150
 #define MS_CONFIRMAR_LIBRE         250
 #define NAV_CERCANIA_MIN_DETENER     2   /* desde esta cercanía (en cualquier zona) se frena; 1 = lejos, solo se informa */
+/* FRENAR DESDE LEJOS (opcional, navegador_poner_frenar_lejos_centro): con el carro a ~38 cm/s y ~0.4 s de retraso del video, el STOP llega
+ * cuando ya avanzó unos 17 a 19 cm. Si el detector solo marca la cercanía 2 a ~20 cm del objeto, choca. Con esta opción un obstáculo
+ * LEJANO (cercanía 1) en la zona CENTRAL también frena, pero tras 2 cuadros seguidos y NAV_MS_CONFIRMAR_CENTRO_LEJOS ms, para que un
+ * cuadro de ruido no pare el carro. Los lados siguen igual (cercanía 1 a los lados solo se informa). */
+#define NAV_MS_CONFIRMAR_CENTRO_LEJOS 60
 #define NAV_CERCANIA_INMEDIATA       2   /* en el centro: desde esta cercanía se confirma con un cuadro */
 
 /* Giro medido con la cámara (ver navegador_aporte_visual): el giro por tiempo se corrige con lo que la cámara ve girar.
@@ -136,6 +141,8 @@ typedef struct {
     int seg_ms;                                    /* tiempo bajo el comando actual */
     int giro_visual_x10;         /* grados por 10 que la cámara vio girar, en la dirección del comando de giro actual */
     int visual_cubierto_ms;      /* cuánto tiempo del giro actual cubren los cuadros confiables de la cámara */
+    int frenar_lejos_centro;     /* 1 = también frena con cercanía 1 en el centro (ver NAV_MS_CONFIRMAR_CENTRO_LEJOS); 0 = como siempre */
+    int solo_lejos_centro;       /* 1 mientras la racha de bloqueo actual es SOLO por esa regla (se confirma con menos tiempo que un obstáculo de lado) */
     int latencia_visual_ms;      /* retraso de la cámara: un cuadro que llega ahora muestra lo que pasó hace esto (0 = sin retraso) */
 
     /* Lo último que se vio del obstáculo. */
@@ -188,6 +195,9 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
  * "cubiertos" y el pedazo de giro que la cámara aún no ve se completa por tiempo (el retraso queda compensado). Devuelve NAV_OK o
  * NAV_ERR_ARGUMENTO. */
 int navegador_poner_latencia_visual(Navegador *nav, int ms);
+
+/* Activa (1) o desactiva (0) el frenado desde lejos en el centro (ver NAV_MS_CONFIRMAR_CENTRO_LEJOS). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
+int navegador_poner_frenar_lejos_centro(Navegador *nav, int activo);
 
 /* Le avisa al navegador cuánto vio girar la cámara entre dos cuadros consecutivos (movimiento_visual.c): `giro_grados_x10` es el
  * giro del carro por 10 (POSITIVO a la derecha), `dt_ms` el tiempo entre esos dos cuadros y `confiable` 1 si la cámara estaba segura.

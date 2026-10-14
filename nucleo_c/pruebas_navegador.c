@@ -227,6 +227,27 @@ static void pruebas_antirrebote(void)
     caso("obstaculo LEJANO (cercania 1) al centro, permanente (por ejemplo una escalera al fondo): NO frena",
          nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
 
+    /* Frenar desde lejos (opción para el video del carro): cercanía 1 en el CENTRO también frena, tras 2 cuadros y 60 ms. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_frenar_lejos_centro(&nav, 1);
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 1);
+    correr(2500);
+    caso("frenar desde lejos activado: un obstaculo LEJANO (cercania 1) al centro SI detiene, a los 60 ms (2 cuadros de 50 ms)",
+         sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1550 || sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1600);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_frenar_lejos_centro(&nav, 1);
+    sim_agregar_obstaculo(&sim, 1500, 1550, ZONA_CENTRO, 1);   /* un solo cuadro lejano: ruido */
+    correr(3000);
+    caso("frenar desde lejos activado: un solo cuadro lejano (ruido) NO detiene", sim_contar_cambios_a(&sim, NAV_CMD_STOP) <= 1);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_frenar_lejos_centro(&nav, 1);
+    sim_agregar_obstaculo(&sim, 0, 99999, ZONA_IZQUIERDA, 1);
+    sim_agregar_obstaculo(&sim, 0, 99999, ZONA_DERECHA, 1);
+    correr(12000);
+    caso("frenar desde lejos activado: cercania 1 a los LADOS sigue sin detener", nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
+    caso("navegador_poner_frenar_lejos_centro con argumentos malos: error", navegador_poner_frenar_lejos_centro(NULL, 1) == NAV_ERR_ARGUMENTO &&
+         navegador_poner_frenar_lejos_centro(&nav, 2) == NAV_ERR_ARGUMENTO);
+
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 1550, ZONA_DERECHA, 3);   /* un cuadro muy cerca a un lado: inmediato */
     correr(3000);

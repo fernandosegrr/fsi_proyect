@@ -127,6 +127,15 @@ int navegador_poner_latencia_visual(Navegador *nav, int ms)
     return NAV_OK;
 }
 
+int navegador_poner_frenar_lejos_centro(Navegador *nav, int activo)
+{
+    if (nav == NULL || (activo != 0 && activo != 1)) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->frenar_lejos_centro = activo;
+    return NAV_OK;
+}
+
 void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int confiable)
 {
     if (nav == NULL || !confiable || dt_ms <= 0) {
@@ -388,6 +397,8 @@ void navegador_iniciar(Navegador *nav)
     }
     cal_defecto(&nav->cal);
     nav->latencia_visual_ms = 0;
+    nav->frenar_lejos_centro = 0;
+    nav->solo_lejos_centro = 0;
     nav->n_puntos = 0;
     nav->indice_objetivo = 0;
     nav->n_pasos = 0;
@@ -531,13 +542,18 @@ static int cuadro_es_inmediato(int zona, int cercania)
  * no cambia nada: ver bloqueo_confirmado() y libre_confirmado(). */
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
-    int z, bloqueado = 0, inmediato = 0;
+    int z, bloqueado = 0, inmediato = 0, causa_normal = 0;
 
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_hay[z] = obs->zona[z].hay_obstaculo;
         nav->zona_cercania[z] = obs->zona[z].cercania;
+        if (nav->zona_hay[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cercania[z] >= 1 &&
+            nav->zona_cercania[z] < NAV_CERCANIA_MIN_DETENER) {
+            bloqueado = 1;                       /* frenar desde lejos: cercanía 1 en el centro también bloquea (se confirma con menos tiempo) */
+        }
         if (nav->zona_hay[z] && nav->zona_cercania[z] >= NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* un obstáculo cerca en cualquier zona bloquea */
+            causa_normal = 1;
             if (cuadro_es_inmediato(z, nav->zona_cercania[z])) {
                 inmediato = 1;
             }
@@ -547,6 +563,10 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         if (nav->frames_bloqueado == 0) {      /* empieza una racha con obstáculo */
             nav->t_bloqueo_ms = ahora_ms;
             nav->bloqueo_inmediato = 0;
+            nav->solo_lejos_centro = 1;
+        }
+        if (causa_normal) {
+            nav->solo_lejos_centro = 0;          /* la racha ya incluye un obstáculo de los de siempre: tiempos de siempre */
         }
         if (inmediato) {
             nav->bloqueo_inmediato = 1;
@@ -578,7 +598,8 @@ static int bloqueo_confirmado(const Navegador *nav, uint32_t ahora_ms)
     if (nav->bloqueo_inmediato) {
         return 1;
     }
-    return nav->frames_bloqueado >= 2 && (ahora_ms - nav->t_bloqueo_ms) >= (uint32_t)MS_CONFIRMAR_LEJOS;
+    return nav->frames_bloqueado >= 2 &&
+           (ahora_ms - nav->t_bloqueo_ms) >= (uint32_t)(nav->solo_lejos_centro ? NAV_MS_CONFIRMAR_CENTRO_LEJOS : MS_CONFIRMAR_LEJOS);
 }
 
 /* ¿El frente lleva MS_CONFIRMAR_LIBRE ms libre (en al menos 2 cuadros)? */

@@ -70,6 +70,9 @@ object NavegadorNativa {
      */
     external fun ponerLatenciaVisual(ms: Int): Int
 
+    /** 1 = además de lo de siempre, un obstáculo LEJANO (cercanía 1) en el centro también frena, tras 2 cuadros y 60 ms. Para el video del carro. */
+    external fun frenarLejosCentro(activo: Int): Int
+
     /**
      * Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giroX10` en grados por 10 (positivo a la derecha), `dtMs` el tiempo
      * entre esos cuadros y `confiable` si la cámara estaba segura. Solo cuenta mientras el carro gira; el giro se corta cuando la cámara ve

@@ -164,6 +164,7 @@ class CamaraObstaculos(
     private var tablaY = IntArray(altoSalida)
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
     private var tablasListas = false   // las tablas de muestreo ya se llenaron para el sensor y el tamaño actuales
+    private var firmaCeldasLog = 0     // para escribir en el log solo cuando cambian las celdas marcadas (diagnóstico)
 
     // Giro visual: campo de visión CALIBRADO (lo pone la pantalla desde la calibración; 0 = no calibrado) y el de la cámara según el
     // teléfono (distancia focal y tamaño del sensor, se calcula al abrir). Se usa el calibrado y, si no hay, el de la cámara.
@@ -564,6 +565,22 @@ class CamaraObstaculos(
             msFusion = (System.nanoTime() - inicioFusion) / 1.0e6
         } else if (m != null && !m.activo && m.error.isNotEmpty()) {
             error = m.error   // el modelo falló: la cámara y el detector de color siguen funcionando
+        }
+
+        // Diagnóstico (solo números): cada vez que cambian las celdas marcadas como obstáculo en alguna zona se escribe una línea.
+        // Con el carro quieto y un objeto a distintas distancias se ve desde qué distancia lo empieza a ver el detector.
+        if (resultado[ObstaculosNativa.CODIGO] == 0) {
+            val ci = resultado[ObstaculosNativa.CELDAS_ZONA]
+            val cc = resultado[ObstaculosNativa.CELDAS_ZONA + 1]
+            val cd = resultado[ObstaculosNativa.CELDAS_ZONA + 2]
+            val firma = ((ci * 131 + cc) * 131 + cd) * 16 + resultado[ObstaculosNativa.CERCANIA_CENTRO]
+            if (firma != firmaCeldasLog) {
+                firmaCeldasLog = firma
+                Log.i(ETIQUETA, "celdas| IZQ(celdas=$ci,hay=${resultado[ObstaculosNativa.HAY_IZQUIERDA]},cerc=${resultado[ObstaculosNativa.CERCANIA_IZQUIERDA]}) " +
+                    "CEN(celdas=$cc,hay=${resultado[ObstaculosNativa.HAY_CENTRO]},cerc=${resultado[ObstaculosNativa.CERCANIA_CENTRO]}) " +
+                    "DER(celdas=$cd,hay=${resultado[ObstaculosNativa.HAY_DERECHA]},cerc=${resultado[ObstaculosNativa.CERCANIA_DERECHA]}) " +
+                    "min_celdas=${config[ObstaculosNativa.CFG_MIN_CELDAS]} umbral=${config[ObstaculosNativa.CFG_UMBRAL_COLOR]}")
+            }
         }
 
         contadorCuadros++
