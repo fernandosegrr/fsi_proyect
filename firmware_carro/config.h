@@ -72,11 +72,21 @@
  * empuja más → baja VELOCIDAD_IZQ (por ejemplo 235). Si se desvía a la IZQUIERDA, baja VELOCIDAD_DER. Los pivotes no se tocan.
  * Con los dos igual a VELOCIDAD no hay ajuste. Las pruebas compilan con los valores de aquí (las que comparan contra el firmware
  * original suponen 255 y 255). */
+/* VELOCIDAD_CRUCERO: potencia con la que el carro AVANZA/RETROCEDE después del arranque a plena potencia (ver ARRANQUE_PLENO_MS).
+ * 255 = todo como estaba validado. EXPERIMENTO (PENDIENTE HARDWARE): 210, para frenar más corto (a menos velocidad el carro recorre menos
+ * mientras llega el STOP). Antes, con menos de 255 desde parado, los motores solo zumbaban sin arrancar; por eso ahora el arranque va a plena
+ * potencia y SOLO después baja a la velocidad de crucero (un motor ya girando necesita menos fuerza). Si zumba o se detiene al bajar, volver a 255.
+ * Los pivotes (VELOCIDAD_GIRO) no se tocan. Al cambiar la velocidad hay que volver a CALIBRAR el avance y el frenado (ms por cm). */
+#ifndef VELOCIDAD_CRUCERO
+#define VELOCIDAD_CRUCERO 210
+#endif
+/* Ajuste por lado: el izquierdo va a 252/255 del crucero (medido con 255: 255 se desviaba 14.5 cm a la derecha a 150 cm, 248 se pasó 16 cm a la
+ * izquierda → recta cerca de 252). Con crucero 255 da 252 y 255, igual que antes. */
 #ifndef VELOCIDAD_IZQ
-#define VELOCIDAD_IZQ    252   /* medido a 150 cm: con 255 se desvía 14.5 cm a la derecha, con 248 se pasó 16 cm a la izquierda → recta cerca de 252 */
+#define VELOCIDAD_IZQ    (VELOCIDAD_CRUCERO * 252 / 255)
 #endif
 #ifndef VELOCIDAD_DER
-#define VELOCIDAD_DER    VELOCIDAD
+#define VELOCIDAD_DER    VELOCIDAD_CRUCERO
 #endif
 
 /* Al ARRANCAR avanzando o retrocediendo los dos motores van al 100 % durante este tiempo y después se aplica el ajuste por lado.

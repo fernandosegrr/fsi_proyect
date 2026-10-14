@@ -118,3 +118,9 @@
 - LÍMITE ACEPTADO (decisión del usuario): objetos angostos (termo) se ven a ~19 cm y el carro avanza 14 a 19 cm después del primer cuadro (retraso total 350 a 480 ms: video 320 ms + 12 a 134 ms hasta enviar el STOP + mitad del ida y vuelta; velocidad 38 cm/s). Bajar la potencia no sirve (el motor solo zumba) y el modelo de objetos no reconoce el termo con esta cámara (inventa «person»/«refrigerator»): se queda apagado.
 - Ajustes del detector que le funcionaron al usuario (guardados en el teléfono, no en el código): fila mínima ~440, celdas mínimas 6 a 8, umbral de color 40, modelo en NO.
 - Ideas si algún día se necesita ver objetos angostos: avance a pulsos con la potencia siempre al 100 %; otra cámara con menos retraso.
+
+## TRABAJO: esquivar objetos grandes sin rendirse y ajustes validados como valores por defecto
+- Hecho: reintento de esquive (mirar con un cuadro posterior al giro, retroceder 15 cm ciegos, girar 45° y luego 90° extra, máximo 2 reintentos, si no ERROR y STOP); retroceso calibrable (paso 6 opcional de la calibración; sin calibrar usa el del avance y avisa); elección del lado con menos celdas de obstáculo; valores por defecto del detector en el código (fila mínima 440, celdas mínimas 7, umbral 40, modelo en NO, frenar desde lejos con el video del carro). Documentado en `docs/navegador.md` y `docs/obstaculos.md`.
+- Pruebas en PC: todas las suites sin fallos (navegador 134, calibración 132, obstáculos 144, piso 57, fusión 72, movimiento 66, video 14, prueba de obstáculo 16, firmware 56). App compilada e instalada.
+- EXPERIMENTO: firmware con velocidad de crucero 210 (arranque a plena potencia y luego 210) cargado en el DevKit; falta comprobar en el carro que arranca, va recto y no se detiene, y recalibrar avance y frenado.
+- PENDIENTE HARDWARE: prueba «Esquivar objeto grande (1.4 m)» con la mochila a mitad de camino (`docs/prueba_obstaculos.md`); medir el retroceso en la calibración (opcional, paso 6).
