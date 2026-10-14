@@ -66,6 +66,7 @@ class VisionActivity : Activity() {
     private lateinit var textoVideo: TextView
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
+    private lateinit var botonFlujo: Button        // «Flujo del piso» (movimiento_piso.h): apagado por defecto
     private lateinit var botonCorredor: Button     // controles que se agregan por código debajo de «Fuente del video» (ver agregarControlesExtra)
     private lateinit var campoCorredor: EditText
     private lateinit var textoCorredor: TextView
@@ -153,7 +154,7 @@ class VisionActivity : Activity() {
 
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
-            { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }, { configuracion.cualquieraComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
+            { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }, { configuracion.cualquieraComoArreglo() }, { configuracion.flujoComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
         camara.fovX10 = CalibracionGuardada(this).fovCalibradoX10()   // campo de visión calibrado (0 = no calibrado: se usa el de la cámara)
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
@@ -391,6 +392,13 @@ class VisionActivity : Activity() {
         }
         padre.addView(botonCorredor, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
 
+        botonFlujo = Button(this)
+        botonFlujo.setOnClickListener {
+            configuracion.flujoActivo = !configuracion.flujoActivo
+            mostrarValoresDeBarras()
+        }
+        padre.addView(botonFlujo, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
+
         campoCorredor = EditText(this)
         campoCorredor.inputType = InputType.TYPE_CLASS_TEXT
         campoCorredor.imeOptions = EditorInfo.IME_ACTION_DONE
@@ -447,6 +455,7 @@ class VisionActivity : Activity() {
         botonCualquiera.text = "Modelo: cualquier objeto (sin clase): ${if (configuracion.cualquierObjeto) "SÍ" else "NO"} (tocar para cambiar)"
         barraCualquiera.progress = configuracion.umbralCualquieraMil - CualquieraNativa.UMBRAL_MIN_MIL
         textoCualquiera.text = textoUmbralCualquiera()
+        botonFlujo.text = "Flujo del piso (solo con el carro avanzando): ${if (configuracion.flujoActivo) "SÍ" else "NO"} (tocar para cambiar)"
         botonCorredor.text = "Corredor de trayectoria: ${if (configuracion.corredorActivo) "SÍ" else "NO"} (tocar para cambiar)"
         campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,
             configuracion.corredorInclinacionX10 / 10.0, configuracion.corredorFovX10 / 10.0, configuracion.corredorMargenCm))

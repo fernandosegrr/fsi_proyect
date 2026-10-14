@@ -174,6 +174,7 @@ static void limpiar_salida(ResultadoFusion *salida)
     salida->aviso_cercania = 0;
     salida->clase_en_camino = -1;
     salida->desmentidos = 0;
+    salida->bajados_flujo = 0;
 }
 
 /* Anota un aviso (algo que solo se informa). Se queda con el de mayor cercanía. */
@@ -371,6 +372,46 @@ int fusion_decidir_cualquiera(const ConfigFusion *config, const ResultadoObstacu
         uso_detector = 0;
     }
     cerrar_salida(salida, uso_detector, uso_modelo);
+    return FUS_OK;
+}
+
+int fusion_aplicar_flujo(const ConfigFusion *config, const ZonaFlujo flujo[OBS_ZONAS], int flujo_vigente, ResultadoFusion *salida)
+{
+    int z, hay_obstaculo = 0;
+
+    if (config == NULL || flujo == NULL || salida == NULL) {
+        return FUS_ERR_ARGUMENTO;
+    }
+    if (!flujo_vigente) {
+        return FUS_OK;
+    }
+    for (z = 0; z < OBS_ZONAS; z++) {
+        ZonaObstaculo *zona = &salida->zona[z];
+
+        if (zona->hay_obstaculo && zona->cercania <= 1 && salida->fuente == FUS_FUENTE_DETECTOR && flujo[z].piso_consistente && !flujo[z].hay_cerca) {
+            zona->hay_obstaculo = 0;                  /* a) falso positivo de color en un piso con textura consistente: se baja a aviso */
+            zona->cercania = 0;
+            zona->celdas = 0;
+            zona->celdas_corredor = 0;
+            zona->fuera_corredor = 0;
+            zona->cercania_corredor = 0;
+            salida->bajados_flujo++;
+            anotar_aviso(salida, -1, z, 1);
+        } else if (!zona->hay_obstaculo && flujo[z].hay_cerca) {
+            anotar_aviso(salida, -1, z, (flujo[z].cercania > 0) ? flujo[z].cercania : 1);   /* b) solo avisa */
+        }
+    }
+    for (z = 0; z < OBS_ZONAS; z++) {
+        hay_obstaculo = hay_obstaculo || salida->zona[z].hay_obstaculo;
+    }
+    salida->severidad = severidad_de_zonas(salida->zona);
+    if (salida->severidad == FUS_SEV_NINGUNA && salida->aviso) {
+        salida->severidad = FUS_SEV_AVISO;
+    }
+    if (!hay_obstaculo && salida->fuente == FUS_FUENTE_DETECTOR) {
+        salida->fuente = FUS_FUENTE_NINGUNA;          /* el detector ya no decide nada: solo queda el aviso del flujo */
+    }
+    salida->detector_solo_decide = (severidad_de_zonas(salida->zona) >= FUS_SEV_FRENAR) ? 1 : 0;
     return FUS_OK;
 }
 

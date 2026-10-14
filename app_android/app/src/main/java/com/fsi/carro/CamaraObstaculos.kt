@@ -80,7 +80,8 @@ class CuadroAnalizado(
     val marcaMs: Long = 0L,                // hora (SystemClock.elapsedRealtime) en que el cuadro LLEGÓ al teléfono
     val msHastaResultado: Double = 0.0,    // ms desde que llegó hasta que el detector (y la fusión) terminaron
     val corredor: IntArray? = null,        // CorredorNativa.aplicar de este cuadro (null = corredor apagado)
-    val cualquiera: IntArray? = null       // CualquieraNativa.actualizar de este cuadro (null = modo «cualquier objeto» apagado)
+    val cualquiera: IntArray? = null,      // CualquieraNativa.actualizar de este cuadro (null = modo «cualquier objeto» apagado)
+    val flujo: IntArray? = null            // FlujoNativa.analizar de este cuadro (null = flujo apagado o sin cuadro de referencia)
 ) {
     /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
     val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
@@ -125,6 +126,7 @@ class CamaraObstaculos(
     private val usarModelo: () -> Boolean = { false },  // true si se quiere usar también el modelo de objetos (fusión)
     private val configCorredor: () -> IntArray = { IntArray(0) },   // CorredorNativa.CFG_*: vacío o activo = 0 = corredor apagado
     private val configCualquiera: () -> IntArray = { IntArray(0) }, // CualquieraNativa.CFG_*: vacío o activo = 0 = modo «cualquier objeto» apagado
+    private val configFlujo: () -> IntArray = { IntArray(0) },     // FlujoNativa.CFG_*: vacío o activo = 0 = flujo del piso apagado
     private val alCuadro: ((CuadroAnalizado) -> Unit)? = null   // se llama en el hilo de la cámara
 ) {
 
@@ -691,10 +693,31 @@ class CamaraObstaculos(
             }
         }
 
+        // Flujo del piso (solo si está activado): se compara con un cuadro de ~200 ms antes y, si el color marcó algo lejano en un piso con textura consistente, se baja.
+        var flujo: IntArray? = null
+        val cfgFlujo = configFlujo()
+        if (cfgFlujo.size >= FlujoNativa.ENTEROS_CONFIG && cfgFlujo[FlujoNativa.CFG_ACTIVO] == 1 && resultado[ObstaculosNativa.CODIGO] == 0) {
+            flujo = analizarFlujo(cfgFlujo, ancho, alto, llegadaMs)
+            if (flujo != null && flujo[FlujoNativa.R_EVALUADO] == 1) {
+                val base = fusion ?: if (hayObstaculo(resultado)) FusionNativa.decidir(configFusion ?: FusionNativa.configDefecto(), resultado, sinCajas, 0L, SystemClock.elapsedRealtime()) else null
+                if (base != null && base[FusionNativa.R_CODIGO] == 0) {
+                    val bajada = FusionNativa.aplicarFlujo(base, FlujoNativa.zonasDe(flujo), true)
+                    if (bajada[FusionNativa.R_CODIGO] == 0) {
+                        fusion = bajada
+                        if (bajada[FusionNativa.R_BAJADOS_FLUJO] > 0) {
+                            Log.d("FLUJO_DIAG", "bajados_por_flujo=${bajada[FusionNativa.R_BAJADOS_FLUJO]} (el color marcó obstáculo lejano en piso con textura consistente)")
+                        }
+                    }
+                }
+            }
+        } else {
+            anilloCuenta = 0   // apagado: no se guarda nada
+        }
+
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
             (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual,
-            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble(), corredor, cualquiera)
+            llegadaMs, (SystemClock.elapsedRealtime() - llegadaMs).toDouble(), corredor, cualquiera, flujo)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
@@ -720,6 +743,59 @@ class CamaraObstaculos(
             sb.append(String.format(java.util.Locale.US, " u%.2f=f%d,p%d,z%d,c%d", barrido[b] / 1000.0, barrido[b + 1], barrido[b + 2], barrido[b + 3], barrido[b + 4]))
         }
         Log.d("OBJ_ANY", sb.toString())
+    }
+
+    // ── Flujo del piso: los últimos cuadros RGB con su hora, para compararlos con uno de ~200 ms antes ──
+    private val anilloFlujo = Array(8) { ByteArray(0) }
+    private val anilloAncho = IntArray(8)
+    private val anilloAlto = IntArray(8)
+    private val anilloMarcaMs = LongArray(8)
+    private var anilloCuenta = 0
+
+    private fun hayObstaculo(resultado: IntArray): Boolean =
+        resultado[ObstaculosNativa.HAY_IZQUIERDA] == 1 || resultado[ObstaculosNativa.HAY_CENTRO] == 1 || resultado[ObstaculosNativa.HAY_DERECHA] == 1
+
+    /**
+     * Guarda este cuadro y lo compara con el más reciente que tenga al menos SEPARACION_OBJETIVO_MS de edad (el piso se mueve solo 1 o 2 píxeles en 100 ms: con ~200 ms se mide mejor).
+     * Escribe el registro FLUJO_DIAG. Devuelve null si todavía no hay un cuadro de referencia.
+     */
+    private fun analizarFlujo(cfgFlujo: IntArray, ancho: Int, alto: Int, ahoraMs: Long): IntArray? {
+        val inicio = System.nanoTime()
+        var elegido = -1
+        var dtMs = 0
+        for (k in 1..minOf(anilloCuenta, anilloFlujo.size)) {   // del más nuevo al más viejo
+            val i = (anilloCuenta - k).mod(anilloFlujo.size)
+            if (anilloAncho[i] != ancho || anilloAlto[i] != alto) {
+                break   // cambió el tamaño de los cuadros: lo anterior no sirve
+            }
+            val edad = (ahoraMs - anilloMarcaMs[i]).toInt()
+            if (edad >= FlujoNativa.SEPARACION_OBJETIVO_MS) {
+                elegido = i
+                dtMs = edad
+                break
+            }
+        }
+        var r: IntArray? = null
+        if (elegido >= 0) {
+            r = FlujoNativa.analizar(cfgFlujo, configCorredor(), anilloFlujo[elegido], rgb, ancho, alto, avanzando(), dtMs)
+            if (r[FlujoNativa.R_CODIGO] != 0) {
+                Log.w("FLUJO_DIAG", "error codigo=${r[FlujoNativa.R_CODIGO]}")
+                r = null
+            } else {
+                Log.d("FLUJO_DIAG", FlujoNativa.textoDiagnostico(r, dtMs, (System.nanoTime() - inicio) / 1.0e6))
+            }
+        }
+        // Se guarda una copia de este cuadro (el arreglo `rgb` se reutiliza en el cuadro siguiente).
+        val siguiente = anilloCuenta % anilloFlujo.size
+        if (anilloFlujo[siguiente].size != rgb.size) {
+            anilloFlujo[siguiente] = ByteArray(rgb.size)
+        }
+        System.arraycopy(rgb, 0, anilloFlujo[siguiente], 0, rgb.size)
+        anilloAncho[siguiente] = ancho
+        anilloAlto[siguiente] = alto
+        anilloMarcaMs[siguiente] = ahoraMs
+        anilloCuenta++
+        return r
     }
 
     /** Cierra el aprendizaje del piso (en C) y guarda el informe. */

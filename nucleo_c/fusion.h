@@ -32,6 +32,7 @@
 #define FUSION_H
 
 #include "obstaculos.h"
+#include "movimiento_piso.h"
 
 #ifdef __cplusplus
 extern "C" {   /* permite usarlo desde C++ / JNI */
@@ -98,6 +99,7 @@ typedef struct {
     int aviso_cercania;              /* cercanía del aviso (1 a 3) */
     int clase_en_camino;             /* clase del objeto del modelo que cuenta en el camino (-1 si no hay) */
     int desmentidos;                 /* modo «cualquier objeto»: cuántas zonas con un falso positivo de color de cercanía baja se desmintieron */
+    int bajados_flujo;               /* flujo del piso (fusion_aplicar_flujo): cuántas zonas con un obstáculo de color de cercanía baja se bajaron a aviso */
 } ResultadoFusion;
 
 /* Códigos de retorno. */
@@ -146,6 +148,15 @@ int fusion_decidir(const ConfigFusion *config, const ResultadoObstaculos *detect
  * Devuelve FUS_OK o un código de error; con un error `salida` queda en ceros. */
 int fusion_decidir_cualquiera(const ConfigFusion *config, const ResultadoObstaculos *detector, const ZonaObstaculo cualquiera[OBS_ZONAS],
                               int cualquiera_vigente, ResultadoFusion *salida);
+
+/* ENTRADA OPCIONAL DEL FLUJO DEL PISO (movimiento_piso.h), se aplica DESPUÉS de fusion_decidir / fusion_decidir_cualquiera sobre su salida. El color manda:
+ *   a) El color marca obstáculo con cercanía BAJA (1: lejos) en una zona que el flujo ve como «piso con textura consistente» (con dato suficiente y ningún
+ *      bloque más cerca que el piso) y NADIE más (modelo) lo confirma (fuente = detector): se BAJA la severidad: la zona queda libre, queda un AVISO y se cuenta en
+ *      `bajados_flujo`. Con cercanía 2 o 3 el color nunca se baja.
+ *   b) El flujo ve algo «más cerca que el piso» en una zona donde el color no ve nada: solo AVISO, NUNCA frena.
+ *   c) Con `flujo_vigente` = 0 (cuadro sin evaluar: el carro no avanzaba o los cuadros no llegaron a tiempo) no cambia nada.
+ * Devuelve FUS_OK o FUS_ERR_ARGUMENTO. */
+int fusion_aplicar_flujo(const ConfigFusion *config, const ZonaFlujo flujo[OBS_ZONAS], int flujo_vigente, ResultadoFusion *salida);
 
 /* Texto corto en español de una fuente (para mostrar en pantalla). */
 const char *fusion_texto_fuente(int fuente);

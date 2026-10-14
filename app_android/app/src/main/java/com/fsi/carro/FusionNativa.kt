@@ -37,7 +37,8 @@ object FusionNativa {
     const val R_AVISO_CERCANIA = 18
     const val R_CLASE_EN_CAMINO = 19
     const val R_DESMENTIDOS = 20       // modo «cualquier objeto»: zonas con un falso positivo de color de cercanía baja que se desmintieron
-    const val ENTEROS_RESULTADO = 21
+    const val R_BAJADOS_FLUJO = 21     // flujo del piso: zonas con un falso positivo de color lejano que el flujo bajó a aviso
+    const val ENTEROS_RESULTADO = 22
 
     const val FUENTE_NINGUNA = 0
     const val FUENTE_DETECTOR = 1
@@ -68,6 +69,12 @@ object FusionNativa {
      * «cualquier objeto» (CualquieraNativa.zonasDe) y `vigente` dice si ese resultado no está caducado. Devuelve el mismo formato que decidir().
      */
     external fun decidirCualquiera(config: IntArray, detector: IntArray, zonas: IntArray, vigente: Boolean): IntArray
+
+    /**
+     * La entrada opcional del flujo del piso (ver fusion.h, fusion_aplicar_flujo): `fusion` es el resultado de decidir() o decidirCualquiera() y `flujo` los 9 enteros de
+     * FlujoNativa.zonasDe. El flujo solo puede BAJAR un obstáculo de color lejano en un piso con textura consistente, o avisar; nunca frena. Devuelve el mismo formato (22 enteros).
+     */
+    external fun aplicarFlujo(fusion: IntArray, flujo: IntArray, vigente: Boolean): IntArray
 
     /** La configuración por defecto con las clases de interés puestas por NOMBRE (las que no estén en las etiquetas se saltan). */
     fun configConClases(etiquetas: List<String>, nombres: List<String> = CLASES_DE_INTERES): IntArray {

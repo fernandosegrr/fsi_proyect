@@ -33,6 +33,7 @@
 #include "prueba_obstaculo.h"
 #include "corredor.h"
 #include "cualquiera.h"
+#include "movimiento_piso.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -570,7 +571,7 @@ Java_com_fsi_carro_MovimientoVisualNativa_reiniciar(JNIEnv *env, jobject objeto)
 /* ── Fusión del detector de color con el modelo de objetos ─────────────── */
 
 #define ENTEROS_CONFIG_FUSION     10
-#define ENTEROS_RESULTADO_FUSION  21
+#define ENTEROS_RESULTADO_FUSION  22
 #define ENTEROS_POR_CAJA           6
 
 /* Configuración por defecto de la fusión (10 enteros):
@@ -979,6 +980,222 @@ Java_com_fsi_carro_FusionNativa_decidirCualquiera(JNIEnv *env, jobject objeto, j
     arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FUSION);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_FUSION, salida);
+    }
+    return arreglo;
+}
+
+/* La entrada opcional del flujo del piso en la fusión (fusion_aplicar_flujo: el color manda). `fusion` es el arreglo que devolvió decidir() o decidirCualquiera();
+ * `flujo` son 9 enteros (piso consistente, hay cerca, cercanía) de izquierda, centro y derecha; `vigente` es 1 si el flujo se evaluó en este cuadro. Devuelve los 22
+ * enteros de la fusión (el último, [21], es cuántas zonas bajó el flujo). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintArray fusion, jintArray flujo, jboolean vigente)
+{
+    ConfigFusion cfg;
+    ResultadoFusion resultado;
+    ZonaFlujo zonas[OBS_ZONAS];
+    jint datos[ENTEROS_RESULTADO_FUSION];
+    jint datos_flujo[3 * OBS_ZONAS];
+    jint salida[ENTEROS_RESULTADO_FUSION];
+    jintArray arreglo;
+    int i, z, codigo;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_FUSION; i++) {
+        salida[i] = 0;
+        datos[i] = 0;
+    }
+    salida[19] = -1;
+    if (fusion == NULL || (*env)->GetArrayLength(env, fusion) < 21 || flujo == NULL || (*env)->GetArrayLength(env, flujo) < 3 * OBS_ZONAS) {
+        salida[0] = FUS_ERR_ARGUMENTO;
+    } else {
+        (*env)->GetIntArrayRegion(env, fusion, 0, 21, datos);
+        (*env)->GetIntArrayRegion(env, flujo, 0, 3 * OBS_ZONAS, datos_flujo);
+        fusion_config_defecto(&cfg);
+        memset(&resultado, 0, sizeof resultado);
+        memset(zonas, 0, sizeof zonas);
+        for (z = 0; z < OBS_ZONAS; z++) {
+            resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
+            resultado.zona[z].cercania = (int)datos[2 + 2 * z];
+            resultado.zona[z].celdas = (int)datos[7 + z];
+            zonas[z].piso_consistente = (int)datos_flujo[3 * z];
+            zonas[z].hay_cerca = (int)datos_flujo[3 * z + 1];
+            zonas[z].cercania = (int)datos_flujo[3 * z + 2];
+        }
+        resultado.severidad = (int)datos[10];
+        resultado.fuente = (int)datos[11];
+        resultado.detector_solo_decide = (int)datos[12];
+        resultado.modelo_vigente = (int)datos[13];
+        resultado.edad_modelo_ms = (int)datos[14];
+        resultado.aviso = (int)datos[15];
+        resultado.aviso_clase = (int)datos[16];
+        resultado.aviso_zona = (int)datos[17];
+        resultado.aviso_cercania = (int)datos[18];
+        resultado.clase_en_camino = (int)datos[19];
+        resultado.desmentidos = (int)datos[20];
+        codigo = fusion_aplicar_flujo(&cfg, zonas, vigente ? 1 : 0, &resultado);
+        salida[0] = codigo;
+        if (codigo == FUS_OK) {
+            for (z = 0; z < OBS_ZONAS; z++) {
+                salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
+                salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[7 + z] = resultado.zona[z].celdas;
+            }
+            salida[10] = resultado.severidad;
+            salida[11] = resultado.fuente;
+            salida[12] = resultado.detector_solo_decide;
+            salida[13] = resultado.modelo_vigente;
+            salida[14] = resultado.edad_modelo_ms;
+            salida[15] = resultado.aviso;
+            salida[16] = resultado.aviso_clase;
+            salida[17] = resultado.aviso_zona;
+            salida[18] = resultado.aviso_cercania;
+            salida[19] = resultado.clase_en_camino;
+            salida[20] = resultado.desmentidos;
+            salida[21] = resultado.bajados_flujo;
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FUSION);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_FUSION, salida);
+    }
+    return arreglo;
+}
+
+/* ── Flujo del piso (movimiento_piso.c) ────────────────────────────────── */
+
+#define ENTEROS_CONFIG_FLUJO     13
+#define ENTEROS_RESULTADO_FLUJO  (10 + 7 * OBS_ZONAS)
+
+static unsigned char gris_flujo_anterior[640 * 480];
+static unsigned char gris_flujo_actual[640 * 480];
+static ResultadoFlujo resultado_flujo;
+
+/* Compara dos cuadros RGB seguidos (ancho x alto x 3 bytes) con el flujo del piso. `config` son 13 enteros (ver FlujoNativa.CFG_*), `corredor_cfg` los 7 de CorredorNativa
+ * (de ahí salen la altura, la inclinación y el campo de visión de la cámara). Devuelve 31 enteros:
+ *   [0] código  [1] evaluado  [2] motivo (FLU_MOT_*)  [3] avance en mm  [4] bloques piso  [5] cerca  [6] dudoso  [7] sin dato  [8] fila inicial  [9] fila final
+ *   y por zona (izquierda, centro, derecha) 7 enteros desde [10]: piso, cerca, dudoso, sin dato, piso consistente, hay cerca, cercanía. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FlujoNativa_analizar(JNIEnv *env, jobject objeto, jintArray config, jintArray corredor_cfg, jbyteArray anterior, jbyteArray actual,
+                                         jint ancho, jint alto, jboolean avanzando, jint dt_ms)
+{
+    jint salida[ENTEROS_RESULTADO_FLUJO];
+    jint cfg[ENTEROS_CONFIG_FLUJO];
+    jint ccor[7];
+    ConfigFlujo configuracion;
+    ConfigCorredor cc;
+    Corredor corredor;
+    jintArray arreglo;
+    int i, z, codigo;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_FLUJO; i++) {
+        salida[i] = 0;
+    }
+    if (config == NULL || corredor_cfg == NULL || anterior == NULL || actual == NULL || (*env)->GetArrayLength(env, config) < ENTEROS_CONFIG_FLUJO ||
+        (*env)->GetArrayLength(env, corredor_cfg) < 7 || ancho < 48 || alto < 48 || ancho > 640 || alto > 480 ||
+        (*env)->GetArrayLength(env, anterior) < ancho * alto * 3 || (*env)->GetArrayLength(env, actual) < ancho * alto * 3) {
+        salida[0] = FLU_ERR_ARGUMENTO;
+    } else {
+        jbyte *a = (jbyte *)(*env)->GetPrimitiveArrayCritical(env, anterior, NULL);
+        jbyte *b = NULL;
+
+        if (a != NULL) {
+            flujo_gris_de_rgb((const unsigned char *)a, (int)ancho, (int)alto, gris_flujo_anterior);
+            (*env)->ReleasePrimitiveArrayCritical(env, anterior, a, JNI_ABORT);
+            b = (jbyte *)(*env)->GetPrimitiveArrayCritical(env, actual, NULL);
+            if (b != NULL) {
+                flujo_gris_de_rgb((const unsigned char *)b, (int)ancho, (int)alto, gris_flujo_actual);
+                (*env)->ReleasePrimitiveArrayCritical(env, actual, b, JNI_ABORT);
+            }
+        }
+        if (a == NULL || b == NULL) {
+            salida[0] = FLU_ERR_ARGUMENTO;
+        } else {
+            (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_FLUJO, cfg);
+            (*env)->GetIntArrayRegion(env, corredor_cfg, 0, 7, ccor);
+            configuracion.activo = (int)cfg[0];
+            configuracion.velocidad_mm_s = (int)cfg[1];
+            configuracion.ventana_px = (int)cfg[2];
+            configuracion.ruido_gradiente = (int)cfg[3];
+            configuracion.textura_min = (int)cfg[4];
+            configuracion.ajuste_max = (int)cfg[5];
+            configuracion.margen_unico = (int)cfg[6];
+            configuracion.tolerancia_px4 = (int)cfg[7];
+            configuracion.tolerancia_pct = (int)cfg[8];
+            configuracion.dt_min_ms = (int)cfg[9];
+            configuracion.dt_max_ms = (int)cfg[10];
+            configuracion.distancia_max_cm = (int)cfg[11];
+            configuracion.min_bloques = (int)cfg[12];
+            cc.activo = 1;
+            cc.ancho_carro_cm = (int)ccor[1];
+            cc.altura_camara_cm = (int)ccor[2];
+            cc.inclinacion_grados_x10 = (int)ccor[3];
+            cc.fov_grados_x10 = (int)ccor[4];
+            cc.margen_lateral_cm = (int)ccor[5];
+            cc.min_peso = (int)ccor[6];
+            codigo = corredor_preparar(&corredor, &cc, (int)ancho, (int)alto);
+            if (codigo == COR_OK) {
+                codigo = flujo_analizar(&configuracion, &corredor, gris_flujo_anterior, gris_flujo_actual, (int)ancho, (int)alto, avanzando ? 1 : 0, (int)dt_ms,
+                                        &resultado_flujo);
+            }
+            salida[0] = codigo;
+            if (codigo == FLU_OK) {
+                const ResultadoFlujo *r = &resultado_flujo;
+
+                salida[1] = r->evaluado;
+                salida[2] = r->motivo;
+                salida[3] = r->avance_mm;
+                salida[4] = r->total_piso;
+                salida[5] = r->total_cerca;
+                salida[6] = r->total_dudoso;
+                salida[7] = r->total_sin_dato;
+                salida[8] = r->fila_inicial;
+                salida[9] = r->fila_final;
+                for (z = 0; z < OBS_ZONAS; z++) {
+                    salida[10 + 7 * z] = r->zona[z].piso;
+                    salida[11 + 7 * z] = r->zona[z].cerca;
+                    salida[12 + 7 * z] = r->zona[z].dudoso;
+                    salida[13 + 7 * z] = r->zona[z].sin_dato;
+                    salida[14 + 7 * z] = r->zona[z].piso_consistente;
+                    salida[15 + 7 * z] = r->zona[z].hay_cerca;
+                    salida[16 + 7 * z] = r->zona[z].cercania;
+                }
+            }
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_FLUJO);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_FLUJO, salida);
+    }
+    return arreglo;
+}
+
+/* Los valores por defecto del flujo (13 enteros, el primero —activo— en 0). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_FlujoNativa_configDefecto(JNIEnv *env, jobject objeto)
+{
+    ConfigFlujo c;
+    jint datos[ENTEROS_CONFIG_FLUJO];
+    jintArray arreglo;
+
+    (void)objeto;
+    flujo_config_defecto(&c);
+    datos[0] = c.activo;
+    datos[1] = c.velocidad_mm_s;
+    datos[2] = c.ventana_px;
+    datos[3] = c.ruido_gradiente;
+    datos[4] = c.textura_min;
+    datos[5] = c.ajuste_max;
+    datos[6] = c.margen_unico;
+    datos[7] = c.tolerancia_px4;
+    datos[8] = c.tolerancia_pct;
+    datos[9] = c.dt_min_ms;
+    datos[10] = c.dt_max_ms;
+    datos[11] = c.distancia_max_cm;
+    datos[12] = c.min_bloques;
+    arreglo = (*env)->NewIntArray(env, ENTEROS_CONFIG_FLUJO);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_CONFIG_FLUJO, datos);
     }
     return arreglo;
 }

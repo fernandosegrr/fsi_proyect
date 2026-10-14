@@ -125,6 +125,25 @@ class ConfigVision(contexto: Context) {
     fun corredorComoArreglo(): IntArray = intArrayOf(
         if (corredorActivo) 1 else 0, corredorAnchoCm, corredorAlturaCm, corredorInclinacionX10, corredorFovX10, corredorMargenCm, CORREDOR_MIN_PESO)
 
+    // ── Flujo del piso (movimiento_piso.h): APAGADO por defecto ──
+    /** true = se compara cada cuadro con uno de ~200 ms antes mientras el carro avanza (registro FLUJO_DIAG) y el flujo puede bajar un falso positivo de color lejano. */
+    var flujoActivo: Boolean
+        get() = preferencias.getBoolean("flujo_activo", false)
+        set(valor) = preferencias.edit().putBoolean("flujo_activo", valor).apply()
+
+    /** Velocidad hacia adelante del perfil AUTO en mm/s (193 = 19.3 cm/s medidos con PWM 210; ver docs/calibracion.md). */
+    var flujoVelocidadMmS: Int
+        get() = preferencias.getInt("flujo_velocidad_mm_s", 193)
+        set(valor) = preferencias.edit().putInt("flujo_velocidad_mm_s", valor.coerceIn(10, 1000)).apply()
+
+    /** Los 13 enteros de configuración del flujo (FlujoNativa.CFG_*): los del código en C con el activo y la velocidad de aquí. */
+    fun flujoComoArreglo(): IntArray {
+        val c = FlujoNativa.configDefecto()
+        c[FlujoNativa.CFG_ACTIVO] = if (flujoActivo) 1 else 0
+        c[FlujoNativa.CFG_VELOCIDAD_MM_S] = flujoVelocidadMmS
+        return c
+    }
+
     /** true = en la pantalla de control los obstáculos salen de la cámara y no de los botones simulados (se recuerda al volver a abrir). */
     var obstaculosCamara: Boolean
         get() = preferencias.getBoolean("obstaculos_camara", false)

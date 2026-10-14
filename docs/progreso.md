@@ -143,3 +143,7 @@
 ### Trabajo F: modo «cualquier objeto» — hecho (apagado por defecto)
 - `cualquiera.c/.h` + regla de fusión (el color manda) + registro `OBJ_ANY` + `scripts/analizar_obj_any.py` + benchmark Lite0/1/2 (tabla en `docs/modelo_objetos.md`).
 - Pruebas en PC: `pruebas_cualquiera` 64 casos. PENDIENTE HARDWARE: pasadas sin obstáculo y con termo/caja/mochila en piso liso, negro y de 2 colores (pasos en `docs/modelo_objetos.md`, sección 7).
+
+### Trabajo G: flujo del piso — hecho (apagado por defecto)
+- `movimiento_piso.c/.h` + `fusion_aplicar_flujo` + registro `FLUJO_DIAG` + botón «Flujo del piso» (detalle y límites medidos en `docs/flujo_piso.md`).
+- Pruebas en PC: `pruebas_movimiento_piso` 54 casos. PENDIENTE HARDWARE: medir ms del análisis y pasadas sobre piso de 2 colores, con caja con dibujo y sobre piso negro/liso (pasos en `docs/flujo_piso.md`, sección 5).
