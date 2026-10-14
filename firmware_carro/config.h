@@ -62,6 +62,19 @@
 #define VELOCIDAD        255   /* adelante y atrás */
 #define VELOCIDAD_GIRO   255   /* motor activo en un pivote */
 
+/* ── Ajuste para ir en línea recta (0 a 255) ──────────────────────────────
+ * Al avanzar o retroceder cada lado puede llevar una potencia distinta para compensar que un lado empuje más que el otro (llantas,
+ * motores). Los dos motores van al máximo, así que el lado que empuja MÁS se baja: si el carro se desvía a la DERECHA, el izquierdo
+ * empuja más → baja VELOCIDAD_IZQ (por ejemplo 235). Si se desvía a la IZQUIERDA, baja VELOCIDAD_DER. Los pivotes no se tocan.
+ * Con los dos igual a VELOCIDAD no hay ajuste. Las pruebas compilan con los valores de aquí (las que comparan contra el firmware
+ * original suponen 255 y 255). */
+#ifndef VELOCIDAD_IZQ
+#define VELOCIDAD_IZQ    VELOCIDAD
+#endif
+#ifndef VELOCIDAD_DER
+#define VELOCIDAD_DER    VELOCIDAD
+#endif
+
 /* ── Tiempos (milisegundos) ───────────────────────────────────────────────
  * Si se cambia TIEMPO_WATCHDOG_MS hay que revisar el heartbeat de pagina.h
  * (250 ms): debe seguir siendo bastante menor. */

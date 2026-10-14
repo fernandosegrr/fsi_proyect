@@ -76,11 +76,11 @@ static void prueba_movimientos(void)
 {
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
-    caso("FORWARD: izq usa pin B (26), der usa pin A (25), a 255", pines_son(0, 255, 255, 0));
+    caso("FORWARD: izq usa pin B (26), der usa pin A (25), a 255", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
 
     reiniciar_mundo(0);
     carro_recibir_comando("REVERSE");
-    caso("REVERSE: izq usa pin A (27), der usa pin B (33), a 255", pines_son(255, 0, 0, 255));
+    caso("REVERSE: izq usa pin A (27), der usa pin B (33), a 255", pines_son(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER));
 
     reiniciar_mundo(0);
     carro_recibir_comando("LEFT");
@@ -145,7 +145,7 @@ static void prueba_watchdog(void)
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");          /* t = 0 */
     reloj_ms = 1000; vuelta_loop();
-    caso("watchdog: a 1000 ms exactos NO frena", pines_son(0, 255, 255, 0));
+    caso("watchdog: a 1000 ms exactos NO frena", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 1001; vuelta_loop();
     caso("watchdog: a 1001 ms frena todo", pines_son(0, 0, 0, 0));
     caso("watchdog: escribe el mensaje de serie", mensajes_serie == 1);
@@ -157,7 +157,7 @@ static void prueba_watchdog(void)
     carro_recibir_comando("FORWARD");
     reloj_ms = 900;  carro_recibir_comando("FORWARD");
     reloj_ms = 1500; vuelta_loop();
-    caso("heartbeat: FORWARD repetido renueva el watchdog", pines_son(0, 255, 255, 0));
+    caso("heartbeat: FORWARD repetido renueva el watchdog", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 1901; vuelta_loop();
     caso("heartbeat: 1001 ms después del último, frena", pines_son(0, 0, 0, 0));
 
@@ -180,7 +180,7 @@ static void prueba_ping(void)
     carro_recibir_comando("FORWARD");
     int a = escrituras_pwm;
     carro_recibir_comando("PING");
-    caso("PING no mueve ni cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
+    caso("PING no mueve ni cambia los motores", escrituras_pwm == a && pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     carro_recibir_comando("FORWARD");
     caso("PING no cambia el comando activo (FORWARD sigue ignorado)", escrituras_pwm == a);
 
@@ -224,9 +224,9 @@ static void prueba_desconocido(void)
     carro_recibir_comando("FORWARD");
     int a = escrituras_pwm;
     reloj_ms = 600; carro_recibir_comando("HOLA");
-    caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
+    caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 1500; vuelta_loop();
-    caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, 255, 255, 0));
+    caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 1601; vuelta_loop();
     caso("... y frena 1001 ms después del desconocido", pines_son(0, 0, 0, 0));
 
@@ -272,9 +272,9 @@ static void prueba_desbordamiento(void)
     reiniciar_mundo(0xFFFFFF00u);
     carro_recibir_comando("FORWARD");
     reloj_ms = 0x00000100u; vuelta_loop();            /* pasaron 512 ms */
-    caso("desbordamiento: 512 ms después del FORWARD sigue en marcha", pines_son(0, 255, 255, 0));
+    caso("desbordamiento: 512 ms después del FORWARD sigue en marcha", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 0x000002E8u; vuelta_loop();            /* pasaron 1000 ms exactos */
-    caso("desbordamiento: 1000 ms exactos NO frena", pines_son(0, 255, 255, 0));
+    caso("desbordamiento: 1000 ms exactos NO frena", pines_son(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0));
     reloj_ms = 0x000002E9u; vuelta_loop();            /* 1001 ms */
     caso("desbordamiento: 1001 ms frena", pines_son(0, 0, 0, 0));
 

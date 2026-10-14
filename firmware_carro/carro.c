@@ -47,13 +47,13 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
  * derecho por su pin A (cableado probado en hardware; ver config.h). */
 static void avanzar(void)
 {
-    poner_motores(0, VELOCIDAD, VELOCIDAD, 0);
+    poner_motores(0, VELOCIDAD_IZQ, VELOCIDAD_DER, 0);
 }
 
 /* Ambos motores hacia atrás (los pines contrarios a avanzar). */
 static void retroceder(void)
 {
-    poner_motores(VELOCIDAD, 0, 0, VELOCIDAD);
+    poner_motores(VELOCIDAD_IZQ, 0, 0, VELOCIDAD_DER);
 }
 
 /* Pivote a la izquierda: solo el motor derecho empuja; el izquierdo queda
