@@ -90,6 +90,10 @@ class VisionActivity : Activity() {
         barraGrupos = findViewById(R.id.barra_grupos)
         textoAprendizaje = findViewById(R.id.texto_aprendizaje)
         barraAprendizaje = findViewById(R.id.barra_aprendizaje)
+        botonModelo = findViewById(R.id.boton_modelo)
+        botonTamano = findViewById(R.id.boton_tamano)
+        textoFusion = findViewById(R.id.texto_fusion)
+        textoGiro = findViewById(R.id.texto_giro)
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
@@ -103,9 +107,6 @@ class VisionActivity : Activity() {
         barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinimaMil = valor * 10 })
         barraGrupos.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.gruposPiso = valor + 1 })
         barraAprendizaje.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.aprendizajeMil = valor * 5 })
-        botonModelo = findViewById(R.id.boton_modelo)
-        textoFusion = findViewById(R.id.texto_fusion)
-        textoGiro = findViewById(R.id.texto_giro)
         findViewById<Button>(R.id.boton_giro_cero).setOnClickListener {
             anguloAcumuladoX10.set(0)
             cuadrosSinGiro.set(0)
@@ -115,7 +116,6 @@ class VisionActivity : Activity() {
             camara.activarModelo(configuracion.usarModelo && camara.abierta)
             mostrarValoresDeBarras()
         }
-        botonTamano = findViewById(R.id.boton_tamano)
         botonTamano.setOnClickListener {
             configuracion.indiceTamano = (configuracion.indiceTamano + 1) % ConfigVision.TAMANOS.size   // la cámara lo toma en el siguiente cuadro
             mostrarValoresDeBarras()
