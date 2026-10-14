@@ -398,7 +398,7 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
 
 /* ── Giro medido con la cámara ─────────────────────────────────────────── */
 
-#define ENTEROS_RESULTADO_MOVIMIENTO 7
+#define ENTEROS_RESULTADO_MOVIMIENTO 9
 
 /* El estimador (recuerda la huella del cuadro anterior). Solo lo usa el hilo de la cámara. `reiniciar_movimiento` lo pide
  * la pantalla (otro hilo): se atiende en el siguiente cuadro. */
@@ -406,11 +406,13 @@ static EstimadorMovimiento estimador_movimiento;
 static int estimador_inicializado = 0;
 static volatile int reiniciar_movimiento = 0;
 
-/* Procesa un cuadro RGB (ancho x alto x 3 bytes), lo compara con el anterior y devuelve 7 enteros:
+/* Procesa un cuadro RGB (ancho x alto x 3 bytes), lo compara con el anterior y devuelve 9 enteros:
  *   [0] código (0 = bien, negativo = error de argumentos o tamaño)   [1] 1 si el corrimiento es confiable
  *   [2] motivo (0 = bien; 1 sin cuadro previo; 2 escena uniforme; 3 coincidencia débil; 4 ambiguo; 5 fuera de rango)
  *   [3] corrimiento del contenido en píxeles por 16   [4] confianza de 0 a 1000
- *   [5] giro del carro en grados por 10 (+ = a la derecha; 0 si no es confiable)   [6] energía de bordes de la huella */
+ *   [5] giro del carro en grados por 10 (+ = a la derecha; 0 si no es confiable)   [6] energía de bordes de la huella
+ *   [7] cuántos cuadros abarca el corrimiento (1; más si se rechazaron cuadros y se comparó con el último bueno)
+ *   [8] 1 si la coincidencia era ambigua y se aceptó por coincidir con el movimiento anterior */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_MovimientoVisualNativa_procesar(JNIEnv *env, jobject objeto, jbyteArray rgb, jint ancho, jint alto, jint fov_x10)
 {
@@ -448,6 +450,8 @@ Java_com_fsi_carro_MovimientoVisualNativa_procesar(JNIEnv *env, jobject objeto, 
         salida[4] = resultado.confianza_mil;
         salida[5] = resultado.giro_grados_x10;
         salida[6] = resultado.energia;
+        salida[7] = resultado.cuadros;
+        salida[8] = resultado.por_prediccion;
     }
     arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_MOVIMIENTO);
     if (arreglo != NULL) {

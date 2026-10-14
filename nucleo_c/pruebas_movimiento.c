@@ -260,6 +260,42 @@ static void pruebas_sin_confianza(void)
     caso("rayas que se repiten cada 16 px: SIN CONFIANZA (ambiguo)", !r.valido && (r.motivo == MV_AMBIGUO || r.motivo == MV_COINCIDENCIA_DEBIL));
     printf("      rayas repetidas: motivo=%d confianza=%d\n", r.motivo, r.confianza_mil);
 
+    /* Con una predicción: la coincidencia ambigua se acepta solo si cae cerca de lo esperado. */
+    {
+        /* El contenido se corrió 5 px a la izquierda (corrimiento -5 px = -80 en x16); las rayas cada 16 px hacen que -5, +11, -21... empaten. */
+        int signo, aceptado = 0, correcto = 0, verdadero = 1;
+        int huella_c[MV_MAX_ANCHO];
+
+        for (y = 0; y < 176; y++) {
+            for (x = 0; x < 240; x++) {
+                int c;
+                int brillo = (((x + 5) / 8) % 2) ? 200 : 60;
+
+                for (c = 0; c < 3; c++) {
+                    cuadro[(y * 240 + x) * 3 + c] = limitar(brillo + (int)(aleatorio() % 5u) - 2);
+                }
+            }
+        }
+        mv_huella(cuadro, 240, 176, huella_c);
+        mv_corrimiento_pred(huella_a, huella_c, 240, 96, 0, 0, &r);
+        caso("rayas con un corrimiento de 5 px y sin predicción: ambiguo", !r.valido && r.motivo == MV_AMBIGUO);
+        for (signo = -1; signo <= 1; signo += 2) {
+            mv_corrimiento_pred(huella_a, huella_c, 240, 96, 1, signo * 5 * 16, &r);
+            if (r.valido && r.por_prediccion == 1) {
+                aceptado = 1;
+                verdadero = signo;
+                if (valor_absoluto(r.corrimiento_x16 - signo * 5 * 16) <= 16) {
+                    correcto = 1;
+                }
+            }
+        }
+        caso("rayas con predicción de 5 px (el lado verdadero): se acepta por predicción y el corrimiento es el esperado", aceptado && correcto);
+        mv_corrimiento_pred(huella_a, huella_c, 240, 96, 1, verdadero * 13 * 16, &r);
+        caso("rayas con una predicción que cae entre dos coincidencias (a 8 px de las dos): sigue ambiguo", !r.valido && r.motivo == MV_AMBIGUO && r.por_prediccion == 0);
+        mv_corrimiento_pred(huella_a, huella_c, 240, 96, 0, 5 * 16, &r);
+        caso("rayas con tiene_pred = 0 aunque se dé un valor: sigue ambiguo", !r.valido && r.motivo == MV_AMBIGUO);
+    }
+
     /* Dos escenas sin relación entre sí. */
     for (i = 0; i < 40; i++) {
         semilla = 7000u + (unsigned int)i * 31u;
@@ -382,7 +418,48 @@ static void pruebas_giro_acumulado(void)
         }
     }
     printf("      con un cuadro tapado: %d.%d grados con %d cuadros validos de 12\n", total_x10 / 10, valor_absoluto(total_x10 % 10), validos);
-    caso("con un cuadro tapado se pierden los 2 giros que lo tocan (no se suman: sin confianza)", validos == 10 && total_x10 < 800);
+    caso("con un cuadro tapado la referencia se conserva y el giro NO se pierde: suma 90 grados (el cuadro siguiente abarca 2 cuadros)", validos == 11 && total_x10 >= 880 && total_x10 <= 920);
+
+    /* Un cuadro rechazado y el siguiente abarca 2 cuadros (cuadros = 2); sin rechazos, cuadros = 1. */
+    mv_iniciar(&est);
+    {
+        int maximo_cuadros = 0, minimo_cuadros = 99;
+
+        for (i = 0; i <= 12; i++) {
+            tomar_cuadro(240, 176, 200 + i * 30, 8, 0);
+            if (i == 6) {
+                memset(cuadro, 100, 240 * 88 * 3);
+            }
+            mv_procesar(&est, cuadro, 240, 176, 600, &r);
+            if (i > 0 && r.valido) {
+                if (r.cuadros > maximo_cuadros) {
+                    maximo_cuadros = r.cuadros;
+                }
+                if (r.cuadros < minimo_cuadros) {
+                    minimo_cuadros = r.cuadros;
+                }
+            }
+        }
+        caso("el resultado que abarca el cuadro tapado dice cuadros = 2; los demás 1", maximo_cuadros == 2 && minimo_cuadros == 1);
+    }
+
+    /* Más de MV_MAX_SALTO cuadros tapados seguidos: se empieza de nuevo y el giro vuelve a medirse después. */
+    mv_iniciar(&est);
+    total_x10 = 0;
+    validos = 0;
+    for (i = 0; i <= 20; i++) {
+        tomar_cuadro(240, 176, 100 + i * 20, 8, 0);
+        if (i >= 5 && i <= 5 + MV_MAX_SALTO + 1) {
+            memset(cuadro, 100, 240 * 88 * 3);
+        }
+        mv_procesar(&est, cuadro, 240, 176, 600, &r);
+        if (i > 0 && r.valido) {
+            total_x10 += r.giro_grados_x10;
+            validos++;
+        }
+    }
+    printf("      con %d cuadros tapados seguidos: %d.%d grados con %d resultados validos\n", MV_MAX_SALTO + 2, total_x10 / 10, valor_absoluto(total_x10 % 10), validos);
+    caso("con más de MV_MAX_SALTO cuadros tapados seguidos el giro vuelve a medirse después", validos >= 6 && total_x10 > 300 && total_x10 < 1000);
 }
 
 int main(void)

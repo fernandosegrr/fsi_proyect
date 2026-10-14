@@ -20,13 +20,19 @@ nuevo en `CalibracionActivity`.
 3. **Rango**: al menos un tercio del ancho; `mv_procesar` usa 2/5 del ancho (96 px en 240) para que un corrimiento de 80 px
    (un tercio) no quede en el borde. Con ~10 a 12 cuadros por segundo y un giro rápido el corrimiento entre cuadros puede ser grande
    (a 90°/s y 12 fps son 7.5° por cuadro = 30 px en 240 de ancho).
-4. **Confianza**: el resultado solo es **válido** si pasa tres pruebas; si no, se devuelve "sin confianza" y NO se suma:
+4. **Cuadros rechazados**: `mv_procesar` compara cada cuadro con la **referencia** (el último cuadro con resultado válido). Si un cuadro se
+   rechaza, la referencia se conserva y el siguiente se compara contra ella: el corrimiento abarca varios cuadros (`cuadros` = 2, 3...) y el giro de
+   los cuadros rechazados no se pierde. Con datos reales (giro a mano de 90°) ~20 % de los cuadros a la velocidad pico (15 px por cuadro) se
+   rechazaban y el ángulo acumulado salía en 36° en vez de 90°. Después de 4 rechazos seguidos (`MV_MAX_SALTO`) se empieza de nuevo. La app calcula el
+   tiempo (`dt`) desde la hora del cuadro de referencia, no del cuadro anterior.
+5. **Confianza**: el resultado solo es **válido** si pasa tres pruebas; si no, se devuelve "sin confianza" y NO se suma:
    - la huella tiene bordes (energía ≥ 60; una pared lisa tiene ~8): si no, `ESCENA_UNIFORME`;
    - el mejor costo es menor que el 55 % del costo medio de todos los corrimientos: si no, `COINCIDENCIA_DEBIL`;
-   - el mejor costo es menor que el 80 % del segundo mejor mínimo lejano (a más de 2 px): si no, `AMBIGUO` (rayas o baldosas que se
-     repiten);
+   - el mejor costo es menor que el 88 % del segundo mejor mínimo lejano (a más de 2 px): si no, `AMBIGUO` (rayas o baldosas que se
+     repiten), **salvo** que haya un mínimo local bueno (costo hasta el doble del mejor y que pasa la prueba de coincidencia débil) cerca de
+     lo que se esperaba por el movimiento anterior (a menos de 4 px o 40 % del corrimiento esperado): ese se acepta (`por_prediccion` = 1);
    - el mínimo no está justo en el borde del rango: si lo está, `FUERA_DE_RANGO` (el corrimiento real podría ser mayor).
-5. **Grados**: `giro = corrimiento × FOV / ancho` (FOV horizontal, 60° de partida). Un corrimiento del contenido hacia la
+6. **Grados**: `giro = corrimiento × FOV / ancho` (FOV horizontal, 60° de partida). Un corrimiento del contenido hacia la
    **izquierda** de la imagen es un giro a la **derecha** (positivo, igual que el navegador).
 
 **Error de la aproximación lineal**: con un FOV de 60° la relación píxel-ángulo no es exactamente lineal. Para una característica
@@ -63,15 +69,15 @@ verdad. Hasta 3 pruebas; el resumen calcula el FOV con la suma de las pruebas.
 
 ## Pruebas en PC
 
-`pruebas_movimiento.c` (60 casos) con imágenes sintéticas: un panorama de texturas y cuadros que son ventanas desplazadas:
+`pruebas_movimiento.c` (66 casos) con imágenes sintéticas: un panorama de texturas y cuadros que son ventanas desplazadas:
 
 - corrimientos de **1, 2, 5, 10, 20, 40 y 80 px** a los dos lados, en 240x176 y 320x240: error de menos de 0.25 px, sin ruido; con **ruido** de ±10
   por canal, 160 de 160 corrimientos de 1, 10, 40 y 80 px con error de medio píxel o menos;
 - cambio de luz (+40, −30) entre cuadros, cuadros iguales (giro 0), la mitad de abajo (el "piso") distinta en cada cuadro;
 - **escena casi uniforme** (pared lisa con ruido de ±2: energía 8 contra un mínimo de 60), perfectamente uniforme, una sola marca: sin confianza;
   rayas que se repiten cada 16 px: ambiguo; 40 pares de escenas sin relación: 40 de 40 sin confianza;
-- conversión a grados y signos; errores de argumentos y tamaños; un **giro de 90 grados** (12 cuadros de 7.5°) suma 90.0°; con un cuadro tapado se
-  pierden 2 giros y no se suman.
+- conversión a grados y signos; errores de argumentos y tamaños; un **giro de 90 grados** (12 cuadros de 7.5°) suma 90.0°; con un cuadro tapado la referencia se conserva y se recuperan los 90.0° completos (el cuadro siguiente abarca 2 cuadros); rayas que se repiten:
+  ambiguas sin predicción y aceptadas con una predicción que coincide.
 
 `pruebas_navegador.c` (con un carro simulado cuyo giro real no coincide con la calibración y una cámara simulada que le avisa lo que gira):
 

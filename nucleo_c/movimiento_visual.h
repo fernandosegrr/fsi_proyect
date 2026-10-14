@@ -33,7 +33,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 /* Parámetros de la decisión de confianza (ver mv_corrimiento). */
 #define MV_ENERGIA_MIN        60   /* energía mínima de bordes de la huella (diferencia media entre columnas vecinas) */
 #define MV_MEJOR_MAX_PCT      55   /* el mejor costo debe ser menor que este % del costo medio de todos los corrimientos */
-#define MV_SEGUNDO_MAX_PCT    80   /* y menor que este % del segundo mejor mínimo (lejos del primero) */
+#define MV_SEGUNDO_MAX_PCT    88   /* y menor que este % del segundo mejor mínimo (lejos del primero) */
+#define MV_MAX_SALTO           4   /* si hay más de estos cuadros seguidos sin resultado válido, se cambia el cuadro de referencia */
+#define MV_PRED_TOL_MIN_X16   64   /* una coincidencia ambigua se acepta si cae a menos de 4 píxeles (x16) de lo que se esperaba... */
+#define MV_PRED_TOL_PCT       40   /* ...o a menos de este % del corrimiento esperado, lo que sea mayor */
 
 /* Por qué un resultado no es válido (motivo). */
 #define MV_OK                  0
@@ -54,13 +57,18 @@ typedef struct {
     int confianza_mil;      /* de 0 a 1000: qué tan distinta es la mejor coincidencia del resto */
     int giro_grados_x10;    /* giro del carro, por 10, con el FOV dado; + = a la derecha (0 si no es válido) */
     int energia;            /* energía de bordes de la huella nueva (para depurar) */
+    int cuadros;            /* cuántos cuadros abarca este corrimiento: 1 normalmente; 2 o más si se rechazaron cuadros intermedios y se comparó contra el último bueno */
+    int por_prediccion;     /* 1 si la coincidencia era ambigua y se aceptó porque coincide con el movimiento que se venía llevando */
 } MovimientoVisual;
 
 /* Lo que se recuerda del cuadro anterior (su huella). */
 typedef struct {
     int tiene_previo;
     int ancho;
-    int huella[MV_MAX_ANCHO];
+    int huella[MV_MAX_ANCHO];   /* huella del cuadro de REFERENCIA (el último cuadro con resultado válido) */
+    int cuadros_ref;            /* cuántos cuadros han pasado desde la referencia (1 = el anterior) */
+    int tiene_pred;             /* 1 si hay un corrimiento por cuadro que se venía llevando */
+    int pred_x16;               /* corrimiento por cuadro (x16) del último resultado válido */
 } EstimadorMovimiento;
 
 /* Deja el estimador sin cuadro previo. */
@@ -73,6 +81,11 @@ int mv_huella(const unsigned char *rgb, int ancho, int alto, int *huella);
 /* Compara dos huellas de `n` columnas y busca el corrimiento (de -rango a +rango píxeles) con el que la segunda se parece más a la
  * primera. `rango` es de al menos n/3 (se corrige si es menor, y se recorta si es muy grande). Llena `salida` (sin el giro en grados). */
 int mv_corrimiento(const int *anterior, const int *nueva, int n, int rango, MovimientoVisual *salida);
+
+/* Igual, pero con una PREDICCIÓN: `pred_x16` es el corrimiento que se esperaba (el del cuadro anterior, por 16). Si la mejor coincidencia
+ * resulta ambigua (otra casi igual de buena) pero cae cerca de lo esperado, se acepta (salida->por_prediccion = 1). Con `tiene_pred` = 0
+ * es idéntica a mv_corrimiento. */
+int mv_corrimiento_pred(const int *anterior, const int *nueva, int n, int rango, int tiene_pred, int pred_x16, MovimientoVisual *salida);
 
 /* Convierte un corrimiento (píxeles por 16) en grados del carro por 10, con el campo de visión `fov_x10` (grados por 10) y el
  * ancho de la imagen. Positivo = giro a la derecha: un corrimiento del contenido a la IZQUIERDA es positivo. */

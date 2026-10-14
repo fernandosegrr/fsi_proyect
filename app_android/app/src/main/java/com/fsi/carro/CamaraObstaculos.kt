@@ -57,7 +57,8 @@ class GiroVisual(
     val dtMs: Int,             // tiempo entre los dos cuadros comparados
     val confiable: Boolean,
     val motivo: Int,           // MovimientoVisualNativa.MOTIVO
-    val confianzaMil: Int
+    val confianzaMil: Int,
+    val energia: Int = 0       // energía de bordes de la huella (la escena tiene detalles si pasa de 60)
 )
 
 /** Un cuadro ya convertido y analizado. `pixeles` son colores ARGB de ancho x alto para dibujar.
@@ -152,6 +153,7 @@ class CamaraObstaculos(
     private var tablaX = IntArray(anchoSalida)
     private var tablaY = IntArray(altoSalida)
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
+    private var tablasListas = false   // las tablas de muestreo ya se llenaron para el sensor y el tamaño actuales
 
     // Giro visual: campo de visión que se usa (lo pone la pantalla desde la calibración) y el último giro medido.
     @Volatile
@@ -162,7 +164,10 @@ class CamaraObstaculos(
     private val candadoGiro = Any()
     private var giroPendienteX10 = 0             // suma de los giros confiables que nadie ha tomado todavía
     private var dtPendienteMs = 0                // y el tiempo que cubren
-    private var tCuadroAnteriorMs = 0L
+    // Hora de llegada de los últimos cuadros (anillo): si el estimador rechazó cuadros y comparó contra uno más viejo, el tiempo del giro
+    // abarca ese hueco (MovimientoVisualNativa.CUADROS cuadros hacia atrás).
+    private val marcasCuadrosMs = LongArray(8)
+    private var cuentaMarcas = 0
 
     // Modelo de objetos (opcional) y su fusión con el detector de color.
     @Volatile
@@ -195,8 +200,9 @@ class CamaraObstaculos(
             rotar180 = caracteristicas.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270
             tamanoCamara = "${tamano.width}x${tamano.height}"
             tamanoSensor = tamano
+            tablasListas = false   // otro sensor: hay que rehacer las tablas aunque el tamaño de salida sea el mismo
             MovimientoVisualNativa.reiniciar()
-            tCuadroAnteriorMs = 0L
+            cuentaMarcas = 0
             ajustarTamanoSalida()
 
             hilo = HandlerThread("camara-obstaculos").also { it.start() }
@@ -280,9 +286,10 @@ class CamaraObstaculos(
         val pedido = tamanoPedido()
         val ancho = pedido[0].coerceIn(30, 640)
         val alto = pedido[1].coerceIn(30, 480)
-        if (ancho == anchoSalida && alto == altoSalida && tablaX.size == ancho && tablaY.size == alto && ancho * alto * 3 == rgb.size) {
+        if (tablasListas && ancho == anchoSalida && alto == altoSalida && tablaX.size == ancho && tablaY.size == alto && ancho * alto * 3 == rgb.size) {
             return
         }
+        tablasListas = true
         anchoSalida = ancho
         altoSalida = alto
         rgb = ByteArray(ancho * alto * 3)
@@ -297,7 +304,7 @@ class CamaraObstaculos(
             tablaY[y] = destino * tamanoSensor.height / alto
         }
         MovimientoVisualNativa.reiniciar()   // otro tamaño: la huella anterior ya no sirve
-        tCuadroAnteriorMs = 0L
+        cuentaMarcas = 0
         Log.i(ETIQUETA, "tamaño de análisis: ${ancho}x${alto}")
     }
 
@@ -381,12 +388,15 @@ class CamaraObstaculos(
         // Giro visual: cuánto giró el carro respecto al cuadro anterior (se compara la mitad de arriba).
         val ahoraCuadroMs = SystemClock.elapsedRealtime()
         val mv = MovimientoVisualNativa.procesar(rgb, ancho, alto, fovX10)
-        val dtMs = if (tCuadroAnteriorMs == 0L) 0 else (ahoraCuadroMs - tCuadroAnteriorMs).toInt()
-        tCuadroAnteriorMs = ahoraCuadroMs
+        val cuadrosAbarcados = mv[MovimientoVisualNativa.CUADROS].coerceIn(1, marcasCuadrosMs.size - 1)
+        val dtMs = if (cuentaMarcas < cuadrosAbarcados) 0 else (ahoraCuadroMs - marcasCuadrosMs[(cuentaMarcas - cuadrosAbarcados) % marcasCuadrosMs.size]).toInt()
+        marcasCuadrosMs[cuentaMarcas % marcasCuadrosMs.size] = ahoraCuadroMs
+        cuentaMarcas++
         val giroVisual = GiroVisual(contadorCuadros + 1, if (mv[MovimientoVisualNativa.VALIDO] == 1) mv[MovimientoVisualNativa.GIRO_X10] else 0, dtMs,
             mv[MovimientoVisualNativa.CODIGO] == 0 && mv[MovimientoVisualNativa.VALIDO] == 1 && dtMs > 0,
-            mv[MovimientoVisualNativa.MOTIVO], mv[MovimientoVisualNativa.CONFIANZA_MIL])
+            mv[MovimientoVisualNativa.MOTIVO], mv[MovimientoVisualNativa.CONFIANZA_MIL], mv[MovimientoVisualNativa.ENERGIA])
         ultimoGiro = giroVisual
+        Log.d(ETIQUETA, "giro| valido=${mv[MovimientoVisualNativa.VALIDO]} motivo=${mv[MovimientoVisualNativa.MOTIVO]} corr_x16=${mv[MovimientoVisualNativa.CORRIMIENTO_X16]} giro_x10=${mv[MovimientoVisualNativa.GIRO_X10]} conf=${mv[MovimientoVisualNativa.CONFIANZA_MIL]} dt=$dtMs cuadros=$cuadrosAbarcados pred=${mv[MovimientoVisualNativa.POR_PREDICCION]}")
         if (giroVisual.confiable) {
             synchronized(candadoGiro) {
                 giroPendienteX10 += giroVisual.giroX10   // se SUMAN todos: la pantalla lee más lento que la cámara y no puede perder ninguno
@@ -474,6 +484,16 @@ class CamaraObstaculos(
         sumaMsVentana += cuadro.msConversion + cuadro.msAnalisis
         val ahora = SystemClock.elapsedRealtime()
         if (ahora - inicioVentanaMs >= 1000) {
+            // Depuración: números (nunca la imagen) de la mitad de arriba del cuadro y del giro visual.
+            val sbBandas = StringBuilder()
+            for (banda in 0 until 4) {
+                var minimo = 255; var maximo = 0; var suma = 0L; var cuenta = 0
+                val desde = (cuadro.alto * banda / 4) * cuadro.ancho
+                val hasta = (cuadro.alto * (banda + 1) / 4) * cuadro.ancho
+                for (p in desde until hasta) { val v = rgb[p * 3 + 1].toInt() and 0xFF; suma += v; cuenta++; if (v < minimo) minimo = v; if (v > maximo) maximo = v }
+                sbBandas.append(" banda$banda(verde medio=${suma / Math.max(1, cuenta)} min=$minimo max=$maximo)")
+            }
+            Log.i(ETIQUETA, "cuadro por bandas de arriba a abajo:$sbBandas | giro: valido=${cuadro.giro?.confiable} motivo=${cuadro.giro?.motivo} energia=${cuadro.giro?.energia}")
             fps = cuadrosVentana * 1000.0 / (ahora - inicioVentanaMs)
             msPorCuadro = sumaMsVentana / cuadrosVentana
             Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d tamano=%dx%d umbral=%d min_celdas=%d fila_minima_mil=%d codigo=%d",

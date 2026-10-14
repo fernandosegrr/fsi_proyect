@@ -4,7 +4,7 @@
  *
  * GUÍA DE LECTURA
  *  1. procesar() recibe cada cuadro (bytes RGB, ancho y alto) y el campo de visión de la cámara. Lo compara con el cuadro
- *     anterior (el código en C lo recuerda) y devuelve 7 enteros (índices de abajo).
+ *     anterior (el código en C lo recuerda) y devuelve 9 enteros (índices de abajo).
  *  2. Solo se mira la mitad de arriba del cuadro (el horizonte). El giro es positivo a la derecha, como en el navegador.
  *  3. Si la escena casi no tiene detalles, o hay varias coincidencias parecidas, el resultado trae `valido` = 0 con el motivo:
  *     ese giro NO se debe sumar.
@@ -26,6 +26,8 @@ object MovimientoVisualNativa {
     const val CONFIANZA_MIL = 4     // de 0 a 1000
     const val GIRO_X10 = 5          // giro del carro en grados por 10 (+ = a la derecha; 0 si no es confiable)
     const val ENERGIA = 6           // energía de bordes de la huella (para depurar)
+    const val CUADROS = 7           // cuántos cuadros abarca el corrimiento (1 normal; más si se rechazaron cuadros y se comparó con el último bueno)
+    const val POR_PREDICCION = 8    // 1 si la coincidencia era ambigua y se aceptó por coincidir con el movimiento que se venía llevando
 
     const val FOV_DEFECTO_X10 = 600 // campo de visión horizontal por defecto: 60.0 grados
 

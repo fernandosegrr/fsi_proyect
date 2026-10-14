@@ -70,6 +70,7 @@ class VisionActivity : Activity() {
     private var dibujando = false
     private var ultimoMostrado: CuadroAnalizado? = null
     private var pidiendoPermiso = false
+    private var registrosPendientes = 0
     private var ultimoAvisoPisoMs = 0L   // para mostrar unos segundos el aviso "piso nuevo aprendido"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -229,6 +230,10 @@ class VisionActivity : Activity() {
                     cuadro.resultado[ObstaculosNativa.CODIGO]) else "")
             textoFusion.text = textoDeFusion(cuadro)
             textoGiro.text = textoDeGiro(cuadro)
+            registrosPendientes++
+            if (registrosPendientes % 4 == 0) {   // cada ~2 s se anota en logcat lo que muestra la pantalla (sirve para probar sin mirar la imagen)
+                Log.i(CamaraObstaculos.ETIQUETA, "pantalla| piso=" + (cuadro?.resultado?.let { "${it[ObstaculosNativa.REF_R]},${it[ObstaculosNativa.REF_G]},${it[ObstaculosNativa.REF_B]}" } ?: "-") + " | " + (textoFusion.text.toString() + " " + textoGiro.text.toString()).replace("\n", " / "))
+            }
             principal.postDelayed(this, 500)
         }
     }
@@ -240,7 +245,7 @@ class VisionActivity : Activity() {
         return String.format(Locale.US, "Giro visual (campo de visión %.1f°): %s\nÁngulo acumulado: %+.1f° (%d cuadros sin confianza)",
             camara.fovX10 / 10.0,
             if (giro.confiable) String.format(Locale.US, "%+.1f° en este cuadro (confianza %d)", giro.giroX10 / 10.0, giro.confianzaMil / 10)
-            else "sin confianza: " + MovimientoVisualNativa.textoMotivo(giro.motivo),
+            else "sin confianza: " + MovimientoVisualNativa.textoMotivo(giro.motivo) + " (energía ${giro.energia}, mínimo 60)",
             acumulado / 10.0, cuadrosSinGiro.get())
     }
 
