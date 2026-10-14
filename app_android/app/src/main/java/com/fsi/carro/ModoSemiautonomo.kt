@@ -262,12 +262,15 @@ class ModoSemiautonomo(
         }
     }
 
-    /** Lleva la racha de cuadros con un obstáculo cerca (cercanía 2 o más en cualquier zona) y guarda cómo era el PRIMERO. */
+    /** Lleva la racha de cuadros con un obstáculo cerca (cercanía 2 o más en cualquier zona; 1 también al centro con el video del carro) y guarda cómo era el PRIMERO. */
     private fun seguirBloqueo(info: CuadroAnalizado?, cuadro: IntArray) {
         var zonaMasCerca = -1
         var cercania = 0
+        // Con el video del carro el navegador también frena con cercanía 1 al CENTRO (frenar desde lejos): esa racha también se mide.
+        val minimoCentro = if (camara?.esVideoCarro == true) 1 else 2
         for (zona in 0..2) {
-            if (cuadro[1 + 2 * zona] == 1 && cuadro[2 + 2 * zona] >= 2 && cuadro[2 + 2 * zona] > cercania) {
+            val minimo = if (zona == 1) minimoCentro else 2
+            if (cuadro[1 + 2 * zona] == 1 && cuadro[2 + 2 * zona] >= minimo && cuadro[2 + 2 * zona] > cercania) {
                 cercania = cuadro[2 + 2 * zona]
                 zonaMasCerca = zona
             }
