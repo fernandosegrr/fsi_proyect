@@ -153,3 +153,6 @@
 
 ### Trabajo I: modos de video raw y celdas — hecho en código, comparación PENDIENTE HARDWARE
 - Modos jpeg/raw/celdas en la cámara y en la app, entrada por celdas del detector (`pruebas_celdas` 40 casos), fallback a jpeg, probado en el teléfono con una cámara falsa. Tabla vacía y pasos de las 9 pasadas en `docs/latencia_modos.md`.
+
+### Trabajo H: comparativa de detectores — investigación hecha en la rama `investigacion/comparativa-detectores`
+- Mediciones y licencias en `docs/comparativa_detectores.md`; el protocolo «cualquier objeto» con cada detector queda PENDIENTE HARDWARE (sección 6 de ese documento).

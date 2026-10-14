@@ -1,0 +1,20 @@
+DET_MS|INICIO|modelo=efficientdet_lite0.tflite
+DET_MS|dispositivo|fabricante=HUAWEI
+DET_MS|dispositivo|modelo=ELS-NX9
+DET_MS|dispositivo|dispositivo=HWELS
+DET_MS|dispositivo|android=10 (API 29)
+DET_MS|dispositivo|hardware=kirin990
+DET_MS|dispositivo|placa=ELS
+DET_MS|dispositivo|nucleos=8
+DET_MS|dispositivo|abi=arm64-v8a,armeabi-v7a,armeabi
+DET_MS|dispositivo|cpuinfo_Hardware=vendor Kirin990
+DET_MS|dispositivo|cpu_part_por_nucleo=0xd05,0xd05,0xd05,0xd05,0xd40,0xd40,0xd40,0xd40
+DET_MS|dispositivo|frecuencia_max_mhz_por_nucleo=1954,1954,1954,1954,2360,2360,2861,2861
+DET_MS|dispositivo|estado_inicial=termico=0 bateria=31.0C enchufado=true
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=CPU-1-hilo|apertura_ms=40.37|inferencias=1521|ms_primeros_10s=36.10|ms_ultimos_10s=43.05|ms_media=39.45|ms_mediana=36.36|ms_p95=43.19|memoria_mb_antes=26.85|memoria_mb_despues=64.67|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=CPU-4-hilos|apertura_ms=21.36|inferencias=1391|ms_primeros_10s=43.16|ms_ultimos_10s=43.12|ms_media=43.13|ms_mediana=43.11|ms_p95=43.31|memoria_mb_antes=64.69|memoria_mb_despues=65.02|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=GPU|apertura_ms=788.86|inferencias=479|ms_primeros_10s=125.65|ms_ultimos_10s=122.35|ms_media=125.46|ms_mediana=122.12|ms_p95=144.93|memoria_mb_antes=65.26|memoria_mb_despues=85.33|inicio=[termico=0 bateria=31.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=NNAPI|apertura_ms=184.72|inferencias=1240|ms_primeros_10s=44.94|ms_ultimos_10s=52.66|ms_media=48.39|ms_mediana=45.60|ms_p95=52.78|memoria_mb_antes=85.37|memoria_mb_despues=94.12|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=NNAPI-liteadaptor|apertura_ms=174.72|inferencias=1139|ms_primeros_10s=52.72|ms_ultimos_10s=52.73|ms_media=52.70|ms_mediana=52.64|ms_p95=52.92|memoria_mb_antes=90.47|memoria_mb_despues=94.80|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|modelo=efficientdet_lite0.tflite|formato=tflite|bytes=4563519|entrada=1x320x320x3:UINT8|config=NNAPI-nnapi-reference|apertura_ms=89.85|inferencias=44|ms_primeros_10s=1371.49|ms_ultimos_10s=1371.57|ms_media=1371.89|ms_mediana=1372.19|ms_p95=1373.46|memoria_mb_antes=91.21|memoria_mb_despues=87.96|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|FIN|modelo=efficientdet_lite0.tflite

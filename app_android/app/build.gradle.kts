@@ -47,5 +47,6 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite:2.17.0")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
     implementation("org.tensorflow:tensorflow-lite-gpu-api:2.17.0")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")   // SOLO en la rama de investigación (docs/comparativa_detectores.md): el benchmark de modelos .onnx
     implementation("com.squareup.okhttp3:okhttp:4.12.0")   // WebSocket hacia el carro
 }

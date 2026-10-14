@@ -1,0 +1,17 @@
+DET_MS|INICIO|modelo=yolo11n_320.onnx
+DET_MS|dispositivo|fabricante=HUAWEI
+DET_MS|dispositivo|modelo=ELS-NX9
+DET_MS|dispositivo|dispositivo=HWELS
+DET_MS|dispositivo|android=10 (API 29)
+DET_MS|dispositivo|hardware=kirin990
+DET_MS|dispositivo|placa=ELS
+DET_MS|dispositivo|nucleos=8
+DET_MS|dispositivo|abi=arm64-v8a,armeabi-v7a,armeabi
+DET_MS|dispositivo|cpuinfo_Hardware=vendor Kirin990
+DET_MS|dispositivo|cpu_part_por_nucleo=0xd05,0xd05,0xd05,0xd05,0xd40,0xd40,0xd40,0xd40
+DET_MS|dispositivo|frecuencia_max_mhz_por_nucleo=1954,1954,1954,1954,2360,2360,2861,2861
+DET_MS|dispositivo|estado_inicial=termico=0 bateria=32.0C enchufado=true
+DET_MS|modelo=yolo11n_320.onnx|formato=onnx|bytes=10575971|entrada=1x3x320x320:float32|config=CPU-1-hilo|apertura_ms=74.20|inferencias=671|ms_primeros_10s=74.11|ms_ultimos_10s=85.82|ms_media=79.36|ms_mediana=75.31|ms_p95=86.33|memoria_mb_antes=40.44|memoria_mb_despues=79.53|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|modelo=yolo11n_320.onnx|formato=onnx|bytes=10575971|entrada=1x3x320x320:float32|config=CPU-4-hilos|apertura_ms=62.24|inferencias=899|ms_primeros_10s=55.77|ms_ultimos_10s=54.97|ms_media=55.07|ms_mediana=54.82|ms_p95=57.35|memoria_mb_antes=79.58|memoria_mb_despues=86.35|inicio=[termico=0 bateria=32.0C enchufado=true]|fin=[termico=0 bateria=32.0C enchufado=true]
+DET_MS|modelo=yolo11n_320.onnx|formato=onnx|bytes=10575971|config=NNAPI|FALLO|error=OrtException: Error code - ORT_FAIL - message: op_builder_helpers.cc:144 AddNnapiSplit count [0] does not evenly divide dimension 3 [32]
+DET_MS|FIN|modelo=yolo11n_320.onnx

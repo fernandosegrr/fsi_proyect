@@ -149,6 +149,15 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getBoolean("obstaculos_camara", false)
         set(valor) = preferencias.edit().putBoolean("obstaculos_camara", valor).apply()
 
+    // ── Solo para la comparativa de detectores (rama de investigación): qué modelo y con qué delegado ──
+    var modeloArchivo: String
+        get() = preferencias.getString("modelo_archivo", DetectorTflite.ARCHIVO_MODELO) ?: DetectorTflite.ARCHIVO_MODELO
+        set(valor) = preferencias.edit().putString("modelo_archivo", valor).apply()
+
+    var modeloDelegado: String
+        get() = preferencias.getString("modelo_delegado", "cpu") ?: "cpu"
+        set(valor) = preferencias.edit().putString("modelo_delegado", valor).apply()
+
     /** Modo de video de la cámara del carro (ModoVideo): jpeg (el predeterminado), raw o celdas. Si un modo falla, la app vuelve a jpeg sola. */
     var modoVideo: String
         get() = ModoVideo.valido(preferencias.getString("modo_video", ModoVideo.JPEG))

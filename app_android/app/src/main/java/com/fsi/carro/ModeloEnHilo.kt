@@ -126,9 +126,13 @@ class ModeloEnHilo(private val contexto: Context) {
     // ── El hilo del modelo ────────────────────────────────────────────────
 
     private fun bucle() {
-        val detector = DetectorTflite(contexto)
+        // RAMA DE INVESTIGACIÓN (docs/comparativa_detectores.md): el archivo del modelo y el delegado se pueden cambiar sin recompilar con las preferencias
+        // modelo_archivo (un .tflite de la carpeta modelos/ de los archivos de la app, o de assets) y modelo_delegado ("cpu" o "nnapi"). Por defecto: EfficientDet-Lite0 en CPU 1 hilo.
+        val preferencias = ConfigVision(contexto)
+        val detector = DetectorTflite(contexto, preferencias.modeloArchivo)
         try {
-            detector.abrir(Configuracion("CPU 1 hilo", Delegado.CPU, 1))
+            detector.abrir(if (preferencias.modeloDelegado == "nnapi") Configuracion("NNAPI", Delegado.NNAPI, 0) else Configuracion("CPU 1 hilo", Delegado.CPU, 1))
+            Log.i(ETIQUETA, "modelo=${preferencias.modeloArchivo} delegado=${preferencias.modeloDelegado}")
             etiquetas = detector.etiquetas
             Log.i(ETIQUETA, "modelo abierto: ${detector.descripcionTensores}")
         } catch (e: Exception) {

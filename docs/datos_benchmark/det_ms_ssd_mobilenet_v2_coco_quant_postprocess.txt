@@ -1,0 +1,20 @@
+DET_MS|INICIO|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite
+DET_MS|dispositivo|fabricante=HUAWEI
+DET_MS|dispositivo|modelo=ELS-NX9
+DET_MS|dispositivo|dispositivo=HWELS
+DET_MS|dispositivo|android=10 (API 29)
+DET_MS|dispositivo|hardware=kirin990
+DET_MS|dispositivo|placa=ELS
+DET_MS|dispositivo|nucleos=8
+DET_MS|dispositivo|abi=arm64-v8a,armeabi-v7a,armeabi
+DET_MS|dispositivo|cpuinfo_Hardware=vendor Kirin990
+DET_MS|dispositivo|cpu_part_por_nucleo=0xd05,0xd05,0xd05,0xd05,0xd40,0xd40,0xd40,0xd40
+DET_MS|dispositivo|frecuencia_max_mhz_por_nucleo=1954,1954,1954,1954,2360,2360,2861,2861
+DET_MS|dispositivo|estado_inicial=termico=0 bateria=30.0C enchufado=true
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=CPU-1-hilo|apertura_ms=44.80|inferencias=686|ms_primeros_10s=80.20|ms_ultimos_10s=96.69|ms_media=87.58|ms_mediana=80.41|ms_p95=96.89|memoria_mb_antes=27.71|memoria_mb_despues=51.05|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=CPU-4-hilos|apertura_ms=31.59|inferencias=621|ms_primeros_10s=96.70|ms_ultimos_10s=96.70|ms_media=96.74|ms_mediana=96.73|ms_p95=96.98|memoria_mb_antes=51.09|memoria_mb_despues=53.18|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=GPU|apertura_ms=899.45|inferencias=785|ms_primeros_10s=76.62|ms_ultimos_10s=76.64|ms_media=76.48|ms_mediana=77.32|ms_p95=81.35|memoria_mb_antes=53.20|memoria_mb_despues=57.32|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=NNAPI|apertura_ms=401.48|inferencias=5035|ms_primeros_10s=11.86|ms_ultimos_10s=11.95|ms_media=11.91|ms_mediana=11.80|ms_p95=12.27|memoria_mb_antes=57.10|memoria_mb_despues=60.83|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=NNAPI-liteadaptor|apertura_ms=354.01|inferencias=5044|ms_primeros_10s=11.91|ms_ultimos_10s=11.85|ms_media=11.89|ms_mediana=11.78|ms_p95=12.27|memoria_mb_antes=53.89|memoria_mb_despues=64.09|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=30.0C enchufado=true]
+DET_MS|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite|formato=tflite|bytes=6220797|entrada=1x300x300x3:UINT8|config=NNAPI-nnapi-reference|apertura_ms=19.70|inferencias=733|ms_primeros_10s=80.33|ms_ultimos_10s=78.60|ms_media=81.91|ms_mediana=70.63|ms_p95=154.63|memoria_mb_antes=57.56|memoria_mb_despues=72.18|inicio=[termico=0 bateria=30.0C enchufado=true]|fin=[termico=0 bateria=31.0C enchufado=true]
+DET_MS|FIN|modelo=ssd_mobilenet_v2_coco_quant_postprocess.tflite

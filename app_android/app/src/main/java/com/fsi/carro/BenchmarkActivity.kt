@@ -34,6 +34,8 @@ class BenchmarkActivity : Activity() {
         const val EXTRA_MODO = "bench_modo"            // "detector" (por defecto) u "obstaculos"
         const val MODO_DETECTOR = "detector"
         const val MODO_OBSTACULOS = "obstaculos"
+        const val MODO_GENERICO = "generico"         // mide cualquier .tflite o .onnx de la carpeta modelos/ solo por tiempo (BenchmarkGenerico, registro DET_MS)
+        const val EXTRA_ACELERADOR = "bench_acelerador"   // con modo generico y un .tflite: además prueba NNAPI fijado a ese acelerador (nombre de ANeuralNetworks)
         const val MODO_TERMICO = "termico"           // 60 s seguidos por configuración: ms al principio y al final, y temperatura (con bench_modelo = nombre del .tflite)
         const val EXTRA_MODELO = "bench_modelo"      // el .tflite a medir (en la carpeta modelos/ de los archivos de la app, o en assets); por defecto EfficientDet-Lite0
         const val SEGUNDOS_TERMICO = 60
@@ -83,7 +85,7 @@ class BenchmarkActivity : Activity() {
         botonObstaculos.isEnabled = false
         registro.text = ""
         val modelo = intent.getStringExtra(EXTRA_MODELO) ?: DetectorTflite.ARCHIVO_MODELO
-        Thread { when (modo) { MODO_OBSTACULOS -> ejecutarObstaculos(); MODO_TERMICO -> ejecutarTermico(modelo); else -> ejecutar() } }.start()
+        Thread { when (modo) { MODO_OBSTACULOS -> ejecutarObstaculos(); MODO_TERMICO -> ejecutarTermico(modelo); MODO_GENERICO -> ejecutarGenerico(modelo); else -> ejecutar() } }.start()
     }
 
     // ── Salida ────────────────────────────────────────────────────────────
@@ -201,6 +203,23 @@ class BenchmarkActivity : Activity() {
         } catch (e: Throwable) {
             anotar("BENCH|ERROR_GENERAL|${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
             mostrarEstado("Error: ${e.message}")
+        } finally {
+            corriendo = false
+            runOnUiThread { boton.isEnabled = true; botonObstaculos.isEnabled = true }
+        }
+    }
+
+    /** Comparativa de detectores: mide el modelo dado (.tflite u .onnx de la carpeta modelos/) con BenchmarkGenerico. */
+    private fun ejecutarGenerico(archivoModelo: String) {
+        try {
+            archivo = File(getExternalFilesDir(null), "det_ms_" + archivoModelo.substringBeforeLast('.') + ".txt").also { it.writeText("") }
+            anotar("DET_MS|INICIO|modelo=$archivoModelo")
+            mostrarEstado("Midiendo $archivoModelo (60 s por configuración)...")
+            BenchmarkGenerico(this, { anotar(it) }).medir(archivoModelo, intent.getStringExtra(EXTRA_ACELERADOR))
+            anotar("DET_MS|FIN|modelo=$archivoModelo")
+            mostrarEstado("Terminado.")
+        } catch (e: Throwable) {
+            anotar("DET_MS|ERROR_GENERAL|${e.javaClass.simpleName}: ${e.message?.replace('\n', ' ')}")
         } finally {
             corriendo = false
             runOnUiThread { boton.isEnabled = true; botonObstaculos.isEnabled = true }
