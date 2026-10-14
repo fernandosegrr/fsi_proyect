@@ -47,6 +47,9 @@
     <string name="texto_aprendizaje">Aprendizaje del piso: %1$d por mil por cuadro (0 = no aprende)</string>
     <string name="boton_giro_cero">Poner el ángulo acumulado en 0 (gira el teléfono a mano y mira cuánto marca)</string>
     <string name="boton_modelo">Modelo de objetos (fusión): %1$s (tocar para cambiar)</string>
+    <string name="boton_fuente_video">Fuente del video: %1$s (tocar para cambiar)</string>
+    <string name="fuente_video_telefono">cámara del teléfono</string>
+    <string name="fuente_video_carro">cámara del carro (WiFi)</string>
     <string name="boton_tamano">Tamaño del cuadro: %1$dx%2$d (tocar para cambiar)</string>
     <string name="sin_cuadro">Todavía no hay ningún cuadro</string>
     <string name="cuadro_guardado">Guardado: %1$s</string>

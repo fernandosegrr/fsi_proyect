@@ -58,6 +58,7 @@ class VisionActivity : Activity() {
     private lateinit var camara: CamaraObstaculos
     private lateinit var botonTamano: Button
     private lateinit var botonModelo: Button
+    private lateinit var botonFuenteVideo: Button
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
@@ -92,6 +93,7 @@ class VisionActivity : Activity() {
         textoAprendizaje = findViewById(R.id.texto_aprendizaje)
         barraAprendizaje = findViewById(R.id.barra_aprendizaje)
         botonModelo = findViewById(R.id.boton_modelo)
+        botonFuenteVideo = findViewById(R.id.boton_fuente_video)
         botonTamano = findViewById(R.id.boton_tamano)
         textoFusion = findViewById(R.id.texto_fusion)
         textoGiro = findViewById(R.id.texto_giro)
@@ -115,6 +117,12 @@ class VisionActivity : Activity() {
         botonModelo.setOnClickListener {
             configuracion.usarModelo = !configuracion.usarModelo
             camara.activarModelo(configuracion.usarModelo && camara.abierta)
+            mostrarValoresDeBarras()
+        }
+        botonFuenteVideo.setOnClickListener {
+            configuracion.fuenteCarro = !configuracion.fuenteCarro
+            camara.cerrar()
+            abrirCamara()   // se vuelve a abrir con la fuente nueva (teléfono o video del carro)
             mostrarValoresDeBarras()
         }
         botonTamano.setOnClickListener {
@@ -321,6 +329,7 @@ class VisionActivity : Activity() {
         textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinimaMil / 10,
             filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
         botonTamano.text = getString(R.string.boton_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
+        botonFuenteVideo.text = getString(R.string.boton_fuente_video, getString(if (configuracion.fuenteCarro) R.string.fuente_video_carro else R.string.fuente_video_telefono))
         botonModelo.text = getString(R.string.boton_modelo, getString(if (configuracion.usarModelo) R.string.si else R.string.no))
     }
 

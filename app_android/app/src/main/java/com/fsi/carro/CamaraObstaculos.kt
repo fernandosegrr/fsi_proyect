@@ -35,6 +35,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
@@ -97,6 +98,7 @@ class CamaraObstaculos(
     companion object {
         const val ETIQUETA = "VISION"
         private const val MAX_IMAGENES = 2
+        const val LATENCIA_VIDEO_CARRO_MS = 320   // retraso del video del carro hasta el teléfono (docs/latencia.md)
     }
 
     // Estado de la cámara.
@@ -106,6 +108,7 @@ class CamaraObstaculos(
     private var sesion: CameraCaptureSession? = null
     private var lector: ImageReader? = null
     private var rotar180 = false
+    private var videoCarro: VideoCarro? = null   // la fuente de video del carro (null si se usa la cámara del teléfono)
 
     /** true cuando la cámara está entregando cuadros. */
     @Volatile
@@ -184,8 +187,12 @@ class CamaraObstaculos(
 
     /** Abre la cámara trasera. Devuelve false (y deja `error`) si no se pudo empezar. */
     fun abrir(): Boolean {
-        if (hilo != null) {
+        if (hilo != null || videoCarro != null) {
             return true   // ya está abierta o abriéndose
+        }
+        val configVision = ConfigVision(contexto)
+        if (configVision.fuenteCarro) {
+            return abrirVideoCarro(configVision.urlVideoCarro)
         }
         if (contexto.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return fallar("Falta el permiso de cámara")
@@ -228,11 +235,98 @@ class CamaraObstaculos(
         }
     }
 
+    /**
+     * Retraso (ms) entre lo que pasa y el cuadro que llega: 0 con la cámara del teléfono; con el video del carro ~320 ms (medido,
+     * docs/latencia.md). El navegador lo usa para no contar el giro de los cuadros que todavía muestran al carro sin girar.
+     */
+    val latenciaVisualMs: Int get() = if (videoCarro != null) LATENCIA_VIDEO_CARRO_MS else 0
+
+    /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
+    val esVideoCarro: Boolean get() = videoCarro != null
+
+    /** Empieza a leer el video de la cámara del carro (no necesita el permiso de cámara). Devuelve false si la dirección no es válida. */
+    private fun abrirVideoCarro(url: String): Boolean {
+        error = ""
+        rotar180 = false
+        tamanoCamara = "carro"
+        tamanoSensor = Size(ObstaculosNativa.ANCHO_CAMARA, ObstaculosNativa.ALTO_CAMARA)   // se corrige con el primer cuadro
+        tablasListas = false
+        fovCamaraX10 = MovimientoVisualNativa.FOV_DEFECTO_X10   // no se conoce el de esta cámara: 60 hasta calibrar (paso 6)
+        MovimientoVisualNativa.reiniciar()
+        cuentaMarcas = 0
+        ajustarTamanoSalida()
+        inicioVentanaMs = SystemClock.elapsedRealtime()
+        val video = VideoCarro(url, { bytes, largo -> alJpegDelCarro(bytes, largo) }, { texto ->
+            if (texto.isEmpty()) {
+                error = ""
+            } else {
+                error = texto
+                abierta = false
+            }
+        })
+        videoCarro = video
+        Log.i(ETIQUETA, "abriendo el video del carro $url")
+        video.iniciar()
+        activarModelo(usarModelo())
+        return true
+    }
+
+    /** Un JPEG del carro: se decodifica, se reduce al tamaño de análisis y entra a la misma cadena que los cuadros del teléfono. */
+    private fun alJpegDelCarro(bytes: ByteArray, largo: Int) {
+        try {
+            val inicio = System.nanoTime()
+            val mapa = BitmapFactory.decodeByteArray(bytes, 0, largo)
+            if (mapa == null) {
+                Log.w(ETIQUETA, "un cuadro del carro no se pudo decodificar ($largo bytes)")
+                return
+            }
+            val w = mapa.width
+            val h = mapa.height
+            if (w != tamanoSensor.width || h != tamanoSensor.height) {
+                tamanoSensor = Size(w, h)
+                tablasListas = false
+            }
+            ajustarTamanoSalida()
+            val fuente = IntArray(w * h)
+            mapa.getPixels(fuente, 0, w, 0, 0, w, h)
+            mapa.recycle()
+            val ancho = anchoSalida
+            val alto = altoSalida
+            val pixeles = IntArray(ancho * alto)
+            var posicion = 0
+            var indice = 0
+            for (y in 0 until alto) {
+                val fila = tablaY[y] * w
+                for (x in 0 until ancho) {
+                    val p = fuente[fila + tablaX[x]]
+                    val r = (p shr 16) and 0xFF
+                    val g = (p shr 8) and 0xFF
+                    val b = p and 0xFF
+                    rgb[posicion] = r.toByte()
+                    rgb[posicion + 1] = g.toByte()
+                    rgb[posicion + 2] = b.toByte()
+                    posicion += 3
+                    pixeles[indice++] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                }
+            }
+            if (!abierta) {
+                abierta = true
+                inicioVentanaMs = SystemClock.elapsedRealtime()
+                Log.i(ETIQUETA, "video del carro entregando cuadros (${w}x${h})")
+            }
+            analizar(ancho, alto, pixeles, inicio, System.nanoTime())
+        } catch (e: Exception) {
+            Log.w(ETIQUETA, "error procesando un cuadro del carro: ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
     /** Libera la cámara. Se puede llamar varias veces. */
     fun cerrar() {
-        val habiaCamara = hilo != null
+        val habiaCamara = hilo != null || videoCarro != null
         abierta = false
         activarModelo(false)
+        videoCarro?.detener()
+        videoCarro = null
         try { sesion?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando sesión: ${e.message}") }
         try { dispositivo?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando cámara: ${e.message}") }
         sesion = null
@@ -409,7 +503,11 @@ class CamaraObstaculos(
         val alto = altoSalida
         val pixeles = IntArray(ancho * alto)
         convertir(imagen, pixeles, ancho, alto)
-        val tras_conversion = System.nanoTime()
+        analizar(ancho, alto, pixeles, inicio, System.nanoTime())
+    }
+
+    /** Todo lo que se hace con un cuadro ya convertido a RGB (en `rgb`) y a ARGB (`pixeles`): detector, giro visual, modelo y fusión. */
+    private fun analizar(ancho: Int, alto: Int, pixeles: IntArray, inicio: Long, tras_conversion: Long) {
         val config = configActual()
         val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         val fin = System.nanoTime()

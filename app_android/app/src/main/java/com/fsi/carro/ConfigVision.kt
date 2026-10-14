@@ -67,6 +67,16 @@ class ConfigVision(contexto: Context) {
         get() = preferencias.getBoolean("usar_modelo", false)
         set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
 
+    /** true = los cuadros salen de la cámara DEL CARRO (video por WiFi, VideoCarro); false = de la cámara del teléfono. */
+    var fuenteCarro: Boolean
+        get() = preferencias.getBoolean("fuente_carro", false)
+        set(valor) = preferencias.edit().putBoolean("fuente_carro", valor).apply()
+
+    /** Dirección del video de la cámara del carro. */
+    var urlVideoCarro: String
+        get() = preferencias.getString("url_video_carro", VideoCarro.URL_DEFECTO) ?: VideoCarro.URL_DEFECTO
+        set(valor) = preferencias.edit().putString("url_video_carro", valor).apply()
+
     /** Índice en TAMANOS del tamaño de cuadro que se pide a la cámara del teléfono. */
     var indiceTamano: Int
         get() = preferencias.getInt("indice_tamano", 0).coerceIn(0, TAMANOS.size - 1)

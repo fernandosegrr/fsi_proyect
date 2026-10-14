@@ -96,6 +96,7 @@ class ModoSemiautonomo(
             alCambiar()
             return false
         }
+        NavegadorNativa.ponerLatenciaVisual(fuente?.latenciaVisualMs ?: 0)   // el video del carro llega ~320 ms tarde
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
         if (codigoRuta != 0) {
             mensaje = "Ruta no válida (código $codigoRuta)"

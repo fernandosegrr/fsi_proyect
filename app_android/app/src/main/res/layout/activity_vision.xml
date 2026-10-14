@@ -123,6 +123,13 @@
                 android:textSize="12sp" />
 
             <Button
+                android:id="@+id/boton_fuente_video"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/boton_fuente_video" />
+
+            <Button
                 android:id="@+id/boton_tamano"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
