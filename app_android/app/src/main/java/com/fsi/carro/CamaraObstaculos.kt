@@ -637,6 +637,31 @@ class CamaraObstaculos(
                 sbBandas.append(" banda$banda(verde medio=${suma / Math.max(1, cuenta)} min=$minimo max=$maximo)")
             }
             Log.i(ETIQUETA, "cuadro por bandas de arriba a abajo:$sbBandas | giro: valido=${cuadro.giro?.confiable} motivo=${cuadro.giro?.motivo} energia=${cuadro.giro?.energia}")
+            // Diagnóstico de falsos obstáculos (solo números): lo que decidió el detector, qué piso aprendió y cómo cambia el brillo de arriba a
+            // abajo en la parte central de la imagen (8 bandas): sirve para ver si la franja de referencia del piso está tomando algo oscuro.
+            val res = cuadro.resultado
+            val sbPerfil = StringBuilder()
+            val x0 = cuadro.ancho * 3 / 10
+            val x1 = cuadro.ancho * 7 / 10
+            for (b in 0 until 8) {
+                var suma = 0L
+                var cuenta = 0
+                for (y in (cuadro.alto * b / 8) until (cuadro.alto * (b + 1) / 8)) {
+                    for (x in x0 until x1) {
+                        suma += rgb[(y * cuadro.ancho + x) * 3 + 1].toInt() and 0xFF
+                        cuenta++
+                    }
+                }
+                sbPerfil.append(suma / Math.max(1, cuenta)).append(if (b < 7) "," else "")
+            }
+            Log.i(ETIQUETA, "deteccion| IZQ(hay=${res[ObstaculosNativa.HAY_IZQUIERDA]},cerc=${res[ObstaculosNativa.CERCANIA_IZQUIERDA]},celdas=${res[ObstaculosNativa.CELDAS_ZONA]}) " +
+                "CEN(hay=${res[ObstaculosNativa.HAY_CENTRO]},cerc=${res[ObstaculosNativa.CERCANIA_CENTRO]},celdas=${res[ObstaculosNativa.CELDAS_ZONA + 1]}) " +
+                "DER(hay=${res[ObstaculosNativa.HAY_DERECHA]},cerc=${res[ObstaculosNativa.CERCANIA_DERECHA]},celdas=${res[ObstaculosNativa.CELDAS_ZONA + 2]}) | " +
+                "piso=${res[ObstaculosNativa.REF_R]},${res[ObstaculosNativa.REF_G]},${res[ObstaculosNativa.REF_B]} grupos=${res[ObstaculosNativa.GRUPOS_PISO]} " +
+                "franja(col=${res[ObstaculosNativa.REF_COLUMNA]},fila=${res[ObstaculosNativa.REF_FILA]},${res[ObstaculosNativa.REF_NCOLUMNAS]}x${res[ObstaculosNativa.REF_NFILAS]}) " +
+                "tapada=${res[ObstaculosNativa.FRANJA_TAPADA]} reaprendido=${res[ObstaculosNativa.PISO_REAPRENDIDO]} aprendio=${res[ObstaculosNativa.APRENDIO]} " +
+                "fila_min=${res[ObstaculosNativa.FILA_MINIMA_USADA]} filas=${res[ObstaculosNativa.FILAS_USADAS]} cols=${res[ObstaculosNativa.COLUMNAS_USADAS]} | " +
+                "perfil_centro_verde_8bandas_arriba_a_abajo=$sbPerfil")
             fps = cuadrosVentana * 1000.0 / (ahora - inicioVentanaMs)
             msPorCuadro = sumaMsVentana / cuadrosVentana
             Log.i(ETIQUETA, String.format(java.util.Locale.US, "fps=%.1f ms_medio=%.2f (conversion %.2f + analisis %.2f) cuadros=%d tamano=%dx%d umbral=%d min_celdas=%d fila_minima_mil=%d codigo=%d",
