@@ -47,6 +47,21 @@ typedef struct {
      * Un comando de movimiento no mueve el carro durante `arranque_ms` y, al soltarlo, el carro sigue
      * avanzando (o girando) el frenado. */
     CalibracionCarro real;
+    /* Cámara que mide el giro (giro visual): con `visual_activo` = 1, cada cuadro le avisa al navegador cuánto giró el carro REAL desde
+     * el cuadro anterior (navegador_aporte_visual), con un error de `visual_error_pct` por ciento (+10 = mide 10 % de más) y sin
+     * confianza entre `visual_perdida_desde_ms` y `visual_perdida_hasta_ms` (por ejemplo, un cuadro tapado). */
+    int visual_activo;
+    int visual_error_pct;
+    uint32_t visual_perdida_desde_ms;
+    uint32_t visual_perdida_hasta_ms;
+    int visual_latencia_ms;           /* retraso de la cámara: cada medida llega al navegador este tiempo después de la hora del cuadro */
+    long giro_desde_cuadro_cgrados;   /* giro real (derecha +) desde el último cuadro, en centésimas de grado */
+    long pend_medido_x10[64];         /* medidas que todavía "viajan" por el retraso: giro, tiempo entre cuadros, si es confiable y hora de llegada */
+    int pend_dt_ms[64];
+    int pend_confiable[64];
+    uint32_t pend_llegada_ms[64];
+    int n_pendientes;
+    uint32_t t_cuadro_visual_ms;      /* hora del último cuadro visual */
     ComandoNav cmd_previo;   /* comando del tick anterior */
     int ms_en_comando;       /* cuánto lleva activo el comando actual */
 

@@ -34,7 +34,9 @@ Conecta el carro (ws://192.168.4.1/ws por defecto). El botón **STOP** de la pan
    a las ruedas) y escríbelo. Vuelve a poner el carro en la marca cada vez.
 4. **Giro a la izquierda** y **Giro a la derecha**: igual, con 500, 1000 y 1500 ms (3 veces cada uno).
    Alinea el carro con una marca de 90 grados y anota los grados que giró, aproximados.
-5. **Resumen**: la app calcula todo en C y muestra los valores. «Usar estos valores» los guarda y el
+5. **Giro con la cámara (opcional)**: calibra el campo de visión de la cámara para medir el giro con ella (`docs/giro_visual.md`): el carro gira 90°
+   a la derecha según la calibración mientras la cámara mide; tú escribes los grados que giró de verdad (hasta 3 pruebas).
+6. **Resumen**: la app calcula todo en C y muestra los valores. «Usar estos valores» los guarda y el
    navegador los usa en la próxima ruta. «Copiar» deja el texto en el portapapeles. «Borrar» vuelve a los
    valores por defecto.
 
@@ -76,10 +78,12 @@ ms_por_grado_izq_x10=90
 ms_por_grado_der_x10=115
 frenado_grados_izq_x10=60
 frenado_grados_der_x10=40
+fov_grados_x10=600
 ```
 
 `_x10` quiere decir "por 10": `ms_por_cm_x10=420` son 42.0 ms por cm. `medidos` suma bits: 1 arranque, 2 avance,
-4 giro izquierdo, 8 giro derecho (15 = todo medido).
+4 giro izquierdo, 8 giro derecho (15 = todo medido) y 16 el campo de visión de la cámara (opcional). `fov_grados_x10` es el campo de visión
+horizontal de la cámara (600 = 60.0 grados); los textos guardados sin esa línea se siguen leyendo.
 
 ## Si no se calibró
 
@@ -113,7 +117,7 @@ Todo lo que necesita el carro real:
 ## Límites
 
 - **El arranque se mide con tu reflejo**: aunque se descuente tu reacción, el error es de unos ±50 ms (≈ 1 cm a
-  20 cm/s). Una medición mejor sería con la cámara (ver `docs/giro_visual.md`).
+  20 cm/s). Una medición mejor sería con la cámara (ver `docs/giro_visual.md`; la cámara ya puede corregir los giros).
 - Los grados de los giros son aproximados (a ojo, con marcas de 90°): error de unos 5 a 10°.
 - El carro cambia con la batería: hay que recalibrar cuando se descarga, cambia el piso o el peso.
 - Se supone que el arranque es el mismo para avanzar y para girar.

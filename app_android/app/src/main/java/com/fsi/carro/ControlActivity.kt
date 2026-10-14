@@ -111,6 +111,7 @@ class ControlActivity : Activity() {
         // salga por el WiFi del carro (192.168.4.1) aunque esa red no tenga Internet y el
         // teléfono prefiera los datos móviles. Se programa y prueba con el carro real.
         calibracion.aplicarAlNavegador()   // por si se calibró en la otra pantalla
+        camara.fovX10 = calibracion.fovX10()   // el campo de visión de la cámara para medir el giro
         logica.iniciar(campoDireccion.text.toString().trim())
         if (fuenteCamara) {
             abrirCamaraSiHayPermiso()   // se cerró en onPause: se vuelve a abrir

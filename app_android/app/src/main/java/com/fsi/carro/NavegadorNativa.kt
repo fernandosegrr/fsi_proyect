@@ -64,6 +64,19 @@ object NavegadorNativa {
      */
     external fun tick(ahoraMs: Long, hayCuadro: Boolean, obstaculos: IntArray): Int
 
+    /**
+     * Dice cuánto se atrasa la cámara en ms (0 con la cámara del teléfono; ~300 con la del carro por WiFi). Los cuadros que todavía
+     * muestran al carro sin girar no cuentan y el pedazo de giro que la cámara aún no ve se completa por tiempo. Devuelve 0 o un código de error.
+     */
+    external fun ponerLatenciaVisual(ms: Int): Int
+
+    /**
+     * Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giroX10` en grados por 10 (positivo a la derecha), `dtMs` el tiempo
+     * entre esos cuadros y `confiable` si la cámara estaba segura. Solo cuenta mientras el carro gira; el giro se corta cuando la cámara ve
+     * el ángulo pedido (con el tiempo como respaldo). Ver docs/giro_visual.md.
+     */
+    external fun aporteVisual(giroX10: Int, dtMs: Int, confiable: Boolean)
+
     /** Estado para mostrar en pantalla (ver los índices E_*). */
     external fun estado(): IntArray
 

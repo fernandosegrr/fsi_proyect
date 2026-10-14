@@ -165,6 +165,8 @@ class ModoSemiautonomo(
         } else {
             cuadro = armarCuadro()
         }
+        // Giro con la cámara: lo que se vio girar entre los dos últimos cuadros corrige el giro por tiempo del navegador.
+        fuente?.tomarGiroNuevo()?.let { NavegadorNativa.aporteVisual(it.giroX10, it.dtMs, it.confiable) }
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
 

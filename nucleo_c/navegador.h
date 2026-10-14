@@ -47,6 +47,17 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_CERCANIA_MIN_DETENER     2   /* desde esta cercanía (en cualquier zona) se frena; 1 = lejos, solo se informa */
 #define NAV_CERCANIA_INMEDIATA       2   /* en el centro: desde esta cercanía se confirma con un cuadro */
 
+/* Giro medido con la cámara (ver navegador_aporte_visual): el giro por tiempo se corrige con lo que la cámara ve girar.
+ *   - NAV_COBERTURA_VISUAL_PCT: la cámara debe haber medido al menos este % del tiempo de giro (y NAV_MIN_MS_VISUAL ms)
+ *     para fiarse de ella; si no, el giro sigue por tiempo.
+ *   - NAV_GIRO_MIN_PCT: aunque la cámara diga que ya se llegó al ángulo, no se corta antes de este % del tiempo planeado
+ *     (por si la cámara se equivoca).
+ *   - NAV_GIRO_MAX_PCT: tiempo de RESPALDO: aunque la cámara diga que falta, el giro se corta a este % del tiempo planeado. */
+#define NAV_COBERTURA_VISUAL_PCT   50
+#define NAV_MIN_MS_VISUAL         200
+#define NAV_GIRO_MIN_PCT           50
+#define NAV_GIRO_MAX_PCT          150
+
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
 #define NAV_ANGULO_ESQUIVAR        90    /* grados que gira para apartarse (múltiplo de 45) */
@@ -115,6 +126,9 @@ typedef struct {
     int x_mm, y_mm, rumbo_grados;
     int base_x_mm, base_y_mm, base_rumbo_grados;   /* pose al empezar el comando actual */
     int seg_ms;                                    /* tiempo bajo el comando actual */
+    int giro_visual_x10;         /* grados por 10 que la cámara vio girar, en la dirección del comando de giro actual */
+    int visual_cubierto_ms;      /* cuánto tiempo del giro actual cubren los cuadros confiables de la cámara */
+    int latencia_visual_ms;      /* retraso de la cámara: un cuadro que llega ahora muestra lo que pasó hace esto (0 = sin retraso) */
 
     /* Lo último que se vio del obstáculo. */
     int zona_hay[OBS_ZONAS];
@@ -160,6 +174,18 @@ void navegador_cancelar(Navegador *nav);
  * nuevo (entonces no cambia nada de lo que se sabe del obstáculo). Devuelve el comando
  * que el carro debe mantener hasta el siguiente tick. */
 ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs);
+
+/* Dice cuánto se atrasa la cámara (de 0 a 1000 ms): un cuadro que llega ahora muestra lo que pasó hace tanto. Con la cámara del
+ * teléfono es ~0; con la cámara del carro por WiFi, ~300 ms. Así los cuadros que todavía muestran el carro sin girar no cuentan como
+ * "cubiertos" y el pedazo de giro que la cámara aún no ve se completa por tiempo (el retraso queda compensado). Devuelve NAV_OK o
+ * NAV_ERR_ARGUMENTO. */
+int navegador_poner_latencia_visual(Navegador *nav, int ms);
+
+/* Le avisa al navegador cuánto vio girar la cámara entre dos cuadros consecutivos (movimiento_visual.c): `giro_grados_x10` es el
+ * giro del carro por 10 (POSITIVO a la derecha), `dt_ms` el tiempo entre esos dos cuadros y `confiable` 1 si la cámara estaba segura.
+ * Solo cuenta mientras el carro está girando (LEFT o RIGHT) y después del retardo de arranque (los cuadros durante el arranque se
+ * ignoran: el carro todavía no se mueve). El giro se corta cuando la cámara ve el ángulo pedido (con el tiempo como respaldo). */
+void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int confiable);
 
 /* Texto del comando tal como lo entiende el firmware ("FORWARD", "STOP"...). */
 const char *navegador_texto_comando(ComandoNav comando);

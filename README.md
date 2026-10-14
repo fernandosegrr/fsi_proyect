@@ -18,7 +18,7 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - `nucleo_c/` — módulos en C estándar (sin librerías) para usar desde Android: trayectoria
   (`trayectoria.c/.h`, `calibracion.c/.h` con la calibración medida del carro: arranque, ms por cm, frenado y giro por lado) y detector de obstáculos
   por color de piso (`obstaculos.c/.h`, ver `docs/obstaculos.md`) y navegador del modo semiautónomo
-  (`navegador.c/.h` y un simulador de carro para las pruebas, ver `docs/navegador.md`) y fusión del detector de color con el modelo de objetos (`fusion.c/.h`, ver `docs/fusion.md`), cada uno con sus pruebas.
+  (`navegador.c/.h` y un simulador de carro para las pruebas, ver `docs/navegador.md`) fusión del detector de color con el modelo de objetos (`fusion.c/.h`, ver `docs/fusion.md`) y giro medido con la cámara (`movimiento_visual.c/.h`, ver `docs/giro_visual.md`), cada uno con sus pruebas.
 - `app_android/` — esqueleto de la app Android (Kotlin, vistas clásicas, sin librerías): dibujas una
   ruta con el dedo en una cuadrícula y el botón "Calcular" muestra los pasos. Llama por JNI
   (`app/src/main/cpp/puente.c`) al módulo de `nucleo_c`, que se compila desde su sitio sin copiarse.

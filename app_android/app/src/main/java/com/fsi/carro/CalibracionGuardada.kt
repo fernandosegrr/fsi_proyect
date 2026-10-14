@@ -40,6 +40,9 @@ class CalibracionGuardada(contexto: Context) {
         return CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
     }
 
+    /** El campo de visión horizontal de la cámara guardado, en grados por 10 (600 si no se calibró). */
+    fun fovX10(): Int = leer()[CalibracionNativa.CAL_FOV_GRADOS_X10]
+
     /** true si ya se midió todo (arranque, avance y los dos giros). */
     fun estaCompleta(): Boolean = CalibracionNativa.faltantes(leer()) == 0
 

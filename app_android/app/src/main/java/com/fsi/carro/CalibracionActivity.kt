@@ -3,7 +3,7 @@
  * distancias y giros en tiempos reales (el carro no tiene encoders ni IMU).
  *
  * GUÍA DE LECTURA
- *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RESUMEN.
+ *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → GIRO_VISUAL → RESUMEN.
  *       - REACCION: mide tu tiempo de reacción (toca cuando el botón se pone verde).
  *       - ARRANQUE: manda FORWARD y tú tocas "YA SE MOVIÓ" cuando ves moverse las ruedas; el
  *         arranque es ese tiempo menos tu reacción. 5 repeticiones, se descartan los datos raros.
@@ -11,6 +11,9 @@
  *         cm avanzó (el carro frena solo después del STOP: mídelo hasta que se detenga del todo).
  *       - GIRO_IZQ / GIRO_DER: igual con LEFT y RIGHT (500, 1000 y 1500 ms), anotando los grados
  *         aproximados (con marcas de 90 grados en el piso). Cada lado por separado.
+ *       - GIRO_VISUAL (opcional): gira 90 grados a la derecha con la calibración ya medida mientras la cámara (la que alimenta al
+ *         detector) mide cuánto vio girar; tú escribes cuántos grados giró de verdad. Con eso se ajusta el campo de visión (FOV)
+ *         de la cámara, que convierte píxeles en grados (docs/giro_visual.md).
  *       - RESUMEN: calcula con el código en C (CalibracionNativa) y muestra los valores; "Usar estos
  *         valores" los guarda (CalibracionGuardada) y el navegador los usa en la próxima ruta.
  *  2. Toda la cuenta (promedios, atípicos, rectas, frenado) está en C y probada en PC
@@ -21,10 +24,12 @@
  */
 package com.fsi.carro
 
+import android.Manifest
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -51,7 +56,7 @@ class CalibracionActivity : Activity() {
         const val ESPERA_MAXIMA_ARRANQUE_MS = 3000L         // si no tocas en este tiempo, se detiene el carro
     }
 
-    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RESUMEN }
+    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, GIRO_VISUAL, RESUMEN }
 
     private val principal = Handler(Looper.getMainLooper())
     private lateinit var logica: ControlLogica
@@ -81,6 +86,10 @@ class CalibracionActivity : Activity() {
     private val avance = Array(TIEMPOS_AVANCE.size) { ArrayList<Int>() }      // mm por prueba
     private val giroIzq = Array(TIEMPOS_GIRO.size) { ArrayList<Int>() }       // grados x10
     private val giroDer = Array(TIEMPOS_GIRO.size) { ArrayList<Int>() }
+    private val fovReal = ArrayList<Int>()      // grados x10 que el usuario midió en el piso en cada giro de la prueba visual
+    private val fovVisual = ArrayList<Int>()    // grados x10 que la cámara vio girar en ese mismo giro
+    private var visualActualX10 = 0             // lo que la cámara va viendo en el giro de esta prueba
+    private lateinit var camara: CamaraObstaculos
 
     // Estado de la prueba en curso.
     private var corriendo = false            // el carro se está moviendo por una prueba de tiempo fijo
@@ -117,6 +126,8 @@ class CalibracionActivity : Activity() {
         intent.getStringExtra("direccion")?.let { campoDireccion.setText(it) }
 
         logica = ControlLogica(EnlaceOkHttp()) { mostrarConexion() }
+        val configVision = ConfigVision(this)
+        camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) })
 
         findViewById<Button>(R.id.boton_conectar).setOnClickListener { logica.iniciar(campoDireccion.text.toString().trim()) }
         findViewById<Button>(R.id.boton_stop).setOnClickListener { pararTodo("STOP") }
@@ -135,10 +146,32 @@ class CalibracionActivity : Activity() {
     override fun onResume() {
         super.onResume()
         logica.iniciar(campoDireccion.text.toString().trim())
+        if (paso == Paso.GIRO_VISUAL) {
+            abrirCamaraSiHayPermiso()
+        }
         mostrarConexion()
     }
 
+    /** Abre la cámara (pidiendo el permiso si falta) para la prueba del giro visual. */
+    private fun abrirCamaraSiHayPermiso() {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), VisionActivity.PEDIDO_PERMISO_CAMARA)
+            return
+        }
+        camara.fovX10 = guardada.fovX10()
+        camara.abrir()
+    }
+
+    override fun onRequestPermissionsResult(codigo: Int, permisos: Array<out String>, resultados: IntArray) {
+        super.onRequestPermissionsResult(codigo, permisos, resultados)
+        if (codigo == VisionActivity.PEDIDO_PERMISO_CAMARA && resultados.isNotEmpty() && resultados[0] == PackageManager.PERMISSION_GRANTED && paso == Paso.GIRO_VISUAL) {
+            abrirCamaraSiHayPermiso()
+            mostrarPaso()
+        }
+    }
+
     override fun onPause() {
+        camara.cerrar()   // la cámara se libera al salir
         pararTodo("pantalla en segundo plano")
         logica.detener()
         super.onPause()
@@ -178,8 +211,14 @@ class CalibracionActivity : Activity() {
         }
         val pasos = Paso.values()
         val nuevo = (paso.ordinal + delta).coerceIn(0, pasos.size - 1)
-        if (pasos[nuevo] == Paso.RESUMEN) {
-            calcularResumen()
+        if (pasos[nuevo] == Paso.RESUMEN || pasos[nuevo] == Paso.GIRO_VISUAL) {
+            calcularResumen()   // la prueba visual usa la calibración medida hasta ahora
+        }
+        if (pasos[nuevo] == Paso.GIRO_VISUAL) {
+            paso = pasos[nuevo]
+            abrirCamaraSiHayPermiso()
+        } else {
+            camara.cerrar()
         }
         paso = pasos[nuevo]
         esperandoDato = false
@@ -199,6 +238,7 @@ class CalibracionActivity : Activity() {
         Paso.AVANCE -> cuantas(avance) >= totalPruebas()
         Paso.GIRO_IZQ -> cuantas(giroIzq) >= totalPruebas()
         Paso.GIRO_DER -> cuantas(giroDer) >= totalPruebas()
+        Paso.GIRO_VISUAL -> true   // es opcional
         Paso.RESUMEN -> true
     }
 
@@ -298,6 +338,32 @@ class CalibracionActivity : Activity() {
                 botonRepetir.text = getString(R.string.cal_repetir)
                 textoDatos.text = armarTabla(datos)
             }
+            Paso.GIRO_VISUAL -> {
+                textoTitulo.text = "6. Giro con la cámara (opcional)"
+                textoInstruccion.text = "La cámara también puede medir cuánto gira el carro. Para que convierta bien píxeles en grados hay que ajustar su campo de visión: " +
+                    "con el carro alineado a una marca de 90 grados, mirando una pared o muebles con detalles (no una pared lisa), toca «Probar»: gira a la " +
+                    "DERECHA lo que la calibración dice que son 90 grados. Después escribe cuántos grados giró de verdad. Se repite hasta 3 veces. " +
+                    "Si no quieres este paso, toca «Ver resumen»."
+                botonProbar.visibility = View.VISIBLE
+                botonProbar.text = if (fovReal.size >= 3) "Ya están las 3 pruebas" else "Probar: girar 90° a la derecha (prueba ${fovReal.size + 1} de 3)"
+                if (esperandoDato) {
+                    campoResultado.visibility = View.VISIBLE
+                    campoResultado.hint = "¿Cuántos grados giró de verdad?"
+                    botonGuardar.visibility = View.VISIBLE
+                }
+                botonRepetir.visibility = View.VISIBLE
+                botonRepetir.text = getString(R.string.cal_repetir)
+                val sb = StringBuilder()
+                sb.append("Cámara: " + (if (camara.abierta) "ABIERTA" else if (camara.error.isNotEmpty()) camara.error else "abriendo...") + "\n")
+                sb.append(String.format(Locale.US, "Campo de visión actual: %.1f°\n", guardada.fovX10() / 10.0))
+                if (corriendo || esperandoDato) {
+                    sb.append(String.format(Locale.US, "La cámara ve que giró: %.1f°\n", visualActualX10 / 10.0))
+                }
+                for (i in fovReal.indices) {
+                    sb.append(String.format(Locale.US, "Prueba %d: real %.1f°, cámara %.1f°\n", i + 1, fovReal[i] / 10.0, fovVisual[i] / 10.0))
+                }
+                textoDatos.text = sb.toString()
+            }
             Paso.RESUMEN -> {
                 textoTitulo.text = "Resumen"
                 textoInstruccion.text = "Estos son los valores calculados con tus mediciones."
@@ -330,17 +396,19 @@ class CalibracionActivity : Activity() {
             Paso.ARRANQUE -> conectado() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER ->
                 conectado() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
+            Paso.GIRO_VISUAL -> conectado() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
             else -> false
         }
         botonYa.isEnabled = (paso == Paso.REACCION && estadoReaccion != 0) || (paso == Paso.ARRANQUE && arrancando)
         botonRepetir.isEnabled = !ocupado && when (paso) {
             Paso.ARRANQUE -> toquesArranque.isNotEmpty()
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantas(datosDelPaso()!!) > 0
+            Paso.GIRO_VISUAL -> fovReal.isNotEmpty()
             else -> false
         }
         botonAtras.isEnabled = !ocupado && paso != Paso.INTRO
         botonSiguiente.isEnabled = !ocupado && paso != Paso.RESUMEN && pasoCompleto() && !esperandoDato
-        botonSiguiente.text = if (paso == Paso.GIRO_DER) "Ver resumen" else getString(R.string.cal_siguiente)
+        botonSiguiente.text = if (paso == Paso.GIRO_VISUAL) "Ver resumen" else getString(R.string.cal_siguiente)
     }
 
     // ── Pruebas ───────────────────────────────────────────────────────────
@@ -350,6 +418,7 @@ class CalibracionActivity : Activity() {
             Paso.REACCION -> empezarReaccion()
             Paso.ARRANQUE -> empezarArranque()
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> empezarPruebaDeTiempo()
+            Paso.GIRO_VISUAL -> empezarGiroVisual()
             else -> {}
         }
     }
@@ -440,9 +509,48 @@ class CalibracionActivity : Activity() {
         }, ms.toLong())
     }
 
+    /** Gira a la derecha lo que la calibración dice que son 90 grados mientras se suma lo que la cámara ve girar. */
+    private fun empezarGiroVisual() {
+        if (!conectado() || !camara.abierta || corriendo) {
+            return
+        }
+        val ms = CalibracionNativa.gradosAMs(resultado ?: CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second, 90)
+        corriendo = true
+        visualActualX10 = 0
+        camara.olvidarGiroPendiente()
+        Log.i(CalibracionGuardada.ETIQUETA, "prueba de giro visual: RIGHT durante $ms ms")
+        logica.presionar("RIGHT")
+        mostrarPaso()
+        val finMovimiento = SystemClock.elapsedRealtime() + ms
+        val tarea = object : Runnable {
+            override fun run() {
+                camara.tomarGiroNuevo()?.let { visualActualX10 += it.giroX10 }
+                val ahora = SystemClock.elapsedRealtime()
+                if (ahora < finMovimiento) {
+                    mostrarPaso()
+                    principal.postDelayed(this, 40)
+                } else if (ahora < finMovimiento + 800) {   // el carro sigue girando un poco al frenar: se sigue midiendo
+                    logica.parar()
+                    mostrarPaso()
+                    principal.postDelayed(this, 40)
+                } else {
+                    corriendo = false
+                    esperandoDato = true
+                    Log.i(CalibracionGuardada.ETIQUETA, "giro visual terminado: la cámara vio ${visualActualX10 / 10.0} grados")
+                    mostrarPaso()
+                }
+            }
+        }
+        principal.postDelayed(tarea, 40)
+    }
+
     // ── Datos ─────────────────────────────────────────────────────────────
 
     private fun guardarDato() {
+        if (paso == Paso.GIRO_VISUAL) {
+            guardarGiroVisual()
+            return
+        }
         val datos = datosDelPaso() ?: return
         val numero = campoResultado.text.toString().trim().replace(',', '.').toDoubleOrNull()
         if (numero == null || numero <= 0.0 || numero > 1000.0) {
@@ -458,11 +566,40 @@ class CalibracionActivity : Activity() {
         mostrarPaso()
     }
 
+    /** Guarda los grados reales de la prueba visual junto con lo que la cámara vio. */
+    private fun guardarGiroVisual() {
+        val numero = campoResultado.text.toString().trim().replace(',', '.').toDoubleOrNull()
+        if (numero == null || numero <= 0.0 || numero > 720.0) {
+            Toast.makeText(this, "Escribe un número mayor que cero", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (visualActualX10 <= 0) {
+            Toast.makeText(this, "La cámara no vio girar: la escena no tiene detalles o no hubo giro. Repite la prueba.", Toast.LENGTH_LONG).show()
+            esperandoDato = false
+            mostrarPaso()
+            return
+        }
+        fovReal.add(Math.round(numero * 10).toInt())
+        fovVisual.add(visualActualX10)
+        Log.i(CalibracionGuardada.ETIQUETA, "giro visual: real=${numero} camara=${visualActualX10 / 10.0}")
+        esperandoDato = false
+        campoResultado.setText("")
+        mostrarPaso()
+    }
+
     private fun borrarUltimoDato() {
         if (corriendo || arrancando) {
             return
         }
         when (paso) {
+            Paso.GIRO_VISUAL -> {
+                if (esperandoDato) {
+                    esperandoDato = false
+                } else if (fovReal.isNotEmpty()) {
+                    fovReal.removeAt(fovReal.size - 1)
+                    fovVisual.removeAt(fovVisual.size - 1)
+                }
+            }
             Paso.ARRANQUE -> if (toquesArranque.isNotEmpty()) toquesArranque.removeAt(toquesArranque.size - 1)
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER -> {
                 val datos = datosDelPaso()!!
@@ -504,6 +641,19 @@ class CalibracionActivity : Activity() {
         cal = ajustarGrupo(sb, cal, "Avance", avance, TIEMPOS_AVANCE, 0)
         cal = ajustarGrupo(sb, cal, "Giro izquierda", giroIzq, TIEMPOS_GIRO, CalibracionNativa.LADO_IZQUIERDA)
         cal = ajustarGrupo(sb, cal, "Giro derecha", giroDer, TIEMPOS_GIRO, CalibracionNativa.LADO_DERECHA)
+
+        if (fovReal.isNotEmpty()) {
+            val (codigo, nueva) = CalibracionNativa.desempaquetar(CalibracionNativa.ajustarFov(cal, fovReal.sum(), fovVisual.sum()))
+            if (codigo == CalibracionNativa.OK) {
+                cal = nueva
+                sb.append(String.format(Locale.US, "Giro visual: campo de visión %.1f° (real %.1f° contra %.1f° que vio la cámara en %d pruebas)\n",
+                    cal[CalibracionNativa.CAL_FOV_GRADOS_X10] / 10.0, fovReal.sum() / 10.0, fovVisual.sum() / 10.0, fovReal.size))
+            } else {
+                sb.append("Giro visual: ${CalibracionNativa.textoError(codigo)}\n")
+            }
+        } else {
+            sb.append("Giro visual: sin medir (se usa el campo de visión por defecto)\n")
+        }
 
         val faltan = CalibracionNativa.faltantes(cal)
         sb.append("\n")

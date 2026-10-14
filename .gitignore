@@ -31,3 +31,5 @@ pruebas_firmware/pruebas_carro
 pruebas_firmware/pruebas_carro.exe
 nucleo_c/pruebas_fusion
 nucleo_c/pruebas_fusion.exe
+nucleo_c/pruebas_movimiento
+nucleo_c/pruebas_movimiento.exe

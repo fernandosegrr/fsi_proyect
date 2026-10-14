@@ -14,6 +14,9 @@
  *     duración (por ejemplo MOVE:FWD:2000), solo hay que cambiar esa parte.
  *  4. navegador_tick() es la función que se llama cada ~50 ms: actualiza la posición, mira el
  *     último cuadro de obstáculos y llama a la función del estado actual.
+ *  4b. GIRO CON LA CÁMARA: si la app avisa lo que la cámara vio girar (navegador_aporte_visual), un giro se corta cuando la cámara
+ *     ve el ángulo pedido (giro_terminado), con el tiempo planeado como respaldo; si la cámara no tiene confianza, el giro sigue
+ *     por tiempo y la posición estimada también.
  *  5. Estados: tick_siguiendo, tick_detenido, tick_esquivando y tick_reincorporando (los
  *     demás estados siempre devuelven STOP).
  *  Solo enteros, arreglos de tamaño fijo, sin malloc y sin recursión.
@@ -73,6 +76,94 @@ static void limitar_contador(int *contador)
     }
 }
 
+/* ── Giro medido con la cámara ─────────────────────────────────────────── */
+
+/* Tiempo que el carro lleva MOVIÉNDOSE bajo el comando actual (sin el retardo de arranque). */
+static int ms_de_movimiento(const Navegador *nav)
+{
+    int ms = nav->seg_ms - nav->cal.arranque_ms;
+
+    return (ms > 0) ? ms : 0;
+}
+
+static int ms_por_grado_x10_de(const Navegador *nav, int lado)
+{
+    return (lado < 0) ? nav->cal.ms_por_grado_izq_x10 : nav->cal.ms_por_grado_der_x10;
+}
+
+/* ¿La cámara midió suficiente del giro actual como para fiarse de ella? */
+static int giro_visual_confiable(const Navegador *nav)
+{
+    int movimiento = ms_de_movimiento(nav);
+
+    return movimiento >= NAV_MIN_MS_VISUAL && nav->visual_cubierto_ms * 100 >= movimiento * NAV_COBERTURA_VISUAL_PCT;
+}
+
+/* Grados por 10 girados hasta ahora en la dirección del comando de giro actual: lo que vio la cámara más, por tiempo, el pedazo
+ * del giro que la cámara no cubrió. */
+static int giro_estimado_x10(const Navegador *nav, int lado)
+{
+    int movimiento = ms_de_movimiento(nav);
+    int cubierto = (nav->visual_cubierto_ms < movimiento) ? nav->visual_cubierto_ms : movimiento;
+
+    return nav->giro_visual_x10 + (int)((long)(movimiento - cubierto) * 100 / ms_por_grado_x10_de(nav, lado));
+}
+
+/* Grados enteros girados en este comando: con la cámara si es confiable, si no por tiempo (como siempre). */
+static int grados_girados(const Navegador *nav, int lado)
+{
+    if (giro_visual_confiable(nav)) {
+        return giro_estimado_x10(nav, lado) / 10;
+    }
+    return cal_ms_a_grados(&nav->cal, lado, nav->seg_ms);
+}
+
+int navegador_poner_latencia_visual(Navegador *nav, int ms)
+{
+    if (nav == NULL || ms < 0 || ms > 1000) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->latencia_visual_ms = ms;
+    return NAV_OK;
+}
+
+void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int confiable)
+{
+    if (nav == NULL || !confiable || dt_ms <= 0) {
+        return;
+    }
+    if (nav->cmd_actual != NAV_CMD_LEFT && nav->cmd_actual != NAV_CMD_RIGHT) {
+        return;   /* solo cuenta mientras gira */
+    }
+    if (nav->estado != NAV_SIGUIENDO && nav->estado != NAV_ESQUIVANDO) {
+        return;
+    }
+    if (nav->seg_ms <= nav->cal.arranque_ms + nav->latencia_visual_ms) {
+        return;   /* el carro todavía no arranca (o el cuadro que llega es de antes de arrancar, por el retraso de la cámara) */
+    }
+    nav->giro_visual_x10 += (nav->cmd_actual == NAV_CMD_RIGHT) ? giro_grados_x10 : -giro_grados_x10;
+    nav->visual_cubierto_ms += (dt_ms > NAV_DT_MAX_MS) ? NAV_DT_MAX_MS : dt_ms;
+}
+
+/* ¿Ya terminó este giro (de `grados` grados, con `tiempo_ms` planeado y `ms` ejecutados)?
+ *  - Con la cámara confiable: sí cuando lo girado más lo que el carro seguirá girando al frenar llega al ángulo pedido (pero no
+ *    antes de NAV_GIRO_MIN_PCT del tiempo planeado), o si ya pasó el tiempo de respaldo (NAV_GIRO_MAX_PCT del planeado).
+ *  - Sin cámara confiable: por tiempo, como siempre. */
+static int giro_terminado(const Navegador *nav, int grados, int tiempo_ms, int ms)
+{
+    int lado = (nav->cmd_actual == NAV_CMD_LEFT) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
+
+    if (giro_visual_confiable(nav)) {
+        int objetivo_x10 = grados * 10 - ((lado < 0) ? nav->cal.frenado_grados_izq_x10 : nav->cal.frenado_grados_der_x10);
+
+        if (giro_estimado_x10(nav, lado) >= objetivo_x10 && ms * 100 >= tiempo_ms * NAV_GIRO_MIN_PCT) {
+            return 1;
+        }
+        return ms + NAV_TICK_MS / 2 >= tiempo_ms * NAV_GIRO_MAX_PCT / 100;
+    }
+    return ms + NAV_TICK_MS / 2 >= tiempo_ms;
+}
+
 /* ── Posición estimada por tiempo ──────────────────────────────────────── */
 
 /* Calcula la pose actual a partir de la pose al empezar el comando y del tiempo que lleva.
@@ -98,10 +189,10 @@ static void calcular_pose(Navegador *nav)
         nav->y_mm = nav->base_y_mm + DIR_Y[direccion] * distancia / 1000;
         break;
     case NAV_CMD_LEFT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - cal_ms_a_grados(&nav->cal, CAL_LADO_IZQUIERDA, nav->seg_ms));
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - grados_girados(nav, CAL_LADO_IZQUIERDA));
         break;
     case NAV_CMD_RIGHT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + cal_ms_a_grados(&nav->cal, CAL_LADO_DERECHA, nav->seg_ms));
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + grados_girados(nav, CAL_LADO_DERECHA));
         break;
     default:
         break;
@@ -151,6 +242,8 @@ static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
     if (nuevo != nav->cmd_actual) {
         sumar_frenado(nav);
         fijar_pose(nav);
+        nav->giro_visual_x10 = 0;        /* un comando nuevo empieza a medir desde cero */
+        nav->visual_cubierto_ms = 0;
         nav->cmd_actual = nuevo;
     }
 }
@@ -294,6 +387,7 @@ void navegador_iniciar(Navegador *nav)
         return;
     }
     cal_defecto(&nav->cal);
+    nav->latencia_visual_ms = 0;
     nav->n_puntos = 0;
     nav->indice_objetivo = 0;
     nav->n_pasos = 0;
@@ -308,6 +402,8 @@ void navegador_iniciar(Navegador *nav)
     nav->x_mm = nav->y_mm = nav->rumbo_grados = 0;
     nav->base_x_mm = nav->base_y_mm = nav->base_rumbo_grados = 0;
     nav->seg_ms = 0;
+    nav->giro_visual_x10 = 0;
+    nav->visual_cubierto_ms = 0;
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_hay[z] = 0;
         nav->zona_cercania[z] = 0;
@@ -487,6 +583,17 @@ static int libre_confirmado(const Navegador *nav, uint32_t ahora_ms)
 
 /* ── Los estados ───────────────────────────────────────────────────────── */
 
+/* ¿Terminó el paso actual del camino? Un giro con la cámara confiable se corta al ver el ángulo; lo demás, por tiempo. */
+static int paso_terminado(const Navegador *nav)
+{
+    const Paso *paso = &nav->pasos[nav->indice_paso];
+
+    if (paso->tipo == PASO_GIRAR && nav->cmd_actual == comando_de_paso(paso)) {
+        return giro_terminado(nav, (paso->valor < 0) ? -paso->valor : paso->valor, paso->tiempo_ms, nav->ms_paso);
+    }
+    return nav->ms_paso + NAV_TICK_MS / 2 >= paso->tiempo_ms;
+}
+
 /* SIGUIENDO: ejecuta los pasos del camino. Cuando se acaban, pasa al siguiente punto de la
  * ruta; cuando no quedan puntos, TERMINADO. Si el frente se bloquea mientras avanza, se
  * detiene. */
@@ -514,8 +621,8 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
             }
             continue;
         }
-        /* El paso termina cuando su tiempo ya se ejecutó (redondeado a medio tick). */
-        if (nav->ms_paso + NAV_TICK_MS / 2 >= nav->pasos[nav->indice_paso].tiempo_ms) {
+        /* El paso termina cuando su tiempo ya se ejecutó (redondeado a medio tick); un giro con la cámara, cuando ve el ángulo. */
+        if (paso_terminado(nav)) {
             nav->indice_paso++;
             nav->ms_paso = 0;
             continue;
@@ -579,7 +686,14 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
  * avanza de lado, si aparece algo MUY cerca al frente, ERROR (no se esquiva en cadena). */
 static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 {
-    if (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav, nav->fase)) {
+    int fase_lista;
+
+    if ((nav->fase == 0 || nav->fase == 2) && nav->cmd_actual == comando_de_fase(nav)) {
+        fase_lista = giro_terminado(nav, NAV_ANGULO_ESQUIVAR, duracion_fase(nav, nav->fase), nav->ms_fase);   /* un giro: con la cámara si se puede */
+    } else {
+        fase_lista = (nav->ms_fase + NAV_TICK_MS / 2 >= duracion_fase(nav, nav->fase));
+    }
+    if (fase_lista) {
         nav->fase++;
         nav->ms_fase = 0;
         if (nav->fase > 2) {

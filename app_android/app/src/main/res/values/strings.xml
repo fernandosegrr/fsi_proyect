@@ -45,6 +45,7 @@
     <string name="texto_fila_minima">Fila mínima: %1$d %% del alto (fila %2$d de %3$d; las de arriba salen en gris y se ignoran)</string>
     <string name="texto_grupos">Colores del piso (K): %1$d (1 = piso liso; baldosas o vetas necesitan 2 a 4)</string>
     <string name="texto_aprendizaje">Aprendizaje del piso: %1$d por mil por cuadro (0 = no aprende)</string>
+    <string name="boton_giro_cero">Poner el ángulo acumulado en 0 (gira el teléfono a mano y mira cuánto marca)</string>
     <string name="boton_modelo">Modelo de objetos (fusión): %1$s (tocar para cambiar)</string>
     <string name="boton_tamano">Tamaño del cuadro: %1$dx%2$d (tocar para cambiar)</string>
     <string name="sin_cuadro">Todavía no hay ningún cuadro</string>

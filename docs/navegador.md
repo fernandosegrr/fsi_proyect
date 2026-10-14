@@ -76,6 +76,9 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
   - `MS_CONFIRMAR_LIBRE` = 250: el frente debe verse libre 250 ms seguidos (2 cuadros como mínimo) para
     reanudar tras una detención.
   - Las zonas de los lados también sirven para elegir de qué lado esquivar (el lado libre; si ambos están libres, el izquierdo).
+- **Giro corregido con la cámara** (`navegador_aporte_visual`, ver `docs/giro_visual.md`): un giro se corta cuando la cámara ve el ángulo pedido
+  (no antes de `NAV_GIRO_MIN_PCT` = 50 % del tiempo planeado; respaldo a `NAV_GIRO_MAX_PCT` = 150 %), si la cámara cubrió al menos
+  `NAV_COBERTURA_VISUAL_PCT` = 50 % del giro; si no tiene confianza, el giro sigue por tiempo. `navegador_poner_latencia_visual` compensa el retraso de la cámara.
 - `NAV_PAUSA_MS` = 500: pausa antes de decidir. `NAV_TIMEOUT_ESQUIVAR_MS` = 4000: cuánto espera con los dos
   lados bloqueados.
 - `NAV_ANGULO_ESQUIVAR` = 90 grados y `NAV_TRAMO_ESQUIVAR_CM` = 40 cm: cuánto se aparta. Hay que
@@ -86,7 +89,7 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
 ## Pruebas hechas
 
 - **En PC**: `cd nucleo_c; make test` corre las pruebas de los tres módulos: 28 de trayectoria, 32 de
-  obstáculos y **70 del navegador**, todas pasan (y 92 de calibración). Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
+  obstáculos y **96 del navegador**, todas pasan (y 110 de calibración, 57 del piso, 67 de la fusión y 60 del movimiento visual). Cubren: rutas sin obstáculos (recta, cuadrado, zigzag,
   diagonal, media vuelta), ruta vacía, un solo punto y ruta inválida, antirrebote en ms (un cuadro de ruido a un lado no
   detiene; un cuadro con obstáculo cerca sí, al instante; a un lado permanente a los 150 ms; con cuadros cada 50, 80
   y 120 ms; intermitente; reanudar tras 250 ms libre), obstáculo lejano (cercanía 1) que no frena y obstáculos a los lados, obstáculo que desaparece, esquivar por la

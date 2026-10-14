@@ -26,6 +26,9 @@
 #define MS_GRADO_X10_MAX       2000
 #define FRENADO_MM_MAX          500
 #define FRENADO_GRADOS_X10_MAX 1800
+#define FOV_X10_MIN             200
+#define FOV_X10_MAX            1500
+#define FOV_X10_DEFECTO         600
 
 /* ── Utilidades ────────────────────────────────────────────────────────── */
 
@@ -143,6 +146,7 @@ void cal_defecto(CalibracionCarro *cal)
     cal->ms_por_grado_der_x10 = MS_POR_GRADO * 10;
     cal->frenado_grados_izq_x10 = 0;
     cal->frenado_grados_der_x10 = 0;
+    cal->fov_grados_x10 = FOV_X10_DEFECTO;
 }
 
 int cal_es_valida(const CalibracionCarro *cal)
@@ -150,14 +154,15 @@ int cal_es_valida(const CalibracionCarro *cal)
     if (cal == NULL) {
         return 0;
     }
-    return en_rango(cal->medidos, 0, CAL_MEDIDO_TODO) &&
+    return en_rango(cal->medidos, 0, CAL_MEDIDO_TODO | CAL_MEDIDO_FOV) &&
            en_rango(cal->arranque_ms, 0, ARRANQUE_MAX_MS) &&
            en_rango(cal->ms_por_cm_x10, MS_CM_X10_MIN, MS_CM_X10_MAX) &&
            en_rango(cal->frenado_mm, 0, FRENADO_MM_MAX) &&
            en_rango(cal->ms_por_grado_izq_x10, MS_GRADO_X10_MIN, MS_GRADO_X10_MAX) &&
            en_rango(cal->ms_por_grado_der_x10, MS_GRADO_X10_MIN, MS_GRADO_X10_MAX) &&
            en_rango(cal->frenado_grados_izq_x10, 0, FRENADO_GRADOS_X10_MAX) &&
-           en_rango(cal->frenado_grados_der_x10, 0, FRENADO_GRADOS_X10_MAX);
+           en_rango(cal->frenado_grados_der_x10, 0, FRENADO_GRADOS_X10_MAX) &&
+           en_rango(cal->fov_grados_x10, FOV_X10_MIN, FOV_X10_MAX);
 }
 
 int cal_faltantes(const CalibracionCarro *cal)
@@ -169,6 +174,25 @@ int cal_faltantes(const CalibracionCarro *cal)
 }
 
 /* ── Ajuste con los datos de las pruebas ───────────────────────────────── */
+
+int cal_ajustar_fov(CalibracionCarro *cal, int real_x10, int visual_x10)
+{
+    long nuevo;
+
+    if (cal == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (real_x10 <= 0 || visual_x10 <= 0) {
+        return CAL_ERR_DATOS;
+    }
+    nuevo = dividir_redondeado((long)cal->fov_grados_x10 * real_x10, visual_x10);
+    if (nuevo < FOV_X10_MIN || nuevo > FOV_X10_MAX) {
+        return CAL_ERR_RANGO;
+    }
+    cal->fov_grados_x10 = (int)nuevo;
+    cal->medidos |= CAL_MEDIDO_FOV;
+    return CAL_OK;
+}
 
 int cal_poner_arranque(CalibracionCarro *cal, int arranque_ms)
 {
@@ -344,11 +368,13 @@ int cal_frenado_grados(const CalibracionCarro *cal, int lado)
 /* ── Texto ─────────────────────────────────────────────────────────────── */
 
 /* Nombres de las claves, en el orden en que se escriben. */
-#define CLAVES 8
+#define CLAVES 9                 /* las 8 primeras son obligatorias; la 9 (campo de visión) es opcional */
+#define CLAVES_OBLIGATORIAS 8
 static const char *const NOMBRES[CLAVES] = {
     "medidos", "arranque_ms", "ms_por_cm_x10", "frenado_mm",
     "ms_por_grado_izq_x10", "ms_por_grado_der_x10",
-    "frenado_grados_izq_x10", "frenado_grados_der_x10"
+    "frenado_grados_izq_x10", "frenado_grados_der_x10",
+    "fov_grados_x10"
 };
 
 /* Apunta a cada campo de la estructura en el mismo orden que NOMBRES. */
@@ -362,7 +388,8 @@ static int *campo(CalibracionCarro *cal, int indice)
     case 4: return &cal->ms_por_grado_izq_x10;
     case 5: return &cal->ms_por_grado_der_x10;
     case 6: return &cal->frenado_grados_izq_x10;
-    default: return &cal->frenado_grados_der_x10;
+    case 7: return &cal->frenado_grados_der_x10;
+    default: return &cal->fov_grados_x10;
     }
 }
 
@@ -471,7 +498,7 @@ static int leer_entero(const char **s, int *valor)
 int cal_de_texto(const char *texto, CalibracionCarro *cal)
 {
     CalibracionCarro nueva;
-    int vistas[CLAVES] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    int vistas[CLAVES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     const char *p = texto;
     int i;
 
@@ -515,9 +542,9 @@ int cal_de_texto(const char *texto, CalibracionCarro *cal)
         *campo(&nueva, encontrada) = valor;
         vistas[encontrada] = 1;
     }
-    for (i = 0; i < CLAVES; i++) {
+    for (i = 0; i < CLAVES_OBLIGATORIAS; i++) {
         if (!vistas[i]) {
-            return CAL_ERR_TEXTO;   /* falta una clave */
+            return CAL_ERR_TEXTO;   /* falta una clave obligatoria */
         }
     }
     if (!cal_es_valida(&nueva)) {

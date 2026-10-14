@@ -686,6 +686,213 @@ static void pruebas_calibracion(void)
     caso("un avance de 100 cm de una sola vez (sin tramos) pide arranque + (1000 - 30 mm) * 4.2 = 4224 ms", cal_cm_a_ms(&real, 100) == 4224);
 }
 
+/* ── Casos: giro medido con la cámara ──────────────────────────────────── */
+
+static const Punto ESQUINA_DERECHA[] = { {1, 6}, {1, 5}, {2, 5} };   /* sube una celda y gira 90 grados a la DERECHA */
+static const Punto ESQUINA_IZQUIERDA[] = { {3, 6}, {3, 5}, {2, 5} }; /* sube una celda y gira 90 grados a la IZQUIERDA */
+
+/* Corre hasta que termina el primer giro (LEFT o RIGHT) y devuelve el rumbo REAL del carro en ese momento (0 a 359), con lo que
+ * sigue girando al frenar. -1 si no hubo giro. */
+static int rumbo_tras_el_primer_giro(void)
+{
+    int visto = 0, i;
+
+    for (i = 0; i < 600; i++) {
+        correr(NAV_TICK_MS);
+        if (sim.cmd_previo == NAV_CMD_LEFT || sim.cmd_previo == NAV_CMD_RIGHT) {
+            visto = 1;
+        } else if (visto) {
+            return sim_rumbo_grados(&sim);
+        }
+    }
+    return -1;
+}
+
+/* Prepara una ruta de esquina con un carro cuyo giro real es `pct_giro` por ciento del calibrado. */
+static void preparar_esquina(const Punto *ruta, int n, int pct_giro, int con_camara)
+{
+    preparar(ruta, n);
+    sim.pct_giro = pct_giro;
+    sim.periodo_cuadro_ms = 80;
+    sim.visual_activo = con_camara;
+}
+
+/* Diferencia (en grados, de 0 a 180) entre dos rumbos. */
+static int diferencia_de_rumbos(int a, int b)
+{
+    int d = valor_absoluto(a - b) % 360;
+
+    return (d > 180) ? 360 - d : d;
+}
+
+static void pruebas_giro_visual(void)
+{
+    int rumbo;
+
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 100, 0);
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("referencia: carro que gira justo lo calibrado, sin camara: termina el giro mirando a 90 grados (+-3)", diferencia_de_rumbos(rumbo, 90) <= 3);
+
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 0);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      giro 20 %% mas lento, sin camara: rumbo %d (deberia ser 90)\n", rumbo);
+    caso("carro que gira 20 % MENOS de lo calibrado, SIN camara: se queda corto (unos 72 grados)", diferencia_de_rumbos(rumbo, 72) <= 4);
+
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      giro 20 %% mas lento, CON camara: rumbo %d\n", rumbo);
+    caso("el mismo carro (20 % mas lento) CON camara: el giro se alarga y termina mirando a 90 grados (+-6)", diferencia_de_rumbos(rumbo, 90) <= 6);
+
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 125, 0);
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("carro que gira 25 % MAS de lo calibrado, SIN camara: se pasa (unos 112 grados)", diferencia_de_rumbos(rumbo, 112) <= 5);
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 125, 1);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      giro 25 %% mas rapido, CON camara: rumbo %d\n", rumbo);
+    caso("el mismo carro (25 % mas rapido) CON camara: se corta antes y queda a 90 grados (+-8)", diferencia_de_rumbos(rumbo, 90) <= 8);
+
+    preparar_esquina(ESQUINA_IZQUIERDA, N(ESQUINA_IZQUIERDA), 80, 0);
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("giro a la IZQUIERDA, 20 % mas lento, sin camara: se queda corto (unos 288 grados)", diferencia_de_rumbos(rumbo, 288) <= 4);
+    preparar_esquina(ESQUINA_IZQUIERDA, N(ESQUINA_IZQUIERDA), 80, 1);
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("giro a la IZQUIERDA, 20 % mas lento, con camara: queda a 270 grados (+-6)", diferencia_de_rumbos(rumbo, 270) <= 6);
+
+    /* La camara pierde la confianza todo el giro: se comporta como sin camara. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_perdida_desde_ms = 0;
+    sim.visual_perdida_hasta_ms = 999999;
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("si la camara NUNCA tiene confianza, el giro sigue por tiempo (igual que sin camara: unos 72 grados)", diferencia_de_rumbos(rumbo, 72) <= 4);
+
+    /* La camara solo ve el final del giro (menos del 50 % del tiempo cubierto): tampoco se usa. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_perdida_desde_ms = 0;
+    sim.visual_perdida_hasta_ms = 2250;
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      camara solo al final del giro: rumbo %d\n", rumbo);
+    caso("si la camara cubre poco del giro (menos de la mitad), no se fia de ella: giro por tiempo", diferencia_de_rumbos(rumbo, 72) <= 6 || diferencia_de_rumbos(rumbo, 90) <= 6);
+
+    /* La camara se pierde en medio del giro (cuadro tapado 300 ms): lo que falta se completa por tiempo. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_perdida_desde_ms = 2300;
+    sim.visual_perdida_hasta_ms = 2600;
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      camara perdida 300 ms a mitad del giro: rumbo %d\n", rumbo);
+    caso("con la camara perdida 300 ms a mitad del giro (el resto por tiempo), el giro queda entre 78 y 100 grados", rumbo >= 78 && rumbo <= 100);
+
+    /* La camara mide 10 % de mas. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_error_pct = 10;
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      camara que mide 10 %% de mas: rumbo %d (el esperado es 90 / 1.1 = 82)\n", rumbo);
+    caso("una camara que mide 10 % de mas hace que el giro quede 10 % corto (unos 82 grados +-6), mejor que sin camara (72)", diferencia_de_rumbos(rumbo, 82) <= 6);
+
+    /* El giro termina aunque la camara nunca vea suficiente: el tiempo de respaldo (150 %). */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 35, 1);
+    correr(20000);
+    caso("un carro que gira muy poco (35 %) y la camara lo ve: el giro se corta por el tiempo de respaldo y la ruta TERMINA (no se queda girando)",
+         nav.estado == NAV_TERMINADO);
+
+    /* Esquivar: el giro de apartarse tambien usa la camara. */
+    preparar(RECTA, N(RECTA));
+    sim.pct_giro = 80;
+    sim.periodo_cuadro_ms = 80;
+    sim.visual_activo = 0;
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr(1700);   /* se detuvo */
+    rumbo = rumbo_tras_el_primer_giro();
+    caso("esquivar con un carro 20 % mas lento, SIN camara: el giro de apartarse se queda corto (unos 288 grados)", diferencia_de_rumbos(rumbo, 288) <= 6);
+    preparar(RECTA, N(RECTA));
+    sim.pct_giro = 80;
+    sim.periodo_cuadro_ms = 80;
+    sim.visual_activo = 1;
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr(1700);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      esquivar con camara: rumbo %d\n", rumbo);
+    caso("esquivar con el mismo carro CON camara: el giro de apartarse queda a 270 grados (+-8)", diferencia_de_rumbos(rumbo, 270) <= 8);
+
+    /* Los cuadros durante el retardo de arranque se ignoran. */
+    {
+        CalibracionCarro cal;
+        ResultadoObstaculos libre;
+
+        cal_defecto(&cal);
+        cal.arranque_ms = 300;
+        memset(&libre, 0, sizeof libre);
+        navegador_iniciar(&nav);
+        navegador_poner_calibracion(&nav, &cal);
+        navegador_cargar_ruta(&nav, ESQUINA_DERECHA, N(ESQUINA_DERECHA));
+        navegador_comenzar(&nav, 0);
+        {
+            uint32_t t;
+            int giro_visto_en_arranque = 0, giro_tras_arranque = 0, empezo_a_girar = 0;
+
+            for (t = 0; t < 8000; t += NAV_TICK_MS) {
+                ComandoNav c = navegador_tick(&nav, t, NULL);
+
+                if (c == NAV_CMD_RIGHT) {
+                    if (nav.seg_ms <= 300) {
+                        navegador_aporte_visual(&nav, 900, 80, 1);   /* un giro de 90 grados "visto" durante el arranque: debe ignorarse */
+                        giro_visto_en_arranque = nav.giro_visual_x10;
+                    } else if (!empezo_a_girar) {
+                        empezo_a_girar = 1;
+                        navegador_aporte_visual(&nav, 50, 80, 1);   /* ya paso el arranque: este si cuenta */
+                        giro_tras_arranque = nav.giro_visual_x10;
+                        break;
+                    }
+                }
+            }
+            caso("los cuadros que llegan durante el retardo de arranque (300 ms) se ignoran: no suman nada", giro_visto_en_arranque == 0);
+            caso("despues del arranque los cuadros si suman (5 grados)", giro_tras_arranque == 50 && nav.visual_cubierto_ms == 80);
+        }
+        caso("un cuadro sin confianza no suma", (navegador_aporte_visual(&nav, 500, 80, 0), nav.giro_visual_x10 == 50));
+        caso("un cuadro con dt cero no suma", (navegador_aporte_visual(&nav, 500, 0, 1), nav.giro_visual_x10 == 50));
+        caso("aporte con navegador NULL no revienta", (navegador_aporte_visual(NULL, 500, 80, 1), 1));
+        navegador_cancelar(&nav);
+        navegador_tick(&nav, 9000, NULL);
+        navegador_aporte_visual(&nav, 500, 80, 1);
+        caso("con el carro parado (STOP) los cuadros no suman", nav.giro_visual_x10 == 0);
+    }
+}
+
+/* La camara del carro llega por WiFi con ~320 ms de retraso: lo que mide es lo que paso hace 320 ms. */
+static void pruebas_giro_visual_con_retraso(void)
+{
+    int rumbo, sin_compensar;
+
+    /* Un carro 20 % mas lento con una camara que se atrasa 320 ms, y el navegador SIN saber del retraso: se pasa. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_latencia_ms = 320;
+    sin_compensar = rumbo_tras_el_primer_giro();
+    printf("      camara con 320 ms de retraso, navegador sin compensar: rumbo %d\n", sin_compensar);
+
+    /* Lo mismo, avisandole al navegador del retraso. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 80, 1);
+    sim.visual_latencia_ms = 320;
+    navegador_poner_latencia_visual(&nav, 320);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      camara con 320 ms de retraso, navegador compensando: rumbo %d\n", rumbo);
+    caso("camara con 320 ms de retraso y el navegador avisado: el giro de un carro 20 % mas lento queda a 90 grados (+-10)", diferencia_de_rumbos(rumbo, 90) <= 10);
+    caso("... y compensar el retraso acerca el giro a 90 (menos error que sin compensar)", diferencia_de_rumbos(rumbo, 90) <= diferencia_de_rumbos(sin_compensar, 90));
+
+    /* Carro 25 % mas rapido con retraso: sin la compensacion la camara llega tarde y se pasa mas. */
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 125, 1);
+    sim.visual_latencia_ms = 320;
+    sin_compensar = rumbo_tras_el_primer_giro();
+    preparar_esquina(ESQUINA_DERECHA, N(ESQUINA_DERECHA), 125, 1);
+    sim.visual_latencia_ms = 320;
+    navegador_poner_latencia_visual(&nav, 320);
+    rumbo = rumbo_tras_el_primer_giro();
+    printf("      carro 25 %% mas rapido con 320 ms de retraso: sin compensar %d, compensando %d\n", sin_compensar, rumbo);
+    caso("carro 25 % mas rapido con la camara retrasada 320 ms y el navegador avisado: queda a 90 grados (+-12)", diferencia_de_rumbos(rumbo, 90) <= 12);
+
+    caso("la latencia debe estar entre 0 y 1000 ms", navegador_poner_latencia_visual(&nav, 1001) == NAV_ERR_ARGUMENTO &&
+         navegador_poner_latencia_visual(&nav, -1) == NAV_ERR_ARGUMENTO && navegador_poner_latencia_visual(NULL, 100) == NAV_ERR_ARGUMENTO &&
+         navegador_poner_latencia_visual(&nav, 0) == NAV_OK);
+}
+
 int main(void)
 {
     pruebas_sin_obstaculos();
@@ -697,6 +904,8 @@ int main(void)
     pruebas_cancelar();
     pruebas_deriva();
     pruebas_calibracion();
+    pruebas_giro_visual();
+    pruebas_giro_visual_con_retraso();
     pruebas_textos();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);

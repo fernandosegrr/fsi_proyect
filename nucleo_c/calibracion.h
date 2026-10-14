@@ -41,7 +41,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define CAL_MEDIDO_AVANCE     2
 #define CAL_MEDIDO_GIRO_IZQ   4
 #define CAL_MEDIDO_GIRO_DER   8
-#define CAL_MEDIDO_TODO      15
+#define CAL_MEDIDO_TODO      15   /* los cuatro bits obligatorios: arranque, avance y los dos giros */
+#define CAL_MEDIDO_FOV       16   /* opcional: el campo de visión de la cámara (giro visual); no cuenta para "todo" */
 
 /* Lado de un giro. */
 #define CAL_LADO_IZQUIERDA  -1
@@ -56,6 +57,7 @@ typedef struct {
     int ms_por_grado_der_x10;       /* ms por cada grado girando a la derecha, por 10 */
     int frenado_grados_izq_x10;     /* grados (por 10) que sigue girando después del STOP, a la izquierda */
     int frenado_grados_der_x10;     /* idem a la derecha */
+    int fov_grados_x10;             /* campo de visión HORIZONTAL de la cámara, en grados por 10 (600 = 60.0), para medir el giro con la cámara */
 } CalibracionCarro;
 
 /* Códigos de retorno. */
@@ -93,7 +95,7 @@ int cal_promedio_sin_atipicos(const int *valores, int n, int *usados);
 void cal_defecto(CalibracionCarro *cal);
 
 /* 1 si todos los valores están en rangos razonables (arranque 0 a 2000 ms, 2 a 500 ms por cm,
- * 1 a 200 ms por grado, frenado hasta 500 mm y 180 grados). */
+ * 1 a 200 ms por grado, frenado hasta 500 mm y 180 grados, campo de visión de 20 a 150 grados). */
 int cal_es_valida(const CalibracionCarro *cal);
 
 /* Bits CAL_MEDIDO_* que FALTAN (0 = todo calibrado). */
@@ -113,6 +115,12 @@ int cal_ajustar_avance(CalibracionCarro *cal, int n, const int *ms, const int *m
 /* Prueba de GIRO de un lado (CAL_LADO_IZQUIERDA o CAL_LADO_DERECHA): igual, con los grados
  * girados por 10 (grados_x10). */
 int cal_ajustar_giro(CalibracionCarro *cal, int lado, int n, const int *ms, const int *grados_x10);
+
+/* Calibra el campo de visión de la cámara con UN giro medido: el carro giró `real_x10` grados de verdad (por 10, medidos en el piso)
+ * y la cámara, con el campo de visión actual, midió `visual_x10`. El giro visual es proporcional al campo de visión, así que el nuevo
+ * valor es el actual por real / visual. Marca el bit FOV. CAL_ERR_DATOS si algún valor no es positivo; CAL_ERR_RANGO si el resultado
+ * no está entre 20 y 150 grados. Si hay error no cambia nada. */
+int cal_ajustar_fov(CalibracionCarro *cal, int real_x10, int visual_x10);
 
 /* Guarda el retardo de arranque medido (marca el bit ARRANQUE). CAL_ERR_RANGO si no es razonable. */
 int cal_poner_arranque(CalibracionCarro *cal, int arranque_ms);
@@ -146,8 +154,9 @@ int cal_frenado_grados(const CalibracionCarro *cal, int lado);
  * CAL_ERR_ARGUMENTO si no cabe en `capacidad`. */
 int cal_a_texto(const CalibracionCarro *cal, char *texto, int capacidad);
 
-/* Lee el texto de cal_a_texto. Ignora líneas vacías y comentarios (#). Si falta una clave o algo
- * no es válido devuelve CAL_ERR_TEXTO y deja `cal` sin cambios. */
+/* Lee el texto de cal_a_texto. Ignora líneas vacías y comentarios (#). Si falta una clave obligatoria o algo
+ * no es válido devuelve CAL_ERR_TEXTO y deja `cal` sin cambios. La clave del campo de visión es OPCIONAL (los
+ * textos guardados antes de que existiera se siguen leyendo, con el campo de visión por defecto). */
 int cal_de_texto(const char *texto, CalibracionCarro *cal);
 
 #ifdef __cplusplus

@@ -2,8 +2,8 @@
  * CalibracionNativa.kt — Declara las funciones en C de la calibración del carro (nucleo_c/calibracion.c).
  *
  * GUÍA DE LECTURA
- *  1. La calibración viaja como un IntArray de 8 enteros (índices CAL_* más abajo). Las funciones que
- *     la cambian devuelven 9 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
+ *  1. La calibración viaja como un IntArray de 9 enteros (índices CAL_* más abajo). Las funciones que
+ *     la cambian devuelven 10 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
  *  2. Los decimales van multiplicados por 10 (sufijo _x10): 420 = 42.0 ms por cm.
  *  3. Cómo se mide (lo hace CalibracionActivity): arranque, avance (varios tiempos), giro a la
  *     izquierda y giro a la derecha. Ver docs/calibracion.md.
@@ -25,14 +25,16 @@ object CalibracionNativa {
     const val CAL_MS_GRADO_DER_X10 = 5
     const val CAL_FRENADO_GRADOS_IZQ_X10 = 6
     const val CAL_FRENADO_GRADOS_DER_X10 = 7
-    const val ENTEROS = 8
+    const val CAL_FOV_GRADOS_X10 = 8    // campo de visión horizontal de la cámara, grados por 10 (600 = 60.0)
+    const val ENTEROS = 9
 
     // Bits de "medidos" / "faltantes".
     const val MEDIDO_ARRANQUE = 1
     const val MEDIDO_AVANCE = 2
     const val MEDIDO_GIRO_IZQ = 4
     const val MEDIDO_GIRO_DER = 8
-    const val MEDIDO_TODO = 15
+    const val MEDIDO_TODO = 15          // los cuatro obligatorios: arranque, avance y los dos giros
+    const val MEDIDO_FOV = 16           // opcional: el campo de visión de la cámara (giro visual)
 
     const val LADO_IZQUIERDA = -1
     const val LADO_DERECHA = 1
@@ -58,6 +60,9 @@ object CalibracionNativa {
 
     /** Ajusta el giro de un lado con los tiempos (ms) y los grados girados por 10: [código, calibración]. */
     external fun ajustarGiro(calibracion: IntArray, lado: Int, ms: IntArray, gradosX10: IntArray): IntArray
+
+    /** Calibra el campo de visión de la cámara con un giro medido: grados reales por 10 y grados que midió la cámara por 10: [código, calibración]. */
+    external fun ajustarFov(calibracion: IntArray, realX10: Int, visualX10: Int): IntArray
 
     /** Qué falta medir (bits MEDIDO_*; 0 = todo). */
     external fun faltantes(calibracion: IntArray): Int

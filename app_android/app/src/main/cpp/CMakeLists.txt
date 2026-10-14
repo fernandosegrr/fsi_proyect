@@ -23,6 +23,7 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/navegador.c
     ${NUCLEO_C}/calibracion.c
     ${NUCLEO_C}/fusion.c
+    ${NUCLEO_C}/movimiento_visual.c
 )
 
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})

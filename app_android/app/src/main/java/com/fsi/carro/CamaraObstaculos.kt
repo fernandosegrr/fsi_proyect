@@ -50,6 +50,16 @@ import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 
+/** Lo que la cámara vio girar al carro entre dos cuadros consecutivos (giro visual). */
+class GiroVisual(
+    val numero: Long,
+    val giroX10: Int,          // grados por 10 (+ = a la derecha); 0 si no es confiable
+    val dtMs: Int,             // tiempo entre los dos cuadros comparados
+    val confiable: Boolean,
+    val motivo: Int,           // MovimientoVisualNativa.MOTIVO
+    val confianzaMil: Int
+)
+
 /** Un cuadro ya convertido y analizado. `pixeles` son colores ARGB de ancho x alto para dibujar.
  *  El tamaño viaja con el cuadro: la pantalla no supone ningún tamaño fijo. */
 class CuadroAnalizado(
@@ -63,7 +73,8 @@ class CuadroAnalizado(
     val msAnalisis: Double,
     val fusion: IntArray? = null,          // FusionNativa.ENTEROS_RESULTADO enteros si se usó el modelo de objetos
     val modelo: ResultadoModelo? = null,   // lo último que dijo el modelo cuando se fusionó este cuadro
-    val msFusion: Double = 0.0
+    val msFusion: Double = 0.0,
+    val giro: GiroVisual? = null           // lo que se vio girar respecto al cuadro anterior
 ) {
     /** Los 7 primeros enteros de las zonas que DECIDEN: las fusionadas si hubo fusión, si no las del detector. */
     val zonas: IntArray get() = if (fusion != null && fusion[FusionNativa.R_CODIGO] == 0) fusion else resultado
@@ -142,6 +153,17 @@ class CamaraObstaculos(
     private var tablaY = IntArray(altoSalida)
     private var tamanoSensor = Size(ObstaculosNativa.ANCHO, ObstaculosNativa.ALTO)
 
+    // Giro visual: campo de visión que se usa (lo pone la pantalla desde la calibración) y el último giro medido.
+    @Volatile
+    var fovX10 = MovimientoVisualNativa.FOV_DEFECTO_X10
+    @Volatile
+    var ultimoGiro: GiroVisual? = null
+        private set
+    private val candadoGiro = Any()
+    private var giroPendienteX10 = 0             // suma de los giros confiables que nadie ha tomado todavía
+    private var dtPendienteMs = 0                // y el tiempo que cubren
+    private var tCuadroAnteriorMs = 0L
+
     // Modelo de objetos (opcional) y su fusión con el detector de color.
     @Volatile
     var modelo: ModeloEnHilo? = null
@@ -173,6 +195,8 @@ class CamaraObstaculos(
             rotar180 = caracteristicas.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270
             tamanoCamara = "${tamano.width}x${tamano.height}"
             tamanoSensor = tamano
+            MovimientoVisualNativa.reiniciar()
+            tCuadroAnteriorMs = 0L
             ajustarTamanoSalida()
 
             hilo = HandlerThread("camara-obstaculos").also { it.start() }
@@ -272,6 +296,8 @@ class CamaraObstaculos(
             val destino = if (rotar180) alto - 1 - y else y
             tablaY[y] = destino * tamanoSensor.height / alto
         }
+        MovimientoVisualNativa.reiniciar()   // otro tamaño: la huella anterior ya no sirve
+        tCuadroAnteriorMs = 0L
         Log.i(ETIQUETA, "tamaño de análisis: ${ancho}x${alto}")
     }
 
@@ -352,6 +378,22 @@ class CamaraObstaculos(
         val resultado = ObstaculosNativa.analizarConfig(rgb, ancho, alto, config, avanzando(), SystemClock.elapsedRealtime())
         val fin = System.nanoTime()
 
+        // Giro visual: cuánto giró el carro respecto al cuadro anterior (se compara la mitad de arriba).
+        val ahoraCuadroMs = SystemClock.elapsedRealtime()
+        val mv = MovimientoVisualNativa.procesar(rgb, ancho, alto, fovX10)
+        val dtMs = if (tCuadroAnteriorMs == 0L) 0 else (ahoraCuadroMs - tCuadroAnteriorMs).toInt()
+        tCuadroAnteriorMs = ahoraCuadroMs
+        val giroVisual = GiroVisual(contadorCuadros + 1, if (mv[MovimientoVisualNativa.VALIDO] == 1) mv[MovimientoVisualNativa.GIRO_X10] else 0, dtMs,
+            mv[MovimientoVisualNativa.CODIGO] == 0 && mv[MovimientoVisualNativa.VALIDO] == 1 && dtMs > 0,
+            mv[MovimientoVisualNativa.MOTIVO], mv[MovimientoVisualNativa.CONFIANZA_MIL])
+        ultimoGiro = giroVisual
+        if (giroVisual.confiable) {
+            synchronized(candadoGiro) {
+                giroPendienteX10 += giroVisual.giroX10   // se SUMAN todos: la pantalla lee más lento que la cámara y no puede perder ninguno
+                dtPendienteMs += giroVisual.dtMs
+            }
+        }
+
         // Modelo de objetos: se le ofrece el cuadro (sin esperar) y se fusiona con lo último que dijo.
         var fusion: IntArray? = null
         var ultimoModelo: ResultadoModelo? = null
@@ -374,7 +416,7 @@ class CamaraObstaculos(
 
         contadorCuadros++
         val cuadro = CuadroAnalizado(contadorCuadros, ancho, alto, pixeles, resultado, config,
-            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion)
+            (tras_conversion - inicio) / 1.0e6, (fin - tras_conversion) / 1.0e6, fusion, ultimoModelo, msFusion, giroVisual)
         ultimoCuadro = cuadro
         actualizarEstadistica(cuadro)
         alCuadro?.invoke(cuadro)
@@ -441,6 +483,31 @@ class CamaraObstaculos(
             inicioVentanaMs = ahora
             cuadrosVentana = 0
             sumaMsVentana = 0.0
+        }
+    }
+
+    /**
+     * Devuelve lo que la cámara vio girar desde la última vez que se llamó: la SUMA de los giros confiables de todos los cuadros
+     * que llegaron y el tiempo que cubren (un cuadro sin confianza no suma nada: ese pedazo lo completa el navegador por tiempo), o
+     * null si no llegó nada. Lo usa el modo semiautónomo para corregir el giro por tiempo. Se puede llamar desde cualquier hilo.
+     */
+    fun tomarGiroNuevo(): GiroVisual? {
+        synchronized(candadoGiro) {
+            if (dtPendienteMs <= 0) {
+                return null
+            }
+            val giro = GiroVisual(contadorCuadros, giroPendienteX10, dtPendienteMs, true, 0, 1000)
+            giroPendienteX10 = 0
+            dtPendienteMs = 0
+            return giro
+        }
+    }
+
+    /** Descarta lo que se haya acumulado del giro (por ejemplo, antes de empezar una prueba). */
+    fun olvidarGiroPendiente() {
+        synchronized(candadoGiro) {
+            giroPendienteX10 = 0
+            dtPendienteMs = 0
         }
     }
 

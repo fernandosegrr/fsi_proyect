@@ -34,6 +34,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 class VisionActivity : Activity() {
 
@@ -58,6 +59,10 @@ class VisionActivity : Activity() {
     private lateinit var botonTamano: Button
     private lateinit var botonModelo: Button
     private lateinit var textoFusion: TextView
+    private lateinit var textoGiro: TextView
+    private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
+    private val cuadrosSinGiro = AtomicInteger(0)        // cuadros en que la cámara no tuvo confianza
+    private var ultimoNumeroGiro = -1L
 
     private val principal = Handler(Looper.getMainLooper())
     @Volatile
@@ -100,6 +105,11 @@ class VisionActivity : Activity() {
         barraAprendizaje.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.aprendizajeMil = valor * 5 })
         botonModelo = findViewById(R.id.boton_modelo)
         textoFusion = findViewById(R.id.texto_fusion)
+        textoGiro = findViewById(R.id.texto_giro)
+        findViewById<Button>(R.id.boton_giro_cero).setOnClickListener {
+            anguloAcumuladoX10.set(0)
+            cuadrosSinGiro.set(0)
+        }
         botonModelo.setOnClickListener {
             configuracion.usarModelo = !configuracion.usarModelo
             camara.activarModelo(configuracion.usarModelo && camara.abierta)
@@ -120,6 +130,7 @@ class VisionActivity : Activity() {
         // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
             { false }, { configuracion.usarModelo }) { cuadro -> alLlegarCuadro(cuadro) }
+        camara.fovX10 = CalibracionGuardada(this).fovX10()   // campo de visión de la cámara calibrado (60 grados si no)
         vista.mostrar(null, "Abriendo cámara...")
         principal.post(actualizarTextos)
     }
@@ -178,6 +189,16 @@ class VisionActivity : Activity() {
     /** Llega en el hilo de la cámara: guarda el cuadro y pide dibujarlo en el hilo principal. */
     private fun alLlegarCuadro(cuadro: CuadroAnalizado) {
         pendiente = cuadro
+        cuadro.giro?.let { giro ->
+            if (giro.numero != ultimoNumeroGiro) {
+                ultimoNumeroGiro = giro.numero
+                if (giro.confiable) {
+                    anguloAcumuladoX10.addAndGet(giro.giroX10)
+                } else if (giro.dtMs > 0) {
+                    cuadrosSinGiro.incrementAndGet()
+                }
+            }
+        }
         if (!dibujando) {
             dibujando = true
             principal.post {
@@ -207,8 +228,20 @@ class VisionActivity : Activity() {
                     cuadro.resultado[ObstaculosNativa.GRUPOS_PISO], avisosDelPiso(cuadro),
                     cuadro.resultado[ObstaculosNativa.CODIGO]) else "")
             textoFusion.text = textoDeFusion(cuadro)
+            textoGiro.text = textoDeGiro(cuadro)
             principal.postDelayed(this, 500)
         }
+    }
+
+    /** El giro que la cámara ve (giro visual): el del último cuadro y el ángulo acumulado desde que se puso en 0. */
+    private fun textoDeGiro(cuadro: CuadroAnalizado?): String {
+        val giro = cuadro?.giro ?: return "Giro visual: esperando cuadros..."
+        val acumulado = anguloAcumuladoX10.get()
+        return String.format(Locale.US, "Giro visual (campo de visión %.1f°): %s\nÁngulo acumulado: %+.1f° (%d cuadros sin confianza)",
+            camara.fovX10 / 10.0,
+            if (giro.confiable) String.format(Locale.US, "%+.1f° en este cuadro (confianza %d)", giro.giroX10 / 10.0, giro.confianzaMil / 10)
+            else "sin confianza: " + MovimientoVisualNativa.textoMotivo(giro.motivo),
+            acumulado / 10.0, cuadrosSinGiro.get())
     }
 
     /** Quién decidió y cuánto tarda cada etapa (detector de color, modelo de objetos y fusión). */

@@ -11,6 +11,7 @@
  *     de error claro. Kotlin no interpreta nada, solo lo muestra.
  *  5. Más abajo, ObstaculosNativa.analizar() llama al detector de obstáculos por color de
  *     piso (obstaculos.c): recibe una imagen RGB (cualquier tamaño de 30x30 a 640x480) y devuelve 10 enteros.
+ *  5a. MovimientoVisualNativa.* mide cuánto giró el carro entre dos cuadros de la cámara (movimiento_visual.c).
  *  5b. FusionNativa.* une el resultado del detector con las cajas del modelo de objetos (fusion.c).
  *  6. Antes del navegador está la calibración del carro (calibracion.c): CalibracionNativa.* y la
  *     calibración que usa el navegador. Al final, NavegadorNativa.* maneja el navegador del modo semiautónomo (navegador.c): hay
@@ -27,6 +28,7 @@
 #include "navegador.h"
 #include "calibracion.h"
 #include "fusion.h"
+#include "movimiento_visual.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -394,6 +396,75 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
 }
 
 
+/* ── Giro medido con la cámara ─────────────────────────────────────────── */
+
+#define ENTEROS_RESULTADO_MOVIMIENTO 7
+
+/* El estimador (recuerda la huella del cuadro anterior). Solo lo usa el hilo de la cámara. `reiniciar_movimiento` lo pide
+ * la pantalla (otro hilo): se atiende en el siguiente cuadro. */
+static EstimadorMovimiento estimador_movimiento;
+static int estimador_inicializado = 0;
+static volatile int reiniciar_movimiento = 0;
+
+/* Procesa un cuadro RGB (ancho x alto x 3 bytes), lo compara con el anterior y devuelve 7 enteros:
+ *   [0] código (0 = bien, negativo = error de argumentos o tamaño)   [1] 1 si el corrimiento es confiable
+ *   [2] motivo (0 = bien; 1 sin cuadro previo; 2 escena uniforme; 3 coincidencia débil; 4 ambiguo; 5 fuera de rango)
+ *   [3] corrimiento del contenido en píxeles por 16   [4] confianza de 0 a 1000
+ *   [5] giro del carro en grados por 10 (+ = a la derecha; 0 si no es confiable)   [6] energía de bordes de la huella */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_MovimientoVisualNativa_procesar(JNIEnv *env, jobject objeto, jbyteArray rgb, jint ancho, jint alto, jint fov_x10)
+{
+    MovimientoVisual resultado;
+    jint salida[ENTEROS_RESULTADO_MOVIMIENTO];
+    jintArray arreglo;
+    void *datos;
+    int codigo, i;
+
+    (void)objeto;
+    for (i = 0; i < ENTEROS_RESULTADO_MOVIMIENTO; i++) {
+        salida[i] = 0;
+    }
+    if (!estimador_inicializado || reiniciar_movimiento) {
+        mv_iniciar(&estimador_movimiento);
+        estimador_inicializado = 1;
+        reiniciar_movimiento = 0;
+    }
+    if (rgb == NULL || ancho <= 0 || alto <= 0 || (long)(*env)->GetArrayLength(env, rgb) < (long)ancho * (long)alto * 3L) {
+        codigo = MV_ERR_TAMANO;
+    } else {
+        datos = (*env)->GetPrimitiveArrayCritical(env, rgb, NULL);
+        if (datos == NULL) {
+            codigo = MV_ERR_ARGUMENTO;
+        } else {
+            codigo = mv_procesar(&estimador_movimiento, (const unsigned char *)datos, ancho, alto, fov_x10, &resultado);
+            (*env)->ReleasePrimitiveArrayCritical(env, rgb, datos, JNI_ABORT);   /* no se modificó */
+        }
+    }
+    salida[0] = codigo;
+    if (codigo == MV_OK) {
+        salida[1] = resultado.valido;
+        salida[2] = resultado.motivo;
+        salida[3] = resultado.corrimiento_x16;
+        salida[4] = resultado.confianza_mil;
+        salida[5] = resultado.giro_grados_x10;
+        salida[6] = resultado.energia;
+    }
+    arreglo = (*env)->NewIntArray(env, ENTEROS_RESULTADO_MOVIMIENTO);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_RESULTADO_MOVIMIENTO, salida);
+    }
+    return arreglo;
+}
+
+/* Olvida el cuadro anterior: el siguiente cuadro no se compara con nada (por ejemplo, al abrir la cámara o cambiar el tamaño). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_MovimientoVisualNativa_reiniciar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    reiniciar_movimiento = 1;
+}
+
 /* ── Fusión del detector de color con el modelo de objetos ─────────────── */
 
 #define ENTEROS_CONFIG_FUSION     10
@@ -542,17 +613,18 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
 
 /* ── Calibración del carro ─────────────────────────────────────────────── */
 
-/* La calibración se pasa a Kotlin como 8 enteros, en este orden (el mismo de CalibracionCarro):
+/* La calibración se pasa a Kotlin como 9 enteros, en este orden (el mismo de CalibracionCarro):
  *   [0] medidos  [1] arranque_ms  [2] ms_por_cm_x10  [3] frenado_mm
  *   [4] ms_por_grado_izq_x10  [5] ms_por_grado_der_x10
- *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10
- * Las funciones que cambian la calibración devuelven 9 enteros: [0] = código (0 = bien) y [1..8] = la
+ *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10  [8] fov_grados_x10 (campo de visión de la cámara)
+ * Las funciones que cambian la calibración devuelven 10 enteros: [0] = código (0 = bien) y [1..9] = la
  * calibración resultante (sin cambios si hubo error). */
-#define ENTEROS_CALIBRACION 8
+#define ENTEROS_CALIBRACION 9
 
 /* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
 static CalibracionCarro calibracion_global;
 static int calibracion_inicializada = 0;
+static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
 {
@@ -580,10 +652,11 @@ static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *ca
     cal->ms_por_grado_der_x10 = (int)datos[5];
     cal->frenado_grados_izq_x10 = (int)datos[6];
     cal->frenado_grados_der_x10 = (int)datos[7];
+    cal->fov_grados_x10 = (int)datos[8];
     return 1;
 }
 
-/* Arma el arreglo de 9 enteros [código, calibración...]. */
+/* Arma el arreglo de 10 enteros [código, calibración...]. */
 static jintArray devolver_calibracion(JNIEnv *env, int codigo, const CalibracionCarro *cal)
 {
     jint salida[1 + ENTEROS_CALIBRACION];
@@ -598,6 +671,7 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
     salida[6] = cal->ms_por_grado_der_x10;
     salida[7] = cal->frenado_grados_izq_x10;
     salida[8] = cal->frenado_grados_der_x10;
+    salida[9] = cal->fov_grados_x10;
     arreglo = (*env)->NewIntArray(env, 1 + ENTEROS_CALIBRACION);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
@@ -716,6 +790,22 @@ Java_com_fsi_carro_CalibracionNativa_ajustarGiro(JNIEnv *env, jobject objeto, ji
     }
     n = leer_dos_listas(env, ms, grados_x10, lista_ms, lista_g);
     codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_giro(&cal, (int)lado, n, lista_ms, lista_g);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Calibra el campo de visión de la cámara con un giro medido: real y visual, en grados por 10. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarFov(JNIEnv *env, jobject objeto, jintArray calibracion, jint real_x10, jint visual_x10)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_ajustar_fov(&cal, (int)real_x10, (int)visual_x10);
     return devolver_calibracion(env, codigo, &cal);
 }
 
@@ -849,6 +939,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     }
     navegador_iniciar(&navegador_global);
     navegador_poner_calibracion(&navegador_global, obtener_calibracion());   /* la calibración medida del carro */
+    navegador_poner_latencia_visual(&navegador_global, latencia_visual_global);   /* el retraso de la cámara */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -868,6 +959,29 @@ Java_com_fsi_carro_NavegadorNativa_cancelar(JNIEnv *env, jobject objeto)
     (void)env;
     (void)objeto;
     navegador_cancelar(obtener_navegador());
+}
+
+/* Dice cuánto se atrasa la cámara en ms (0 con la cámara del teléfono, ~300 con la del carro por WiFi). Devuelve 0 o un código de error. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerLatenciaVisual(JNIEnv *env, jobject objeto, jint ms)
+{
+    (void)env;
+    (void)objeto;
+    if (ms < 0 || ms > 1000) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    latencia_visual_global = (int)ms;
+    return navegador_poner_latencia_visual(obtener_navegador(), (int)ms);
+}
+
+/* Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giro_x10` en grados por 10 (positivo a la derecha),
+ * `dt_ms` el tiempo entre esos cuadros y `confiable` si la cámara estaba segura (ver navegador_aporte_visual). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteVisual(JNIEnv *env, jobject objeto, jint giro_x10, jint dt_ms, jboolean confiable)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_visual(obtener_navegador(), (int)giro_x10, (int)dt_ms, confiable ? 1 : 0);
 }
 
 /* Un tick. `obs` es el arreglo de 10 enteros de ObstaculosNativa.analizar (se usan los

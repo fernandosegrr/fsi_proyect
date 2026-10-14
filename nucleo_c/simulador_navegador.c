@@ -59,6 +59,12 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->pct_avance = 100;
     sim->pct_giro = 100;
     cal_defecto(&sim->real);
+    sim->visual_activo = 0;
+    sim->visual_error_pct = 0;
+    sim->visual_latencia_ms = 0;
+    sim->n_pendientes = 0;
+    sim->giro_desde_cuadro_cgrados = 0;
+    sim->t_cuadro_visual_ms = 0;
     sim->cmd_previo = NAV_CMD_STOP;
     sim->ms_en_comando = 0;
     sim->periodo_cuadro_ms = NAV_TICK_MS;
@@ -111,6 +117,7 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
         giro = (long)dt * 1000 / ((comando == NAV_CMD_LEFT) ? sim->real.ms_por_grado_izq_x10 : sim->real.ms_por_grado_der_x10)
                * sim->pct_giro / 100;
         sim->rumbo_cgrados += (comando == NAV_CMD_RIGHT) ? giro : -giro;
+        sim->giro_desde_cuadro_cgrados += (comando == NAV_CMD_RIGHT) ? giro : -giro;   /* lo que vería la cámara */
         break;
     default:
         break;
@@ -154,9 +161,11 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
         break;
     case NAV_CMD_LEFT:
         sim->rumbo_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+        sim->giro_desde_cuadro_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
         break;
     case NAV_CMD_RIGHT:
         sim->rumbo_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+        sim->giro_desde_cuadro_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
         break;
     default:
         break;
@@ -186,6 +195,32 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             armar_cuadro(sim, sim->proximo_cuadro_ms, &cuadro);   /* el cuadro es de su hora nominal, llega en este tick */
             sim->proximo_cuadro_ms += (uint32_t)sim->periodo_cuadro_ms;
             obs = &cuadro;
+            if (sim->visual_activo) {   /* la cámara mide cuánto giró el carro desde el cuadro anterior */
+                long medido_x10 = sim->giro_desde_cuadro_cgrados / 10 * (100 + sim->visual_error_pct) / 100;
+                int perdida = (sim->t_ms >= sim->visual_perdida_desde_ms && sim->t_ms < sim->visual_perdida_hasta_ms);
+
+                if (sim->n_pendientes < 64) {   /* la medida llega al navegador despues del retraso de la camara */
+                    sim->pend_medido_x10[sim->n_pendientes] = medido_x10;
+                    sim->pend_dt_ms[sim->n_pendientes] = (int)(sim->t_ms - sim->t_cuadro_visual_ms);
+                    sim->pend_confiable[sim->n_pendientes] = !perdida;
+                    sim->pend_llegada_ms[sim->n_pendientes] = sim->t_ms + (uint32_t)sim->visual_latencia_ms;
+                    sim->n_pendientes++;
+                }
+                sim->giro_desde_cuadro_cgrados = 0;
+                sim->t_cuadro_visual_ms = sim->t_ms;
+            }
+        }
+        while (sim->n_pendientes > 0 && sim->pend_llegada_ms[0] <= sim->t_ms) {   /* llegan las medidas de la cámara (con su retraso) */
+            int k;
+
+            navegador_aporte_visual(nav, (int)sim->pend_medido_x10[0], sim->pend_dt_ms[0], sim->pend_confiable[0]);
+            for (k = 1; k < sim->n_pendientes; k++) {
+                sim->pend_medido_x10[k - 1] = sim->pend_medido_x10[k];
+                sim->pend_dt_ms[k - 1] = sim->pend_dt_ms[k];
+                sim->pend_confiable[k - 1] = sim->pend_confiable[k];
+                sim->pend_llegada_ms[k - 1] = sim->pend_llegada_ms[k];
+            }
+            sim->n_pendientes--;
         }
         comando = navegador_tick(nav, sim->t_ms, obs);
 

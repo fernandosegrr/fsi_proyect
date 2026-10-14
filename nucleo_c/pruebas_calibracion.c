@@ -490,6 +490,63 @@ static void pruebas_sin_ruido(void)
     caso("sin ruido: el frenado sale casi exacto (+-2 mm de 25)", valor_absoluto(calculada.frenado_mm - 25) <= 2);
 }
 
+/* ── Campo de visión de la cámara (giro visual) ──────────────────────── */
+
+static void pruebas_fov(void)
+{
+    CalibracionCarro cal, antes, leida;
+    char texto[CAL_LARGO_TEXTO];
+
+    cal_defecto(&cal);
+    caso("por defecto el campo de vision es 60 grados (600) y no cuenta como medido", cal.fov_grados_x10 == 600 && !(cal.medidos & CAL_MEDIDO_FOV));
+    caso("el campo de vision NO es obligatorio: sin medirlo, cal_faltantes sigue siendo solo los 4 bits de siempre",
+         cal_faltantes(&cal) == CAL_MEDIDO_TODO && CAL_MEDIDO_TODO == 15);
+
+    caso("un giro real de 90 grados que la camara midio como 80 (FOV 60): el nuevo FOV es 67.5 grados (675)",
+         cal_ajustar_fov(&cal, 900, 800) == CAL_OK && cal.fov_grados_x10 == 675 && (cal.medidos & CAL_MEDIDO_FOV));
+    cal_defecto(&cal);
+    caso("si la camara midio de mas (100 en vez de 90): el FOV baja a 54 grados (540)", cal_ajustar_fov(&cal, 900, 1000) == CAL_OK && cal.fov_grados_x10 == 540);
+    cal_defecto(&cal);
+    caso("si midio justo lo real, el FOV no cambia", cal_ajustar_fov(&cal, 900, 900) == CAL_OK && cal.fov_grados_x10 == 600);
+    cal_defecto(&cal);
+    cal_ajustar_fov(&cal, 900, 800);
+    caso("ajustar el FOV dos veces compone (cada vez corrige el valor actual)", cal.fov_grados_x10 == 675 &&
+         cal_ajustar_fov(&cal, 900, 950) == CAL_OK && cal.fov_grados_x10 == 639);
+
+    cal_defecto(&cal);
+    antes = cal;
+    caso("datos no positivos: CAL_ERR_DATOS y no cambia nada", cal_ajustar_fov(&cal, 0, 800) == CAL_ERR_DATOS && cal_ajustar_fov(&cal, 900, -5) == CAL_ERR_DATOS &&
+         memcmp(&cal, &antes, sizeof cal) == 0);
+    caso("un resultado absurdo (FOV de 675 grados): CAL_ERR_RANGO y no cambia nada", cal_ajustar_fov(&cal, 9000, 800) == CAL_ERR_RANGO && memcmp(&cal, &antes, sizeof cal) == 0);
+    caso("un FOV de menos de 20 grados tambien es CAL_ERR_RANGO", cal_ajustar_fov(&cal, 100, 900) == CAL_ERR_RANGO);
+    caso("cal NULL: CAL_ERR_ARGUMENTO", cal_ajustar_fov(NULL, 900, 800) == CAL_ERR_ARGUMENTO);
+
+    cal_defecto(&cal);
+    cal.fov_grados_x10 = 10;
+    caso("un FOV de 1 grado no es valido", !cal_es_valida(&cal));
+    cal.fov_grados_x10 = 1600;
+    caso("un FOV de 160 grados no es valido", !cal_es_valida(&cal));
+    cal_defecto(&cal);
+    cal.medidos = 31;
+    caso("el bit del FOV (16) hace medidos = 31, que sigue siendo valido", cal_es_valida(&cal));
+    cal.medidos = 32;
+    caso("medidos = 32 no es valido", !cal_es_valida(&cal));
+
+    /* Texto: el FOV viaja, y los textos viejos (sin FOV) se siguen leyendo. */
+    cal_defecto(&cal);
+    cal.medidos = 31;
+    cal.fov_grados_x10 = 688;
+    caso("el texto exportado trae el FOV y se lee de vuelta igual", cal_a_texto(&cal, texto, sizeof texto) > 0 && strstr(texto, "fov_grados_x10=688\n") != NULL &&
+         cal_de_texto(texto, &leida) == CAL_OK && memcmp(&cal, &leida, sizeof cal) == 0);
+    caso("un texto de la version anterior (8 claves, sin FOV) se sigue leyendo y deja el FOV por defecto",
+         cal_de_texto("medidos=15\narranque_ms=140\nms_por_cm_x10=420\nfrenado_mm=25\nms_por_grado_izq_x10=90\nms_por_grado_der_x10=110\n"
+                      "frenado_grados_izq_x10=50\nfrenado_grados_der_x10=40\n", &leida) == CAL_OK && leida.fov_grados_x10 == 600 && leida.arranque_ms == 140);
+    caso("un FOV repetido en el texto es error", cal_de_texto("medidos=0\narranque_ms=0\nms_por_cm_x10=500\nfrenado_mm=0\nms_por_grado_izq_x10=100\n"
+         "ms_por_grado_der_x10=100\nfrenado_grados_izq_x10=0\nfrenado_grados_der_x10=0\nfov_grados_x10=600\nfov_grados_x10=600\n", &leida) == CAL_ERR_TEXTO);
+    caso("un FOV fuera de rango en el texto es error", cal_de_texto("medidos=0\narranque_ms=0\nms_por_cm_x10=500\nfrenado_mm=0\nms_por_grado_izq_x10=100\n"
+         "ms_por_grado_der_x10=100\nfrenado_grados_izq_x10=0\nfrenado_grados_der_x10=0\nfov_grados_x10=5\n", &leida) == CAL_ERR_TEXTO);
+}
+
 int main(void)
 {
     pruebas_estadistica();
@@ -497,6 +554,7 @@ int main(void)
     pruebas_ajuste();
     pruebas_conversiones();
     pruebas_texto();
+    pruebas_fov();
     pruebas_sin_ruido();
     pruebas_ruido();
     pruebas_disparates();
