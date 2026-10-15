@@ -8,6 +8,7 @@
 #  - movimiento_piso.c: flujo del piso (desplazamiento de bloques contra lo esperado), también en ../nucleo_c.
 #  - paquete_celdas.c : paquete UDP del modo de video CELDAS, también en ../nucleo_c.
 #  - sesion_compartida.c, latencia_video.c : sesión compartida del video y de la conexión, y la comparación de latencia con y sin video (también en ../nucleo_c).
+#  - ruta_editor.c, sim_ruta.c, simulador_navegador.c : el editor de rutas y la simulación de rutas sin el carro (también en ../nucleo_c).
 #  - corredor.c       : corredor de trayectoria (huella del carro en la imagen), también en ../nucleo_c.
 #  - video_stats.c, prueba_obstaculo.c : estadística del video del carro y cuentas de la prueba de obstáculos (también en ../nucleo_c).
 # El resultado es libcarro_nativo.so, que Kotlin carga con System.loadLibrary.
@@ -37,6 +38,9 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/paquete_celdas.c
     ${NUCLEO_C}/sesion_compartida.c
     ${NUCLEO_C}/latencia_video.c
+    ${NUCLEO_C}/ruta_editor.c
+    ${NUCLEO_C}/sim_ruta.c
+    ${NUCLEO_C}/simulador_navegador.c
 )
 
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})

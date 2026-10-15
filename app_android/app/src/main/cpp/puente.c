@@ -37,6 +37,8 @@
 #include "paquete_celdas.h"
 #include "sesion_compartida.h"
 #include "latencia_video.h"
+#include "ruta_editor.h"
+#include "sim_ruta.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -2174,4 +2176,392 @@ Java_com_fsi_carro_LatenciaVideoNativa_resultado(JNIEnv *env, jobject objeto)
         (*env)->SetIntArrayRegion(env, arreglo, 0, 6, salida);
     }
     return arreglo;
+}
+
+/* ── Editor de rutas (ruta_editor.c) y simulador de rutas (sim_ruta.c) ─────────────────────────────────────────────────────── */
+
+/* UN editor para toda la app (la ruta que se está dibujando) y UN resultado de simulación. Solo los toca el hilo principal. */
+static EditorRuta editor_global;
+static int editor_iniciado = 0;
+static ResultadoSimRuta simulacion_global;
+static DispersionSim dispersion_global;
+
+static EditorRuta *obtener_editor(void)
+{
+    if (!editor_iniciado) {
+        re_iniciar(&editor_global);
+        editor_iniciado = 1;
+    }
+    return &editor_global;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_RutaEditorNativa_iniciar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    re_iniciar(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_agregar(JNIEnv *env, jobject objeto, jint columna, jint fila)
+{
+    (void)env;
+    (void)objeto;
+    return re_agregar(obtener_editor(), columna, fila);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_mover(JNIEnv *env, jobject objeto, jint indice, jint columna, jint fila)
+{
+    (void)env;
+    (void)objeto;
+    return re_mover(obtener_editor(), indice, columna, fila);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_borrarPunto(JNIEnv *env, jobject objeto, jint indice)
+{
+    (void)env;
+    (void)objeto;
+    return re_borrar_punto(obtener_editor(), indice);
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_RutaEditorNativa_limpiar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    re_limpiar(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_deshacer(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return re_deshacer(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_rehacer(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return re_rehacer(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_puedeDeshacer(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return re_puede_deshacer(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_puedeRehacer(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return re_puede_rehacer(obtener_editor());
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_plantilla(JNIEnv *env, jobject objeto, jint plantilla)
+{
+    (void)env;
+    (void)objeto;
+    return re_plantilla(obtener_editor(), plantilla);
+}
+
+/* Los vértices que puso el usuario: [columna0, fila0, columna1, fila1, ...]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_RutaEditorNativa_vertices(JNIEnv *env, jobject objeto)
+{
+    const EditorRuta *e = obtener_editor();
+    jint salida[2 * RE_MAX_VERTICES];
+    jintArray arreglo = (*env)->NewIntArray(env, 2 * e->actual.n);
+    int i;
+
+    (void)objeto;
+    for (i = 0; i < e->actual.n; i++) {
+        salida[2 * i] = e->actual.v[i].columna;
+        salida[2 * i + 1] = e->actual.v[i].fila;
+    }
+    if (arreglo != NULL && e->actual.n > 0) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2 * e->actual.n, salida);
+    }
+    return arreglo;
+}
+
+/* La ruta ya con los pasos intermedios (la que entiende el navegador): [columna0, fila0, ...]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_RutaEditorNativa_celdas(JNIEnv *env, jobject objeto)
+{
+    Punto celdas[MAX_PUNTOS];
+    jint salida[2 * MAX_PUNTOS];
+    int n = re_expandir(&obtener_editor()->actual, celdas, MAX_PUNTOS);
+    jintArray arreglo;
+    int i;
+
+    (void)objeto;
+    if (n < 0) {
+        n = 0;
+    }
+    arreglo = (*env)->NewIntArray(env, 2 * n);
+    for (i = 0; i < n; i++) {
+        salida[2 * i] = celdas[i].columna;
+        salida[2 * i + 1] = celdas[i].fila;
+    }
+    if (arreglo != NULL && n > 0) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2 * n, salida);
+    }
+    return arreglo;
+}
+
+/* Resumen: [0] largo cm, [1] tiempo ms, [2] giros, [3] vértices, [4] celdas, [5] advertencias, [6] código. `calibracion` puede ser null (valores por defecto). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_RutaEditorNativa_resumen(JNIEnv *env, jobject objeto, jintArray calibracion)
+{
+    CalibracionCarro cal;
+    int hay_cal = calibracion != NULL && leer_calibracion(env, calibracion, &cal) && cal_es_valida(&cal);
+    ResumenRuta r = re_resumen(obtener_editor(), hay_cal ? &cal : NULL);
+    jint salida[7];
+    jintArray arreglo = (*env)->NewIntArray(env, 7);
+
+    (void)objeto;
+    salida[0] = r.largo_cm;
+    salida[1] = r.tiempo_ms;
+    salida[2] = r.giros;
+    salida[3] = r.n_vertices;
+    salida[4] = r.n_celdas;
+    salida[5] = r.advertencias;
+    salida[6] = r.codigo;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 7, salida);
+    }
+    return arreglo;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_RutaEditorNativa_aTexto(JNIEnv *env, jobject objeto)
+{
+    char texto[512];
+
+    (void)objeto;
+    if (re_a_texto(obtener_editor(), texto, sizeof texto) < 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_deTexto(JNIEnv *env, jobject objeto, jstring texto)
+{
+    const char *c;
+    int codigo;
+
+    (void)objeto;
+    if (texto == NULL) {
+        return RE_ERR_ARGUMENTO;
+    }
+    c = (*env)->GetStringUTFChars(env, texto, NULL);
+    if (c == NULL) {
+        return RE_ERR_ARGUMENTO;
+    }
+    codigo = re_de_texto(c, obtener_editor());
+    (*env)->ReleaseStringUTFChars(env, texto, c);
+    return codigo;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_RutaEditorNativa_nombreValido(JNIEnv *env, jobject objeto, jstring nombre)
+{
+    const char *c;
+    int valido;
+
+    (void)objeto;
+    if (nombre == NULL) {
+        return 0;
+    }
+    c = (*env)->GetStringUTFChars(env, nombre, NULL);
+    if (c == NULL) {
+        return 0;
+    }
+    valido = re_nombre_valido(c);
+    (*env)->ReleaseStringUTFChars(env, nombre, c);
+    return valido;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_RutaEditorNativa_textoError(JNIEnv *env, jobject objeto, jint codigo)
+{
+    (void)objeto;
+    return (*env)->NewStringUTF(env, re_texto_error(codigo));
+}
+
+/* Lee los obstáculos de Kotlin: [columna0, fila0, ...]. Devuelve cuántos. */
+static int leer_obstaculos(JNIEnv *env, jintArray arreglo, Punto *obstaculos)
+{
+    jint datos[2 * SR_MAX_OBSTACULOS];
+    int n = 0;
+    int i;
+
+    if (arreglo == NULL) {
+        return 0;
+    }
+    n = (int)(*env)->GetArrayLength(env, arreglo) / 2;
+    if (n > SR_MAX_OBSTACULOS) {
+        n = SR_MAX_OBSTACULOS;
+    }
+    if (n > 0) {
+        (*env)->GetIntArrayRegion(env, arreglo, 0, 2 * n, datos);
+    }
+    for (i = 0; i < n; i++) {
+        obstaculos[i].columna = (int)datos[2 * i];
+        obstaculos[i].fila = (int)datos[2 * i + 1];
+    }
+    return n;
+}
+
+#define ENTEROS_SIMULACION 14
+
+/*
+ * Simula la ruta del editor con el navegador real. Devuelve 14 enteros:
+ * [0] código, [1] código de la ruta, [2] llegó, [3] estado final, [4] motivo del error, [5] duración ms, [6] comandos, [7] esquivadas, [8] advertencias,
+ * [9] x final mm, [10] y final mm, [11] error final mm, [12] muestras, [13] cambios de comando.
+ */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_SimRutaNativa_simular(JNIEnv *env, jobject objeto, jintArray calibracion, jintArray obstaculos, jint ruido, jint semilla)
+{
+    CalibracionCarro cal;
+    Punto obst[SR_MAX_OBSTACULOS];
+    Punto celdas[MAX_PUNTOS];
+    int hay_cal = calibracion != NULL && leer_calibracion(env, calibracion, &cal) && cal_es_valida(&cal);
+    int n_obst = leer_obstaculos(env, obstaculos, obst);
+    int n = re_expandir(&obtener_editor()->actual, celdas, MAX_PUNTOS);
+    int codigo;
+    jint salida[ENTEROS_SIMULACION];
+    jintArray arreglo = (*env)->NewIntArray(env, ENTEROS_SIMULACION);
+    ResultadoSimRuta *r = &simulacion_global;
+
+    (void)objeto;
+    codigo = sr_simular(celdas, n < 0 ? 0 : n, hay_cal ? &cal : NULL, obst, n_obst, ruido, (uint32_t)semilla, r);
+    memset(salida, 0, sizeof salida);
+    salida[0] = codigo;
+    if (codigo == SR_OK || codigo == SR_ERR_RUTA) {
+        salida[1] = r->codigo_ruta;
+        salida[2] = r->llego;
+        salida[3] = r->estado_final;
+        salida[4] = r->motivo_error;
+        salida[5] = (jint)r->duracion_ms;
+        salida[6] = r->n_comandos;
+        salida[7] = r->esquivadas;
+        salida[8] = r->advertencias;
+        salida[9] = r->x_final_mm;
+        salida[10] = r->y_final_mm;
+        salida[11] = r->error_final_mm;
+        salida[12] = r->n_muestras;
+        salida[13] = r->n_cambios;
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_SIMULACION, salida);
+    }
+    return arreglo;
+}
+
+/* Las muestras de la última simulación: [t_ms, x_mm, y_mm, rumbo, comando, estado] por cada una. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_SimRutaNativa_muestras(JNIEnv *env, jobject objeto)
+{
+    const ResultadoSimRuta *r = &simulacion_global;
+    static jint salida[6 * SR_MAX_MUESTRAS];   /* memoria estática: sin malloc */
+    jintArray arreglo = (*env)->NewIntArray(env, 6 * r->n_muestras);
+    int i;
+
+    (void)objeto;
+    for (i = 0; i < r->n_muestras; i++) {
+        salida[6 * i] = (jint)r->muestras[i].t_ms;
+        salida[6 * i + 1] = r->muestras[i].x_mm;
+        salida[6 * i + 2] = r->muestras[i].y_mm;
+        salida[6 * i + 3] = r->muestras[i].rumbo_grados;
+        salida[6 * i + 4] = r->muestras[i].comando;
+        salida[6 * i + 5] = r->muestras[i].estado;
+    }
+    if (arreglo != NULL && r->n_muestras > 0) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 6 * r->n_muestras, salida);
+    }
+    return arreglo;
+}
+
+/* Los cambios de comando de la última simulación: [t_ms, comando] por cada uno. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_SimRutaNativa_cambios(JNIEnv *env, jobject objeto)
+{
+    const ResultadoSimRuta *r = &simulacion_global;
+    jint salida[2 * SR_MAX_CAMBIOS];
+    jintArray arreglo = (*env)->NewIntArray(env, 2 * r->n_cambios);
+    int i;
+
+    (void)objeto;
+    for (i = 0; i < r->n_cambios; i++) {
+        salida[2 * i] = (jint)r->cambios[i].t_ms;
+        salida[2 * i + 1] = r->cambios[i].comando;
+    }
+    if (arreglo != NULL && r->n_cambios > 0) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2 * r->n_cambios, salida);
+    }
+    return arreglo;
+}
+
+/* Repite la ruta con ruido de giro: [código, corridas, llegaron, error medio mm, error máximo mm, dispersión mm] y luego [llegó, x, y, error, duración ms] por corrida. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_SimRutaNativa_dispersion(JNIEnv *env, jobject objeto, jintArray calibracion, jintArray obstaculos, jint ruido, jint corridas)
+{
+    CalibracionCarro cal;
+    Punto obst[SR_MAX_OBSTACULOS];
+    Punto celdas[MAX_PUNTOS];
+    int hay_cal = calibracion != NULL && leer_calibracion(env, calibracion, &cal) && cal_es_valida(&cal);
+    int n_obst = leer_obstaculos(env, obstaculos, obst);
+    int n = re_expandir(&obtener_editor()->actual, celdas, MAX_PUNTOS);
+    int codigo = sr_dispersion(celdas, n < 0 ? 0 : n, hay_cal ? &cal : NULL, obst, n_obst, ruido, corridas, &dispersion_global);
+    jint salida[6 + 5 * SR_MAX_CORRIDAS];
+    jintArray arreglo;
+    int i;
+
+    (void)objeto;
+    memset(salida, 0, sizeof salida);
+    salida[0] = codigo;
+    if (codigo == SR_OK) {
+        salida[1] = dispersion_global.n;
+        salida[2] = dispersion_global.llegaron;
+        salida[3] = dispersion_global.error_medio_mm;
+        salida[4] = dispersion_global.error_max_mm;
+        salida[5] = dispersion_global.dispersion_mm;
+        for (i = 0; i < dispersion_global.n; i++) {
+            salida[6 + 5 * i] = dispersion_global.corridas[i].llego;
+            salida[7 + 5 * i] = dispersion_global.corridas[i].x_final_mm;
+            salida[8 + 5 * i] = dispersion_global.corridas[i].y_final_mm;
+            salida[9 + 5 * i] = dispersion_global.corridas[i].error_final_mm;
+            salida[10 + 5 * i] = (jint)dispersion_global.corridas[i].duracion_ms;
+        }
+    }
+    arreglo = (*env)->NewIntArray(env, 6 + 5 * (codigo == SR_OK ? dispersion_global.n : 0));
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 6 + 5 * (codigo == SR_OK ? dispersion_global.n : 0), salida);
+    }
+    return arreglo;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_SimRutaNativa_textoAdvertencia(JNIEnv *env, jobject objeto, jint bit)
+{
+    char texto[160];
+
+    (void)objeto;
+    if (sr_texto_advertencia(bit, texto, sizeof texto) == 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
 }
