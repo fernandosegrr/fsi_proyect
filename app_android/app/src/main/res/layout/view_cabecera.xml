@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: la CABECERA FIJA (64 dp). De izquierda a derecha: punto de conexión que respira + estado, perfil de velocidad (chip),
+  batería del teléfono y, solo mientras el carro se mueve, el botón de PARO rojo.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/e6"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/e2"
+        android:paddingEnd="@dimen/e1">
+
+        <com.fsi.carro.PuntoConexion
+            android:id="@+id/punto_conexion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/texto_conexion"
+            style="@style/Texto.Subtitulo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/e1"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/conexion_sin" />
+
+        <com.fsi.carro.ChipEstado
+            android:id="@+id/chip_perfil"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/e1" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/e1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/icono_bateria"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/bateria_del_telefono"
+                android:src="@drawable/ic_battery_full"
+                app:tint="@color/texto_suave" />
+
+            <TextView
+                android:id="@+id/texto_bateria"
+                style="@style/Texto.Cifras"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/e0"
+                android:textColor="@color/texto_suave"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_paro_cabecera"
+            style="@style/Boton.Paro"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/toque_manejo"
+            android:layout_marginStart="@dimen/e1"
+            android:minWidth="96dp"
+            android:text="@string/paro"
+            android:visibility="gone"
+            app:icon="@drawable/ic_stop" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/borde_fino"
+        android:background="@color/borde" />
+</LinearLayout>

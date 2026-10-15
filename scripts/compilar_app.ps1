@@ -10,6 +10,6 @@ $salida = Join-Path $env:TEMP "gradle_out.txt"
 if ($Limpio) { .\gradlew.bat clean --console=plain > $null 2>&1 }
 .\gradlew.bat assembleDebug --console=plain > $salida 2>&1
 $codigo = $LASTEXITCODE
-Get-Content $salida | Select-String -Pattern "^e: |^w: |warning:|error:|FAILED|BUILD " | Select-Object -First 80 | ForEach-Object { $_.Line }
+Get-Content $salida | Select-String -Pattern "^e: |^w: |warning:|error:|FAILED|BUILD " -Context 0,1 | Select-Object -First 60 | ForEach-Object { $_.Line; if ($_.Line -match "^e: file.*\.kt:$") { $_.Context.PostContext } }
 if ($codigo -eq 0) { "COMPILACION OK" } else { "COMPILACION FALLIDA (codigo $codigo)" }
 exit $codigo

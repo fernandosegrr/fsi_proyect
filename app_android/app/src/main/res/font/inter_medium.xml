@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Guía de lectura: familia Inter, peso medio (500), del mismo archivo variable. -->
+<!-- Guía de lectura: familia Inter (licencia OFL 1.1, docs/licencias/Inter-OFL-1.1.txt), peso 500. Es una fuente ESTÁTICA sacada del archivo variable con scripts/generar_fuentes_inter.py. -->
 <font-family xmlns:android="http://schemas.android.com/apk/res/android">
     <font
-        android:font="@font/inter_variable"
+        android:font="@font/inter_500"
         android:fontStyle="normal"
-        android:fontWeight="500"
-        android:fontVariationSettings="'wght' 500, 'opsz' 14" />
+        android:fontWeight="500" />
 </font-family>

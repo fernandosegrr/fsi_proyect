@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla MANUAL en vertical. De arriba abajo: el video (lo grande), los dos interruptores (Video y Ver detección), el aviso de retraso y la cruceta
+  con el PARO al centro. Los botones de la cruceta miden 80 dp (manejo: 56 dp o más).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fondo"
+    android:overScrollMode="never"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="@dimen/e2">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/margen_pantalla"
+        android:paddingTop="@dimen/e1"
+        android:paddingEnd="@dimen/margen_pantalla">
+
+        <include layout="@layout/view_video_manual" />
+
+        <com.fsi.carro.AvisoBanda
+            android:id="@+id/manual_aviso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:orientation="horizontal">
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/manual_switch_video"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/manual_video"
+                android:textAppearance="@style/Texto.Cuerpo" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/manual_switch_deteccion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/e1"
+                android:layout_weight="1.4"
+                android:text="@string/manual_ver_deteccion"
+                android:textAppearance="@style/Texto.Cuerpo" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/manual_aviso_retraso"
+            style="@style/Texto.Etiqueta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e0"
+            android:text="@string/manual_aviso_retraso" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/e2"
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_adelante"
+                style="@style/Boton.Manejo"
+                android:layout_width="@dimen/cruceta_boton"
+                android:layout_height="@dimen/cruceta_boton"
+                android:layout_gravity="center_horizontal"
+                android:contentDescription="@string/adelante"
+                app:icon="@drawable/ic_arrow_upward" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:layout_marginBottom="@dimen/e1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/boton_izquierda"
+                    style="@style/Boton.Manejo"
+                    android:layout_width="@dimen/cruceta_boton"
+                    android:layout_height="@dimen/cruceta_boton"
+                    android:contentDescription="@string/izquierda"
+                    app:icon="@drawable/ic_arrow_back" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/boton_paro"
+                    style="@style/Boton.Paro"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/paro_cruceta"
+                    android:minWidth="@dimen/paro_cruceta"
+                    android:layout_marginStart="@dimen/e1"
+                    android:layout_marginEnd="@dimen/e1"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:maxLines="1"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="@string/paro"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/boton_derecha"
+                    style="@style/Boton.Manejo"
+                    android:layout_width="@dimen/cruceta_boton"
+                    android:layout_height="@dimen/cruceta_boton"
+                    android:contentDescription="@string/derecha"
+                    app:icon="@drawable/ic_arrow_forward" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_atras"
+                style="@style/Boton.Manejo"
+                android:layout_width="@dimen/cruceta_boton"
+                android:layout_height="@dimen/cruceta_boton"
+                android:layout_gravity="center_horizontal"
+                android:contentDescription="@string/atras"
+                app:icon="@drawable/ic_arrow_downward" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

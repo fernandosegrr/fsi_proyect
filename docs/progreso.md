@@ -159,3 +159,4 @@
 
 ## Rediseño de la app (14 oct)
 - Parte 1: sistema de diseño (`docs/diseno.md`, tokens con contraste comprobado, Inter, Material Symbols, componentes) y nombre anterior quitado de todo el repositorio (SSID `CarroFSI`, página web del carro con la capa visual nueva y su prueba de hash). PENDIENTE HARDWARE: recargar DevKit y cámara con el SSID nuevo y reconectar el teléfono.
+- Parte 2: sesión de video compartida (C con 43 + 12 casos, Kotlin y registro `SESION_VIDEO`), navegación con cabecera fija, Inicio, Manual con video y «Ver detección», asistente de primera vez. `scripts/probar_pantallas.py` (cada pantalla abre sin errores, vertical y horizontal) y `scripts/qa_captura.py`. PENDIENTE HARDWARE: medir el PONG con y sin video en el WiFi real (`docs/manual_video.md`).

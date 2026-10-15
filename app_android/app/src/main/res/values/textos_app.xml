@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: textos de la app nueva (armazón, Inicio, Manual, Más). Los mensajes de error van en Mensajes.kt. Frases cortas y claras. -->
+<resources>
+    <!-- Barra inferior y cabecera -->
+    <string name="pestana_inicio">Inicio</string>
+    <string name="pestana_manual">Manual</string>
+    <string name="pestana_rutas">Rutas</string>
+    <string name="pestana_mas">Más</string>
+    <string name="paro">PARO</string>
+    <string name="conexion_sin">Sin conexión</string>
+    <string name="conexion_conectado">Conectado</string>
+    <string name="conexion_reconectando">Reconectando…</string>
+    <string name="chip_reintentando">Reintentando</string>
+    <string name="conexion_conectando">Conectando…</string>
+    <string name="perfil_rapido">Rápido</string>
+    <string name="perfil_lento">Lento</string>
+    <string name="bateria_del_telefono">Batería del teléfono</string>
+
+    <!-- Inicio -->
+    <string name="inicio_titulo">Inicio</string>
+    <string name="inicio_listo">Listo para manejar</string>
+    <string name="inicio_listo_detalle">El carro y la cámara responden.</string>
+    <string name="inicio_sin_carro">Sin conexión</string>
+    <string name="inicio_sin_carro_detalle">Enciende el carro y toca Conectar.</string>
+    <string name="inicio_solo_carro">Carro conectado</string>
+    <string name="inicio_solo_carro_detalle">Falta la cámara: puedes manejar sin video.</string>
+    <string name="tarjeta_carro">Carro</string>
+    <string name="tarjeta_camara">Cámara</string>
+    <string name="dato_latencia">Latencia</string>
+    <string name="dato_perfil">Velocidad</string>
+    <string name="dato_fps">Cuadros</string>
+    <string name="dato_modo">Modo</string>
+    <string name="valor_sin_dato">—</string>
+    <string name="boton_conectar_inicio">Conectar</string>
+    <string name="boton_reconectar_inicio">Volver a conectar</string>
+    <string name="accesos_rapidos">Accesos rápidos</string>
+    <string name="acceso_manual">Manual</string>
+    <string name="acceso_manual_detalle">Maneja con la cruceta</string>
+    <string name="acceso_rutas">Rutas</string>
+    <string name="acceso_rutas_detalle">Dibuja y recorre una ruta</string>
+    <string name="camara_conectada">Conectada</string>
+    <string name="camara_abriendo">Abriendo…</string>
+    <string name="camara_sin_video">Sin video</string>
+    <string name="camara_en_espera">En espera</string>
+    <string name="reintentar">Reintentar</string>
+    <string name="conectar">Conectar</string>
+
+    <!-- Manual -->
+    <string name="manual_video">Video</string>
+    <string name="manual_ver_deteccion">Ver detección</string>
+    <string name="manual_aviso_retraso">Rápido. El video llega ~0.3 s tarde: frena antes.</string>
+    <string name="manual_aviso_retraso_lento">Lento. El video llega ~0.3 s tarde: frena antes.</string>
+    <string name="manual_sin_video">Sin video</string>
+    <string name="manual_video_apagado">Video apagado</string>
+    <string name="chip_retraso">≈ 0.3 s</string>
+    <string name="adelante">Adelante</string>
+    <string name="atras">Atrás</string>
+    <string name="izquierda">Izquierda</string>
+    <string name="derecha">Derecha</string>
+
+    <!-- Más -->
+    <string name="mas_titulo">Más</string>
+    <string name="mas_calibracion">Calibración</string>
+    <string name="mas_calibracion_detalle">Mide el arranque, el avance y el giro del carro</string>
+    <string name="mas_vision">Visión y diagnóstico</string>
+    <string name="mas_vision_detalle">Cámara, detector de obstáculos y ajustes finos</string>
+    <string name="mas_prueba_final">Prueba final</string>
+    <string name="mas_prueba_final_detalle">Lista de pruebas con el carro real</string>
+    <string name="mas_ajustes">Ajustes</string>
+    <string name="mas_ajustes_detalle">Red, velocidad, tema y vibración</string>
+    <string name="mas_ayuda">Ayuda</string>
+    <string name="mas_ayuda_detalle">Preguntas frecuentes y qué hacer si algo falla</string>
+    <string name="mas_acerca">Acerca de</string>
+    <string name="mas_acerca_detalle">Versión y licencias</string>
+    <string name="volver">Volver</string>
+
+    <!-- Asistente de primera vez -->
+    <string name="asistente_omitir">Omitir</string>
+    <string name="asistente_siguiente">Siguiente</string>
+    <string name="asistente_empezar">Empezar</string>
+    <string name="asistente_1_titulo">Conéctate a la red del carro</string>
+    <string name="asistente_1_texto">Enciende el carro. En los ajustes de WiFi del teléfono elige la red «CarroFSI». Si el teléfono avisa «sin Internet», mantén la conexión.</string>
+    <string name="asistente_2_titulo">Revisa la cámara</string>
+    <string name="asistente_2_texto">Espera unos 40 segundos tras encender la cámara. En Inicio verás la tarjeta Cámara en verde cuando llegue el video. Sin cámara también puedes manejar.</string>
+    <string name="asistente_3_titulo">Qué hace cada modo</string>
+    <string name="asistente_3_texto">Manual: manejas tú con la cruceta, a velocidad rápida. Rutas: dibujas un camino y el carro lo recorre solo, más despacio, y esquiva lo que encuentra. Más: calibración, visión y ajustes.</string>
+    <string name="asistente_paso">Paso %1$d de %2$d</string>
+
+    <!-- Varios -->
+    <string name="proximamente">Esta pantalla se completa en el siguiente paso del rediseño.</string>
+    <string name="confirmar_ruta_titulo">Hay una ruta en marcha</string>
+    <string name="confirmar_ruta_texto">Si cambias de pantalla el carro se detiene y la ruta se cancela.</string>
+    <string name="confirmar_ruta_si">Detener y cambiar</string>
+</resources>

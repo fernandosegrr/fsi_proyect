@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: las 4 pestañas de la barra inferior (en horizontal es una barra lateral con las mismas). "Más" reúne Calibración, Visión, Prueba final, Ajustes y Ayuda. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/pestana_inicio"
+        android:icon="@drawable/ic_home"
+        android:title="@string/pestana_inicio" />
+    <item
+        android:id="@+id/pestana_manual"
+        android:icon="@drawable/ic_sports_esports"
+        android:title="@string/pestana_manual" />
+    <item
+        android:id="@+id/pestana_rutas"
+        android:icon="@drawable/ic_route"
+        android:title="@string/pestana_rutas" />
+    <item
+        android:id="@+id/pestana_mas"
+        android:icon="@drawable/ic_more_horiz"
+        android:title="@string/pestana_mas" />
+</menu>

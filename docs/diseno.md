@@ -91,7 +91,7 @@ Los valores viven en `app_android/app/src/main/res/values/colors.xml` (tema clar
 
 ## 2. Tipografía
 
-**Inter** (familia sans, licencia **SIL Open Font License 1.1**; el texto está en `docs/licencias/Inter-OFL-1.1.txt`). Va incluida en la app como un archivo variable (`res/font/inter_variable.ttf`, 856 KB) y cuatro familias `inter`, `inter_medium`, `inter_semibold`, que fijan el peso 400, 500 y 600. Tamaños en `sp`.
+**Inter** (familia sans, licencia **SIL Open Font License 1.1**; el texto está en `docs/licencias/Inter-OFL-1.1.txt`). Va incluida en la app como tres archivos **estáticos** de unos 120 KB cada uno (`res/font/inter_400.ttf`, `inter_500.ttf`, `inter_600.ttf`, recortados al alfabeto latino y conservando las cifras tabulares) y tres familias `inter`, `inter_medium` e `inter_semibold`. Se generan con `scripts/generar_fuentes_inter.py` a partir del archivo variable oficial. (Se probó primero el archivo variable con `fontVariationSettings`: en el Huawei P40 Pro los pesos no se aplicaban, por eso se pasó a archivos estáticos.) Tamaños en `sp` con su altura de línea propia (`android:lineHeight`): 40 sp para el grande, 32 título, 24 subtítulo y cuerpo, 20 ayudas y 16 etiquetas.
 
 | Estilo | Tamaño y peso | Uso | Estilo XML |
 |---|---|---|---|
@@ -162,7 +162,28 @@ Las capturas se borran al terminar. Las decisiones que salieron de la revisión 
 
 ## 8. Decisiones por pantalla
 
-(Se completa pantalla por pantalla durante la revisión.)
+Cada pantalla se capturó en el teléfono (`scripts/qa_captura.py`, con la cámara y el carro falsos) y se revisó con la lista de la sección 7. Lo que salió:
+
+### Armazón (cabecera y barra inferior)
+- La cabecera mide **64 dp** (8 × 8) y no cambia de alto: el estado de conexión a la izquierda, el chip de velocidad y la batería a la derecha. El **PARO rojo de la cabecera aparece solo mientras una ruta mueve el carro** (en Manual el PARO está en la cruceta; si apareciera en la cabecera cada vez que se toca un botón, las piezas de la cabecera «saltarían»).
+- En horizontal la barra inferior pasa a una **barra lateral** (riel de navegación) para no gastar alto, que es lo que falta en horizontal.
+- El aviso global bajo la cabecera solo sale en las pantallas que necesitan el carro (Manual y Rutas) y tarda 5 s en aparecer, para no avisar de un error que en realidad es el primer intento de conexión.
+
+### Inicio
+- **Lo grande:** el estado en palabras («Listo para manejar», «Sin conexión»), no un número.
+- Las tarjetas del carro y de la cámara llevan un chip de color y dos datos con cifras tabulares. En la tarjeta el chip dice «Reintentando» (corto); la cabecera dice «Reconectando…» (en la tarjeta se cortaba).
+- El botón Conectar es el único primario (56 dp), con el icono pegado al texto. Pasa a decir «Volver a conectar» cuando ya hay conexión.
+
+### Manual
+- **Lo grande:** el video (esquinas de 16 dp, chips de retraso y cuadros encima). Cruceta de **64 dp** (manejo: 56 dp o más) con el PARO de 72 dp al centro; en una pantalla de 880 dp de alto cabe todo sin desplazar. La palabra PARO usa ancho según el texto (con ancho fijo se cortaba como «PAR»).
+- En horizontal: giro a la izquierda (dos botones), video al centro, adelante y atrás con el PARO en medio a la derecha. El video ocupa el alto disponible y la imagen se ajusta dentro sin deformarse.
+- El texto del retraso es de **una sola línea** (12 sp): «Rápido. El video llega ~0.3 s tarde: frena antes.».
+
+### Hallazgos de la revisión (valen para toda la app)
+- **Todo ScrollView lleva fondo propio (`@color/fondo`) y `overScrollMode="never"`.** Sin eso, en el Huawei el contenido se veía con un velo gris sobre el fondo (el efecto de borde del desplazamiento).
+- **Las alturas de línea se fijan en cada estilo.** El tema Material deja 24 sp de altura de línea y un título de 32 sp en dos renglones se pisaba.
+- Contraste revisado también en modo claro (Inicio): textos, chips y botón sin problema.
+- Las capturas de pantalla solo se toman si la app está al frente (si el usuario usa otra pantalla del teléfono, el script no captura).
 
 ## 9. Licencias de lo incluido
 

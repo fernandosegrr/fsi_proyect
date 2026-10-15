@@ -56,6 +56,19 @@ class ControlLogica(
     var perfilConfirmado: Perfil? = null
         private set
 
+    /** true mientras hay un botón de movimiento sostenido o una orden automática distinta de STOP (la cabecera muestra el PARO y la pantalla no se apaga). */
+    val moviendo: Boolean get() = comandoActivo != null
+
+    /** El comando que se está repitiendo ahora (null = ninguno). */
+    val comandoEnMarcha: String? get() = comandoActivo
+
+    /** Si no es null, se llama con cada medida de PONG (ms): la usa el registro MANUAL_VIDEO y la prueba de latencia con y sin video. */
+    var alPong: ((Long) -> Unit)? = null
+
+    /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
+    val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
+    private var sinConexionDesdeMs = 0L
+
     private val manejador = Handler(Looper.getMainLooper())
     private var url = ""
     private var activo = false              // true entre iniciar() y detener()
@@ -117,6 +130,7 @@ class ControlLogica(
         enlace.escucha = this
         url = direccion
         activo = true
+        sinConexionDesdeMs = android.os.SystemClock.elapsedRealtime()   // desde ahora se cuenta cuánto tarda en conectar
         cambiarEstado(Conexion.DESCONECTADO)
         enlace.conectar(url)
     }
@@ -132,6 +146,7 @@ class ControlLogica(
         comandoActivo = null
         enlace.cerrar()
         latenciaMs = null
+        sinConexionDesdeMs = 0L   // ya no se está intentando conectar
         cambiarEstado(Conexion.DESCONECTADO)
     }
 
@@ -265,6 +280,7 @@ class ControlLogica(
             esperandoPong = false
             latenciaMs = Math.round((System.nanoTime() - pingEnviadoNs) / 1.0e6)
             Log.i(EnlaceOkHttp.ETIQUETA, "latencia_ms=$latenciaMs")
+            alPong?.invoke(latenciaMs!!)
             alCambiar()
         }
     }
@@ -303,6 +319,7 @@ class ControlLogica(
     private fun cambiarEstado(nuevo: Conexion) {
         if (conexion != nuevo) {
             Log.i(EnlaceOkHttp.ETIQUETA, "estado=$nuevo")
+            sinConexionDesdeMs = if (nuevo == Conexion.CONECTADO) 0L else if (sinConexionDesdeMs == 0L) android.os.SystemClock.elapsedRealtime() else sinConexionDesdeMs
         }
         conexion = nuevo
         alCambiar()

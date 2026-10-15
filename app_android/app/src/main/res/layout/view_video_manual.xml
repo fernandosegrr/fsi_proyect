@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: el VIDEO de Manual (se incluye en vertical y en horizontal). Proporción 240:176 (la de la cámara). Capas, de abajo hacia arriba:
+  la imagen con esquinas redondeadas, los números de la detección (solo dibujan encima, la imagen no se toca), el aviso «Sin video» y los chips de retraso y fps.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/manual_video"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/superficie_alta"
+        android:contentDescription="@string/manual_video"
+        android:scaleType="fitCenter"
+        app:layout_constraintDimensionRatio="240:176"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/FormaDialogo" />
+
+    <com.fsi.carro.VistaNumerosDeteccion
+        android:id="@+id/manual_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/manual_video"
+        app:layout_constraintEnd_toEndOf="@id/manual_video"
+        app:layout_constraintStart_toStartOf="@id/manual_video"
+        app:layout_constraintTop_toTopOf="@id/manual_video" />
+
+    <LinearLayout
+        android:id="@+id/manual_placeholder"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="@id/manual_video"
+        app:layout_constraintEnd_toEndOf="@id/manual_video"
+        app:layout_constraintStart_toStartOf="@id/manual_video"
+        app:layout_constraintTop_toTopOf="@id/manual_video">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_videocam_off"
+            app:tint="@color/texto_suave" />
+
+        <TextView
+            android:id="@+id/manual_placeholder_texto"
+            style="@style/Texto.Suave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:text="@string/manual_sin_video" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/e1"
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="@id/manual_video"
+        app:layout_constraintTop_toTopOf="@id/manual_video">
+
+        <com.fsi.carro.ChipEstado
+            android:id="@+id/manual_chip_retraso"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <com.fsi.carro.ChipEstado
+            android:id="@+id/manual_chip_fps"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/e1" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,93 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Guía de lectura: pantalla principal, de arriba abajo:
-    1. instrucción  2. cuadrícula (CuadriculaView)  3. contador de puntos
-    4. botones Calcular / Borrar  5. resultado con scroll.
+  Guía de lectura: el armazón de la app (vertical): cabecera fija, aviso global, contenido (las pantallas son Fragment) y barra inferior.
+  En horizontal (layout-land) la barra pasa a la izquierda.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="12dp"
-    android:fitsSystemWindows="true">
+    android:background="@color/fondo"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
 
-    <TextView
+    <include layout="@layout/view_cabecera" />
+
+    <com.fsi.carro.AvisoBanda
+        android:id="@+id/aviso_global"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/instruccion"
-        android:textSize="14sp" />
+        android:layout_marginStart="@dimen/e2"
+        android:layout_marginTop="@dimen/e1"
+        android:layout_marginEnd="@dimen/e2" />
 
-    <com.fsi.carro.CuadriculaView
-        android:id="@+id/cuadricula"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" />
-
-    <TextView
-        android:id="@+id/contador"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textSize="14sp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/boton_calcular"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/boton_calcular" />
-
-        <Button
-            android:id="@+id/boton_borrar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/boton_borrar" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/boton_vision"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/boton_vision" />
-
-    <Button
-        android:id="@+id/boton_calibracion"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/boton_calibracion" />
-
-    <Button
-        android:id="@+id/boton_control"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/boton_control" />
-
-    <Button
-        android:id="@+id/boton_benchmark"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/boton_benchmark" />
-
-    <ScrollView
+    <FrameLayout
+        android:id="@+id/contenedor"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="8dp">
+        android:layout_weight="1" />
 
-        <TextView
-            android:id="@+id/resultado"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:text="@string/resultado_inicial"
-            android:textSize="13sp" />
-    </ScrollView>
-
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/barra"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/barra_inferior"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
 </LinearLayout>

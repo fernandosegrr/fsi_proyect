@@ -3,7 +3,8 @@
   Guía de lectura: declara la app y sus pantallas (MainActivity, ControlActivity, BenchmarkActivity).
   Permisos: INTERNET (WebSocket hacia el carro) y CAMARA (detector de obstáculos). networkSecurityConfig permite ws:// sin cifrar.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Necesario para el WebSocket hacia el carro (ControlActivity). -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -12,6 +13,12 @@
 
     <!-- Vibración corta en acciones importantes y en obstáculo (se puede apagar en Ajustes). -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- La biblioteca de GPU de TensorFlow Lite trae un manifiesto muy viejo que le agrega a la app permisos que NO necesita (leer el estado del teléfono y el almacenamiento).
+         Se quitan: la app no los usa y a los antivirus les parecen sospechosos. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
 
     <!-- Cámara del teléfono como fuente de obstáculos (VisionActivity y modo semiautónomo). -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -28,7 +35,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

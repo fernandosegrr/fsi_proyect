@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: el componente ESTADO VACÍO de pantalla completa: barra de título, icono grande suave, una frase de qué falta y un botón con la acción. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <include layout="@layout/view_estado_vacio" />
+</LinearLayout>

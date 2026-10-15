@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla de INICIO. Lo grande: si el carro está listo (estado en palabras). Debajo: tarjetas del carro y de la cámara
+  (chips de color con conexión, latencia y cuadros), el botón Conectar y los accesos rápidos a Manual y Rutas.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fondo"
+    android:overScrollMode="never"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="@dimen/e2">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/margen_pantalla"
+        android:paddingTop="@dimen/e3"
+        android:paddingEnd="@dimen/margen_pantalla">
+
+        <TextView
+            android:id="@+id/inicio_estado_grande"
+            style="@style/Texto.Grande"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/inicio_sin_carro" />
+
+        <TextView
+            android:id="@+id/inicio_estado_detalle"
+            style="@style/Texto.Suave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e0"
+            android:text="@string/inicio_sin_carro_detalle" />
+
+        <com.fsi.carro.AvisoBanda
+            android:id="@+id/inicio_aviso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e2" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="@dimen/e1"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tarjeta_carro" />
+
+                    <com.fsi.carro.ChipEstado
+                        android:id="@+id/inicio_chip_carro"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <TextView
+                        style="@style/Texto.Etiqueta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/dato_latencia" />
+
+                    <TextView
+                        android:id="@+id/inicio_carro_latencia"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/valor_sin_dato" />
+
+                    <TextView
+                        style="@style/Texto.Etiqueta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/dato_perfil" />
+
+                    <TextView
+                        android:id="@+id/inicio_carro_perfil"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/valor_sin_dato" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="@dimen/e1"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tarjeta_camara" />
+
+                    <com.fsi.carro.ChipEstado
+                        android:id="@+id/inicio_chip_camara"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <TextView
+                        style="@style/Texto.Etiqueta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/dato_latencia" />
+
+                    <TextView
+                        android:id="@+id/inicio_camara_latencia"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/valor_sin_dato" />
+
+                    <TextView
+                        style="@style/Texto.Etiqueta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/dato_fps" />
+
+                    <TextView
+                        android:id="@+id/inicio_camara_fps"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/valor_sin_dato" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/inicio_boton_conectar"
+            style="@style/Boton.Primario"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toque_manejo"
+            android:layout_marginTop="@dimen/e3"
+            android:text="@string/boton_conectar_inicio"
+            app:icon="@drawable/ic_wifi"
+            app:iconGravity="textStart" />
+
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:text="@string/accesos_rapidos" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/inicio_acceso_manual"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/e1"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/toque_minimo"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <ImageView
+                        android:layout_width="@dimen/icono"
+                        android:layout_height="@dimen/icono"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_sports_esports"
+                        app:tint="@color/acento_texto" />
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/acceso_manual" />
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/acceso_manual_detalle" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/inicio_acceso_rutas"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/e1"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/toque_minimo"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <ImageView
+                        android:layout_width="@dimen/icono"
+                        android:layout_height="@dimen/icono"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_route"
+                        app:tint="@color/acento_texto" />
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/acceso_rutas" />
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/acceso_rutas_detalle" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla MANUAL en HORIZONTAL, pensada para usar los dos pulgares: a la izquierda el giro (izquierda y derecha); al centro el video con sus
+  interruptores; a la derecha adelante y atrás con el PARO en medio. Los botones de manejo miden 64 dp (56 dp o más).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/e2"
+    android:paddingTop="@dimen/e1"
+    android:paddingEnd="@dimen/e2"
+    android:paddingBottom="@dimen/e1">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_izquierda"
+            style="@style/Boton.Manejo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:contentDescription="@string/izquierda"
+            android:paddingStart="20dp"
+            app:icon="@drawable/ic_arrow_back" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_derecha"
+            style="@style/Boton.Manejo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginStart="@dimen/e1"
+            android:contentDescription="@string/derecha"
+            android:paddingStart="20dp"
+            app:icon="@drawable/ic_arrow_forward" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/e2"
+        android:layout_marginEnd="@dimen/e2"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <include
+            layout="@layout/view_video_manual"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.fsi.carro.AvisoBanda
+            android:id="@+id/manual_aviso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/manual_switch_video"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/manual_video"
+                android:textAppearance="@style/Texto.Cuerpo" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/manual_switch_deteccion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/e1"
+                android:layout_weight="1.4"
+                android:text="@string/manual_ver_deteccion"
+                android:textAppearance="@style/Texto.Cuerpo" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/manual_aviso_retraso"
+            style="@style/Texto.Etiqueta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/manual_aviso_retraso" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_adelante"
+            style="@style/Boton.Manejo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:contentDescription="@string/adelante"
+            android:paddingStart="20dp"
+            app:icon="@drawable/ic_arrow_upward" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_paro"
+            style="@style/Boton.Paro"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/toque_manejo"
+            android:minWidth="88dp"
+            android:layout_marginTop="@dimen/e1"
+            android:layout_marginBottom="@dimen/e1"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:paddingStart="12dp"
+            android:maxLines="1"
+            android:paddingEnd="12dp"
+            android:text="@string/paro"
+            android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_atras"
+            style="@style/Boton.Manejo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:contentDescription="@string/atras"
+            android:paddingStart="20dp"
+            app:icon="@drawable/ic_arrow_downward" />
+    </LinearLayout>
+</LinearLayout>

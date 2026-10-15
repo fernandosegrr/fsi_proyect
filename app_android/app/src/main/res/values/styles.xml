@@ -9,6 +9,7 @@
 <resources>
     <!-- Texto -->
     <style name="Texto.Grande" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:lineHeight">40sp</item>
         <item name="android:fontFamily">@font/inter_semibold</item>
         <item name="android:textSize">32sp</item>
         <item name="android:textColor">@color/texto</item>
@@ -16,22 +17,26 @@
         <item name="android:letterSpacing">-0.01</item>
     </style>
     <style name="Texto.Titulo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:lineHeight">32sp</item>
         <item name="android:fontFamily">@font/inter_semibold</item>
         <item name="android:textSize">24sp</item>
         <item name="android:textColor">@color/texto</item>
         <item name="android:letterSpacing">-0.01</item>
     </style>
     <style name="Texto.Subtitulo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:lineHeight">24sp</item>
         <item name="android:fontFamily">@font/inter_medium</item>
         <item name="android:textSize">18sp</item>
         <item name="android:textColor">@color/texto</item>
     </style>
     <style name="Texto.Cuerpo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:lineHeight">24sp</item>
         <item name="android:fontFamily">@font/inter</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/texto</item>
     </style>
     <style name="Texto.Etiqueta" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:lineHeight">16sp</item>
         <item name="android:fontFamily">@font/inter_medium</item>
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/texto_suave</item>
@@ -39,10 +44,12 @@
     </style>
     <!-- Cifras tabulares: latencia, fps, cm, tiempos. -->
     <style name="Texto.Cifras" parent="Texto.Cuerpo">
+        <item name="android:lineHeight">24sp</item>
         <item name="android:fontFamily">@font/inter_medium</item>
         <item name="android:fontFeatureSettings">tnum</item>
     </style>
     <style name="Texto.Suave" parent="Texto.Cuerpo">
+        <item name="android:lineHeight">20sp</item>
         <item name="android:textColor">@color/texto_suave</item>
         <item name="android:textSize">14sp</item>
     </style>
@@ -56,6 +63,7 @@
 
     <!-- Botones -->
     <style name="TextoBoton" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:lineHeight">24sp</item>
         <item name="android:fontFamily">@font/inter_semibold</item>
         <item name="android:textSize">16sp</item>
         <item name="android:letterSpacing">0</item>
@@ -101,8 +109,11 @@
         <item name="iconTint">@color/texto</item>
         <item name="iconGravity">textStart</item>
         <item name="iconPadding">0dp</item>
-        <item name="android:paddingStart">0dp</item>
+        <item name="iconSize">32dp</item>
+        <item name="android:paddingStart">16dp</item>
         <item name="android:paddingEnd">0dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
         <item name="cornerRadius">@dimen/radio_tarjeta</item>
         <item name="android:minWidth">@dimen/toque_manejo</item>
         <item name="android:minHeight">@dimen/toque_manejo</item>
