@@ -41,6 +41,8 @@ object RutaEditorNativa {
     external fun agregar(columna: Int, fila: Int): Int
     external fun mover(indice: Int, columna: Int, fila: Int): Int
     external fun borrarPunto(indice: Int): Int
+    /** Avisa que se soltó el punto que se arrastraba (un arrastre entero es un solo paso de deshacer). */
+    external fun finArrastre()
     external fun limpiar()
     external fun deshacer(): Int
     external fun rehacer(): Int

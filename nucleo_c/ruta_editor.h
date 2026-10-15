@@ -60,6 +60,7 @@ typedef struct {
     int          n_deshacer;
     RutaVertices rehacer[RE_MAX_HISTORIAL];
     int          n_rehacer;
+    int          arrastre;   /* número del punto que se está arrastrando (-1 = ninguno): un arrastre entero es UN solo paso de «deshacer» */
 } EditorRuta;
 
 typedef struct {
@@ -76,6 +77,8 @@ void re_iniciar(EditorRuta *e);
 
 int  re_agregar(EditorRuta *e, int columna, int fila);
 int  re_mover(EditorRuta *e, int indice, int columna, int fila);
+/* Avisa que terminó el arrastre del punto (el siguiente mover vuelve a guardar un paso de «deshacer»). */
+void re_fin_arrastre(EditorRuta *e);
 int  re_borrar_punto(EditorRuta *e, int indice);
 void re_limpiar(EditorRuta *e);
 

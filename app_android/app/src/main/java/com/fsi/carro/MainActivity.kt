@@ -108,13 +108,16 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Ayudas para PROBAR con adb (no cambian nada si no se mandan): `--es video_url http://127.0.0.1:8085/stream` (la cámara falsa), `--es ws_url ws://127.0.0.1:8080/ws`
-     * (el servidor falso del carro), `--es tema oscuro|claro|sistema`, `--es orientacion horizontal|vertical|auto` y `--ez asistente_visto true`, `--ez video_en_manual true|false`.
+     * (el servidor falso del carro), `--es tema oscuro|claro|sistema`, `--es orientacion horizontal|vertical|auto` y `--ez asistente_visto true`, `--ez video_en_manual true|false`, `--ei ruta_plantilla 0..3` (pone una plantilla en el editor de rutas).
      */
     private fun aplicarExtrasDePrueba() {
         intent.getStringExtra("video_url")?.let { ConfigVision(this).urlVideoCarro = it; ConfigVision(this).fuenteCarro = true }
         intent.getStringExtra("ws_url")?.let { Ajustes(this).direccionCarro = it }
         if (intent.hasExtra("asistente_visto")) {
             Ajustes(this).asistenteVisto = intent.getBooleanExtra("asistente_visto", true)
+        }
+        if (intent.hasExtra("ruta_plantilla")) {
+            RutaEditorNativa.plantilla(intent.getIntExtra("ruta_plantilla", 0))
         }
         if (intent.hasExtra("video_en_manual")) {
             Ajustes(this).videoEnManual = intent.getBooleanExtra("video_en_manual", true)
@@ -146,12 +149,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        SesionCarro.entrar(this, SesionNativa.USUARIO_MAS)   // mientras la app se ve, la conexión con el carro se mantiene (las pantallas internas no la cortan)
         SesionCarro.escuchar(alCambiar)
         mostrarBateria(registerReceiver(receptorBateria, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
         actualizarCabecera()
     }
 
     override fun onStop() {
+        SesionCarro.salir(SesionNativa.USUARIO_MAS)
         SesionCarro.dejarDeEscuchar(alCambiar)
         try { unregisterReceiver(receptorBateria) } catch (e: IllegalArgumentException) { /* ya estaba suelto */ }
         super.onStop()
@@ -247,6 +252,14 @@ class MainActivity : AppCompatActivity() {
             "asistente" -> {
                 cambiarA(R.id.pestana_inicio)
                 abrirAsistente()
+            }
+            "ejecutar" -> {
+                cambiarA(R.id.pestana_rutas)
+                if (RutaEditorNativa.vertices().isEmpty()) {
+                    RutaEditorNativa.plantilla(RutaEditorNativa.PLANTILLA_CUADRADO)
+                }
+                supportFragmentManager.executePendingTransactions()
+                abrirSubpantalla(EjecutarRutaFragment.nueva("Ruta de prueba", RutaEditorNativa.celdas()))
             }
             else -> {
                 cambiarA(R.id.pestana_mas)

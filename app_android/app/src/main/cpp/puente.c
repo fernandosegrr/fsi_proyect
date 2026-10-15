@@ -2228,6 +2228,14 @@ Java_com_fsi_carro_RutaEditorNativa_borrarPunto(JNIEnv *env, jobject objeto, jin
 }
 
 JNIEXPORT void JNICALL
+Java_com_fsi_carro_RutaEditorNativa_finArrastre(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    re_fin_arrastre(obtener_editor());
+}
+
+JNIEXPORT void JNICALL
 Java_com_fsi_carro_RutaEditorNativa_limpiar(JNIEnv *env, jobject objeto)
 {
     (void)env;

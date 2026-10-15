@@ -30,6 +30,7 @@ def main():
     p.add_argument("--orientacion", default="vertical")
     p.add_argument("--espera", type=float, default=4.0)
     p.add_argument("--salida", required=True)
+    p.add_argument("--plantilla", type=int, default=-1, help="pone una plantilla (0 a 3) en el editor de rutas")
     p.add_argument("--sin-servidores", action="store_true", help="no usa el carro ni la cámara falsos (para ver los estados de error)")
     a = p.parse_args()
 
@@ -37,10 +38,17 @@ def main():
     time.sleep(0.5)
     comando = ["shell", "am", "start", "-n", "com.fsi.carro/.MainActivity", "--es", "pantalla", a.pantalla, "--es", "tema", a.tema,
                "--es", "orientacion", a.orientacion, "--ez", "asistente_visto", "true"]
+    if a.plantilla >= 0:
+        comando += ["--ei", "ruta_plantilla", str(a.plantilla)]
     if a.sin_servidores:
         comando += ["--es", "video_url", "http://127.0.0.1:9/stream", "--es", "ws_url", "ws://127.0.0.1:9/ws"]
     else:
         comando += ["--es", "video_url", "http://127.0.0.1:8085/stream", "--es", "ws_url", "ws://127.0.0.1:8080/ws"]
+    if a.pantalla in ("vision", "calibracion"):   # son Activity aparte (su orientación la fija el manifiesto)
+        componente = "com.fsi.carro/.VisionActivity" if a.pantalla == "vision" else "com.fsi.carro/.CalibracionActivity"
+        adb("shell", "am", "start", "-n", "com.fsi.carro/.MainActivity", "--es", "tema", a.tema, "--ez", "asistente_visto", "true", "--es", "video_url", "http://127.0.0.1:8085/stream", "--es", "ws_url", "ws://127.0.0.1:8080/ws")
+        time.sleep(2.5)
+        comando = ["shell", "am", "start", "-n", componente]
     r = adb(*comando)
     if b"Error" in r.stdout or b"Error" in r.stderr:
         print(r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace"))

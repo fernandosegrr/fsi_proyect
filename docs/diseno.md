@@ -179,11 +179,34 @@ Cada pantalla se capturó en el teléfono (`scripts/qa_captura.py`, con la cáma
 - En horizontal: giro a la izquierda (dos botones), video al centro, adelante y atrás con el PARO en medio a la derecha. El video ocupa el alto disponible y la imagen se ajusta dentro sin deformarse.
 - El texto del retraso es de **una sola línea** (12 sp): «Rápido. El video llega ~0.3 s tarde: frena antes.».
 
+### Rutas
+- **Lo grande:** la cuadrícula (400 dp de ancho como máximo; en horizontal no crece sin límite). Leyenda «1 cuadro = 20 cm» y escala cada 40 cm dentro del borde, para no gastar márgenes.
+- Las 4 herramientas (deshacer, rehacer, borrar punto, limpiar) son botones de **solo icono** de 48 dp repartidos a todo el ancho; las plantillas van en una fila que se desliza de lado.
+- El **botón primario** es «Ejecutar ruta» (56 dp, uno solo); «Simular», «Guardar» y «Abrir» son secundarios. El resultado de la simulación es una tarjeta con un chip (Llegó / No llegó) y un texto de una o dos frases; los avisos van en ámbar.
+- El punto 1 va en **verde** (salida) y los demás en cian; el punto elegido lleva un anillo. Cuando varios puntos caen en la misma celda (el ocho empieza y termina en el centro) se ve el último: es normal.
+- El historial muestra las últimas 8 ejecuciones con un chip de color (verde TERMINADO, rojo ERROR, ámbar CANCELADO) y, si no hay ninguna, el componente de estado vacío.
+
+### Ejecutar ruta
+- **Lo grande:** el estado en palabras («Listo para empezar», «Avanzando», «Obstáculo: esquivando», «Terminado»), con el nombre de la ruta debajo y el progreso por puntos con su barra.
+- El video va **más chico** (con 32 dp de margen a cada lado) para que el botón de iniciar quede a la vista sin desplazar. Mientras la ruta corre, el PARO (72 dp de alto, ancho completo) ocupa el lugar de «Iniciar ruta».
+- Los detalles técnicos están **plegados** detrás de «Detalles técnicos»: la pantalla principal no parece una herramienta de depuración.
+
+### Más, Ajustes, Ayuda, Acerca de y Prueba final
+- «Más» es una lista de 6 tarjetas de 64 dp o más con icono, título, una frase y flecha. Las pantallas internas llevan una barra de título con flecha de volver y la barra inferior sigue visible.
+- **Ajustes:** tarjetas por tema (Red, Velocidad en Manual, Video en Manual, Tema, Vibración) con una frase de ayuda debajo de cada una; las direcciones se validan y el error sale dentro del campo.
+- **Ayuda:** 10 preguntas en tarjetas desplegables (200 ms) que dicen qué pasó y qué hacer; «Si algo falla» con 4 pasos numerados; botón para ver otra vez el asistente.
+- **Prueba final:** contador grande «0 de 7 hechos» con barra de avance y una tarjeta por paso, con casilla guardada en el teléfono; el paso de la latencia con y sin video tiene el único botón primario («Medir ahora»).
+
+### Visión y diagnóstico y Calibración
+- **Visión (horizontal):** el video con esquinas redondeadas y un chip de estado de la cámara ocupa la izquierda; a la derecha las tarjetas (Detector, Guardar cuadro) y una sección **«Avanzado»** plegable (cerrada por defecto) con todos los ajustes finos agrupados por tema y el botón «Restablecer». El título se acorta a «Visión» para que no se corte.
+- **Calibración (vertical):** una prueba por pantalla: «Paso X de 9» con barra de progreso, título, ilustración dibujada por código (el carro visto desde arriba, con la regla de cm, el arco de giro, la cámara...), una instrucción de máximo 3 líneas y un panel fijo abajo con la acción del paso, «Atrás» y el PARO. Solo un botón se ve primario a la vez.
+
 ### Hallazgos de la revisión (valen para toda la app)
 - **Todo ScrollView lleva fondo propio (`@color/fondo`) y `overScrollMode="never"`.** Sin eso, en el Huawei el contenido se veía con un velo gris sobre el fondo (el efecto de borde del desplazamiento).
 - **Las alturas de línea se fijan en cada estilo.** El tema Material deja 24 sp de altura de línea y un título de 32 sp en dos renglones se pisaba.
 - Contraste revisado también en modo claro (Inicio): textos, chips y botón sin problema.
 - Las capturas de pantalla solo se toman si la app está al frente (si el usuario usa otra pantalla del teléfono, el script no captura).
+- **El título de una pantalla en horizontal puede quedar sin ancho** (se cortaba «Visión y diagnóstico»): usar un título corto en la barra y el nombre completo en «Más».
 
 ## 9. Licencias de lo incluido
 

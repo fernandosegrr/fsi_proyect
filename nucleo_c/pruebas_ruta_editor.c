@@ -77,6 +77,23 @@ int main(void)
     re_agregar(&e, 1, 1);
     caso("borrar el del medio de A-B-A deja un solo A (sin repetidos seguidos)", re_borrar_punto(&e, 1) == RE_OK && e.actual.n == 1);
 
+    /* Un arrastre entero (varios mover seguidos del mismo punto) es UN solo paso de deshacer. */
+    re_iniciar(&e);
+    re_agregar(&e, 1, 6);
+    re_agregar(&e, 1, 3);
+    n = e.n_deshacer;
+    re_mover(&e, 1, 2, 3);
+    re_mover(&e, 1, 3, 3);
+    re_mover(&e, 1, 4, 3);
+    caso("arrastrar un punto por 3 celdas guarda UN solo paso de deshacer", e.n_deshacer == n + 1 && es(&e, 1, 4, 3));
+    re_fin_arrastre(&e);
+    re_mover(&e, 1, 5, 3);
+    caso("después de soltar, otro arrastre es otro paso", e.n_deshacer == n + 2);
+    re_deshacer(&e);
+    caso("deshacer vuelve al punto donde se soltó la primera vez", es(&e, 1, 4, 3));
+    re_deshacer(&e);
+    caso("y otro deshacer vuelve al punto de antes de arrastrar", es(&e, 1, 1, 3));
+
     /* ── Deshacer y rehacer ────────────────────────────────────────────── */
     re_iniciar(&e);
     re_agregar(&e, 1, 6);

@@ -25,6 +25,7 @@ PANTALLAS = [
     ("inicio", "abierta=INICIO ok"),
     ("manual", "abierta=MANUAL ok"),
     ("rutas", "abierta=RUTAS ok"),
+    ("ejecutar", "abierta=EJECUTAR_RUTA ok"),
     ("mas", "abierta=MAS ok"),
     ("asistente", "abierta=ASISTENTE ok"),
     ("prueba", "abierta=PRUEBA_FINAL ok"),

@@ -4,7 +4,7 @@
  * GUÍA DE LECTURA
  *  1. Guarda UMBRAL_COLOR, MIN_CELDAS y la fila mínima en SharedPreferences (el almacenamiento de
  *     preferencias de Android), para que lo que se ajustó en VisionActivity también lo use el modo
- *     semiautónomo de ControlActivity y se conserve al cerrar la app.
+ *     semiautónomo (Ejecutar ruta) y se conserve al cerrar la app.
  *  2. Los valores por defecto vienen del código en C (ObstaculosNativa.configDefecto).
  *  3. La fila mínima es una PROPORCIÓN del alto (en milésimas: 500 = la mitad inferior), no un
  *     número de fila: así vale para cualquier tamaño de cuadro. En pantalla se muestra en por ciento.
@@ -182,7 +182,7 @@ class ConfigVision(contexto: Context) {
     }
 
     /** Los 12 enteros de configuración (la franja de referencia queda con el valor por defecto del código en C: la tira ancha). El 12.º (piso fijo) lo cambia
-     *  quien sabe si hay una ruta en marcha (ControlActivity). */
+     *  quien sabe si hay una ruta en marcha (EjecutarRutaFragment). */
     fun comoArreglo(): IntArray {
         val config = defecto.copyOf(ObstaculosNativa.ENTEROS_CONFIG)
         config[ObstaculosNativa.CFG_MEJORAS_PISO] = 1

@@ -72,6 +72,7 @@ void re_iniciar(EditorRuta *e)
     e->actual.n = 0;
     e->n_deshacer = 0;
     e->n_rehacer = 0;
+    e->arrastre = -1;
 }
 
 static void guardar_para_deshacer(EditorRuta *e)
@@ -86,6 +87,7 @@ static void guardar_para_deshacer(EditorRuta *e)
     }
     e->deshacer[e->n_deshacer++] = e->actual;
     e->n_rehacer = 0;
+    e->arrastre = -1;
 }
 
 int re_deshacer(EditorRuta *e)
@@ -97,6 +99,7 @@ int re_deshacer(EditorRuta *e)
         e->rehacer[e->n_rehacer++] = e->actual;
     }
     e->actual = e->deshacer[--e->n_deshacer];
+    e->arrastre = -1;
     return RE_OK;
 }
 
@@ -109,6 +112,7 @@ int re_rehacer(EditorRuta *e)
         e->deshacer[e->n_deshacer++] = e->actual;
     }
     e->actual = e->rehacer[--e->n_rehacer];
+    e->arrastre = -1;
     return RE_OK;
 }
 
@@ -178,9 +182,19 @@ int re_mover(EditorRuta *e, int indice, int columna, int fila)
     if (!cabe(&prueba)) {
         return RE_ERR_LARGA;
     }
-    guardar_para_deshacer(e);
+    if (e->arrastre != indice) {   /* el primer paso del arrastre guarda el estado de antes; los siguientes no */
+        guardar_para_deshacer(e);
+        e->arrastre = indice;
+    }
     e->actual = prueba;
     return RE_OK;
+}
+
+void re_fin_arrastre(EditorRuta *e)
+{
+    if (e != NULL) {
+        e->arrastre = -1;
+    }
 }
 
 int re_borrar_punto(EditorRuta *e, int indice)
@@ -434,6 +448,7 @@ int re_de_texto(const char *texto, EditorRuta *e)
     e->actual = nueva;
     e->n_deshacer = 0;
     e->n_rehacer = 0;
+    e->arrastre = -1;
     return RE_OK;
 }
 

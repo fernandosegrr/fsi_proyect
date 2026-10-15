@@ -50,7 +50,7 @@ class ControlLogica(
     var latenciaMs: Long? = null   // null = todavía no hay medición
         private set
 
-    /** El perfil que la pantalla quiere. Por defecto AUTO (el seguro); ControlActivity pone MANUAL. Se manda al abrir la conexión. */
+    /** El perfil que la pantalla quiere. Por defecto AUTO (el seguro); las pantallas piden su perfil (Manual = MANUAL). Se manda al abrir la conexión. */
     var perfilDeseado = Perfil.AUTO
     /** El último perfil que el carro CONFIRMÓ con ACK_MANUAL / ACK_AUTO (null = todavía no confirmó nada en esta conexión). */
     var perfilConfirmado: Perfil? = null

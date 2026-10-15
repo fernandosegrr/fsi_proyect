@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla RUTAS. Lo grande: la cuadrícula. De arriba abajo: herramientas (deshacer, rehacer, borrar punto, limpiar), plantillas, resumen,
+  simulación (obstáculo virtual y botón Simular con su resultado), guardar / abrir, el botón primario «Ejecutar ruta» y el historial.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fondo"
+    android:clipToPadding="false"
+    android:overScrollMode="never"
+    android:paddingBottom="@dimen/e3">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/margen_pantalla"
+        android:paddingTop="@dimen/e2"
+        android:paddingEnd="@dimen/margen_pantalla">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/rutas_nombre"
+                style="@style/Texto.Titulo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/rutas_borrador" />
+
+            <com.fsi.carro.ChipEstado
+                android:id="@+id/rutas_chip_puntos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <com.fsi.carro.EditorRutaView
+            android:id="@+id/rutas_cuadricula"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/e2" />
+
+        <TextView
+            android:id="@+id/rutas_ayuda"
+            style="@style/Texto.Etiqueta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:text="@string/rutas_ayuda_toque" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_deshacer"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginEnd="@dimen/e0"
+                android:layout_weight="1"
+                android:contentDescription="@string/rutas_deshacer"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                app:icon="@drawable/ic_undo"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_rehacer"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginStart="@dimen/e0"
+                android:layout_marginEnd="@dimen/e0"
+                android:layout_weight="1"
+                android:contentDescription="@string/rutas_rehacer"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                app:icon="@drawable/ic_redo"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_borrar_punto"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginStart="@dimen/e0"
+                android:layout_marginEnd="@dimen/e0"
+                android:layout_weight="1"
+                android:contentDescription="@string/rutas_borrar_punto"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                app:icon="@drawable/ic_delete"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_limpiar"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginStart="@dimen/e0"
+                android:layout_weight="1"
+                android:contentDescription="@string/rutas_limpiar"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                app:icon="@drawable/ic_clear_all"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:text="@string/rutas_plantillas" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:overScrollMode="never"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_recta"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:text="@string/plantilla_recta" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_cuadrado"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:text="@string/plantilla_cuadrado" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_ocho"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:text="@string/plantilla_ocho" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_zigzag"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:text="@string/plantilla_zigzag" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/e2">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Texto.Etiqueta"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/resumen_largo" />
+
+                        <TextView
+                            android:id="@+id/rutas_largo"
+                            style="@style/Texto.Cifras"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/valor_sin_dato" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Texto.Etiqueta"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/resumen_tiempo" />
+
+                        <TextView
+                            android:id="@+id/rutas_tiempo"
+                            style="@style/Texto.Cifras"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/valor_sin_dato" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Texto.Etiqueta"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/resumen_giros" />
+
+                        <TextView
+                            android:id="@+id/rutas_giros"
+                            style="@style/Texto.Cifras"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/valor_sin_dato" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/rutas_advertencia"
+                    style="@style/Texto.Suave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1"
+                    android:textColor="@color/aviso"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:text="@string/rutas_probar" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/rutas_switch_obstaculo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e0"
+            android:text="@string/rutas_poner_obstaculos"
+            android:textAppearance="@style/Texto.Cuerpo" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/rutas_simular"
+            style="@style/Boton.Secundario"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toque_minimo"
+            android:layout_marginTop="@dimen/e1"
+            android:text="@string/rutas_simular"
+            app:icon="@drawable/ic_science"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/rutas_tarjeta_sim"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/e2">
+
+                <com.fsi.carro.ChipEstado
+                    android:id="@+id/rutas_sim_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/rutas_sim_texto"
+                    style="@style/Texto.Cuerpo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1" />
+
+                <TextView
+                    android:id="@+id/rutas_sim_comandos"
+                    style="@style/Texto.Suave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/rutas_sim_ruido"
+                        style="@style/Boton.Texto"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/rutas_repetir_ruido" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/rutas_sim_cerrar"
+                        style="@style/Boton.Texto"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/rutas_cerrar_sim" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_guardar"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginEnd="@dimen/e1"
+                android:layout_weight="1"
+                android:text="@string/rutas_guardar"
+                app:icon="@drawable/ic_save"
+                app:iconGravity="textStart" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rutas_abrir"
+                style="@style/Boton.Secundario"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginStart="@dimen/e1"
+                android:layout_weight="1"
+                android:text="@string/rutas_abrir"
+                app:icon="@drawable/ic_folder_open"
+                app:iconGravity="textStart" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/rutas_ejecutar"
+            style="@style/Boton.Primario"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toque_manejo"
+            android:layout_marginTop="@dimen/e2"
+            android:text="@string/rutas_ejecutar"
+            app:icon="@drawable/ic_play_arrow"
+            app:iconGravity="textStart" />
+
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e4"
+            android:text="@string/rutas_historial" />
+
+        <LinearLayout
+            android:id="@+id/rutas_historial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:orientation="vertical" />
+
+        <include
+            android:id="@+id/rutas_historial_vacio"
+            layout="@layout/view_estado_vacio" />
+    </LinearLayout>
+</ScrollView>
