@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: textos de las pantallas Visión y diagnóstico (VisionActivity) y Calibración (CalibracionActivity).
+  Frases cortas. Los errores dicen qué pasó y qué hacer (los generales están en Mensajes.kt). Los textos viejos de strings.xml que ya no se usan se dejan ahí.
+-->
+<resources>
+    <!-- ═══ Visión y diagnóstico ═══ -->
+    <string name="vision_titulo_corto">Visión</string>
+    <string name="vision_detector">Detector</string>
+    <string name="vision_chip_abierta">Cámara abierta · %1$s fps</string>
+    <string name="vision_chip_abriendo">Abriendo cámara…</string>
+    <string name="vision_chip_sin_camara">Sin cámara</string>
+    <string name="vision_chip_sin_permiso">Falta el permiso</string>
+    <string name="vision_fuente_carro">Cámara del carro (WiFi)</string>
+    <string name="vision_fuente_ayuda">Apagado: se usa la cámara trasera del teléfono.</string>
+    <string name="vision_avanzado">Avanzado</string>
+    <string name="vision_avanzado_cerrado">Avanzado, cerrado. Toca para abrir los ajustes finos.</string>
+    <string name="vision_avanzado_abierto">Avanzado, abierto. Toca para cerrar.</string>
+    <string name="vision_restablecer">Restablecer</string>
+    <string name="vision_restablecer_ayuda">Vuelve a los valores de fábrica y olvida el piso aprendido.</string>
+
+    <string name="vision_seccion_piso">Detección del piso</string>
+    <string name="vision_seccion_modelo">Modelo de objetos</string>
+    <string name="vision_seccion_trayectoria">Trayectoria</string>
+    <string name="vision_seccion_video">Video y cuadro</string>
+    <string name="vision_seccion_giro">Giro visual</string>
+
+    <string name="vision_umbral">Umbral de color: %1$d</string>
+    <string name="vision_min_celdas">Celdas mínimas: %1$d</string>
+    <string name="vision_fila_minima">Fila mínima: %1$d %% del alto (fila %2$d de %3$d; las de arriba salen en gris y se ignoran)</string>
+    <string name="vision_grupos">Colores del piso (K): %1$d (1 = piso liso; baldosas o vetas necesitan 2 a 4)</string>
+    <string name="vision_aprendizaje">Aprendizaje del piso: %1$d por mil por cuadro (0 = no aprende)</string>
+    <string name="vision_aprender_piso">Aprender piso (carro quieto, ~1 s)</string>
+
+    <string name="vision_sw_modelo">Modelo de objetos (fusión)</string>
+    <string name="vision_sw_cualquiera">Cualquier objeto (sin clase)</string>
+    <string name="vision_sw_corredor">Corredor de trayectoria</string>
+    <string name="vision_sw_flujo">Flujo del piso (solo con el carro avanzando)</string>
+    <string name="vision_corredor_campo">Medidas del corredor</string>
+    <string name="vision_corredor_ayuda">ancho_cm altura_cm inclinación° campo_de_visión° margen_cm</string>
+
+    <string name="vision_modo_video">Modo de video del carro: %1$s (toca para cambiar: jpeg, raw, celdas)</string>
+    <string name="vision_modo_video_en_uso">Modo de video del carro: %1$s, en uso: %2$s (falló el pedido; toca para cambiar)</string>
+    <string name="vision_tamano">Tamaño del cuadro: %1$dx%2$d (toca para cambiar)</string>
+    <string name="vision_giro_cero">Poner el ángulo acumulado en 0</string>
+    <string name="vision_giro_ayuda">Gira el teléfono a mano y mira cuánto marca.</string>
+    <string name="vision_camara_no_lista">La cámara no está lista</string>
+
+    <string name="vision_aviso_permiso_paso">Falta el permiso de cámara</string>
+    <string name="vision_aviso_permiso_hacer">Permite la cámara a la app en los ajustes del teléfono y toca Reintentar.</string>
+    <string name="vision_aviso_telefono_paso">La cámara del teléfono no responde</string>
+    <string name="vision_aviso_telefono_hacer">Cierra otras apps que usen la cámara y toca Reintentar.</string>
+
+    <!-- ═══ Calibración ═══ -->
+    <string name="cal_titulo">Calibración</string>
+    <string name="cal_paso">Paso %1$d de %2$d</string>
+
+    <string name="cal_t_intro">Calibración del carro</string>
+    <string name="cal_t_reaccion">Tu tiempo de reacción</string>
+    <string name="cal_t_arranque">Retardo de arranque</string>
+    <string name="cal_t_avance">Avance en línea recta</string>
+    <string name="cal_t_giro_izq">Giro a la izquierda</string>
+    <string name="cal_t_giro_der">Giro a la derecha</string>
+    <string name="cal_t_retroceso">Retroceso (opcional)</string>
+    <string name="cal_t_giro_visual">Giro con la cámara (opcional)</string>
+    <string name="cal_t_resumen">Resumen</string>
+
+    <!-- Instrucciones: máximo 3 líneas. Lo que sobra va en la nota (letra suave). -->
+    <string name="cal_i_intro">Vamos a medir cómo arranca, avanza y gira el carro. Ponlo en el piso donde andará, con batería y 2 m libres.</string>
+    <string name="cal_i_reaccion">Toca «Empezar». Cuando el botón grande se ponga verde, tócalo lo más rápido que puedas. Son 3 veces.</string>
+    <string name="cal_i_arranque">Toca «Probar»: el carro avanza. Toca «YA SE MOVIÓ» en cuanto veas girar las ruedas. Son 5 veces.</string>
+    <string name="cal_i_avance">Pon el carro en la marca de salida y toca «Probar»: avanza y se detiene. Escribe cuántos cm avanzó.</string>
+    <string name="cal_i_giro">Alinea el carro con una marca de 90° y toca «Probar»: gira y se detiene. Escribe los grados que giró.</string>
+    <string name="cal_i_retroceso">Igual que el avance, pero en reversa. Deja 80 cm libres DETRÁS: el carro no ve hacia atrás.</string>
+    <string name="cal_i_giro_visual">Frente a algo con detalles (no una pared lisa), toca «Probar»: gira 90° a la derecha. Escribe cuántos grados giró de verdad.</string>
+    <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones.</string>
+
+    <string name="cal_n_intro">Necesitas una cinta o regla y marcas de 90° en el piso. El botón PARO siempre detiene el carro.</string>
+    <string name="cal_n_intro_giro">«Solo calibrar el giro con la cámara» salta al paso 8 y conserva la calibración guardada.</string>
+    <string name="cal_n_reaccion">Sirve para descontar tu reacción de la prueba de arranque.</string>
+    <string name="cal_n_arranque">Si no tocas en 3 s, el carro se detiene solo.</string>
+    <string name="cal_n_avance">Espera a que pare del todo y mide de la marca a las ruedas. Cada vez, vuelve a poner el carro en la marca.</string>
+    <string name="cal_n_giro">Pon grados aproximados (45, 90, 135…). Espera a que pare y vuelve a alinear el carro cada vez.</string>
+    <string name="cal_n_retroceso">Mide cuántos cm retrocedió, de la marca a las ruedas. Si no lo mides, toca «Siguiente»: se usa el valor del avance.</string>
+    <string name="cal_n_giro_visual">Se repite hasta 3 veces. Si no quieres este paso, toca «Ver resumen».</string>
+
+    <string name="cal_b_empezar">Empezar</string>
+    <string name="cal_b_solo_giro">Solo calibrar el giro con la cámara</string>
+    <string name="cal_b_probar_arranque">Probar (el carro avanza)</string>
+    <string name="cal_b_probar_n">Probar: %1$d ms (%2$d de %3$d)</string>
+    <string name="cal_b_todas">Ya están todas las pruebas</string>
+    <string name="cal_b_visual_n">Probar: girar 90° a la derecha (%1$d de 3)</string>
+    <string name="cal_b_visual_listo">Ya están las 3 pruebas</string>
+    <string name="cal_b_ver_resumen">Ver resumen</string>
+    <string name="cal_b_ya_toca">¡TOCA YA!</string>
+    <string name="cal_b_ya_espera">Espera el verde…</string>
+    <string name="cal_b_ya_empezar">Toca «Empezar»</string>
+    <string name="cal_b_ya_movio">YA SE MOVIÓ</string>
+
+    <string name="cal_h_cm">¿Cuántos cm avanzó?</string>
+    <string name="cal_h_cm_atras">¿Cuántos cm retrocedió?</string>
+    <string name="cal_h_grados">¿Cuántos grados giró?</string>
+    <string name="cal_h_grados_reales">¿Cuántos grados giró de verdad?</string>
+
+    <string name="cal_error_numero">Escribe un número mayor que cero.</string>
+    <string name="cal_chip_sin_confirmar">Velocidad sin confirmar</string>
+    <string name="cal_chip_auto">AUTO</string>
+
+    <string name="cal_ilus_intro">Dibujo: el carro visto desde arriba, con espacio libre alrededor.</string>
+    <string name="cal_ilus_reaccion">Dibujo: un cronómetro y un dedo que toca.</string>
+    <string name="cal_ilus_arranque">Dibujo: el carro empieza a moverse y un cronómetro mide el tiempo.</string>
+    <string name="cal_ilus_avance">Dibujo: el carro avanza en línea recta junto a una regla en centímetros.</string>
+    <string name="cal_ilus_giro_izq">Dibujo: el carro gira 90 grados a la izquierda.</string>
+    <string name="cal_ilus_giro_der">Dibujo: el carro gira 90 grados a la derecha.</string>
+    <string name="cal_ilus_retroceso">Dibujo: el carro retrocede en línea recta junto a una regla en centímetros.</string>
+    <string name="cal_ilus_giro_visual">Dibujo: el carro gira a la derecha mientras la cámara, un ojo, mide el giro.</string>
+    <string name="cal_ilus_resumen">Dibujo: una palomita verde, las mediciones están listas.</string>
+</resources>

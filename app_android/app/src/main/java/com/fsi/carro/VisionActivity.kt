@@ -1,38 +1,48 @@
 /*
- * VisionActivity.kt — Pantalla para apuntar la cámara del teléfono al piso y ver qué detecta el
- * detector de obstáculos, ajustando los umbrales sin recompilar.
+ * VisionActivity.kt — Pantalla VISIÓN Y DIAGNÓSTICO: apuntar la cámara al piso y ver qué detecta el detector de obstáculos, ajustando los umbrales sin recompilar.
  *
  * GUÍA DE LECTURA
- *  1. Usar con el teléfono en HORIZONTAL (la pantalla está fija en horizontal): el piso cerca
- *     del carro debe quedar en la parte baja de la imagen.
- *  2. onResume abre la cámara (CamaraObstaculos) y pide el permiso si falta; onPause la cierra.
- *  3. Cada cuadro analizado llega en el hilo de la cámara; aquí solo se guarda el último y se
- *     pide al hilo principal que lo dibuje (si llegan más rápido de lo que se dibuja, se
- *     descartan los intermedios).
- *  4. Las dos barras cambian UMBRAL_COLOR y MIN_CELDAS en vivo y se guardan en
- *     SharedPreferences (ConfigVision); el modo semiautónomo usa los mismos valores.
- *  5. "Guardar cuadro" escribe el cuadro actual como JPEG en la carpeta privada de la app (se saca con
- *     adb pull; nunca va al repositorio).
+ *  1. Usar con el teléfono en HORIZONTAL (la pantalla está fija en horizontal): el piso cerca del carro debe quedar en la parte baja de la imagen.
+ *     Izquierda: el cuadro con la detección (VistaDeteccion) y un chip con el estado de la cámara. Derecha: lo esencial arriba (estado del detector, de dónde viene
+ *     la cámara y el botón «Guardar cuadro») y, plegada, la sección «Avanzado» con todos los ajustes finos.
+ *  2. onResume abre la cámara (CamaraObstaculos) y pide el permiso si falta; onPause la cierra. Si la cámara falla, un aviso en banda dice qué pasó y qué hacer.
+ *  3. Cada cuadro analizado llega en el hilo de la cámara; aquí solo se guarda el último y se pide al hilo principal que lo dibuje (si llegan más rápido de lo que
+ *     se dibuja, se descartan los intermedios).
+ *  4. Los deslizadores cambian UMBRAL_COLOR, MIN_CELDAS, fila mínima, grupos del piso (K) y aprendizaje en vivo y se guardan en SharedPreferences (ConfigVision); el
+ *     modo semiautónomo usa los mismos valores. Los interruptores (cámara del carro, modelo de objetos, «cualquier objeto», corredor, flujo) cambian en ConfigVision
+ *     lo mismo que antes cambiaban los botones de «tocar para cambiar».
+ *  5. «Avanzado» se abre y se cierra tocando su encabezado (animación de 200 ms, cerrada al abrir la pantalla). «Restablecer» llama a ConfigVision.restablecer y a
+ *     ObstaculosNativa.reiniciarModelo (también se olvida el piso aprendido) y refresca los deslizadores.
+ *  6. «Guardar cuadro» escribe el cuadro actual como JPEG en la carpeta privada de la app (se saca con adb pull; nunca va al repositorio).
+ *  7. Los textos de estado (detector, modelo, video, giro, corredor, piso) se refrescan cada medio segundo (actualizarTextos). PantallasLog.abierta("VISION") se
+ *     escribe al terminar de armar la pantalla.
  */
 package com.fsi.carro
 
 import android.Manifest
-import android.app.Activity
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
-import android.text.InputType
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.materialswitch.MaterialSwitch
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -48,6 +58,8 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private lateinit var configuracion: ConfigVision
     private lateinit var vista: VistaDeteccion
+    private lateinit var chipCamara: ChipEstado
+    private lateinit var aviso: AvisoBanda
     private lateinit var textoStats: TextView
     private lateinit var textoUmbral: TextView
     private lateinit var textoMinCeldas: TextView
@@ -60,22 +72,25 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var barraMinCeldas: SeekBar
     private lateinit var barraFilaMinima: SeekBar
     private lateinit var camara: CamaraObstaculos
-    private lateinit var botonTamano: Button
-    private lateinit var botonModelo: Button
-    private lateinit var botonFuenteVideo: Button
+    private lateinit var botonTamano: MaterialButton
+    private lateinit var interruptorModelo: MaterialSwitch
+    private lateinit var interruptorFuente: MaterialSwitch        // cámara del carro (WiFi) o del teléfono
     private lateinit var textoVideo: TextView
     private lateinit var textoFusion: TextView
     private lateinit var textoGiro: TextView
-    private lateinit var botonModoVideo: Button   // modo de video del carro: jpeg, raw o celdas (Trabajo I)
-    private lateinit var botonFlujo: Button        // «Flujo del piso» (movimiento_piso.h): apagado por defecto
-    private lateinit var botonCorredor: Button     // controles que se agregan por código debajo de «Fuente del video» (ver agregarControlesExtra)
+    private lateinit var botonModoVideo: MaterialButton   // modo de video del carro: jpeg, raw o celdas (Trabajo I)
+    private lateinit var interruptorFlujo: MaterialSwitch  // «Flujo del piso» (movimiento_piso.h): apagado por defecto
+    private lateinit var interruptorCorredor: MaterialSwitch
     private lateinit var campoCorredor: EditText
     private lateinit var textoCorredor: TextView
-    private lateinit var botonAprenderPiso: Button   // «Aprender piso»: con el carro quieto, aprende los colores de toda la zona de abajo
+    private lateinit var botonAprenderPiso: MaterialButton   // «Aprender piso»: con el carro quieto, aprende los colores de toda la zona de abajo
     private lateinit var textoPisoAprendido: TextView
-    private lateinit var botonCualquiera: Button    // «Modelo: cualquier objeto» y su umbral de confianza (0.01 a 0.50)
+    private lateinit var interruptorCualquiera: MaterialSwitch    // «Modelo: cualquier objeto» y su umbral de confianza (0.01 a 0.50)
     private lateinit var barraCualquiera: SeekBar
     private lateinit var textoCualquiera: TextView
+    private lateinit var avanzadoEncabezado: View
+    private lateinit var avanzadoIcono: ImageView
+    private lateinit var avanzadoContenido: LinearLayout
     private val anguloAcumuladoX10 = AtomicInteger(0)   // suma de los giros confiables vistos por la cámara desde que se puso en 0
     private val cuadrosSinGiro = AtomicInteger(0)        // cuadros en que la cámara no tuvo confianza
     private var ultimoNumeroGiro = -1L
@@ -88,14 +103,20 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
     private var pidiendoPermiso = false
     private var registrosPendientes = 0
     private var ultimoAvisoPisoMs = 0L   // para mostrar unos segundos el aviso "piso nuevo aprendido"
+    private var refrescando = false      // true mientras el código (no la persona) pone los valores en los controles: los escuchas no hacen nada
+    private var avanzadoAbierto = false
+    private var animadorAvanzado: ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_vision)
+        Diseno.barras(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         configuracion = ConfigVision(this)
         vista = findViewById(R.id.vista_deteccion)
+        chipCamara = findViewById(R.id.vision_chip_camara)
+        aviso = findViewById(R.id.vision_aviso)
         textoStats = findViewById(R.id.texto_stats)
         textoUmbral = findViewById(R.id.texto_umbral)
         textoMinCeldas = findViewById(R.id.texto_min_celdas)
@@ -107,19 +128,35 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
         barraGrupos = findViewById(R.id.barra_grupos)
         textoAprendizaje = findViewById(R.id.texto_aprendizaje)
         barraAprendizaje = findViewById(R.id.barra_aprendizaje)
-        botonModelo = findViewById(R.id.boton_modelo)
-        botonFuenteVideo = findViewById(R.id.boton_fuente_video)
+        botonAprenderPiso = findViewById(R.id.boton_aprender_piso)
+        textoPisoAprendido = findViewById(R.id.texto_piso_aprendido)
+        interruptorModelo = findViewById(R.id.switch_modelo)
+        interruptorFuente = findViewById(R.id.switch_fuente_video)
         textoVideo = findViewById(R.id.texto_video)
         botonTamano = findViewById(R.id.boton_tamano)
         textoFusion = findViewById(R.id.texto_fusion)
         textoGiro = findViewById(R.id.texto_giro)
-        agregarControlesExtra()
+        interruptorCualquiera = findViewById(R.id.switch_cualquiera)
+        textoCualquiera = findViewById(R.id.texto_cualquiera)
+        barraCualquiera = findViewById(R.id.barra_cualquiera)
+        interruptorCorredor = findViewById(R.id.switch_corredor)
+        campoCorredor = findViewById(R.id.campo_corredor)
+        textoCorredor = findViewById(R.id.texto_corredor)
+        interruptorFlujo = findViewById(R.id.switch_flujo)
+        botonModoVideo = findViewById(R.id.boton_modo_video)
+        avanzadoEncabezado = findViewById(R.id.avanzado_encabezado)
+        avanzadoIcono = findViewById(R.id.avanzado_icono)
+        avanzadoContenido = findViewById(R.id.avanzado_contenido)
+
+        findViewById<TextView>(R.id.barra_titulo).setText(R.string.vision_titulo_corto)
+        findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO
         barraMinCeldas.max = ConfigVision.MIN_CELDAS_MAXIMO - 1   // el progreso 0 equivale a 1 celda
         barraFilaMinima.max = ConfigVision.PORCENTAJE_FILA_MAXIMO   // el progreso es el por ciento del alto (0 = toda la imagen)
         barraGrupos.max = ConfigVision.GRUPOS_MAXIMO - 1             // el progreso 0 equivale a 1 color
         barraAprendizaje.max = ConfigVision.APRENDIZAJE_MAXIMO_MIL / 5   // pasos de 5 milésimas
+        barraCualquiera.max = CualquieraNativa.UMBRAL_MAX_MIL - CualquieraNativa.UMBRAL_MIN_MIL   // 0 = 0.01 ... 490 = 0.50
         mostrarValoresDeBarras()
 
         barraUmbral.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.umbralColor = valor })
@@ -127,38 +164,151 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
         barraFilaMinima.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.filaMinimaMil = valor * 10 })
         barraGrupos.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.gruposPiso = valor + 1 })
         barraAprendizaje.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.aprendizajeMil = valor * 5 })
-        findViewById<Button>(R.id.boton_giro_cero).setOnClickListener {
+        barraCualquiera.setOnSeekBarChangeListener(alMoverBarra { valor -> configuracion.umbralCualquieraMil = valor + CualquieraNativa.UMBRAL_MIN_MIL })
+        findViewById<MaterialButton>(R.id.boton_giro_cero).setOnClickListener {
             anguloAcumuladoX10.set(0)
             cuadrosSinGiro.set(0)
         }
-        botonModelo.setOnClickListener {
-            configuracion.usarModelo = !configuracion.usarModelo
-            camara.activarModelo(configuracion.usarModelo && camara.abierta)
+        interruptorModelo.setOnCheckedChangeListener { _, marcado ->
+            if (!refrescando) {
+                configuracion.usarModelo = marcado
+                camara.activarModelo(configuracion.usarModelo && camara.abierta)
+                mostrarValoresDeBarras()
+            }
+        }
+        interruptorFuente.setOnCheckedChangeListener { _, marcado ->
+            if (!refrescando) {
+                configuracion.fuenteCarro = marcado
+                camara.cerrar()
+                abrirCamara()   // se vuelve a abrir con la fuente nueva (teléfono o video del carro)
+                mostrarValoresDeBarras()
+            }
+        }
+        interruptorCualquiera.setOnCheckedChangeListener { _, marcado ->
+            if (!refrescando) {
+                configuracion.cualquierObjeto = marcado
+                if (configuracion.cualquierObjeto && !configuracion.usarModelo) {
+                    configuracion.usarModelo = true   // el modo necesita el modelo de objetos encendido
+                    camara.activarModelo(camara.abierta)
+                }
+                CualquieraNativa.reiniciar()
+                mostrarValoresDeBarras()
+            }
+        }
+        interruptorCorredor.setOnCheckedChangeListener { _, marcado ->
+            if (!refrescando) {
+                configuracion.corredorActivo = marcado
+                mostrarValoresDeBarras()
+            }
+        }
+        interruptorFlujo.setOnCheckedChangeListener { _, marcado ->
+            if (!refrescando) {
+                configuracion.flujoActivo = marcado
+                mostrarValoresDeBarras()
+            }
+        }
+        botonModoVideo.setOnClickListener {
+            configuracion.modoVideo = ModoVideo.siguiente(configuracion.modoVideo)
+            if (configuracion.fuenteCarro) {
+                camara.cerrar()
+                SesionVideo.cambiarModo(configuracion.modoVideo)   // el video es una sesión compartida: se reabre con el modo nuevo (la cámara del carro lo cambia con /control?modo=)
+                abrirCamara()
+            }
             mostrarValoresDeBarras()
         }
-        botonFuenteVideo.setOnClickListener {
-            configuracion.fuenteCarro = !configuracion.fuenteCarro
-            camara.cerrar()
-            abrirCamara()   // se vuelve a abrir con la fuente nueva (teléfono o video del carro)
-            mostrarValoresDeBarras()
+        botonAprenderPiso.setOnClickListener {
+            if (camara.abierta && !camara.aprendiendoPiso) {
+                camara.aprenderPiso()
+            } else {
+                Toast.makeText(this, getString(R.string.vision_camara_no_lista), Toast.LENGTH_SHORT).show()
+            }
+        }
+        campoCorredor.setOnEditorActionListener { campo, accion, _ ->
+            if (accion == EditorInfo.IME_ACTION_DONE) {
+                campo.clearFocus()
+                (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(campo.windowToken, 0)
+                aplicarCampoCorredor(campo.text.toString())
+                true
+            } else {
+                false
+            }
         }
         botonTamano.setOnClickListener {
             configuracion.indiceTamano = (configuracion.indiceTamano + 1) % ConfigVision.TAMANOS.size   // la cámara lo toma en el siguiente cuadro
             mostrarValoresDeBarras()
         }
-        findViewById<Button>(R.id.boton_guardar_cuadro).setOnClickListener { guardarCuadro() }
-        findViewById<Button>(R.id.boton_restablecer).setOnClickListener {
+        findViewById<MaterialButton>(R.id.boton_guardar_cuadro).setOnClickListener { guardarCuadro() }
+        findViewById<MaterialButton>(R.id.boton_restablecer).setOnClickListener {
             configuracion.restablecer()
             ObstaculosNativa.reiniciarModelo()   // también se olvida el piso aprendido
             mostrarValoresDeBarras()
         }
+        avanzadoEncabezado.setOnClickListener { ponerAvanzado(!avanzadoAbierto, true) }
+        ponerAvanzado(savedInstanceState?.getBoolean("avanzado") ?: false, false)
 
-        // La cámara lee la configuración actual en cada cuadro: los cambios de las barras se notan al instante.
+        // La cámara lee la configuración actual en cada cuadro: los cambios de los controles se notan al instante.
         camara = CamaraObstaculos(this, { configuracion.comoArreglo() }, { intArrayOf(configuracion.anchoCuadro, configuracion.altoCuadro) },
             { false }, { configuracion.usarModelo }, { configuracion.corredorComoArreglo() }, { configuracion.cualquieraComoArreglo() }, { configuracion.flujoComoArreglo() }) { cuadro -> alLlegarCuadro(cuadro) }
         camara.fovX10 = CalibracionGuardada(this).fovCalibradoX10()   // campo de visión calibrado (0 = no calibrado: se usa el de la cámara)
         vista.mostrar(null, "Abriendo cámara...")
+        chipCamara.poner(Nivel.AVISO, getString(R.string.vision_chip_abriendo))
         principal.post(actualizarTextos)
+        PantallasLog.abierta("VISION")
+    }
+
+    override fun onSaveInstanceState(salida: Bundle) {
+        super.onSaveInstanceState(salida)
+        salida.putBoolean("avanzado", avanzadoAbierto)
+    }
+
+    // ── Sección «Avanzado» (plegable) ─────────────────────────────────────
+
+    /** Abre o cierra «Avanzado». Con `animar` el alto cambia en 200 ms (Movimiento.NORMAL); sin animar se pone directo (al armar la pantalla). */
+    private fun ponerAvanzado(abrir: Boolean, animar: Boolean) {
+        avanzadoAbierto = abrir
+        avanzadoIcono.setImageResource(if (abrir) R.drawable.ic_expand_less else R.drawable.ic_expand_more)
+        avanzadoEncabezado.contentDescription = getString(if (abrir) R.string.vision_avanzado_abierto else R.string.vision_avanzado_cerrado)
+        animadorAvanzado?.cancel()
+        val contenido = avanzadoContenido
+        if (!animar) {
+            contenido.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            contenido.visibility = if (abrir) View.VISIBLE else View.GONE
+            contenido.requestLayout()
+            return
+        }
+        if (abrir) {
+            // Se mide el alto que tendrá abierto para animar de 0 hasta él.
+            val ancho = (contenido.parent as View).width
+            contenido.measure(View.MeasureSpec.makeMeasureSpec(ancho, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+            contenido.layoutParams.height = 0
+            contenido.visibility = View.VISIBLE
+            animarAlto(0, contenido.measuredHeight) {
+                contenido.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                contenido.requestLayout()
+            }
+        } else {
+            animarAlto(contenido.height, 0) {
+                contenido.visibility = View.GONE
+                contenido.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+    }
+
+    private fun animarAlto(desde: Int, hasta: Int, alTerminar: () -> Unit) {
+        val contenido = avanzadoContenido
+        animadorAvanzado = ValueAnimator.ofInt(desde, hasta).apply {
+            duration = Movimiento.NORMAL
+            addUpdateListener {
+                contenido.layoutParams.height = it.animatedValue as Int
+                contenido.requestLayout()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animacion: Animator) {
+                    alTerminar()
+                }
+            })
+            start()
+        }
     }
 
     override fun onResume() {
@@ -173,6 +323,7 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        animadorAvanzado?.cancel()
         principal.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -187,6 +338,8 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
                 requestPermissions(arrayOf(Manifest.permission.CAMERA), PEDIDO_PERMISO_CAMARA)
             }
             vista.mostrar(null, "Se necesita el permiso de cámara")
+            principal.removeCallbacks(actualizarTextos)
+            principal.post(actualizarTextos)
             return
         }
         if (!camara.abrir()) {
@@ -238,13 +391,13 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
         }
     }
 
-    /** Cada medio segundo actualiza los números de la derecha. */
+    /** Cada medio segundo actualiza los números de la derecha, el chip de la cámara y el aviso si la cámara falla. */
     private val actualizarTextos = object : Runnable {
         override fun run() {
             val cuadro = ultimoMostrado
-            val estado = if (camara.abierta) "ABIERTA" else if (camara.error.isNotEmpty()) camara.error else "abriendo..."
+            val estado = if (camara.abierta) "abierta" else if (camara.error.isNotEmpty()) "con problema (ver el aviso)" else "abriendo..."
             textoStats.text = String.format(Locale.US,
-                "Cámara: %s\nTamaño cámara: %s\nTamaño del cuadro: %s\nCuadros por segundo: %.1f\nms por cuadro: %.2f%s",
+                "Cámara: %s\nTamaño de la cámara: %s\nTamaño del cuadro: %s\nCuadros por segundo: %.1f\nms por cuadro: %.2f%s",
                 estado, camara.tamanoCamara.ifEmpty { "-" },
                 if (cuadro != null) "${cuadro.ancho}x${cuadro.alto} (${cuadro.columnas}x${cuadro.filas} celdas)" else "-",
                 camara.fps, camara.msPorCuadro,
@@ -263,11 +416,50 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
                 camara.informePiso != null -> camara.informePiso!!.texto()
                 else -> "Piso: todavía no se aprendió con el botón (se usa lo que ve la tira de abajo)."
             } + (cuadro?.let { "\nBrillo medio del cuadro: ${it.resultado[ObstaculosNativa.BRILLO_MEDIO]}  motivo: ${ObstaculosNativa.textoMotivo(it.resultado[ObstaculosNativa.MOTIVO])}" } ?: "")
+            actualizarEstadoCamara()
             registrosPendientes++
             if (registrosPendientes % 4 == 0) {   // cada ~2 s se anota en logcat lo que muestra la pantalla (sirve para probar sin mirar la imagen)
                 Log.i(CamaraObstaculos.ETIQUETA, "pantalla| piso=" + (cuadro?.resultado?.let { "${it[ObstaculosNativa.REF_R]},${it[ObstaculosNativa.REF_G]},${it[ObstaculosNativa.REF_B]}" } ?: "-") + " | " + (textoFusion.text.toString() + " " + textoGiro.text.toString()).replace("\n", " / "))
             }
             principal.postDelayed(this, 500)
+        }
+    }
+
+    /** El chip sobre el video y el aviso en banda: qué pasa con la cámara y qué hacer (sin códigos crudos; esos se quedan en logcat). */
+    private fun actualizarEstadoCamara() {
+        val sinPermiso = checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+        when {
+            camara.abierta -> {
+                chipCamara.poner(Nivel.OK, getString(R.string.vision_chip_abierta, String.format(Locale.US, "%.0f", camara.fps)))
+                aviso.ocultar()
+            }
+            sinPermiso -> {
+                chipCamara.poner(Nivel.ERROR, getString(R.string.vision_chip_sin_permiso))
+                aviso.mostrar(Nivel.ERROR, getString(R.string.vision_aviso_permiso_paso), getString(R.string.vision_aviso_permiso_hacer), getString(R.string.reintentar)) {
+                    pidiendoPermiso = false
+                    abrirCamara()
+                }
+            }
+            camara.error.isNotEmpty() -> {
+                chipCamara.poner(Nivel.ERROR, getString(R.string.vision_chip_sin_camara))
+                if (configuracion.fuenteCarro) {
+                    val m = Mensajes.sinVideo()
+                    aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) {
+                        SesionVideo.reintentar()
+                        camara.cerrar()
+                        abrirCamara()
+                    }
+                } else {
+                    aviso.mostrar(Nivel.ERROR, getString(R.string.vision_aviso_telefono_paso), getString(R.string.vision_aviso_telefono_hacer), getString(R.string.reintentar)) {
+                        camara.cerrar()
+                        abrirCamara()
+                    }
+                }
+            }
+            else -> {
+                chipCamara.poner(Nivel.AVISO, getString(R.string.vision_chip_abriendo))
+                aviso.ocultar()
+            }
         }
     }
 
@@ -338,101 +530,7 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
         return sb.toString()
     }
 
-    // ── Barras ────────────────────────────────────────────────────────────
-
-    // ── Controles agregados por código (debajo de «Fuente del video») ─────────
-
-    /** Agrega los controles del corredor de trayectoria (botón, campo de medidas y texto del estado). */
-    private fun agregarControlesExtra() {
-        val padre = botonFuenteVideo.parent as LinearLayout
-        var lugar = padre.indexOfChild(botonFuenteVideo) + 1
-        val separacion = (8 * resources.displayMetrics.density).toInt()
-
-        botonCualquiera = Button(this)
-        botonCualquiera.setOnClickListener {
-            configuracion.cualquierObjeto = !configuracion.cualquierObjeto
-            if (configuracion.cualquierObjeto && !configuracion.usarModelo) {
-                configuracion.usarModelo = true   // el modo necesita el modelo de objetos encendido
-                camara.activarModelo(camara.abierta)
-            }
-            CualquieraNativa.reiniciar()
-            mostrarValoresDeBarras()
-        }
-        padre.addView(botonCualquiera, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
-        textoCualquiera = TextView(this)
-        textoCualquiera.typeface = android.graphics.Typeface.MONOSPACE
-        textoCualquiera.textSize = 12f
-        padre.addView(textoCualquiera, lugar++)
-        barraCualquiera = SeekBar(this)
-        barraCualquiera.max = CualquieraNativa.UMBRAL_MAX_MIL - CualquieraNativa.UMBRAL_MIN_MIL   // 0 = 0.01 ... 490 = 0.50
-        barraCualquiera.setOnSeekBarChangeListener(alMoverBarra { valor ->
-            configuracion.umbralCualquieraMil = valor + CualquieraNativa.UMBRAL_MIN_MIL
-            textoCualquiera.text = textoUmbralCualquiera()
-        })
-        padre.addView(barraCualquiera, lugar++)
-
-        botonAprenderPiso = Button(this)
-        botonAprenderPiso.text = "Aprender piso (carro quieto, ~1 s)"
-        botonAprenderPiso.setOnClickListener {
-            if (camara.abierta && !camara.aprendiendoPiso) {
-                camara.aprenderPiso()
-            } else {
-                Toast.makeText(this, "La cámara no está lista", Toast.LENGTH_SHORT).show()
-            }
-        }
-        padre.addView(botonAprenderPiso, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
-        textoPisoAprendido = TextView(this)
-        textoPisoAprendido.typeface = android.graphics.Typeface.MONOSPACE
-        textoPisoAprendido.textSize = 12f
-        padre.addView(textoPisoAprendido, lugar++)
-
-        botonCorredor = Button(this)
-        botonCorredor.setOnClickListener {
-            configuracion.corredorActivo = !configuracion.corredorActivo
-            mostrarValoresDeBarras()
-        }
-        padre.addView(botonCorredor, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
-
-        botonModoVideo = Button(this)
-        botonModoVideo.setOnClickListener {
-            configuracion.modoVideo = ModoVideo.siguiente(configuracion.modoVideo)
-            if (configuracion.fuenteCarro) {
-                camara.cerrar()
-                SesionVideo.cambiarModo(configuracion.modoVideo)   // el video es una sesión compartida: se reabre con el modo nuevo (la cámara del carro lo cambia con /control?modo=)
-                abrirCamara()
-            }
-            mostrarValoresDeBarras()
-        }
-        padre.addView(botonModoVideo, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
-
-        botonFlujo = Button(this)
-        botonFlujo.setOnClickListener {
-            configuracion.flujoActivo = !configuracion.flujoActivo
-            mostrarValoresDeBarras()
-        }
-        padre.addView(botonFlujo, lugar++, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = separacion })
-
-        campoCorredor = EditText(this)
-        campoCorredor.inputType = InputType.TYPE_CLASS_TEXT
-        campoCorredor.imeOptions = EditorInfo.IME_ACTION_DONE
-        campoCorredor.setSingleLine(true)
-        campoCorredor.textSize = 12f
-        campoCorredor.hint = "ancho_cm altura_cm inclinación° campo_de_visión° margen_cm"
-        campoCorredor.setOnEditorActionListener { vista, accion, _ ->
-            if (accion == EditorInfo.IME_ACTION_DONE) {
-                aplicarCampoCorredor(vista.text.toString())
-                true
-            } else {
-                false
-            }
-        }
-        padre.addView(campoCorredor, lugar++)
-
-        textoCorredor = TextView(this)
-        textoCorredor.typeface = android.graphics.Typeface.MONOSPACE
-        textoCorredor.textSize = 12f
-        padre.addView(textoCorredor, lugar)
-    }
+    // ── Corredor de trayectoria (medidas escritas) ────────────────────────
 
     /** Lee «ancho altura inclinación campo_de_visión margen» (cm, cm, grados, grados, cm) y los guarda. */
     private fun aplicarCampoCorredor(texto: String) {
@@ -464,31 +562,42 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private fun textoUmbralCualquiera(): String = String.format(Locale.US, "Umbral de «cualquier objeto»: la caja debe SUPERAR %.2f de confianza (de 0.01 a 0.50)", configuracion.umbralCualquieraMil / 1000.0)
 
+    // ── Valores de los controles ──────────────────────────────────────────
+
+    /** Pone en cada control (deslizadores, interruptores, botones y sus textos) lo que dice ConfigVision. Los escuchas se callan mientras tanto. */
     private fun mostrarValoresDeBarras() {
-        botonCualquiera.text = "Modelo: cualquier objeto (sin clase): ${if (configuracion.cualquierObjeto) "SÍ" else "NO"} (tocar para cambiar)"
-        barraCualquiera.progress = configuracion.umbralCualquieraMil - CualquieraNativa.UMBRAL_MIN_MIL
-        textoCualquiera.text = textoUmbralCualquiera()
-        botonModoVideo.text = "Modo de video del carro: ${configuracion.modoVideo}" +
-            (if (::camara.isInitialized && camara.esVideoCarro && camara.modoVideo != configuracion.modoVideo) " (en uso: ${camara.modoVideo}, falló el pedido)" else "") + " (tocar para cambiar: jpeg, raw, celdas)"
-        botonFlujo.text = "Flujo del piso (solo con el carro avanzando): ${if (configuracion.flujoActivo) "SÍ" else "NO"} (tocar para cambiar)"
-        botonCorredor.text = "Corredor de trayectoria: ${if (configuracion.corredorActivo) "SÍ" else "NO"} (tocar para cambiar)"
-        campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,
-            configuracion.corredorInclinacionX10 / 10.0, configuracion.corredorFovX10 / 10.0, configuracion.corredorMargenCm))
-        barraUmbral.progress = configuracion.umbralColor.coerceIn(0, ConfigVision.UMBRAL_COLOR_MAXIMO)
-        barraMinCeldas.progress = (configuracion.minCeldas - 1).coerceIn(0, ConfigVision.MIN_CELDAS_MAXIMO - 1)
-        textoUmbral.text = getString(R.string.texto_umbral, configuracion.umbralColor)
-        textoMinCeldas.text = getString(R.string.texto_min_celdas, configuracion.minCeldas)
-        barraFilaMinima.progress = configuracion.filaMinimaMil / 10
-        val filasDelCuadro = ObstaculosNativa.filasDe(configuracion.altoCuadro)
-        barraGrupos.progress = configuracion.gruposPiso - 1
-        textoGrupos.text = getString(R.string.texto_grupos, configuracion.gruposPiso)
-        barraAprendizaje.progress = configuracion.aprendizajeMil / 5
-        textoAprendizaje.text = getString(R.string.texto_aprendizaje, configuracion.aprendizajeMil)
-        textoFilaMinima.text = getString(R.string.texto_fila_minima, configuracion.filaMinimaMil / 10,
-            filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
-        botonTamano.text = getString(R.string.boton_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
-        botonFuenteVideo.text = getString(R.string.boton_fuente_video, getString(if (configuracion.fuenteCarro) R.string.fuente_video_carro else R.string.fuente_video_telefono))
-        botonModelo.text = getString(R.string.boton_modelo, getString(if (configuracion.usarModelo) R.string.si else R.string.no))
+        refrescando = true
+        try {
+            interruptorCualquiera.isChecked = configuracion.cualquierObjeto
+            barraCualquiera.progress = configuracion.umbralCualquieraMil - CualquieraNativa.UMBRAL_MIN_MIL
+            textoCualquiera.text = textoUmbralCualquiera()
+            botonModoVideo.text = if (::camara.isInitialized && camara.esVideoCarro && camara.modoVideo != configuracion.modoVideo)
+                getString(R.string.vision_modo_video_en_uso, configuracion.modoVideo, camara.modoVideo)
+            else getString(R.string.vision_modo_video, configuracion.modoVideo)
+            interruptorFlujo.isChecked = configuracion.flujoActivo
+            interruptorCorredor.isChecked = configuracion.corredorActivo
+            if (!campoCorredor.hasFocus()) {
+                campoCorredor.setText(String.format(Locale.US, "%d %d %.1f %.1f %d", configuracion.corredorAnchoCm, configuracion.corredorAlturaCm,
+                    configuracion.corredorInclinacionX10 / 10.0, configuracion.corredorFovX10 / 10.0, configuracion.corredorMargenCm))
+            }
+            barraUmbral.progress = configuracion.umbralColor.coerceIn(0, ConfigVision.UMBRAL_COLOR_MAXIMO)
+            barraMinCeldas.progress = (configuracion.minCeldas - 1).coerceIn(0, ConfigVision.MIN_CELDAS_MAXIMO - 1)
+            textoUmbral.text = getString(R.string.vision_umbral, configuracion.umbralColor)
+            textoMinCeldas.text = getString(R.string.vision_min_celdas, configuracion.minCeldas)
+            barraFilaMinima.progress = configuracion.filaMinimaMil / 10
+            val filasDelCuadro = ObstaculosNativa.filasDe(configuracion.altoCuadro)
+            barraGrupos.progress = configuracion.gruposPiso - 1
+            textoGrupos.text = getString(R.string.vision_grupos, configuracion.gruposPiso)
+            barraAprendizaje.progress = configuracion.aprendizajeMil / 5
+            textoAprendizaje.text = getString(R.string.vision_aprendizaje, configuracion.aprendizajeMil)
+            textoFilaMinima.text = getString(R.string.vision_fila_minima, configuracion.filaMinimaMil / 10,
+                filasDelCuadro * configuracion.filaMinimaMil / 1000, filasDelCuadro)
+            botonTamano.text = getString(R.string.vision_tamano, configuracion.anchoCuadro, configuracion.altoCuadro)
+            interruptorFuente.isChecked = configuracion.fuenteCarro
+            interruptorModelo.isChecked = configuracion.usarModelo
+        } finally {
+            refrescando = false
+        }
     }
 
     /** Un escuchador de barra que guarda el valor al moverla (solo si lo movió la persona). */
@@ -522,7 +631,7 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
             Toast.makeText(this, getString(R.string.cuadro_guardado, archivo.name), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Log.w(CamaraObstaculos.ETIQUETA, "no se pudo guardar el cuadro: ${e.message}")
-            Toast.makeText(this, "No se pudo guardar: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "No se pudo guardar el cuadro. Revisa que haya espacio en el teléfono y vuelve a intentar.", Toast.LENGTH_LONG).show()
         }
     }
 }

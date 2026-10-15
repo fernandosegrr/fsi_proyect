@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: estilos de las pantallas Visión y diagnóstico y Calibración (se suman a styles.xml, que no se toca).
+   - Texto.Datos: texto de datos (cifras, estados) de 14 sp con cifras tabulares, para que los números no «bailen».
+   - Deslizador: la barra de ajuste (SeekBar) con los colores de la app (en el layout se le pone 48 dp de alto: zona de toque).
+   - Campo: el campo de texto con borde (el de las medidas y el de «cuántos cm»).
+-->
+<resources>
+    <style name="Texto.Datos" parent="Texto.Suave">
+        <item name="android:textColor">@color/texto</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <style name="Deslizador" parent="Widget.AppCompat.SeekBar">
+        <item name="android:progressTint">@color/acento</item>
+        <item name="android:progressBackgroundTint">@color/borde_fuerte</item>
+        <item name="android:thumbTint">@color/acento</item>
+    </style>
+
+    <style name="Campo" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">@dimen/radio_tarjeta</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/radio_tarjeta</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/radio_tarjeta</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/radio_tarjeta</item>
+    </style>
+</resources>

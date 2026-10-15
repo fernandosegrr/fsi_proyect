@@ -1,145 +1,254 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Guía de lectura: asistente de calibración del carro (CalibracionActivity). Arriba la conexión con el
-  carro y el botón STOP (siempre visible). Debajo, el paso actual: título, instrucción, los datos
-  anotados y los botones del paso (cuáles se ven depende del paso).
+  Guía de lectura: asistente de CALIBRACIÓN, en vertical. UNA prueba por pantalla.
+   - Arriba: barra de título con la flecha de volver y, si no hay conexión con el carro, un aviso en banda (qué pasó y qué hacer).
+   - En medio (se desplaza): «Paso X de 9» con el chip de conexión, la barra de avance, el título del paso, la ilustración dibujada por código, la instrucción corta
+     (máximo 3 líneas), el botón grande de «YA SE MOVIÓ / TOCA YA», la tarjeta con la nota y los datos anotados, el campo de resultado con «Guardar este resultado» y
+     los botones del resumen.
+   - Abajo, SIEMPRE visible (no se desplaza): «Usar estos valores» (solo en el resumen), la acción del paso, Atrás / Siguiente y el botón PARO.
+   - Solo hay un botón primario a la vez: lo decide CalibracionActivity.actualizarBotones (el que toca tocar ahora); los demás se ven como secundarios.
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:background="@color/fondo"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <com.fsi.carro.AvisoBanda
+        android:id="@+id/calib_aviso"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/e2"
+        android:layout_marginTop="@dimen/e1"
+        android:layout_marginEnd="@dimen/e2" />
+
+    <ScrollView
+        android:id="@+id/calib_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/fondo"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="@dimen/e2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/e2"
+            android:paddingTop="@dimen/e1"
+            android:paddingEnd="@dimen/e2">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/texto_paso"
+                    style="@style/Texto.Etiqueta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <com.fsi.carro.ChipEstado
+                    android:id="@+id/calib_chip_conexion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/calib_progreso"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                app:indicatorColor="@color/acento"
+                app:trackColor="@color/borde"
+                app:trackCornerRadius="@dimen/e0"
+                app:trackThickness="@dimen/e1" />
+
+            <TextView
+                android:id="@+id/texto_titulo_paso"
+                style="@style/Texto.Titulo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2" />
+
+            <com.fsi.carro.IlustracionCalibracion
+                android:id="@+id/calib_ilustracion"
+                android:layout_width="match_parent"
+                android:layout_height="144dp"
+                android:layout_marginTop="@dimen/e1" />
+
+            <TextView
+                android:id="@+id/texto_instruccion"
+                style="@style/Texto.Cuerpo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2" />
+
+            <!-- El botón grande de los pasos de reacción y arranque -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_ya"
+                style="@style/Boton.Secundario"
+                android:layout_width="match_parent"
+                android:layout_height="96dp"
+                android:layout_marginTop="@dimen/e2"
+                android:textSize="20sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        android:id="@+id/texto_nota"
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:id="@+id/texto_datos"
+                        style="@style/Texto.Datos"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Anotar el resultado de la prueba -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/calib_campo_layout"
+                style="@style/Campo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                android:visibility="gone">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/campo_resultado"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionDone"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1"
+                    android:textAppearance="@style/Texto.Cuerpo" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_guardar"
+                style="@style/Boton.Primario"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/toque_manejo"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/cal_guardar"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_repetir"
+                style="@style/Boton.Texto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/cal_repetir"
+                android:visibility="gone" />
+
+            <!-- Botones del resumen (el principal, «Usar estos valores», está en el panel de abajo) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_copiar"
+                style="@style/Boton.Secundario"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                android:text="@string/cal_copiar"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_borrar_cal"
+                style="@style/Boton.Texto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/cal_borrar"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Panel fijo de abajo: la acción del paso, Atrás / Siguiente y el PARO (siempre visible) -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/borde_fino"
+        android:background="@color/borde" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/superficie"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingStart="@dimen/e2"
+        android:paddingTop="@dimen/e1"
+        android:paddingEnd="@dimen/e2"
+        android:paddingBottom="@dimen/e2">
 
-        <TextView
-            android:id="@+id/texto_conexion"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_usar"
+            style="@style/Boton.Primario"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="14sp" />
+            android:layout_height="@dimen/toque_manejo"
+            android:text="@string/cal_usar"
+            android:visibility="gone" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <EditText
-                android:id="@+id/campo_direccion"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:inputType="textUri"
-                android:text="@string/direccion_por_defecto" />
-
-            <Button
-                android:id="@+id/boton_conectar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/boton_conectar" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/boton_stop"
-            android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:text="@string/boton_stop"
-            android:textSize="22sp" />
-
-        <TextView
-            android:id="@+id/texto_titulo_paso"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/texto_instruccion"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/texto_datos"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:fontFamily="monospace"
-            android:textSize="13sp" />
-
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/boton_probar"
+            style="@style/Boton.Primario"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
-
-        <Button
-            android:id="@+id/boton_ya"
-            android:layout_width="match_parent"
-            android:layout_height="96dp"
-            android:layout_marginTop="8dp"
-            android:textSize="20sp" />
-
-        <EditText
-            android:id="@+id/campo_resultado"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:inputType="numberDecimal" />
-
-        <Button
-            android:id="@+id/boton_guardar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/cal_guardar" />
-
-        <Button
-            android:id="@+id/boton_repetir"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/cal_repetir" />
+            android:layout_height="@dimen/toque_manejo" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/e1"
             android:orientation="horizontal">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/boton_atras"
+                style="@style/Boton.Secundario"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginEnd="@dimen/e0"
                 android:layout_weight="1"
                 android:text="@string/cal_atras" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/boton_siguiente"
+                style="@style/Boton.Primario"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginStart="@dimen/e0"
                 android:layout_weight="1"
                 android:text="@string/cal_siguiente" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/boton_usar"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boton_paro"
+            style="@style/Boton.Paro"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/cal_usar" />
-
-        <Button
-            android:id="@+id/boton_copiar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/cal_copiar" />
-
-        <Button
-            android:id="@+id/boton_borrar_cal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/cal_borrar" />
+            android:layout_height="@dimen/toque_manejo"
+            android:layout_marginTop="@dimen/e1"
+            android:text="@string/paro"
+            app:icon="@drawable/ic_stop"
+            app:iconGravity="textStart" />
     </LinearLayout>
-</ScrollView>
+</LinearLayout>

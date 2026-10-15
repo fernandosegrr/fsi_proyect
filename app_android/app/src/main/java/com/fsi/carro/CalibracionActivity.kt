@@ -3,7 +3,7 @@
  * distancias y giros en tiempos reales (el carro no tiene encoders ni IMU).
  *
  * GUÍA DE LECTURA
- *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN.
+ *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN. UNA prueba por pantalla.
  *       - REACCION: mide tu tiempo de reacción (toca cuando el botón se pone verde).
  *       - ARRANQUE: manda FORWARD y tú tocas "YA SE MOVIÓ" cuando ves moverse las ruedas; el
  *         arranque es ese tiempo menos tu reacción. 5 repeticiones, se descartan los datos raros.
@@ -20,29 +20,41 @@
  *         valores" los guarda (CalibracionGuardada) y el navegador los usa en la próxima ruta.
  *  2. Toda la cuenta (promedios, atípicos, rectas, frenado) está en C y probada en PC
  *     (nucleo_c/calibracion.c). Aquí solo hay pantalla y temporizadores.
- *  3. Seguridad: el botón STOP siempre está arriba; al salir de la pantalla se manda STOP y se
- *     cierra la conexión. Hay que tener ~2 m libres delante del carro.
- *  4. Los mensajes importantes también van a logcat con la etiqueta CALIBRACION.
+ *  3. LA PANTALLA (diseño nuevo, docs/diseno.md): «Paso X de 9» con una barra de avance, el título, una ilustración dibujada por código
+ *     (IlustracionCalibracion), una instrucción corta y, abajo y siempre visibles, la acción del paso, Atrás / Siguiente y el PARO.
+ *     Solo UN botón se ve como primario a la vez (el que toca tocar ahora; ver actualizarBotones).
+ *  4. LA CONEXIÓN es la compartida de toda la app (SesionCarro): se entra en onResume y se sale en onPause; la sesión abre y cierra el WebSocket
+ *     (aquí ya no se llama a iniciar/detener). La dirección del carro es la de Ajustes. Sin conexión sale un aviso en banda con «Conectar».
+ *  5. Seguridad: el botón PARO siempre está abajo; al salir de la pantalla se manda STOP (logica.parar) y se sueltan las pruebas.
+ *     Hace falta tener ~2 m libres delante del carro.
+ *  6. Los mensajes importantes también van a logcat con la etiqueta CALIBRACION. PantallasLog.abierta("CALIBRACION") sale al armar la pantalla.
  */
 package com.fsi.carro
 
 import android.Manifest
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.EditText
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.textfield.TextInputLayout
 import java.util.Locale
 import kotlin.random.Random
 
@@ -61,28 +73,36 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN }
 
-    private val principal = Handler(Looper.getMainLooper())
-    private lateinit var logica: ControlLogica
+    private val principal = Handler(Looper.getMainLooper())   // las pruebas con tiempo (se cancelan todas con pararTodo)
+    private val reloj = Handler(Looper.getMainLooper())       // solo refresca el chip y el aviso de conexión (no se cancela con pararTodo)
+    private lateinit var logica: ControlLogica               // la conexión COMPARTIDA (SesionCarro.lograr)
     private lateinit var guardada: CalibracionGuardada
 
-    private lateinit var textoConexion: TextView
-    private lateinit var campoDireccion: EditText
+    private lateinit var aviso: AvisoBanda
+    private lateinit var chipConexion: ChipEstado
+    private lateinit var textoPaso: TextView
+    private lateinit var progreso: LinearProgressIndicator
+    private lateinit var ilustracion: IlustracionCalibracion
+    private lateinit var scroll: ScrollView
     private lateinit var textoTitulo: TextView
     private lateinit var textoInstruccion: TextView
+    private lateinit var textoNota: TextView
     private lateinit var textoDatos: TextView
-    private lateinit var botonProbar: Button
-    private lateinit var botonYa: Button
+    private lateinit var campoLayout: TextInputLayout
     private lateinit var campoResultado: EditText
-    private lateinit var botonGuardar: Button
-    private lateinit var botonRepetir: Button
-    private lateinit var botonAtras: Button
-    private lateinit var botonSiguiente: Button
-    private lateinit var botonUsar: Button
-    private lateinit var botonCopiar: Button
-    private lateinit var botonBorrarCal: Button
+    private lateinit var botonProbar: MaterialButton
+    private lateinit var botonYa: MaterialButton
+    private lateinit var botonGuardar: MaterialButton
+    private lateinit var botonRepetir: MaterialButton
+    private lateinit var botonAtras: MaterialButton
+    private lateinit var botonSiguiente: MaterialButton
+    private lateinit var botonUsar: MaterialButton
+    private lateinit var botonCopiar: MaterialButton
+    private lateinit var botonBorrarCal: MaterialButton
+    private lateinit var botonParo: MaterialButton
 
     private var paso = Paso.INTRO
-    private var soloGiroVisual = false   // se saltó directo al paso 6: el resumen parte de la calibración guardada, no de los valores por defecto
+    private var soloGiroVisual = false   // se saltó directo al paso 8 (giro con la cámara): el resumen parte de la calibración guardada, no de los valores por defecto
 
     // Datos anotados.
     private val reacciones = ArrayList<Int>()
@@ -103,24 +123,44 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private var tVerdeMs = 0L
     private var arrancando = false           // prueba de arranque en curso
     private var t0ArranqueMs = 0L
+    private var datoMostrado = false         // para desplazar la pantalla hasta el campo solo la primera vez que aparece
+    private var conectadoDesdeMs = 0L        // desde cuándo hay conexión (para avisar si el carro no confirma el perfil AUTO)
 
     private var resultado: IntArray? = null  // calibración calculada en el RESUMEN
     private var textoResumen = ""
 
+    /** La sesión compartida avisa (conexión, perfil, latencia): se redibuja el chip y se habilitan o no los botones. */
+    private val alCambiar: () -> Unit = { mostrarConexion() }
+
+    /** Cada medio segundo: el aviso de «sin conexión» depende del tiempo que lleva sin conectar. */
+    private val tareaReloj = object : Runnable {
+        override fun run() {
+            actualizarChipYAviso()
+            reloj.postDelayed(this, 500)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_calibracion)
+        Diseno.barras(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         guardada = CalibracionGuardada(this)
 
-        textoConexion = findViewById(R.id.texto_conexion)
-        campoDireccion = findViewById(R.id.campo_direccion)
+        aviso = findViewById(R.id.calib_aviso)
+        chipConexion = findViewById(R.id.calib_chip_conexion)
+        textoPaso = findViewById(R.id.texto_paso)
+        progreso = findViewById(R.id.calib_progreso)
+        ilustracion = findViewById(R.id.calib_ilustracion)
+        scroll = findViewById(R.id.calib_scroll)
         textoTitulo = findViewById(R.id.texto_titulo_paso)
         textoInstruccion = findViewById(R.id.texto_instruccion)
+        textoNota = findViewById(R.id.texto_nota)
         textoDatos = findViewById(R.id.texto_datos)
+        campoLayout = findViewById(R.id.calib_campo_layout)
+        campoResultado = findViewById(R.id.campo_resultado)
         botonProbar = findViewById(R.id.boton_probar)
         botonYa = findViewById(R.id.boton_ya)
-        campoResultado = findViewById(R.id.campo_resultado)
         botonGuardar = findViewById(R.id.boton_guardar)
         botonRepetir = findViewById(R.id.boton_repetir)
         botonAtras = findViewById(R.id.boton_atras)
@@ -128,15 +168,20 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonUsar = findViewById(R.id.boton_usar)
         botonCopiar = findViewById(R.id.boton_copiar)
         botonBorrarCal = findViewById(R.id.boton_borrar_cal)
-        intent.getStringExtra("direccion")?.let { campoDireccion.setText(it) }
+        botonParo = findViewById(R.id.boton_paro)
+        findViewById<TextView>(R.id.barra_titulo).setText(R.string.cal_titulo)
+        findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
+        // Para pruebas con adb: la dirección del carro (el servidor falso) se guarda en Ajustes, como hace MainActivity con ws_url.
+        intent.getStringExtra("direccion")?.let { Ajustes(this).direccionCarro = it }
 
-        logica = ControlLogica(EnlaceOkHttp()) { mostrarConexion() }
-        logica.perfilDeseado = ControlLogica.Perfil.AUTO   // la calibración SIEMPRE en el perfil AUTO (210): es la velocidad a la que andan las rutas
+        logica = SesionCarro.lograr(this)   // la conexión compartida: la abre y la cierra la sesión (SesionCarro.entrar / salir)
         val configVision = ConfigVision(this)
         camara = CamaraObstaculos(this, { configVision.comoArreglo() }, { intArrayOf(configVision.anchoCuadro, configVision.altoCuadro) })
 
-        findViewById<Button>(R.id.boton_conectar).setOnClickListener { logica.iniciar(campoDireccion.text.toString().trim()) }
-        findViewById<Button>(R.id.boton_stop).setOnClickListener { pararTodo("STOP") }
+        botonParo.setOnClickListener {
+            Haptica.corta(this)
+            pararTodo("PARO")
+        }
         botonProbar.setOnClickListener { alProbar() }
         botonYa.setOnClickListener { alTocar() }
         botonGuardar.setOnClickListener { guardarDato() }
@@ -146,12 +191,24 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonUsar.setOnClickListener { usarValores() }
         botonCopiar.setOnClickListener { copiarTexto() }
         botonBorrarCal.setOnClickListener { borrarCalibracion() }
+        campoResultado.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(texto: CharSequence?, inicio: Int, cuenta: Int, despues: Int) {}
+            override fun onTextChanged(texto: CharSequence?, inicio: Int, antes: Int, cuenta: Int) {
+                campoLayout.error = null   // al volver a escribir se quita el aviso de «número no válido»
+            }
+            override fun afterTextChanged(texto: Editable?) {}
+        })
         mostrarPaso()
+        PantallasLog.abierta("CALIBRACION")
     }
 
     override fun onResume() {
         super.onResume()
-        logica.iniciar(campoDireccion.text.toString().trim())
+        SesionCarro.escuchar(alCambiar)
+        SesionCarro.entrar(this, SesionNativa.USUARIO_CALIBRACION)
+        logica.pedirPerfil(ControlLogica.Perfil.AUTO)   // la calibración SIEMPRE en el perfil AUTO (210): es la velocidad a la que andan las rutas
+        reloj.removeCallbacks(tareaReloj)
+        reloj.post(tareaReloj)
         if (paso == Paso.GIRO_VISUAL) {
             abrirCamaraSiHayPermiso()
         }
@@ -178,9 +235,17 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     override fun onPause() {
         camara.cerrar()   // la cámara se libera al salir
-        pararTodo("pantalla en segundo plano")
-        logica.detener()
+        pararTodo("pantalla en segundo plano")   // STOP (logica.parar) y se cancelan las pruebas en curso
+        reloj.removeCallbacks(tareaReloj)
+        SesionCarro.dejarDeEscuchar(alCambiar)
+        SesionCarro.salir(SesionNativa.USUARIO_CALIBRACION)   // la sesión cierra la conexión si nadie más la usa
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        principal.removeCallbacksAndMessages(null)
+        reloj.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 
     // ── Conexión y seguridad ──────────────────────────────────────────────
@@ -191,13 +256,48 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun listoParaProbar() = conectado() && logica.perfilConfirmado == ControlLogica.Perfil.AUTO
 
     private fun mostrarConexion() {
-        textoConexion.text = when (logica.conexion) {
-            ControlLogica.Conexion.CONECTADO -> "Conectado al carro" + (logica.latenciaMs?.let { " · latencia $it ms" } ?: "") +
-                (if (logica.perfilConfirmado == ControlLogica.Perfil.AUTO) " · perfil AUTO (210) confirmado" else " · esperando que el carro confirme el perfil AUTO (sin eso no se puede probar)")
-            ControlLogica.Conexion.RECONECTANDO -> "Reconectando con el carro..."
-            else -> "Sin conexión con el carro (las pruebas del carro no funcionan)"
-        }
+        actualizarChipYAviso()
         actualizarBotones()
+    }
+
+    /** El chip de conexión (arriba a la derecha) y el aviso en banda: sin conexión dice qué pasó y qué hacer, con el botón «Conectar». */
+    private fun actualizarChipYAviso() {
+        val ahora = SystemClock.elapsedRealtime()
+        if (conectado()) {
+            if (conectadoDesdeMs == 0L) {
+                conectadoDesdeMs = ahora
+            }
+        } else {
+            conectadoDesdeMs = 0L
+        }
+        when (logica.conexion) {
+            ControlLogica.Conexion.CONECTADO -> {
+                if (logica.perfilConfirmado == ControlLogica.Perfil.AUTO) {
+                    chipConexion.poner(Nivel.OK, getString(R.string.conexion_conectado) + " · " + getString(R.string.cal_chip_auto) + (logica.latenciaMs?.let { " · $it ms" } ?: ""))
+                } else {
+                    chipConexion.poner(Nivel.AVISO, getString(R.string.cal_chip_sin_confirmar))
+                }
+            }
+            ControlLogica.Conexion.RECONECTANDO -> chipConexion.poner(Nivel.AVISO, getString(R.string.conexion_reconectando))
+            else -> if (logica.msSinConexion > 0) {
+                chipConexion.poner(Nivel.AVISO, getString(R.string.conexion_conectando))
+            } else {
+                chipConexion.poner(Nivel.NEUTRO, getString(R.string.conexion_sin))
+            }
+        }
+        if (!conectado()) {
+            if (logica.msSinConexion > InicioFragment.ESPERA_ANTES_DE_AVISAR_MS) {
+                val m = if (RedCarro.enRedDelCarro(this)) Mensajes.carroNoResponde() else Mensajes.sinRedDelCarro()
+                aviso.mostrar(Nivel.ERROR, m.quePaso, m.queHacer, getString(R.string.conectar)) { SesionCarro.conectarAhora() }
+            } else {
+                aviso.ocultar()
+            }
+        } else if (logica.perfilConfirmado != ControlLogica.Perfil.AUTO && conectadoDesdeMs != 0L && ahora - conectadoDesdeMs > 5000L) {
+            val m = Mensajes.perfilSinConfirmar()
+            aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
+        } else {
+            aviso.ocultar()
+        }
     }
 
     /** STOP inmediato y cancela cualquier prueba o temporizador en curso. */
@@ -234,6 +334,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         esperandoDato = false
         campoResultado.setText("")
         mostrarPaso()
+        scroll.scrollTo(0, 0)   // cada paso empieza arriba
     }
 
     /** Cuántas pruebas se han anotado en la lista de listas. */
@@ -279,106 +380,135 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         else -> "RIGHT"
     }
 
+    /** La escena de la ilustración que corresponde al paso actual. */
+    private fun escenaDelPaso(): IlustracionCalibracion.Escena = when (paso) {
+        Paso.INTRO -> IlustracionCalibracion.Escena.INTRO
+        Paso.REACCION -> IlustracionCalibracion.Escena.REACCION
+        Paso.ARRANQUE -> IlustracionCalibracion.Escena.ARRANQUE
+        Paso.AVANCE -> IlustracionCalibracion.Escena.AVANCE
+        Paso.GIRO_IZQ -> IlustracionCalibracion.Escena.GIRO_IZQ
+        Paso.GIRO_DER -> IlustracionCalibracion.Escena.GIRO_DER
+        Paso.RETROCESO -> IlustracionCalibracion.Escena.RETROCESO
+        Paso.GIRO_VISUAL -> IlustracionCalibracion.Escena.GIRO_VISUAL
+        Paso.RESUMEN -> IlustracionCalibracion.Escena.RESUMEN
+    }
+
+    /** Pone la pista del campo de resultado solo si cambió (cambiarla en cada cuadro de la prueba visual haría parpadear el campo). */
+    private fun ponerPista(texto: String) {
+        if (campoLayout.hint?.toString() != texto) {
+            campoLayout.hint = texto
+        }
+    }
+
     private fun mostrarPaso() {
         val datos = datosDelPaso()
         botonProbar.visibility = View.GONE
         botonYa.visibility = View.GONE
-        campoResultado.visibility = View.GONE
+        campoLayout.visibility = View.GONE
         botonGuardar.visibility = View.GONE
         botonRepetir.visibility = View.GONE
         botonUsar.visibility = View.GONE
         botonCopiar.visibility = View.GONE
         botonBorrarCal.visibility = View.GONE
+        textoNota.visibility = View.GONE
+
+        textoPaso.text = getString(R.string.cal_paso, paso.ordinal + 1, Paso.values().size)
+        if (progreso.max != Paso.values().size) {
+            progreso.max = Paso.values().size
+        }
+        if (progreso.progress != paso.ordinal + 1) {
+            progreso.setProgressCompat(paso.ordinal + 1, true)
+        }
+        ilustracion.escena = escenaDelPaso()
+        ilustracion.enMarcha = corriendo || arrancando || estadoReaccion != 0
 
         when (paso) {
             Paso.INTRO -> {
-                textoTitulo.text = "Calibración del carro"
-                textoInstruccion.text = "Vamos a medir cuánto tarda el carro en arrancar, cuánto avanza y cuánto gira. " +
-                    "Hace falta:\n• el carro en el piso donde va a andar, con la batería cargada;\n• unos 2 metros libres adelante y a los lados;" +
-                    "\n• una cinta o regla para medir lo que avanza;\n• marcas de 90 grados en el piso (con cinta) para los giros.\n\n" +
-                    "El botón STOP de arriba siempre detiene el carro. Toca «Siguiente» para empezar."
-                textoDatos.text = guardada.avisoSiFalta() ?: "Ya hay una calibración completa guardada."
+                textoTitulo.setText(R.string.cal_t_intro)
+                textoInstruccion.setText(R.string.cal_i_intro)
+                textoNota.text = getString(R.string.cal_n_intro) + "\n" + getString(R.string.cal_n_intro_giro)
+                textoNota.visibility = View.VISIBLE
+                textoDatos.text = (guardada.avisoSiFalta() ?: "Ya hay una calibración completa guardada.") +
+                    (guardada.avisoRetroceso()?.let { "\n" + it } ?: "")
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = "Solo calibrar el giro con la cámara (salta al paso 7 y conserva la calibración guardada)"
-                textoDatos.text = textoDatos.text.toString() + (guardada.avisoRetroceso()?.let { "\n" + it } ?: "")
+                botonProbar.setText(R.string.cal_b_solo_giro)
             }
             Paso.REACCION -> {
-                textoTitulo.text = "1. Tu tiempo de reacción"
-                textoInstruccion.text = "Toca «Empezar». Cuando el botón grande se ponga VERDE, tócalo lo más rápido que puedas. " +
-                    "Se repite $TOQUES_REACCION veces. Sirve para descontarlo después de la prueba de arranque."
+                textoTitulo.setText(R.string.cal_t_reaccion)
+                textoInstruccion.setText(R.string.cal_i_reaccion)
+                textoNota.setText(R.string.cal_n_reaccion)
+                textoNota.visibility = View.VISIBLE
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = "Empezar"
+                botonProbar.setText(R.string.cal_b_empezar)
                 botonYa.visibility = View.VISIBLE
-                botonYa.text = if (estadoReaccion == 2) "¡TOCA YA!" else if (estadoReaccion == 1) "Espera el verde..." else "(toca «Empezar»)"
-                botonYa.setBackgroundColor(if (estadoReaccion == 2) 0xFF2E9E3E.toInt() else 0xFFBBBBBB.toInt())
+                botonYa.setText(if (estadoReaccion == 2) R.string.cal_b_ya_toca else if (estadoReaccion == 1) R.string.cal_b_ya_espera else R.string.cal_b_ya_empezar)
+                pintarYa(estadoReaccion == 2)
                 textoDatos.text = "Reacciones (ms): " + reacciones.joinToString(", ") +
                     "\nPromedio: " + (if (reacciones.isEmpty()) "-" else "${CalibracionNativa.promedioSinAtipicos(reacciones.toIntArray())} ms")
             }
             Paso.ARRANQUE -> {
-                textoTitulo.text = "2. Retardo de arranque"
-                textoInstruccion.text = "Toca «Probar»: el carro recibe FORWARD. Toca «YA SE MOVIÓ» en el instante en que veas que " +
-                    "las ruedas empiezan a girar. El carro se detiene solo al tocar (o a los 3 s). " +
-                    "Se repite $TOQUES_ARRANQUE veces."
+                textoTitulo.setText(R.string.cal_t_arranque)
+                textoInstruccion.setText(R.string.cal_i_arranque)
+                textoNota.setText(R.string.cal_n_arranque)
+                textoNota.visibility = View.VISIBLE
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = "Probar (el carro avanza)"
+                botonProbar.setText(R.string.cal_b_probar_arranque)
                 botonYa.visibility = View.VISIBLE
-                botonYa.text = "YA SE MOVIÓ"
-                botonYa.setBackgroundColor(if (arrancando) 0xFF2E9E3E.toInt() else 0xFFBBBBBB.toInt())
+                botonYa.setText(R.string.cal_b_ya_movio)
+                pintarYa(arrancando)
                 botonRepetir.visibility = View.VISIBLE
-                botonRepetir.text = getString(R.string.cal_repetir)
                 textoDatos.text = "Tiempos (ms, con tu reacción dentro): " + toquesArranque.joinToString(", ") +
                     "\nFaltan: ${(TOQUES_ARRANQUE - toquesArranque.size).coerceAtLeast(0)}"
             }
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> {
                 val hechas = cuantas(datos!!)
-                val unidad = if (esPasoLineal()) "cm" else "grados"
-                textoTitulo.text = when (paso) {
-                    Paso.AVANCE -> "3. Avance en línea recta"
-                    Paso.GIRO_IZQ -> "4. Giro a la izquierda"
-                    Paso.GIRO_DER -> "5. Giro a la derecha"
-                    else -> "6. Retroceso en línea recta (opcional)"
-                }
-                textoInstruccion.text = if (paso == Paso.RETROCESO)
-                    "MÍDELO IGUAL QUE EL AVANCE, pero el carro va en REVERSA. Pon el carro en la marca de salida y deja unos 80 cm LIBRES DETRÁS (el carro no ve hacia atrás). " +
-                        "Toca «Probar»: retrocede un tiempo fijo y se detiene. Espera a que pare del todo y escribe CUÁNTOS CM retrocedió (de la marca a las ruedas). " +
-                        "Lo usa el carro cuando tiene que retroceder 15 cm para reintentar un esquive. Si no quieres medirlo, toca «Siguiente»: usará el valor del avance."
-                else if (paso == Paso.AVANCE)
-                    "Pon el carro en la marca de salida, mirando hacia adelante. Toca «Probar»: avanza un tiempo fijo y se detiene. " +
-                        "Espera a que pare del todo y escribe CUÁNTOS CM avanzó (de la marca de salida a las ruedas). " +
-                        "Cada vez, vuelve a poner el carro en la marca."
-                else
-                    "Pon el carro sobre la marca y alineado con una marca de 90 grados del piso. Toca «Probar»: gira un tiempo fijo " +
-                        "y se detiene. Espera a que pare y escribe los GRADOS que giró, aproximados " +
-                        "(por ejemplo 45, 90, 135...). Cada vez, vuelve a alinear el carro."
+                textoTitulo.setText(when (paso) {
+                    Paso.AVANCE -> R.string.cal_t_avance
+                    Paso.GIRO_IZQ -> R.string.cal_t_giro_izq
+                    Paso.GIRO_DER -> R.string.cal_t_giro_der
+                    else -> R.string.cal_t_retroceso
+                })
+                textoInstruccion.setText(when (paso) {
+                    Paso.RETROCESO -> R.string.cal_i_retroceso
+                    Paso.AVANCE -> R.string.cal_i_avance
+                    else -> R.string.cal_i_giro
+                })
+                textoNota.setText(when (paso) {
+                    Paso.RETROCESO -> R.string.cal_n_retroceso
+                    Paso.AVANCE -> R.string.cal_n_avance
+                    else -> R.string.cal_n_giro
+                })
+                textoNota.visibility = View.VISIBLE
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = if (hechas >= totalPruebas()) "Ya están todas las pruebas" else
-                    "Probar (${tiempoActual()} ms, prueba ${hechas + 1} de ${totalPruebas()})"
+                botonProbar.text = if (hechas >= totalPruebas()) getString(R.string.cal_b_todas) else
+                    getString(R.string.cal_b_probar_n, tiempoActual(), hechas + 1, totalPruebas())
                 if (esperandoDato) {
-                    campoResultado.visibility = View.VISIBLE
-                    campoResultado.hint = "¿Cuántos $unidad?"
+                    campoLayout.visibility = View.VISIBLE
+                    ponerPista(getString(when (paso) {
+                        Paso.AVANCE -> R.string.cal_h_cm
+                        Paso.RETROCESO -> R.string.cal_h_cm_atras
+                        else -> R.string.cal_h_grados
+                    }))
                     botonGuardar.visibility = View.VISIBLE
                 }
                 botonRepetir.visibility = View.VISIBLE
-                botonRepetir.text = getString(R.string.cal_repetir)
                 textoDatos.text = armarTabla(datos)
             }
             Paso.GIRO_VISUAL -> {
-                textoTitulo.text = "7. Giro con la cámara (opcional)"
-                textoInstruccion.text = "La cámara también puede medir cuánto gira el carro. Para que convierta bien píxeles en grados hay que ajustar su campo de visión: " +
-                    "con el carro alineado a una marca de 90 grados, mirando una pared o muebles con detalles (no una pared lisa), toca «Probar»: gira a la " +
-                    "DERECHA lo que la calibración dice que son 90 grados. Después escribe cuántos grados giró de verdad. Se repite hasta 3 veces. " +
-                    "Si no quieres este paso, toca «Ver resumen»."
+                textoTitulo.setText(R.string.cal_t_giro_visual)
+                textoInstruccion.setText(R.string.cal_i_giro_visual)
+                textoNota.setText(R.string.cal_n_giro_visual)
+                textoNota.visibility = View.VISIBLE
                 botonProbar.visibility = View.VISIBLE
-                botonProbar.text = if (fovReal.size >= 3) "Ya están las 3 pruebas" else "Probar: girar 90° a la derecha (prueba ${fovReal.size + 1} de 3)"
+                botonProbar.text = if (fovReal.size >= 3) getString(R.string.cal_b_visual_listo) else getString(R.string.cal_b_visual_n, fovReal.size + 1)
                 if (esperandoDato) {
-                    campoResultado.visibility = View.VISIBLE
-                    campoResultado.hint = "¿Cuántos grados giró de verdad?"
+                    campoLayout.visibility = View.VISIBLE
+                    ponerPista(getString(R.string.cal_h_grados_reales))
                     botonGuardar.visibility = View.VISIBLE
                 }
                 botonRepetir.visibility = View.VISIBLE
-                botonRepetir.text = getString(R.string.cal_repetir)
                 val sb = StringBuilder()
-                sb.append("Cámara: " + (if (camara.abierta) "ABIERTA" else if (camara.error.isNotEmpty()) camara.error else "abriendo...") + "\n")
+                sb.append("Cámara: " + (if (camara.abierta) "abierta" else if (camara.error.isNotEmpty()) "no se pudo abrir (revisa el permiso de cámara y cierra otras apps que la usen)" else "abriendo...") + "\n")
                 sb.append(String.format(Locale.US, "Campo de visión actual: %.1f°\n", camara.fovEfectivoX10 / 10.0))
                 if (corriendo || esperandoDato) {
                     sb.append(String.format(Locale.US, "La cámara ve que giró: %.1f°\n", visualActualX10 / 10.0))
@@ -389,14 +519,19 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 textoDatos.text = sb.toString()
             }
             Paso.RESUMEN -> {
-                textoTitulo.text = "Resumen"
-                textoInstruccion.text = "Estos son los valores calculados con tus mediciones."
+                textoTitulo.setText(R.string.cal_t_resumen)
+                textoInstruccion.setText(R.string.cal_i_resumen)
                 textoDatos.text = textoResumen
                 botonUsar.visibility = View.VISIBLE
                 botonCopiar.visibility = View.VISIBLE
                 botonBorrarCal.visibility = View.VISIBLE
             }
         }
+        // Cuando aparece el campo del resultado, la pantalla baja hasta el botón «Guardar este resultado» (solo esa primera vez).
+        if (esperandoDato && !datoMostrado) {
+            scroll.post { scroll.smoothScrollTo(0, (botonGuardar.bottom - scroll.height).coerceAtLeast(0)) }
+        }
+        datoMostrado = esperandoDato
         actualizarBotones()
     }
 
@@ -408,14 +543,51 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             val valores = datos[i].map {
                 if (esPasoLineal()) String.format(Locale.US, "%.1f cm", it / 10.0) else String.format(Locale.US, "%.0f°", it / 10.0)
             }
-            sb.append(String.format(Locale.US, "%4d ms: %s\n", tiempos[i], if (valores.isEmpty()) "-" else valores.joinToString("  ")))
+            sb.append(String.format(Locale.US, "%d ms: %s\n", tiempos[i], if (valores.isEmpty()) "-" else valores.joinToString("   ")))
         }
         return sb.toString()
     }
 
+    // ── Aspecto de los botones ────────────────────────────────────────────
+
+    /** Habilita o deshabilita un botón. Como los estilos de la app usan un color fijo, el botón deshabilitado se atenúa con la transparencia (38 %). */
+    private fun habilitar(boton: View, activo: Boolean) {
+        boton.isEnabled = activo
+        boton.alpha = if (activo) 1f else 0.38f
+    }
+
+    /** Un botón se ve como PRIMARIO (relleno con el acento) o como SECUNDARIO (solo borde y texto del acento). Solo uno es primario a la vez. */
+    private fun resaltar(boton: MaterialButton, primario: Boolean) {
+        if (primario) {
+            boton.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.acento))
+            boton.setTextColor(ContextCompat.getColor(this, R.color.sobre_acento))
+            boton.strokeWidth = 0
+        } else {
+            boton.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            boton.setTextColor(ContextCompat.getColor(this, R.color.acento_texto))
+            boton.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.borde_fuerte))
+            boton.strokeWidth = Diseno.dp(this, 1)
+        }
+    }
+
+    /** El botón grande de reacción y arranque: verde (con su borde) cuando hay que tocar YA; gris cuando todavía no. */
+    private fun pintarYa(activo: Boolean) {
+        if (activo) {
+            botonYa.backgroundTintList = ColorStateList.valueOf(Diseno.fondoDe(this, Nivel.OK))
+            botonYa.setTextColor(Diseno.colorDe(this, Nivel.OK))
+            botonYa.strokeColor = ColorStateList.valueOf(Diseno.colorDe(this, Nivel.OK))
+            botonYa.strokeWidth = Diseno.dp(this, 2)
+        } else {
+            botonYa.backgroundTintList = ColorStateList.valueOf(Diseno.fondoDe(this, Nivel.NEUTRO))
+            botonYa.setTextColor(Diseno.colorDe(this, Nivel.NEUTRO))
+            botonYa.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.borde_fuerte))
+            botonYa.strokeWidth = Diseno.dp(this, 1)
+        }
+    }
+
     private fun actualizarBotones() {
         val ocupado = corriendo || arrancando || estadoReaccion != 0
-        botonProbar.isEnabled = when (paso) {
+        val probarActivo = when (paso) {
             Paso.INTRO -> true
             Paso.REACCION -> estadoReaccion == 0 && reacciones.size < TOQUES_REACCION
             Paso.ARRANQUE -> listoParaProbar() && !arrancando && toquesArranque.size < TOQUES_ARRANQUE
@@ -424,16 +596,34 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.GIRO_VISUAL -> listoParaProbar() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
             else -> false
         }
-        botonYa.isEnabled = (paso == Paso.REACCION && estadoReaccion != 0) || (paso == Paso.ARRANQUE && arrancando)
-        botonRepetir.isEnabled = !ocupado && when (paso) {
+        habilitar(botonProbar, probarActivo)
+        habilitar(botonYa, (paso == Paso.REACCION && estadoReaccion != 0) || (paso == Paso.ARRANQUE && arrancando))
+        habilitar(botonRepetir, !ocupado && when (paso) {
             Paso.ARRANQUE -> toquesArranque.isNotEmpty()
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> cuantas(datosDelPaso()!!) > 0
             Paso.GIRO_VISUAL -> fovReal.isNotEmpty()
             else -> false
+        })
+        habilitar(botonAtras, !ocupado && paso != Paso.INTRO)
+        habilitar(botonSiguiente, !ocupado && paso != Paso.RESUMEN && pasoCompleto() && !esperandoDato)
+        botonSiguiente.visibility = if (paso == Paso.RESUMEN) View.GONE else View.VISIBLE
+        botonSiguiente.setText(when (paso) {
+            Paso.INTRO -> R.string.cal_b_empezar
+            Paso.GIRO_VISUAL -> R.string.cal_b_ver_resumen
+            else -> R.string.cal_siguiente
+        })
+
+        // Solo UN botón se ve como primario: el que toca tocar ahora. Con una prueba en marcha, ninguno (lo importante es el PARO y el botón grande).
+        val destacado: MaterialButton? = when {
+            ocupado -> null
+            paso == Paso.RESUMEN -> botonUsar
+            esperandoDato -> botonGuardar
+            paso != Paso.INTRO && probarActivo -> botonProbar
+            else -> botonSiguiente
         }
-        botonAtras.isEnabled = !ocupado && paso != Paso.INTRO
-        botonSiguiente.isEnabled = !ocupado && paso != Paso.RESUMEN && pasoCompleto() && !esperandoDato
-        botonSiguiente.text = if (paso == Paso.GIRO_VISUAL) "Ver resumen" else getString(R.string.cal_siguiente)
+        for (boton in arrayOf(botonProbar, botonGuardar, botonSiguiente, botonUsar)) {
+            resaltar(boton, boton === destacado)
+        }
     }
 
     // ── Pruebas ───────────────────────────────────────────────────────────
@@ -583,7 +773,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val datos = datosDelPaso() ?: return
         val numero = campoResultado.text.toString().trim().replace(',', '.').toDoubleOrNull()
         if (numero == null || numero <= 0.0 || numero > 1000.0) {
-            Toast.makeText(this, "Escribe un número mayor que cero", Toast.LENGTH_SHORT).show()
+            campoLayout.error = getString(R.string.cal_error_numero)
             return
         }
         val indice = (cuantas(datos) / REPETICIONES).coerceAtMost(TIEMPOS_AVANCE.size - 1)
@@ -599,7 +789,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun guardarGiroVisual() {
         val numero = campoResultado.text.toString().trim().replace(',', '.').toDoubleOrNull()
         if (numero == null || numero <= 0.0 || numero > 720.0) {
-            Toast.makeText(this, "Escribe un número mayor que cero", Toast.LENGTH_SHORT).show()
+            campoLayout.error = getString(R.string.cal_error_numero)
             return
         }
         if (visualActualX10 <= 0) {
@@ -651,7 +841,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     /** Calcula la calibración con lo anotado (en C) y arma el texto del resumen. */
     private fun calcularResumen() {
         val sb = StringBuilder()
-        // Si se saltó al paso 6 solo para el campo de visión, se parte de lo guardado; si no, de los valores por defecto.
+        // Si se saltó al paso del giro visual solo para el campo de visión, se parte de lo guardado; si no, de los valores por defecto.
         var cal = if (soloGiroVisual) guardada.leer() else CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
         if (soloGiroVisual) {
             sb.append("Se conservan el arranque, el avance y los giros de la calibración guardada (solo se ajusta el campo de visión).\n")
