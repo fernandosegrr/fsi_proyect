@@ -398,7 +398,8 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
             configuracion.modoVideo = ModoVideo.siguiente(configuracion.modoVideo)
             if (configuracion.fuenteCarro) {
                 camara.cerrar()
-                abrirCamara()   // se vuelve a abrir con el modo nuevo (la cámara del carro lo cambia con /control?modo=)
+                SesionVideo.cambiarModo(configuracion.modoVideo)   // el video es una sesión compartida: se reabre con el modo nuevo (la cámara del carro lo cambia con /control?modo=)
+                abrirCamara()
             }
             mostrarValoresDeBarras()
         }

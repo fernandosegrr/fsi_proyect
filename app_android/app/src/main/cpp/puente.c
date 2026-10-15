@@ -35,6 +35,8 @@
 #include "cualquiera.h"
 #include "movimiento_piso.h"
 #include "paquete_celdas.h"
+#include "sesion_compartida.h"
+#include "latencia_video.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -2007,6 +2009,169 @@ Java_com_fsi_carro_CorredorNativa_aplicar(JNIEnv *env, jobject objeto, jintArray
     arreglo = (*env)->NewIntArray(env, 10);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 10, salida);
+    }
+    return arreglo;
+}
+
+/* ── Sesiones compartidas (sesion_compartida.c): el video de la cámara y la conexión con el carro ─────────────────────────────── */
+
+#define RECURSOS_SESION 2   /* 0 = video de la cámara, 1 = conexión (WebSocket) con el carro */
+
+/* Las sesiones solo las toca el hilo principal de la app (los avisos de VideoCarro pasan por el manejador principal). */
+static Sesion sesiones[RECURSOS_SESION];
+static int sesiones_iniciadas = 0;
+
+static Sesion *sesion_de(jint recurso)
+{
+    int i;
+
+    if (!sesiones_iniciadas) {
+        for (i = 0; i < RECURSOS_SESION; i++) {
+            ses_iniciar(&sesiones[i]);
+        }
+        sesiones_iniciadas = 1;
+    }
+    return (recurso >= 0 && recurso < RECURSOS_SESION) ? &sesiones[recurso] : NULL;
+}
+
+/* Entra un usuario al recurso. Devuelve la acción (AccionSesion): 0 nada, 1 abrir, 2 cerrar, 3 reabrir. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_SesionNativa_entrar(JNIEnv *env, jobject objeto, jint recurso, jint usuario, jlong ahora_ms)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    return s ? (jint)ses_entrar(s, usuario, (uint32_t)ahora_ms) : 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_SesionNativa_salir(JNIEnv *env, jobject objeto, jint recurso, jint usuario, jlong ahora_ms)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    return s ? (jint)ses_salir(s, usuario, (uint32_t)ahora_ms) : 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_SesionNativa_tick(JNIEnv *env, jobject objeto, jint recurso, jlong ahora_ms)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    return s ? (jint)ses_tick(s, (uint32_t)ahora_ms) : 0;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_SesionNativa_funciona(JNIEnv *env, jobject objeto, jint recurso)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    if (s) {
+        ses_funciona(s);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_SesionNativa_fallo(JNIEnv *env, jobject objeto, jint recurso, jlong ahora_ms)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    if (s) {
+        ses_fallo(s, (uint32_t)ahora_ms);
+    }
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_SesionNativa_reintentar(JNIEnv *env, jobject objeto, jint recurso, jlong ahora_ms)
+{
+    Sesion *s = sesion_de(recurso);
+
+    (void)env;
+    (void)objeto;
+    return s ? (jint)ses_reintentar(s, (uint32_t)ahora_ms) : 0;
+}
+
+/* Estado de la sesion: [0] EstadoSesion, [1] cuántos usuarios, [2] intentos de apertura, [3] fallos seguidos. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_SesionNativa_estado(JNIEnv *env, jobject objeto, jint recurso)
+{
+    Sesion *s = sesion_de(recurso);
+    jint salida[4] = {0, 0, 0, 0};
+    jintArray arreglo = (*env)->NewIntArray(env, 4);
+
+    (void)objeto;
+    if (s) {
+        salida[0] = (jint)s->estado;
+        salida[1] = ses_cuenta_usuarios(s);
+        salida[2] = s->intentos;
+        salida[3] = s->fallos;
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 4, salida);
+    }
+    return arreglo;
+}
+
+/* Deja las sesiones como recien creadas (lo usa la prueba de la app). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_SesionNativa_reiniciar(JNIEnv *env, jobject objeto)
+{
+    int i;
+
+    (void)env;
+    (void)objeto;
+    sesiones_iniciadas = 0;
+    for (i = 0; i < RECURSOS_SESION; i++) {
+        ses_iniciar(&sesiones[i]);
+    }
+    sesiones_iniciadas = 1;
+}
+
+/* ── Latencia del control con y sin video (latencia_video.c) ───────────────────────────────────────────────────────────────── */
+
+static MedidaVideo medida_video;
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_LatenciaVideoNativa_iniciar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    lv_iniciar(&medida_video);
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_LatenciaVideoNativa_muestra(JNIEnv *env, jobject objeto, jint con_video, jint pong_ms)
+{
+    (void)env;
+    (void)objeto;
+    lv_muestra(&medida_video, con_video, pong_ms);
+}
+
+/* Resultado: [0] promedio sin video x10, [1] promedio con video x10, [2] maximo sin, [3] maximo con, [4] diferencia x10, [5] veredicto (-1, 0 o 1). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_LatenciaVideoNativa_resultado(JNIEnv *env, jobject objeto)
+{
+    ResultadoVideo r = lv_resultado(&medida_video);
+    jint salida[6];
+    jintArray arreglo = (*env)->NewIntArray(env, 6);
+
+    (void)objeto;
+    salida[0] = r.prom_sin_x10;
+    salida[1] = r.prom_con_x10;
+    salida[2] = r.max_sin;
+    salida[3] = r.max_con;
+    salida[4] = r.diferencia_x10;
+    salida[5] = (jint)r.veredicto;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 6, salida);
     }
     return arreglo;
 }

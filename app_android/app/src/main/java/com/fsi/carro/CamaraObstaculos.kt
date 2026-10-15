@@ -145,7 +145,26 @@ class CamaraObstaculos(
     private var sesion: CameraCaptureSession? = null
     private var lector: ImageReader? = null
     private var rotar180 = false
-    private var videoCarro: VideoCarro? = null   // la fuente de video del carro (null si se usa la cámara del teléfono)
+    /** true si los cuadros salen del video del carro (la sesión compartida, SesionVideo) y no de la cámara del teléfono. */
+    private var enSesionVideo = false
+    private val videoCarro: VideoCarro? get() = if (enSesionVideo) SesionVideo.actual else null   // el VideoCarro abierto ahora (null mientras se reabre)
+
+    /** true = usar siempre el video del carro (sesión compartida), aunque en la configuración de visión esté elegida la cámara del teléfono. Lo usa Manual para «Ver detección». */
+    var forzarVideoCarro = false
+
+    /** Qué usuario de la sesión de video es esta cámara (SesionNativa.USUARIO_*): Visión, Ejecutar ruta... Hay que ponerlo ANTES de abrir(). */
+    var usuarioVideo = SesionNativa.USUARIO_VISION
+
+    /** El video de la sesión compartida cambió de estado: se copia el error para que lo vean las pantallas. */
+    private val alCambiarSesionVideo: () -> Unit = {
+        if (enSesionVideo) {
+            val fallo = SesionVideo.mensajeFallo
+            error = fallo
+            if (fallo.isNotEmpty()) {
+                abierta = false
+            }
+        }
+    }
 
     /** true cuando la cámara está entregando cuadros. */
     @Volatile
@@ -263,11 +282,11 @@ class CamaraObstaculos(
 
     /** Abre la cámara trasera. Devuelve false (y deja `error`) si no se pudo empezar. */
     fun abrir(): Boolean {
-        if (hilo != null || videoCarro != null) {
+        if (hilo != null || enSesionVideo) {
             return true   // ya está abierta o abriéndose
         }
         val configVision = ConfigVision(contexto)
-        if (configVision.fuenteCarro) {
+        if (forzarVideoCarro || configVision.fuenteCarro) {
             return abrirVideoCarro(configVision.urlVideoCarro)
         }
         if (contexto.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -316,7 +335,7 @@ class CamaraObstaculos(
      * docs/latencia.md). El navegador lo usa para no contar el giro de los cuadros que todavía muestran al carro sin girar.
      */
     val latenciaVisualMs: Int get() {
-        if (videoCarro == null) {
+        if (!enSesionVideo) {
             return 0
         }
         // jpeg: la medida con cronómetro (docs/latencia.md). raw y celdas: ms de la cámara (captura a envío) + la mitad del ida y vuelta de la red; es una ESTIMACIÓN (no incluye
@@ -335,7 +354,7 @@ class CamaraObstaculos(
     }
 
     /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
-    val esVideoCarro: Boolean get() = videoCarro != null
+    val esVideoCarro: Boolean get() = enSesionVideo
 
     /** Empieza a leer el video de la cámara del carro (no necesita el permiso de cámara). Devuelve false si la dirección no es válida. */
     private fun abrirVideoCarro(url: String): Boolean {
@@ -352,25 +371,24 @@ class CamaraObstaculos(
         avisoModoVideo = ""
         sumaCamaraMs.set(0)
         cuentaCamara.set(0)
-        val video = VideoCarro(contexto, url, { bytes, largo -> alJpegDelCarro(bytes, largo) }, { texto ->
-            if (texto.isEmpty()) {
-                error = ""
-            } else {
-                error = texto
-                abierta = false
+        val consumidor = object : ConsumidorVideo {
+            override fun alJpeg(bytes: ByteArray, largo: Int) = alJpegDelCarro(bytes, largo)
+            override fun alCrudo(bytes: ByteArray, largo: Int, ancho: Int, alto: Int, numero: Int, msCamara: Int) = alCrudoDelCarro(bytes, largo, ancho, alto, numero, msCamara)
+            override fun alCeldas(paquete: PaqueteCeldas) = alCeldasDelCarro(paquete)
+            override fun alRtt(ms: Double) {
+                ultimoRttMs.set(ms.toLong())
+                estadisticaModo.rtt(ms)
             }
-        }, ConfigVision(contexto).modoVideo,
-            { bytes, largo, w, h, numero, msCamara -> alCrudoDelCarro(bytes, largo, w, h, numero, msCamara) },
-            { paquete -> alCeldasDelCarro(paquete) },
-            { rtt -> ultimoRttMs.set(rtt.toLong()); estadisticaModo.rtt(rtt) },
-            { modoFallido, motivo ->
+            override fun alFalloModo(modoFallido: String, motivo: String) {
                 avisoModoVideo = "El modo de video «$modoFallido» falló ($motivo): sigo con JPEG."
                 Log.w(ETIQUETA, avisoModoVideo)
-            })
-        videoCarro = video
-        Log.i(ETIQUETA, "abriendo el video del carro $url")
+            }
+        }
+        enSesionVideo = true
+        SesionVideo.escuchar(alCambiarSesionVideo)
+        Log.i(ETIQUETA, "usando el video del carro de la sesión compartida ($url)")
         iniciarCadena()
-        video.iniciar()
+        SesionVideo.entrar(contexto, usuarioVideo, consumidor)
         activarModelo(usarModelo())
         return true
     }
@@ -693,11 +711,14 @@ class CamaraObstaculos(
 
     /** Libera la cámara. Se puede llamar varias veces. */
     fun cerrar() {
-        val habiaCamara = hilo != null || videoCarro != null
+        val habiaCamara = hilo != null || enSesionVideo
         abierta = false
         activarModelo(false)
-        videoCarro?.detener()
-        videoCarro = null
+        if (enSesionVideo) {
+            enSesionVideo = false
+            SesionVideo.dejarDeEscuchar(alCambiarSesionVideo)
+            SesionVideo.salir(usuarioVideo)
+        }
         detenerCadena()
         try { sesion?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando sesión: ${e.message}") }
         try { dispositivo?.close() } catch (e: Exception) { Log.w(ETIQUETA, "cerrando cámara: ${e.message}") }
