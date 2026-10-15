@@ -38,7 +38,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 
-class ControlActivity : Activity() {
+class ControlActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private lateinit var campoDireccion: EditText
     private lateinit var textoEstado: TextView

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: ESTILOS reutilizables (docs/diseno.md).
+   - Texto.*: los 4 estilos de texto (título, subtítulo, cuerpo, etiqueta) + Texto.Grande (la única cosa grande de cada pantalla). Las cifras
+     (latencia, fps, cm, tiempos) usan Texto.Cifras (cifras tabulares), para que no "bailen" al cambiar.
+   - Boton.*: primario, secundario, de texto, de manejo (56 dp) y de PARO.
+   - Tarjeta: esquinas de 16 dp y borde fino, sin sombra.
+-->
+<resources>
+    <!-- Texto -->
+    <style name="Texto.Grande" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/inter_semibold</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:textColor">@color/texto</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="Texto.Titulo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/inter_semibold</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/texto</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="Texto.Subtitulo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/inter_medium</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/texto</item>
+    </style>
+    <style name="Texto.Cuerpo" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/texto</item>
+    </style>
+    <style name="Texto.Etiqueta" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/inter_medium</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/texto_suave</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+    <!-- Cifras tabulares: latencia, fps, cm, tiempos. -->
+    <style name="Texto.Cifras" parent="Texto.Cuerpo">
+        <item name="android:fontFamily">@font/inter_medium</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+    <style name="Texto.Suave" parent="Texto.Cuerpo">
+        <item name="android:textColor">@color/texto_suave</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+    <style name="Texto.EtiquetaActiva" parent="Texto.Etiqueta">
+        <item name="android:textColor">@color/acento_texto</item>
+    </style>
+    <!-- Título de sección (en mayúsculas, chico). -->
+    <style name="Seccion" parent="Texto.Etiqueta">
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- Botones -->
+    <style name="TextoBoton" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/inter_semibold</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+    <!-- Primario: relleno con el acento, 48 dp de alto, esquinas de 28 dp (queda como píldora). -->
+    <style name="Boton.Primario" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/acento</item>
+        <item name="android:textColor">@color/sobre_acento</item>
+        <item name="iconTint">@color/sobre_acento</item>
+        <item name="cornerRadius">@dimen/radio_boton</item>
+        <item name="android:minHeight">@dimen/toque_minimo</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAppearance">@style/TextoBoton</item>
+        <item name="rippleColor">@color/sobre_acento</item>
+    </style>
+    <!-- Secundario: solo borde fino y texto con el acento. -->
+    <style name="Boton.Secundario" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/borde_fuerte</item>
+        <item name="strokeWidth">@dimen/borde_fino</item>
+        <item name="android:textColor">@color/acento_texto</item>
+        <item name="iconTint">@color/acento_texto</item>
+        <item name="cornerRadius">@dimen/radio_boton</item>
+        <item name="android:minHeight">@dimen/toque_minimo</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAppearance">@style/TextoBoton</item>
+        <item name="rippleColor">@color/acento</item>
+    </style>
+    <style name="Boton.Texto" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/acento_texto</item>
+        <item name="iconTint">@color/acento_texto</item>
+        <item name="android:minHeight">@dimen/toque_minimo</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAppearance">@style/TextoBoton</item>
+    </style>
+    <!-- De manejo (cruceta): 56 dp o más, esquinas de 16 dp, relleno de tarjeta elevada con borde. -->
+    <style name="Boton.Manejo" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="backgroundTint">@color/superficie_alta</item>
+        <item name="strokeColor">@color/borde_fuerte</item>
+        <item name="strokeWidth">@dimen/borde_fino</item>
+        <item name="iconTint">@color/texto</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+        <item name="cornerRadius">@dimen/radio_tarjeta</item>
+        <item name="android:minWidth">@dimen/toque_manejo</item>
+        <item name="android:minHeight">@dimen/toque_manejo</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="rippleColor">@color/acento</item>
+    </style>
+    <!-- PARO: rojo, siempre el mismo. 56 dp o más. -->
+    <style name="Boton.Paro" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/paro</item>
+        <item name="android:textColor">@color/sobre_paro</item>
+        <item name="iconTint">@color/sobre_paro</item>
+        <item name="cornerRadius">@dimen/radio_boton</item>
+        <item name="android:minHeight">@dimen/toque_manejo</item>
+        <item name="android:minWidth">@dimen/toque_manejo</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAppearance">@style/TextoBoton</item>
+        <item name="rippleColor">@color/sobre_paro</item>
+    </style>
+
+    <!-- Tarjeta -->
+    <style name="Tarjeta" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/superficie</item>
+        <item name="cardCornerRadius">@dimen/radio_tarjeta</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/borde</item>
+        <item name="strokeWidth">@dimen/borde_fino</item>
+        <item name="rippleColor">@color/acento</item>
+    </style>
+
+    <!-- Barra inferior -->
+    <style name="BarraInferior" parent="Widget.Material3.BottomNavigationView">
+        <item name="backgroundTint">@color/superficie</item>
+        <item name="itemActiveIndicatorStyle">@style/BarraInferior.Indicador</item>
+        <item name="itemTextAppearanceActive">@style/Texto.EtiquetaActiva</item>
+        <item name="itemTextAppearanceInactive">@style/Texto.Etiqueta</item>
+        <item name="itemIconTint">@color/barra_icono</item>
+        <item name="itemTextColor">@color/barra_icono</item>
+        <item name="elevation">0dp</item>
+    </style>
+    <style name="BarraInferior.Indicador" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/superficie_alta</item>
+    </style>
+
+    <!-- Interruptor y diálogos -->
+    <style name="Interruptor" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:minHeight">@dimen/toque_minimo</item>
+    </style>
+    <style name="DialogoApp" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/superficie_alta</item>
+        <item name="shapeAppearanceOverlay">@style/FormaDialogo</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Boton.Texto</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Boton.Texto</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Boton.Texto</item>
+    </style>
+    <style name="FormaDialogo">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/radio_tarjeta</item>
+    </style>
+</resources>

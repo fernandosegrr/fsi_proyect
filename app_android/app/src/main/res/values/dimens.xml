@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: DIMENSIONES de la app. Todo sale de la cuadrícula de 8 dp (docs/diseno.md); 4 dp solo como medio paso. -->
+<resources>
+    <dimen name="e0">4dp</dimen>
+    <dimen name="e1">8dp</dimen>
+    <dimen name="e2">16dp</dimen>
+    <dimen name="e3">24dp</dimen>
+    <dimen name="e4">32dp</dimen>
+    <dimen name="e5">48dp</dimen>
+    <dimen name="e6">64dp</dimen>
+
+    <dimen name="margen_pantalla">16dp</dimen>
+    <dimen name="radio_tarjeta">16dp</dimen>
+    <dimen name="radio_boton">28dp</dimen>
+    <dimen name="borde_fino">1dp</dimen>
+
+    <dimen name="toque_minimo">48dp</dimen>
+    <dimen name="toque_manejo">56dp</dimen>
+    <dimen name="cruceta_boton">80dp</dimen>
+    <dimen name="paro_cruceta">88dp</dimen>
+    <dimen name="altura_cabecera">56dp</dimen>
+    <dimen name="icono">24dp</dimen>
+</resources>

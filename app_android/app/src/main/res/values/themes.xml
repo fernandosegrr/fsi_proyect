@@ -1,5 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Guía de lectura: tema claro del sistema, sin barra de título y sin librerías. -->
+<!--
+  Guía de lectura: TEMA de la app (Material 3 con los colores propios de colors.xml).
+  Oscuro por defecto (Diseno.aplicarTema lo fija al abrir); claro o "sigue al sistema" desde Ajustes. Tipografía Inter en toda la app.
+-->
 <resources>
-    <style name="TemaApp" parent="android:Theme.DeviceDefault.Light.NoActionBar" />
+    <style name="TemaApp" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/acento</item>
+        <item name="colorOnPrimary">@color/sobre_acento</item>
+        <item name="colorPrimaryContainer">@color/superficie_alta</item>
+        <item name="colorOnPrimaryContainer">@color/acento_texto</item>
+        <item name="colorSecondary">@color/acento</item>
+        <item name="colorOnSecondary">@color/sobre_acento</item>
+        <item name="colorSecondaryContainer">@color/superficie_alta</item>
+        <item name="colorOnSecondaryContainer">@color/acento_texto</item>
+        <item name="colorSurface">@color/superficie</item>
+        <item name="colorOnSurface">@color/texto</item>
+        <item name="colorSurfaceVariant">@color/superficie_alta</item>
+        <item name="colorOnSurfaceVariant">@color/texto_suave</item>
+        <item name="colorSurfaceContainer">@color/superficie</item>
+        <item name="colorSurfaceContainerLow">@color/superficie</item>
+        <item name="colorSurfaceContainerHigh">@color/superficie_alta</item>
+        <item name="colorSurfaceContainerHighest">@color/superficie_alta</item>
+        <item name="colorOutline">@color/borde_fuerte</item>
+        <item name="colorOutlineVariant">@color/borde</item>
+        <item name="colorError">@color/peligro</item>
+        <item name="colorOnError">@color/fondo</item>
+        <item name="android:colorBackground">@color/fondo</item>
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:statusBarColor">@color/fondo</item>
+        <item name="android:navigationBarColor">@color/superficie</item>
+
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="textAppearanceBodyLarge">@style/Texto.Cuerpo</item>
+        <item name="textAppearanceBodyMedium">@style/Texto.Cuerpo</item>
+        <item name="textAppearanceLabelLarge">@style/Texto.Etiqueta</item>
+        <item name="textAppearanceLabelMedium">@style/Texto.Etiqueta</item>
+        <item name="textAppearanceTitleMedium">@style/Texto.Subtitulo</item>
+        <item name="textAppearanceTitleLarge">@style/Texto.Titulo</item>
+
+        <item name="materialButtonStyle">@style/Boton.Primario</item>
+        <item name="materialCardViewStyle">@style/Tarjeta</item>
+        <item name="bottomNavigationStyle">@style/BarraInferior</item>
+        <item name="materialSwitchStyle">@style/Interruptor</item>
+        <item name="materialAlertDialogTheme">@style/DialogoApp</item>
+    </style>
 </resources>

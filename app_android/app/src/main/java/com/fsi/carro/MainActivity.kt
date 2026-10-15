@@ -20,7 +20,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 
-class MainActivity : Activity() {
+class MainActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private lateinit var cuadricula: CuadriculaView
     private lateinit var contador: TextView

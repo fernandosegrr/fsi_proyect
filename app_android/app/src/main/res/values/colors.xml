@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: TOKENS DE COLOR de la app (tema CLARO). El tema oscuro (el predeterminado) está en values-night/colors.xml con los mismos nombres.
+  Reglas (docs/diseno.md): superficies gris azulado, UN solo acento (cian), y colores con significado fijo: ok = bien, aviso = ámbar, peligro/paro = rojo.
+  El contraste de cada pareja texto/fondo (mínimo 4.5:1) lo comprueba `python scripts/contraste.py`.
+-->
+<resources>
+    <color name="fondo">#F3F6F9</color>
+    <color name="superficie">#FFFFFF</color>
+    <color name="superficie_alta">#E9EFF4</color>
+    <color name="borde">#D3DCE4</color>
+    <color name="borde_fuerte">#74879A</color>
+    <color name="texto">#0F1B26</color>
+    <color name="texto_suave">#4A5D6E</color>
+
+    <color name="acento">#0B7285</color>
+    <color name="acento_texto">#0B7285</color>
+    <color name="sobre_acento">#FFFFFF</color>
+
+    <color name="ok">#176B3A</color>
+    <color name="ok_fondo">#DDF3E4</color>
+    <color name="aviso">#8A5300</color>
+    <color name="aviso_fondo">#FDEFD0</color>
+    <color name="peligro">#B3261E</color>
+    <color name="peligro_fondo">#FBE1DF</color>
+    <color name="neutro_fondo">#E3EAF0</color>
+
+    <color name="paro">#C62828</color>
+    <color name="sobre_paro">#FFFFFF</color>
+</resources>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: TOKENS DE COLOR del tema OSCURO (el predeterminado de la app). Mismos nombres que values/colors.xml; ver docs/diseno.md. -->
+<resources>
+    <color name="fondo">#0C131A</color>
+    <color name="superficie">#131C25</color>
+    <color name="superficie_alta">#1A2531</color>
+    <color name="borde">#26323F</color>
+    <color name="borde_fuerte">#5B6E80</color>
+    <color name="texto">#E7EDF3</color>
+    <color name="texto_suave">#9BAEC0</color>
+
+    <color name="acento">#22C5DD</color>
+    <color name="acento_texto">#3BD0E6</color>
+    <color name="sobre_acento">#03232B</color>
+
+    <color name="ok">#4ADE80</color>
+    <color name="ok_fondo">#11301E</color>
+    <color name="aviso">#FBBF24</color>
+    <color name="aviso_fondo">#3A2C0B</color>
+    <color name="peligro">#FF8A8F</color>
+    <color name="peligro_fondo">#3D1A1E</color>
+    <color name="neutro_fondo">#1F2B38</color>
+
+    <color name="paro">#D32F2F</color>
+    <color name="sobre_paro">#FFFFFF</color>
+</resources>

@@ -46,7 +46,7 @@ import android.widget.Toast
 import java.util.Locale
 import kotlin.random.Random
 
-class CalibracionActivity : Activity() {
+class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     companion object {
         val TIEMPOS_AVANCE = intArrayOf(1000, 2000, 3000)   // ms de FORWARD en cada prueba de avance

@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Guía de lectura: todos los textos que se ven en pantalla. -->
 <resources>
-    <string name="nombre_app">Carro: ruta</string>
+    <string name="nombre_app">Carro FSI</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="entendido">Entendido</string>
     <string name="instruccion">Dibuja la ruta con el dedo (de la celda verde I a la roja M).</string>
     <string name="boton_calcular">Calcular</string>
     <string name="boton_borrar">Borrar</string>

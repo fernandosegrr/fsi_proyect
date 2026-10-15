@@ -26,7 +26,7 @@ import android.widget.TextView
 import java.io.File
 import java.util.Locale
 
-class BenchmarkActivity : Activity() {
+class BenchmarkActivity : androidx.appcompat.app.AppCompatActivity() {
 
     companion object {
         const val ETIQUETA = "BENCH"

@@ -40,7 +40,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
-class VisionActivity : Activity() {
+class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     companion object {
         const val PEDIDO_PERMISO_CAMARA = 21
