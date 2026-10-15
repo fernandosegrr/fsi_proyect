@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: textos de las pantallas de «Más» que se abren encima: Ajustes (aj_), Ayuda (ay_), Acerca de (ac_) y Prueba final (pf_).
+  Los títulos de las pantallas reutilizan mas_ajustes, mas_ayuda, mas_acerca y mas_prueba_final de textos_app.xml. Frases cortas y claras.
+-->
+<resources>
+
+    <!-- ── Ajustes ───────────────────────────────────────────────────── -->
+    <string name="aj_red">Red</string>
+    <string name="aj_dir_carro">Dirección del carro</string>
+    <string name="aj_dir_video">Dirección del video</string>
+    <string name="aj_guardar">Guardar direcciones</string>
+    <string name="aj_restablecer">Restablecer direcciones</string>
+    <string name="aj_error_carro">Debe empezar con ws://</string>
+    <string name="aj_error_video">Debe empezar con http:// o https://</string>
+    <string name="aj_guardado_titulo">Direcciones guardadas</string>
+    <string name="aj_guardado_detalle">Se usan la próxima vez que la app se conecte.</string>
+    <string name="aj_restablecido_titulo">Direcciones restablecidas</string>
+    <string name="aj_restablecido_detalle">Volvieron a los valores originales del carro.</string>
+    <string name="aj_red_ayuda">Son las direcciones con las que la app habla con el carro y con su cámara. Cámbialas solo si cambiaste la red del carro.</string>
+
+    <string name="aj_velocidad">Velocidad en Manual</string>
+    <string name="aj_rapido">Rápido</string>
+    <string name="aj_lento">Lento</string>
+    <string name="aj_velocidad_ayuda">Rápido usa la potencia 255 y Lento la 210. Las rutas siempre van en Lento.</string>
+
+    <string name="aj_video">Video en Manual</string>
+    <string name="aj_video_ayuda">Apágalo si el carro responde tarde a los botones. También se cambia desde Manual.</string>
+
+    <string name="aj_tema">Tema</string>
+    <string name="aj_tema_oscuro">Oscuro</string>
+    <string name="aj_tema_claro">Claro</string>
+    <string name="aj_tema_sistema">Sistema</string>
+    <string name="aj_tema_ayuda">Sistema sigue el tema del teléfono. Al cambiarlo, la pantalla se dibuja de nuevo.</string>
+
+    <string name="aj_vibracion">Vibración</string>
+    <string name="aj_vibracion_ayuda">Una vibración corta al conectar o iniciar una ruta, y dos cuando hay un obstáculo.</string>
+
+    <!-- ── Ayuda ─────────────────────────────────────────────────────── -->
+    <string name="ay_preguntas">Preguntas frecuentes</string>
+    <string name="ay_abierta">Abierta</string>
+    <string name="ay_cerrada">Cerrada</string>
+    <string name="ay_et_paso">Qué pasó</string>
+    <string name="ay_et_es">Qué es</string>
+    <string name="ay_et_hacer">Qué hacer</string>
+
+    <string name="ay_p1_q">El teléfono no se conecta al carro</string>
+    <string name="ay_p1_a">El teléfono no está en la red «CarroFSI» o el carro está apagado.</string>
+    <string name="ay_p1_h">Enciende el carro. En el WiFi del teléfono elige «CarroFSI» y, si avisa «sin Internet», mantén la conexión. Vuelve a la app y toca Conectar.</string>
+
+    <string name="ay_p2_q">El video no llega</string>
+    <string name="ay_p2_a">La cámara tarda en arrancar y solo atiende a un cliente a la vez.</string>
+    <string name="ay_p2_h">Espera unos 40 segundos después de encender la cámara y toca Reintentar. Mientras tanto puedes manejar sin video.</string>
+
+    <string name="ay_p3_q">El carro no frena ni esquiva</string>
+    <string name="ay_p3_a">El detector no conoce el color del piso y no distingue el piso de un obstáculo.</string>
+    <string name="ay_p3_h">Con el carro quieto y nada adelante, toca «Aprender piso» (Más, Visión y diagnóstico) antes de iniciar la ruta.</string>
+
+    <string name="ay_p4_q">El carro se desvía al avanzar</string>
+    <string name="ay_p4_a">Las ruedas no responden igual y, sin calibrar, la app usa valores de ejemplo.</string>
+    <string name="ay_p4_h">Calibra en Más, Calibración (arranque, avance y giro). Hazlo en el mismo piso donde vas a usar el carro.</string>
+
+    <string name="ay_p5_q">¿Qué son Rápido y Lento?</string>
+    <string name="ay_p5_a">Son dos perfiles de velocidad: Rápido usa la potencia 255 y Lento la 210. Las rutas siempre van en Lento.</string>
+    <string name="ay_p5_h">Usa Rápido para manejar y Lento si quieres ir con más cuidado. Se elige en Ajustes.</string>
+
+    <string name="ay_p6_q">¿Qué hace «Ver detección»?</string>
+    <string name="ay_p6_a">Dibuja sobre el video los números del detector: zona, corredor y cercanía. No cambia la imagen y en Manual no frena el carro.</string>
+    <string name="ay_p6_h">Enciéndelo para ver qué ve el carro. Apágalo si tapa el video.</string>
+
+    <string name="ay_p7_q">¿Por qué el video llega con retraso?</string>
+    <string name="ay_p7_a">La imagen tarda unos 0.3 s en ir de la cámara al teléfono. Lo que ves ya pasó.</string>
+    <string name="ay_p7_h">Frena antes de llegar a las cosas y acércate despacio. El perfil Lento ayuda.</string>
+
+    <string name="ay_p8_q">La ruta se detuvo sola</string>
+    <string name="ay_p8_a">La app detiene el carro por seguridad: se perdió la conexión, la cámara dejó de mandar imágenes, hubo un obstáculo sin salida o la app pasó a segundo plano.</string>
+    <string name="ay_p8_h">Lee el aviso en pantalla, arregla la causa y vuelve a iniciar la ruta.</string>
+
+    <string name="ay_p9_q">Se apagó la pantalla o salí de la app</string>
+    <string name="ay_p9_a">Al salir de la app o girar el teléfono, el carro recibe PARO y la ruta se cancela.</string>
+    <string name="ay_p9_h">Vuelve a abrir la app, conecta de nuevo si hace falta e inicia la ruta otra vez. Con el carro en marcha la pantalla no se apaga sola.</string>
+
+    <string name="ay_p10_q">El carro responde tarde con el video encendido</string>
+    <string name="ay_p10_a">El video y el control comparten el WiFi del carro y el video puede estorbar.</string>
+    <string name="ay_p10_h">Mídelo en Prueba final, paso 2. Si estorba, apaga «Video en Manual» en Ajustes.</string>
+
+    <string name="ay_falla">Si algo falla</string>
+    <string name="ay_falla_1">Apaga el carro y la cámara, y vuelve a encenderlos.</string>
+    <string name="ay_falla_2">Conecta el teléfono a la red «CarroFSI» y espera unos 40 segundos.</string>
+    <string name="ay_falla_3">En Inicio toca Conectar. Si la cámara no responde, toca Reintentar.</string>
+    <string name="ay_falla_4">Si sigue igual, maneja sin video (apaga el interruptor Video en Manual) y revisa la batería del carro.</string>
+    <string name="ay_asistente">Ver el asistente de nuevo</string>
+
+    <!-- ── Acerca de ─────────────────────────────────────────────────── -->
+    <string name="ac_version">Versión %1$s (%2$d)</string>
+    <string name="ac_version_desconocida">Versión desconocida</string>
+    <string name="ac_frase">App para manejar un carro de ruedas mecanum con ESP32: control manual, video de su cámara y rutas que el carro recorre solo, esquivando obstáculos. Todo funciona en la red local del carro.</string>
+    <string name="ac_licencias">Licencias de lo incluido</string>
+    <string name="ac_licencias_ayuda">Cada pieza conserva su propia licencia.</string>
+    <string name="ac_inter">Inter</string>
+    <string name="ac_inter_d">Tipografía · SIL Open Font License 1.1</string>
+    <string name="ac_symbols">Material Symbols</string>
+    <string name="ac_symbols_d">Iconos · Apache License 2.0</string>
+    <string name="ac_components">Material Components</string>
+    <string name="ac_components_d">Componentes de la interfaz · Apache License 2.0</string>
+    <string name="ac_tflite">TensorFlow Lite</string>
+    <string name="ac_tflite_d">Reconocimiento de objetos · Apache License 2.0</string>
+    <string name="ac_okhttp">OkHttp</string>
+    <string name="ac_okhttp_d">Conexión con el carro · Apache License 2.0</string>
+    <string name="ac_jpegenc">JPEGENC</string>
+    <string name="ac_jpegenc_d">Compresor de imágenes del firmware de la cámara · Apache License 2.0</string>
+
+    <!-- ── Prueba final ──────────────────────────────────────────────── -->
+    <string name="pf_contador">%1$d de %2$d hechos</string>
+    <string name="pf_intro">Pruebas pendientes con el carro real. Marca cada paso al terminarlo; se guarda en el teléfono.</string>
+    <string name="pf_titulo_paso">%1$d. %2$s</string>
+    <string name="pf_cd_casilla">Marcar como hecho: %1$s</string>
+    <string name="pf_boton_inicio">Ir a Inicio</string>
+    <string name="pf_boton_vision">Abrir Visión y diagnóstico</string>
+    <string name="pf_boton_rutas">Ir a Rutas</string>
+
+    <string name="pf_p1_t">Recargar las dos placas</string>
+    <string name="pf_p1_i">Carga el firmware nuevo en la placa del carro y en la de la cámara. Conecta el teléfono a la red «CarroFSI». En Inicio, el carro y la cámara deben verse en verde.</string>
+    <string name="pf_p2_t">Latencia del control con y sin video</string>
+    <string name="pf_p2_i">Con el carro quieto, la app mide el PONG del control 8 s sin video y 8 s con video. Si con video sube más de 30 ms, el video de Manual se apaga.</string>
+    <string name="pf_p3_t">Piso negro y de 2 colores</string>
+    <string name="pf_p3_i">Con el carro quieto y nada adelante, toca «Aprender piso». Haz pasadas en un piso negro y en uno de 2 colores.</string>
+    <string name="pf_p4_t">Ruta con mochila y esquive</string>
+    <string name="pf_p4_i">Dibuja una ruta recta y aprende el piso. Pon una mochila a mitad del camino: el carro debe esquivarla y seguir.</string>
+    <string name="pf_p5_t">Modelo sin reconocer</string>
+    <string name="pf_p5_i">Con «cualquier objeto» encendido, haz pasadas con el termo, la caja y la mochila a 120 cm. Luego deja el piso vacío 1 minuto: no debe frenar.</string>
+    <string name="pf_p6_t">Nueve pasadas de modos de video</string>
+    <string name="pf_p6_i">Tres pasadas en cada modo (jpeg, raw y celdas) con una caja a unos 80 cm. Aprende el piso antes, en jpeg. El modo se cambia en Visión y diagnóstico.</string>
+    <string name="pf_p7_t">Opcionales</string>
+    <string name="pf_p7_i">Prueba el flujo del piso y compara los compresores JPEG de la cámara. Puedes dejarlo para después.</string>
+
+    <!-- Paso 2: medir el PONG sin y con video -->
+    <string name="pf_medir">Medir ahora</string>
+    <string name="pf_cancelar">Cancelar</string>
+    <string name="pf_fase_preparando">Preparando: se apaga el video…</string>
+    <string name="pf_fase_sin">Midiendo sin video… %1$d s</string>
+    <string name="pf_fase_abriendo">Abriendo el video…</string>
+    <string name="pf_fase_con">Midiendo con video… %1$d s</string>
+    <string name="pf_res_bien">El video no estorba: PONG medio %1$d ms sin video y %2$d ms con video.</string>
+    <string name="pf_res_mal">El video estorba: PONG medio %1$d ms sin video y %2$d ms con video (%3$d ms más). Se apagó «Video en Manual»; puedes volver a encenderlo en Ajustes.</string>
+    <string name="pf_res_pocas">No hubo medidas suficientes para decidir. Revisa la conexión y vuelve a medir.</string>
+    <string name="pf_aviso_en_uso">Otra pantalla está usando el video</string>
+    <string name="pf_aviso_no_cierra">El video no se pudo apagar</string>
+    <string name="pf_aviso_cierra_otras">Cierra el video de otras pantallas y vuelve a intentar.</string>
+</resources>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla PRUEBA FINAL. Barra de título fija; debajo, lo grande es el contador («3 de 7 hechos») con su barra de avance, un aviso
+  en banda para los errores de la medida y la lista de pasos (cada uno es una tarjeta item_paso_prueba.xml que arma PruebaFinalFragment).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/fondo"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="@dimen/e2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/margen_pantalla"
+            android:paddingTop="@dimen/e2"
+            android:paddingEnd="@dimen/margen_pantalla">
+
+            <TextView
+                android:id="@+id/pf_contador"
+                style="@style/Texto.Grande"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e0"
+                android:text="@string/pf_intro" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/pf_progreso"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                app:indicatorColor="@color/acento"
+                app:trackColor="@color/superficie_alta"
+                app:trackCornerRadius="@dimen/e0"
+                app:trackThickness="@dimen/e1" />
+
+            <com.fsi.carro.AvisoBanda
+                android:id="@+id/pf_aviso"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2" />
+
+            <LinearLayout
+                android:id="@+id/pf_lista"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla AJUSTES. Barra de título fija y, debajo, grupos en tarjetas con una frase de ayuda cada uno:
+  Red (dos direcciones y dos botones: Guardar es el único primario), Velocidad en Manual, Video en Manual, Tema y Vibración.
+  Los interruptores y las opciones se guardan al tocarlos; las direcciones, con «Guardar direcciones».
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/fondo"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="@dimen/e2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/margen_pantalla"
+            android:paddingTop="@dimen/e2"
+            android:paddingEnd="@dimen/margen_pantalla">
+
+            <!-- Red -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/aj_red" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/aj_capa_carro"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:hint="@string/aj_dir_carro"
+                        app:boxCornerRadiusBottomEnd="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusBottomStart="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusTopEnd="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusTopStart="@dimen/radio_tarjeta">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/aj_campo_carro"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionNext"
+                            android:inputType="textUri"
+                            android:maxLines="1"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/aj_capa_video"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:hint="@string/aj_dir_video"
+                        app:boxCornerRadiusBottomEnd="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusBottomStart="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusTopEnd="@dimen/radio_tarjeta"
+                        app:boxCornerRadiusTopStart="@dimen/radio_tarjeta">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/aj_campo_video"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionDone"
+                            android:inputType="textUri"
+                            android:maxLines="1"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.fsi.carro.AvisoBanda
+                        android:id="@+id/aj_aviso"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_guardar"
+                        style="@style/Boton.Primario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/aj_guardar" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_restablecer"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/aj_restablecer" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/aj_red_ayuda" />
+
+            <!-- Velocidad en Manual -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/aj_velocidad" />
+
+                    <RadioGroup
+                        android:id="@+id/aj_grupo_velocidad"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/aj_velocidad_rapido"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/aj_rapido"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/aj_velocidad_lento"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/aj_lento"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/aj_velocidad_ayuda" />
+
+            <!-- Video en Manual -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/aj_fila_video"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="@dimen/e6"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/aj_video" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/aj_switch_video"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/e2"
+                        android:contentDescription="@string/aj_video" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/aj_video_ayuda" />
+
+            <!-- Tema -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/aj_tema" />
+
+                    <RadioGroup
+                        android:id="@+id/aj_grupo_tema"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/aj_tema_oscuro"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/aj_tema_oscuro"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/aj_tema_claro"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/aj_tema_claro"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/aj_tema_sistema"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/aj_tema_sistema"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/aj_tema_ayuda" />
+
+            <!-- Vibración -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/aj_fila_vibracion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="@dimen/e6"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/aj_vibracion" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/aj_switch_vibracion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/e2"
+                        android:contentDescription="@string/aj_vibracion" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/aj_vibracion_ayuda" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

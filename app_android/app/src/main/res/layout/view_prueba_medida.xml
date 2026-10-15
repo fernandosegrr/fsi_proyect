@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: la medida del PONG del paso 2 de la Prueba final: el avance de la medida (cifras tabulares, para que el número no «baile»),
+  el resultado en palabras y el botón «Medir ahora» (el único primario de la pantalla; mientras mide dice «Cancelar»).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/pf_medida_estado"
+        style="@style/Texto.Cifras"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/e1"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/pf_medida_resultado"
+        style="@style/Texto.Cuerpo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/e1"
+        android:visibility="gone" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/pf_medir"
+        style="@style/Boton.Primario"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/toque_minimo"
+        android:layout_marginTop="@dimen/e2"
+        android:text="@string/pf_medir"
+        app:icon="@drawable/ic_timer" />
+</LinearLayout>

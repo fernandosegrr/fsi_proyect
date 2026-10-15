@@ -60,10 +60,10 @@ class MasFragment : Fragment(R.layout.fragment_mas) {
         when (clave) {
             "calibracion" -> startActivity(Intent(requireContext(), CalibracionActivity::class.java))
             "vision" -> startActivity(Intent(requireContext(), VisionActivity::class.java))
-            "prueba" -> principal.abrirSubpantalla(PantallaProximaFragment.nueva(getString(R.string.mas_prueba_final)))
-            "ajustes" -> principal.abrirSubpantalla(PantallaProximaFragment.nueva(getString(R.string.mas_ajustes)))
-            "ayuda" -> principal.abrirSubpantalla(PantallaProximaFragment.nueva(getString(R.string.mas_ayuda)))
-            "acerca" -> principal.abrirSubpantalla(PantallaProximaFragment.nueva(getString(R.string.mas_acerca)))
+            "prueba" -> principal.abrirSubpantalla(PruebaFinalFragment())
+            "ajustes" -> principal.abrirSubpantalla(AjustesFragment())
+            "ayuda" -> principal.abrirSubpantalla(AyudaFragment())
+            "acerca" -> principal.abrirSubpantalla(AcercaFragment())
         }
     }
 }

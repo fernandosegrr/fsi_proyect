@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla AYUDA. Barra de título fija y, debajo: la lista de preguntas frecuentes (tarjetas que se abren y se cierran; se arman en
+  AyudaFragment con item_pregunta_ayuda.xml), la sección «Si algo falla» con 4 pasos numerados y el botón secundario para ver el asistente otra vez.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/fondo"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="@dimen/e2">
+
+        <LinearLayout
+            android:id="@+id/ay_contenido"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/margen_pantalla"
+            android:paddingTop="@dimen/e2"
+            android:paddingEnd="@dimen/margen_pantalla">
+
+            <TextView
+                style="@style/Seccion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/e1"
+                android:text="@string/ay_preguntas" />
+
+            <LinearLayout
+                android:id="@+id/ay_lista"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                style="@style/Seccion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3"
+                android:layout_marginBottom="@dimen/e1"
+                android:text="@string/ay_falla" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/ay_pasos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ay_asistente"
+                style="@style/Boton.Secundario"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginTop="@dimen/e3"
+                android:text="@string/ay_asistente" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

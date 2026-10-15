@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: un paso de la Prueba final: casilla (48 dp de toque), título, instrucciones cortas y, si aplica, un botón que abre la pantalla relacionada.
+  pf_extra es un espacio libre debajo de las instrucciones (el paso 2 mete ahí la medida del PONG, view_prueba_medida.xml).
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/e1">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/e1"
+        android:paddingTop="@dimen/e1"
+        android:paddingEnd="@dimen/e2"
+        android:paddingBottom="@dimen/e2">
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/pf_casilla"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="@dimen/toque_minimo"
+            android:minHeight="@dimen/toque_minimo" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/e1"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/pf_titulo"
+                style="@style/Texto.Subtitulo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:minHeight="@dimen/toque_minimo" />
+
+            <TextView
+                android:id="@+id/pf_instruccion"
+                style="@style/Texto.Cuerpo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <FrameLayout
+                android:id="@+id/pf_extra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pf_boton"
+                style="@style/Boton.Secundario"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/toque_minimo"
+                android:layout_marginTop="@dimen/e2"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

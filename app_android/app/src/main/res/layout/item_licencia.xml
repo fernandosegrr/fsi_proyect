@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Guía de lectura: una fila de la lista de licencias de Acerca de: el divisor fino (no se ve en la primera fila), el nombre y para qué sirve con su licencia. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/ac_divisor"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/borde" />
+
+    <TextView
+        android:id="@+id/ac_nombre"
+        style="@style/Texto.Cuerpo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/e1" />
+
+    <TextView
+        android:id="@+id/ac_detalle"
+        style="@style/Texto.Suave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/e1" />
+</LinearLayout>
