@@ -118,14 +118,20 @@
     </LinearLayout>
 
     <!-- Modo semiautónomo: ruta de prueba, iniciar/cancelar y obstáculos simulados (no hay cámara aún). -->
-    <LinearLayout
+    <!-- Con tanta información (piso, perfil, estado de la ruta) el panel no cabe: va dentro de un ScrollView para poder desplazarlo. -->
+    <ScrollView
         android:id="@+id/panel_semi"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="8dp"
-        android:orientation="vertical"
+        android:fillViewport="false"
         android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/texto_nav"
@@ -229,5 +235,6 @@
                 android:layout_weight="1" />
         </LinearLayout>
     </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>
