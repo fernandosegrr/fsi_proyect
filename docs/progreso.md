@@ -156,3 +156,6 @@
 
 ### Trabajo H: comparativa de detectores — hecho en la rama `investigacion/comparativa-detectores`
 - Ver `docs/comparativa_detectores.md` en esa rama. Pendiente hardware: protocolo «cualquier objeto» con cada detector.
+
+## Rediseño de la app (14 oct)
+- Parte 1: sistema de diseño (`docs/diseno.md`, tokens con contraste comprobado, Inter, Material Symbols, componentes) y nombre anterior quitado de todo el repositorio (SSID `CarroFSI`, página web del carro con la capa visual nueva y su prueba de hash). PENDIENTE HARDWARE: recargar DevKit y cámara con el SSID nuevo y reconectar el teléfono.

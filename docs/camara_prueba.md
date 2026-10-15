@@ -73,8 +73,8 @@ Sirve para comprobar que el servidor responde sin conectar nada a la red de la p
 
 ## Para ver video y /stats en el teléfono (pasos cortos)
 
-1. DevKit encendida (red Wall-E) y la cámara conectada a la corriente. **Espera 40 segundos** después de encender la cámara (al arrancar mide la cámara ~12 s y se conecta).
-2. En el teléfono conéctate a **Wall-E** (si Android avisa "sin Internet", mantén la conexión).
+1. DevKit encendida (red del carro) y la cámara conectada a la corriente. **Espera 40 segundos** después de encender la cámara (al arrancar mide la cámara ~12 s y se conecta).
+2. En el teléfono conéctate a **CarroFSI** (si Android avisa "sin Internet", mantén la conexión).
 3. Abre **http://192.168.4.2/**. Arriba del video, en letra pequeña, verás: fps de captura y de envío, edad del cuadro (ms), ms de compresión y de envío, cuadros descartados,
    RSSI y la configuración. Se actualiza cada 2 s.
 4. Abre también **http://192.168.4.2/stats** (JSON con los mismos números y la memoria libre). Botones QVGA / HQVGA / QQVGA / VGA en la página.
@@ -99,7 +99,7 @@ Qué anotar: nitidez (¿se distingue el piso y un objeto a 20 y 50 cm?), retraso
   `Sketch_06.1_CameraWebServer/camera_pins.h`, idéntico al del core de ESP32): XCLK 21, SIOD 26, SIOC 27, datos Y2..Y9 = 4, 5, 18, 19, 36, 39, 34, 35, VSYNC 25, HREF 23, PCLK 22, sin PWDN ni RESET.
   `AI_THINKER` falló con `0x106 ESP_ERR_NOT_SUPPORTED`.
 - **Sensor GC0308** (PID 0x9B, 0,3 megapíxeles): no hace JPEG (con JPEG da `0x106` "JPEG format is not supported on this sensor"), por eso la cámara entrega RGB565/YUV422 y la ESP32 comprime.
-- **WiFi**: red `Wall-E`, IP fija 192.168.4.2, RSSI de -19 a -44 dBm con las placas juntas. Si la red no está, reintenta cada 15 s.
+- **WiFi**: red `CarroFSI`, IP fija 192.168.4.2, RSSI de -19 a -44 dBm con las placas juntas. Si la red no está, reintenta cada 15 s.
 - **Memoria** con el servidor listo: heap libre 130 a 145 KB; PSRAM libre 3,7 MB.
 - Los errores `gpio_install_isr_service ... already installed` al reiniciar la cámara son inofensivos.
 

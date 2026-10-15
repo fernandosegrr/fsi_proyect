@@ -17,4 +17,4 @@ Reglas:
 10. Haz por comandos todo lo posible (cargar.ps1, adb). El usuario solo conecta hardware. Lo que requiera hardware se marca PENDIENTE HARDWARE con los pasos.
 11. Un commit por parte, mensaje claro en español. Actualiza docs/bitacora.md y docs/progreso.md.
 12. Al terminar cada parte, resumen corto: qué quedó, qué pruebas pasan, qué falta del usuario. Sin recap de pasos.
-13. No metas referencias a WALL-E en código ni docs nuevos (el SSID "Wall-E" se queda hasta nuevo aviso).
+13. No metas referencias al nombre anterior del proyecto en código ni docs nuevos (el SSID ya es CarroFSI).

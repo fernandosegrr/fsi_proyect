@@ -10,7 +10,7 @@
 #ifndef SECRETOS_EJEMPLO_H
 #define SECRETOS_EJEMPLO_H
 
-#define WIFI_SSID      "NombreDeMiCarro"
+#define WIFI_SSID      "CarroFSI"
 #define WIFI_PASSWORD  "cambia_esta_clave"
 
 #endif /* SECRETOS_EJEMPLO_H */

@@ -74,5 +74,5 @@ El script ya reintenta solo a menor velocidad. Si aun así sale `No se pudo subi
 - Lo que imprime el firmware original: `CPU: 160 MHz`, un error `E (19) task_wdt: esp_task_wdt_init(517):
   TWDT already initialized` (el core ya inicia ese vigilante; el programa sigue y funciona; el firmware
   nuevo ya NO da ese error: reconfigura el vigilante en vez de iniciarlo otra vez y escribe `Watchdog de hardware: 5000 ms`;
-  compilado, falta comprobarlo en la placa), `AP Iniciado. IP: 192.168.4.1` y `Servidor listo.`. Red: **Wall-E**.
+  compilado, falta comprobarlo en la placa), `AP Iniciado. IP: 192.168.4.1` y `Servidor listo.`. Red: **CarroFSI** (el nombre sale de `secretos.h`).
 - `nuevo` y `baseline` compilan sin errores para la DevKit (969402 y 969538 bytes, 73 % del programa).

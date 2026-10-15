@@ -1,4 +1,4 @@
-# Proyecto carro WALL-E (ESP32)
+# Proyecto carro FSI (ESP32)
 
 Carro de 4 ruedas con ESP32, controlado desde el celular por WiFi y
 WebSocket. Este repositorio tiene el firmware, su lógica en C, un módulo para

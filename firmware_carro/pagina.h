@@ -9,145 +9,75 @@ const char html[] PROGMEM = R"=====(
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Wall-E Control</title>
+  <title>Control del carro</title>
   <style>
+    /* Mismos colores que la app (docs/diseno.md): gris azulado oscuro, un solo acento cian, rojo solo para el PARO. */
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-touch-callout: none; }
 
     body {
-      background: #050505;
-      color: #d37628;
-      font-family: 'Courier New', Courier, monospace;
+      background: #0C131A; color: #E7EDF3;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; min-height: 100vh;
-      overflow: hidden; position: relative;
-    }
-    body::before {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
-      pointer-events: none; z-index: 10;
-    }
-    body::after {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 100%);
-      pointer-events: none; z-index: 9;
+      justify-content: center; min-height: 100vh; overflow: hidden;
     }
 
-    .header { text-align: center; margin-bottom: 24px; z-index: 20; position: relative; }
-
-    h1 {
-      font-family: 'Arial Black', 'Arial Bold', Impact, sans-serif;
-      font-size: 2.5rem; letter-spacing: 5px;
-      color: #e68a00; text-shadow: 0 0 10px rgba(230,138,0,0.5); margin-bottom: 5px;
-    }
-
-    .walle-face { width: 120px; height: auto; margin-bottom: 10px; }
-    .eye-lens { animation: blink 6s infinite; transform-origin: center; }
-    @keyframes blink { 0%, 96%, 98%, 100% { transform: scaleY(1); } 97%, 99% { transform: scaleY(0.1); } }
+    .header { text-align: center; margin-bottom: 24px; }
+    h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: 0.5px; color: #E7EDF3; }
+    .sub { font-size: 0.85rem; color: #9BAEC0; margin-top: 4px; }
 
     .panel {
-      background: linear-gradient(135deg, #2a2a2a, #111);
-      border: 2px solid #555; border-radius: 10px; padding: 30px 20px;
-      width: 90%; max-width: 380px; position: relative; z-index: 20;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
+      background: #131C25; border: 1px solid #26323F; border-radius: 16px; padding: 24px 16px;
+      width: 90%; max-width: 360px;
     }
-    .rivet {
-      position: absolute; width: 8px; height: 8px;
-      background: radial-gradient(circle, #888, #333); border-radius: 50%;
-      box-shadow: 1px 1px 2px #000, inset -1px -1px 2px rgba(0,0,0,0.5);
-    }
-    .r-tl { top: 10px; left: 10px; } .r-tr { top: 10px; right: 10px; }
-    .r-bl { bottom: 10px; left: 10px; } .r-br { bottom: 10px; right: 10px; }
 
-    .row { display: flex; justify-content: center; gap: 15px; margin: 15px 0; }
+    .row { display: flex; justify-content: center; gap: 16px; margin: 16px 0; }
 
     .btn {
-      width: 85px; height: 85px; border-radius: 8px; font-size: 28px; cursor: pointer;
+      width: 80px; height: 80px; border-radius: 16px; font-size: 28px; cursor: pointer;
       display: flex; align-items: center; justify-content: center; touch-action: none;
-      background: linear-gradient(to bottom, #d37628, #a85215);
-      border: 1px solid #ff9d4d; color: #111;
-      box-shadow: 0 6px 0 #6b3105, 0 10px 10px rgba(0,0,0,0.5);
-      transition: all 0.1s; text-shadow: 0 1px 1px rgba(255,255,255,0.3);
+      background: #1A2531; border: 1px solid #5B6E80; color: #E7EDF3;
+      transition: transform 0.15s, background 0.15s;
     }
-    .btn:active {
-      transform: translateY(6px);
-      box-shadow: 0 0px 0 #6b3105, 0 2px 4px rgba(0,0,0,0.5);
-      background: linear-gradient(to bottom, #e68a00, #b85d19);
-    }
+    .btn:active { transform: scale(0.97); background: #22C5DD; color: #03232B; border-color: #22C5DD; }
 
-    .btn-stop {
-      background: linear-gradient(to bottom, #ff4c4c, #b30000);
-      border-color: #ff9999;
-      box-shadow: 0 6px 0 #660000, 0 10px 10px rgba(0,0,0,0.5);
-      color: white;
-    }
-    .btn-stop:active {
-      background: linear-gradient(to bottom, #ff6666, #cc0000);
-      box-shadow: 0 0px 0 #660000; transform: translateY(6px);
-    }
+    .btn-stop { background: #D32F2F; border-color: #D32F2F; color: #FFFFFF; }
+    .btn-stop:active { background: #B71C1C; border-color: #B71C1C; color: #FFFFFF; }
 
-    /* Badge MAX en botones de giro */
-    .btn-turn { position: relative; }
-    .btn-turn::after {
-      content: "MAX"; position: absolute; bottom: 5px; right: 6px;
-      font-size: 8px; color: rgba(255,200,50,0.75); letter-spacing: 0.5px;
-    }
-
-    .status {
-      text-align: center; margin-top: 22px;
-      font-size: 0.9rem; z-index: 20; position: relative; color: #888;
-    }
-    #ws-status { color: #ff4c4c; font-weight: bold; }
-    .connected #ws-status { color: #00ffcc; }
+    .status { text-align: center; margin-top: 24px; font-size: 0.9rem; color: #9BAEC0; }
+    #ws-status { color: #FF8A8F; font-weight: 600; }
+    .connected #ws-status { color: #4ADE80; }
 
     /* Indicador de reconexión */
     #reconnect-btn {
-      display: none; margin-top: 14px; padding: 8px 20px;
-      background: #e68a00; color: #111; border: none; border-radius: 6px;
-      font-family: inherit; font-size: 0.85rem; letter-spacing: 1px;
-      cursor: pointer; font-weight: bold; z-index: 20; position: relative;
+      display: none; margin-top: 16px; padding: 12px 24px;
+      background: #22C5DD; color: #03232B; border: none; border-radius: 28px;
+      font-family: inherit; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer;
     }
     #reconnect-btn:active { opacity: 0.7; }
   </style>
 </head>
 <body>
   <div class="header">
-    <svg class="walle-face" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
-      <path d="M 30 50 L 70 50 L 65 60 L 35 60 Z" fill="#555" stroke="#333" stroke-width="2"/>
-      <rect x="45" y="40" width="10" height="10" fill="#777" stroke="#222" stroke-width="2"/>
-      <g transform="translate(10, 10) rotate(-15)">
-        <path d="M 0 10 Q 0 0 15 0 L 35 15 Q 40 20 35 30 L 15 35 Q 0 35 0 20 Z" fill="#b85d19" stroke="#333" stroke-width="2"/>
-        <circle cx="18" cy="18" r="10" fill="#111"/>
-        <circle class="eye-lens" cx="18" cy="18" r="7" fill="#00d9f5" opacity="0.8"/>
-        <circle cx="15" cy="15" r="2" fill="#fff" opacity="0.6"/>
-      </g>
-      <g transform="translate(50, 10) rotate(15)">
-        <path d="M 40 10 Q 40 0 25 0 L 5 15 Q 0 20 5 30 L 25 35 Q 40 35 40 20 Z" fill="#b85d19" stroke="#333" stroke-width="2"/>
-        <circle cx="22" cy="18" r="10" fill="#111"/>
-        <circle class="eye-lens" cx="22" cy="18" r="7" fill="#00d9f5" opacity="0.8"/>
-        <circle cx="25" cy="15" r="2" fill="#fff" opacity="0.6"/>
-      </g>
-    </svg>
-    <h1>WALL-E</h1>
+    <h1>CARRO FSI</h1>
+    <div class="sub">Control manual</div>
   </div>
 
   <div class="panel">
-    <div class="rivet r-tl"></div><div class="rivet r-tr"></div>
-    <div class="rivet r-bl"></div><div class="rivet r-br"></div>
-
     <div class="row">
       <button class="btn" id="btnFwd">▲</button>
     </div>
     <div class="row">
-      <button class="btn btn-turn" id="btnLeft">◀</button>
+      <button class="btn" id="btnLeft">◀</button>
       <button class="btn btn-stop" id="btnStop">■</button>
-      <button class="btn btn-turn" id="btnRight">▶</button>
+      <button class="btn" id="btnRight">▶</button>
     </div>
     <div class="row">
       <button class="btn" id="btnRev">▼</button>
     </div>
   </div>
 
-  <div class="status" id="statusBox">SYS: <span id="ws-status">OFFLINE</span></div>
+  <div class="status" id="statusBox">Conexión: <span id="ws-status">OFFLINE</span></div>
   <button id="reconnect-btn" onclick="forceReconnect()">↺ RECONECTAR</button>
 
   <script>

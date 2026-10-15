@@ -1,6 +1,6 @@
 # Pruebas de PC de la lógica del carro (sin placa).
 #   make        compila pruebas_carro
-#   make test   compila y ejecuta
+#   make test   compila y ejecuta, y comprueba por hash la pagina web del carro (scripts/verificar_pagina.py)
 #   make clean  borra el ejecutable
 # carro.c se compila SIN modificar, desde la carpeta del sketch.
 
@@ -13,6 +13,7 @@ pruebas_carro: $(FUENTES) ../firmware_carro/carro.h ../firmware_carro/config.h
 
 test: pruebas_carro
 	./pruebas_carro
+	python ../scripts/verificar_pagina.py
 
 clean:
 	rm -f pruebas_carro pruebas_carro.exe

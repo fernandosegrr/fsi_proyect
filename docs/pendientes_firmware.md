@@ -60,7 +60,7 @@ Hacer cada cambio por separado y probarlo en la placa antes del siguiente.
   `firmware_carro/secretos.h` (ignorado por git). Con `secretos.ejemplo.h` el carro
   crea una red distinta a la de hoy; ver el README. Conviene usar una contraseña
   propia y no reutilizar la del prototipo.
-- `docs`/PDF: `WALL-E_Documentacion_v2.pdf` está desactualizado (describe una
+- `docs`/PDF: la documentación PDF original está desactualizada (describe una
   rampa de aceleración que ya no existe).
 
 ## Diferencias respecto al original
