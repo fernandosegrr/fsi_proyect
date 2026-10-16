@@ -547,6 +547,13 @@
                     <include
                         android:id="@+id/dp_angulo"
                         layout="@layout/view_stepper" />
+
+                    <!-- Aviso de desplazamiento grande: debajo de los contadores para que no se muevan mientras se teclea -->
+                    <com.fsi.carro.AvisoBanda
+                        android:id="@+id/dp_aviso"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton

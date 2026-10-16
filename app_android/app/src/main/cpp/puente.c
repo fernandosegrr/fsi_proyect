@@ -1737,6 +1737,24 @@ Java_com_fsi_carro_CalibracionNativa_desplazamientoPromediar(JNIEnv *env, jobjec
     return arreglo;
 }
 
+/* Cuánto se movió el centro en total y el radio del arco equivalente (aviso de desplazamiento grande): devuelve [código, total_mm, radio_mm]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_desplazamientoArco(JNIEnv *env, jobject objeto, jint grados, jint adelante_mm, jint derecha_mm)
+{
+    jint salida[3] = { CAL_ERR_ARGUMENTO, 0, 0 };
+    int total = 0, radio = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 3);
+
+    (void)objeto;
+    salida[0] = cal_desplazamiento_arco((int)grados, (int)adelante_mm, (int)derecha_mm, &total, &radio);
+    salida[1] = total;
+    salida[2] = radio;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 3, salida);
+    }
+    return arreglo;
+}
+
 /* El promedio de las repeticiones SIN comprobar que coincidan («guardar de todos modos»): devuelve [código, adelante_um, derecha_um]. */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_CalibracionNativa_desplazamientoPromedio(JNIEnv *env, jobject objeto, jintArray adelante_um, jintArray derecha_um)

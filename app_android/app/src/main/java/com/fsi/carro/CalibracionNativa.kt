@@ -103,6 +103,12 @@ object CalibracionNativa {
      *  difieren más de 30 % Y más de 1 cm; entonces los últimos cinco dicen el par que más se aleja (números de repetición desde 1; mov, dif y limite en décimas de mm). */
     external fun desplazamientoPromediar(adelanteUm: IntArray, derechaUm: IntArray, grados: IntArray): IntArray
 
+    /** Cuánto se movió el centro en total y el radio del arco equivalente (cuerda = 2 x radio x sen(grados/2)): [código, totalMm, radioMm]. */
+    external fun desplazamientoArco(grados: Int, adelanteMm: Int, derechaMm: Int): IntArray
+
+    /** De este desplazamiento total (mm) para arriba la pantalla avisa «desplazamiento grande» (CAL_DESP_AVISO_MM). */
+    const val DESP_AVISO_MM = 150
+
     /** El promedio SIN comprobar que coincidan («guardar de todos modos»): [código, adelanteUm, derechaUm]. */
     external fun desplazamientoPromedio(adelanteUm: IntArray, derechaUm: IntArray): IntArray
 

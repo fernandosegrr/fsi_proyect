@@ -111,7 +111,7 @@
     <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones. Si todo está bien, guárdalos.</string>
     <string name="cal_i_giro_90">Pon el carro sobre una marca de 90°, elige el lado y toca «Probar»: gira lo que la calibración dice que son 90°. Después dime cómo giró.</string>
     <string name="cal_i_recta">Pon el carro sobre una línea de cinta, mirando a lo largo de ella, y toca «Avanzar 4 s». Después dime hacia dónde se desvió y cuántos cm.</string>
-    <string name="cal_i_desplazamiento">Marca con cinta el CENTRO del carro y alinéalo con una junta de la loseta. Toca «Girar». Después mide cuánto se movió el centro y cuánto giró.</string>
+    <string name="cal_i_desplazamiento">Marca con cinta el CENTRO del carro y alinéalo con una junta de la loseta. Toca «Girar». Después mide cuánto se movió el centro, del centro de ANTES al centro de DESPUÉS, hacia donde miraba el carro al EMPEZAR el giro, y cuánto giró. El carro gira de pivote: el centro se mueve mientras gira.</string>
 
     <string name="cal_n_reaccion">Sirve para descontar tu reacción de la prueba de arranque.</string>
     <string name="cal_n_arranque">Si no tocas en 3 s, el carro se detiene solo.</string>
@@ -181,8 +181,8 @@
     <string name="cal_h_grados_giro_90">…o escribe cuántos grados giró</string>
     <string name="cal_aj_sin_cal">Todavía no hay giro calibrado: se usa el valor de ejemplo (10 ms por grado). El ajuste fino corrige lo que haya, pero conviene medir primero el giro de cada lado.</string>
     <string name="cal_aj_pilas">Recalibra con las pilas que usarás en la demo.</string>
-    <string name="cal_dp_adelante">AVANZÓ (+) O RETROCEDIÓ (−), EN CM</string>
-    <string name="cal_dp_derecha">SE FUE A LA DERECHA (+) O A LA IZQUIERDA (−), EN CM</string>
+    <string name="cal_dp_adelante">AVANZÓ (+) O RETROCEDIÓ (−), EN CM, HACIA DONDE MIRABA AL EMPEZAR</string>
+    <string name="cal_dp_derecha">SE FUE A LA DERECHA (+) O A LA IZQUIERDA (−), EN CM, DE COMO MIRABA AL EMPEZAR</string>
     <string name="cal_dp_angulo">ÁNGULO FINAL, EN GRADOS</string>
     <string name="cal_dp_menos">Menos</string>
     <string name="cal_dp_mas">Más</string>

@@ -858,11 +858,11 @@ static void pruebas_desplazamiento(void)
     cal_leer_desplazamiento(&cal, CAL_LADO_IZQUIERDA, &ua, &ud);
     caso("cal_leer_desplazamiento devuelve lo guardado (y 0 con un lado inexistente)", ua == -300 && ud == 120);
     copia = cal;
-    caso("fuera de +-2000 um por grado o con un lado inexistente: error y no cambia nada",
-         cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 2001, 0) == CAL_ERR_RANGO && cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, 0, -2001) == CAL_ERR_RANGO &&
+    caso("fuera de +-5000 um por grado o con un lado inexistente: error y no cambia nada",
+         cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 5001, 0) == CAL_ERR_RANGO && cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, 0, -5001) == CAL_ERR_RANGO &&
          cal_poner_desplazamiento(&cal, 0, 10, 10) == CAL_ERR_ARGUMENTO && cal_poner_desplazamiento(NULL, CAL_LADO_DERECHA, 10, 10) == CAL_ERR_ARGUMENTO &&
          memcmp(&cal, &copia, sizeof cal) == 0);
-    caso("cal_es_valida rechaza un desplazamiento fuera de rango", (cal.desp_derecha_der_um = 3000, !cal_es_valida(&cal)));
+    caso("cal_es_valida rechaza un desplazamiento fuera de rango", (cal.desp_derecha_der_um = 5500, !cal_es_valida(&cal)));
     cal.desp_derecha_der_um = 0;
 
     /* ── (a) Un giro de 90 grados con desplazamiento definido: la pose coincide con la cuenta a mano ──
@@ -910,6 +910,67 @@ static void pruebas_desplazamiento(void)
          cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 5000, 0, 90, &ua, &ud) == CAL_ERR_DATOS && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 990, 0, 10, &ua, &ud) == CAL_ERR_RANGO);
     caso("medida: lado inexistente o salidas nulas = CAL_ERR_ARGUMENTO",
          cal_desplazamiento_de_medida(0, 1, 1, 90, &ua, &ud) == CAL_ERR_ARGUMENTO && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 1, 1, 90, NULL, &ud) == CAL_ERR_ARGUMENTO);
+
+    /* ── GIRO DE PIVOTE medido en el carro real: giro a la derecha, AUTO 210, 90 grados: el centro se movio 15 cm adelante y 16.5 cm a la derecha (marco del carro AL EMPEZAR) ── */
+    {
+        CalibracionCarro real;
+        int total, radio, pa_um, pd_um, ia_um, id_um, rumbo;
+        static const int RUMBOS[4] = { 0, 90, 180, 270 };
+        static const int DX_ESPERADO[4] = { 165, 150, -165, -150 };    /* mapa: x a la derecha, y hacia abajo; rumbo 0 = arriba */
+        static const int DY_ESPERADO[4] = { -150, 165, 150, -165 };
+        int bien_marco = 1, bien_mapa = 1;
+
+        cal_defecto(&real);
+        caso("pivote real: 15 cm adelante y 16.5 cm a la derecha en 90 grados (22.3 cm en total) ya NO se rechazan (antes: CAL_ERR_RANGO por pasar de 2000 um por grado)",
+             cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_um, &pd_um) == CAL_OK);
+        caso("... queda en el marco de MITAD de giro: unos 2474 um por grado adelante (la cuerda va en la direccion del rumbo medio) y solo unos 118 de lado",
+             valor_absoluto(pa_um - 2474) <= 3 && valor_absoluto(pd_um - 118) <= 3);
+        cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, pa_um, pd_um);
+        caso("... y es una calibracion valida", cal_es_valida(&real));
+        for (rumbo = 0; rumbo < 4; rumbo++) {
+            cal_desplazamiento_giro(&real, CAL_LADO_DERECHA, 90, RUMBOS[rumbo], &dx, &dy, &adelante, &derecha);
+            /* El marco en que se mide es el del carro AL EMPEZAR el giro: da lo mismo con cualquier rumbo inicial. */
+            if (valor_absoluto(adelante - 150) > 2 || valor_absoluto(derecha - 165) > 2) {
+                bien_marco = 0;
+            }
+            if (valor_absoluto(dx - DX_ESPERADO[rumbo]) > 2 || valor_absoluto(dy - DY_ESPERADO[rumbo]) > 2) {
+                bien_mapa = 0;
+            }
+        }
+        caso("... con los cuatro rumbos iniciales (0, 90, 180, 270) el desplazamiento en el marco del carro AL EMPEZAR vuelve a dar 15 cm adelante y 16.5 cm a la derecha (+-2 mm): la medida es del marco INICIAL",
+             bien_marco);
+        caso("... y en el mapa gira con el rumbo: arriba-derecha (165, -150) mirando arriba, (150, 165) mirando a la derecha, (-165, 150) mirando abajo y (-150, -165) mirando a la izquierda",
+             bien_mapa);
+        cal_desplazamiento_giro(&real, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &adelante, &derecha);
+        caso("... y NO es el marco FINAL: en el marco del carro al terminar (mirando a la derecha) lo medido seria 165 adelante y 150 a la izquierda, y de_medida no lo toma asi",
+             valor_absoluto(adelante - 165) > 10);
+        /* La izquierda es el espejo (hipotesis: el pivote es la otra rueda): 15 adelante y 16.5 hacia la izquierda. */
+        caso("izquierda (espejo): 15 cm adelante y 16.5 cm a la IZQUIERDA en 90 grados tambien se acepta",
+             cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, 150, -165, 90, &ia_um, &id_um) == CAL_OK);
+        cal_poner_desplazamiento(&real, CAL_LADO_IZQUIERDA, ia_um, id_um);
+        cal_desplazamiento_giro(&real, CAL_LADO_IZQUIERDA, 90, 0, &dx, &dy, &adelante, &derecha);
+        caso("... y al girar a la izquierda mirando arriba el centro va 16.5 cm a la izquierda y 15 cm arriba (-165, -150)",
+             valor_absoluto(dx + 165) <= 2 && valor_absoluto(dy + 150) <= 2 && valor_absoluto(adelante - 150) <= 2 && valor_absoluto(derecha + 165) <= 2);
+
+        /* El limite: hasta ~40 cm (y 45 cm) de desplazamiento total en un giro de 90 grados se aceptan; mas de eso, no. */
+        caso("limite: 40 cm adelante en 90 grados (4444 um por grado) se acepta", cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 400, 0, 90, &pa_um, &pd_um) == CAL_OK);
+        caso("limite: 28 cm adelante y 28 cm de lado (40 cm en total en diagonal) se aceptan", cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 280, 280, 90, &pa_um, &pd_um) == CAL_OK);
+        caso("limite: 45 cm se acepta (justo el tope de 5000 um por grado)", cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 450, 0, 90, &pa_um, &pd_um) == CAL_OK);
+        caso("limite: 46 cm en 90 grados se rechaza con CAL_ERR_RANGO (y no escribe nada)", (pa_um = -7, cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 460, 0, 90, &pa_um, &pd_um) == CAL_ERR_RANGO && pa_um == -7));
+        caso("limite: 35 cm adelante y 35 cm de lado (49 cm en total) se rechazan aunque cada componente sea chico", cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 350, 350, 90, &pa_um, &pd_um) == CAL_ERR_RANGO);
+        caso("limite: cal_poner_desplazamiento acepta hasta 5000 um por grado por componente", cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, 5000, -5000) == CAL_OK && cal_es_valida(&real));
+        cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, pa_um, pd_um);
+
+        /* El aviso de desplazamiento grande: total y radio del arco equivalente. */
+        caso("arco: 15 cm adelante y 16.5 cm de lado en 90 grados = 22.3 cm en total y un arco de unos 15.8 cm de radio (como el ~16 cm medido)",
+             cal_desplazamiento_arco(90, 150, 165, &total, &radio) == CAL_OK && valor_absoluto(total - 223) <= 1 && valor_absoluto(radio - 158) <= 2);
+        caso("arco: en 180 grados la cuerda es el diametro (radio = mitad del total)", cal_desplazamiento_arco(180, 0, 300, &total, &radio) == CAL_OK && total == 300 && radio == 150);
+        caso("arco: en 45 grados 10 cm de cuerda son un radio de 13.1 cm (10 / (2 sen 22.5))", cal_desplazamiento_arco(45, 100, 0, &total, &radio) == CAL_OK && valor_absoluto(radio - 131) <= 2);
+        caso("arco: sin desplazamiento el total y el radio son 0", cal_desplazamiento_arco(90, 0, 0, &total, &radio) == CAL_OK && total == 0 && radio == 0);
+        caso("arco: grados fuera de 10 a 360 = CAL_ERR_DATOS, salidas nulas = CAL_ERR_ARGUMENTO",
+             cal_desplazamiento_arco(5, 10, 10, &total, &radio) == CAL_ERR_DATOS && cal_desplazamiento_arco(90, 10, 10, NULL, &radio) == CAL_ERR_ARGUMENTO);
+        caso("el aviso empieza pasados 15 cm de desplazamiento total (CAL_DESP_AVISO_MM = 150)", CAL_DESP_AVISO_MM == 150);
+    }
 
     /* ── Dos repeticiones por lado: se aceptan si difieren 30 % o menos O 1 cm o menos (la mayor de las dos tolerancias) ── */
     g2[0] = 90; g2[1] = 90;

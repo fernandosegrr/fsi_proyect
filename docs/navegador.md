@@ -178,6 +178,12 @@ Idea del usuario (al estilo de los coches que piden que tomes el volante): cuand
 
 ## Desplazamiento del centro al girar (J4, 16 oct)
 
+**El giro es de PIVOTE (medido 16 oct):** `LEFT`/`RIGHT` mueven solo las ruedas de un lado y el centro describe un arco: a la derecha, AUTO 210, 90° real, el centro se corre **15 cm adelante y 16.5 cm al lado**, en el marco del
+carro AL EMPEZAR el giro. El giro sobre el eje no mueve el carro (falta de par). Ese corrimiento se **compensa en la pose**: `calcular_pose` (y el simulador) suman, en cada giro, el vector del lado que giró, rotado al rumbo
+medio, y `TURN_DIAG carro_mm=(adelante,derecha)` lo anota en el marco inicial (con 15 y 16.5: `mm=(165,-150)` mirando arriba, `carro_mm=(150,165)`). Probado en C: con esos datos la pose final del giro coincide con lo
+medido (±3 mm) y un esquive completo termina a 267 mm de la línea contra 613 mm sin el modelo. El límite de validez se subió de 2000 a 5000 µm/° (≈45 cm en un giro de 90°); detalle y límites del modelo lineal en
+`docs/calibracion.md`.
+
 El carro no gira sobre un punto fijo (ruedas mecanum, giro con un solo lado): en un giro de ~200° el chasis se desplaza varios cm. El navegador suponía giro en el sitio y cada giro metía error de **posición**
 (no de ángulo). Ahora, por lado y por perfil, la calibración trae `desp_adelante_*_um` y `desp_derecha_*_um` (µm por grado, en el marco del carro a mitad del giro; ver `docs/calibracion.md`). Por defecto 0 =
 comportamiento de antes.

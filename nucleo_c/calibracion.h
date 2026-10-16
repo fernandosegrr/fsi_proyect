@@ -263,7 +263,9 @@ int cal_validar_para_guardar(const CalibracionCarro *cal, int *lado_malo);
  *
  * MEDIDA. El usuario marca el centro del carro con cinta, lo hace girar y mide cuánto se movió el centro en el marco de la POSICIÓN INICIAL del carro (adelante/atrás y
  * izquierda/derecha, en mm) y el ángulo que giró. cal_desplazamiento_de_medida lo pasa al marco de mitad de giro y lo divide entre los grados. */
-#define CAL_DESP_UM_MAX      2000   /* cada componente: de -2000 a 2000 µm por grado (2 mm por grado = 72 cm en un giro de 360°) */
+#define CAL_DESP_UM_MAX      5000   /* cada componente: de -5000 a 5000 µm por grado (5 mm por grado = 45 cm en un giro de 90°). Antes 2000: un giro de pivote real mueve el centro unos 22 cm (2474 µm/°) y se rechazaba */
+#define CAL_DESP_TOTAL_UM_MAX 5000  /* y el vector entero (adelante y de lado juntos) tampoco pasa de 5000 µm por grado: unos 45 cm de desplazamiento total en un giro de 90° */
+#define CAL_DESP_AVISO_MM     150   /* de 15 cm de desplazamiento total para arriba la app avisa «desplazamiento grande: confirma que mediste del centro inicial al centro final» (no bloquea) */
 #define CAL_DESP_TOLERANCIA_PCT 30  /* dos repeticiones de la misma prueba se aceptan si difieren este % o menos del mayor desplazamiento... */
 #define CAL_DESP_TOLERANCIA_MM  10  /* ...O si difieren 1 cm o menos (con cinta no se mide mejor): vale la MAYOR de las dos tolerancias */
 
@@ -281,9 +283,14 @@ int cal_poner_desplazamiento(CalibracionCarro *cal, int lado, int adelante_um, i
 /* Los dos componentes de un lado (µm por grado). Con cal nulo o lado inexistente da 0 y 0. */
 void cal_leer_desplazamiento(const CalibracionCarro *cal, int lado, int *adelante_um, int *derecha_um);
 
+/* El carro de una rueda motriz por lado GIRA DE PIVOTE: el centro describe un arco, no gira en su sitio. Con la medida (centro inicial al final, en el marco del carro AL EMPEZAR: `adelante_mm` y
+ * `derecha_mm`) de un giro de `grados` (10 a 360) da el desplazamiento TOTAL en mm y el RADIO del arco equivalente (cuerda = 2 x radio x sen(grados/2)), en mm. Con 15 cm adelante y 16.5 cm de lado
+ * en 90° da 223 mm y 158 mm. CAL_ERR_DATOS si los grados o los mm salen de rango; CAL_ERR_ARGUMENTO con salidas nulas. Sirve para el aviso de desplazamiento grande de la pantalla. */
+int cal_desplazamiento_arco(int grados, int adelante_mm, int derecha_mm, int *total_mm, int *radio_mm);
+
 /* De una medida a µm por grado: el carro giró `grados` (de 10 a 360, siempre positivos; el lado dice hacia dónde) y su centro se movió `adelante_mm` (negativo = atrás) y
  * `derecha_mm` (negativo = izquierda) medidos en el marco de la posición INICIAL. CAL_ERR_DATOS si los grados o los mm salen de rango (mm: ±1000); CAL_ERR_RANGO si el resultado
- * pasa de ±CAL_DESP_UM_MAX. */
+ * pasa de ±CAL_DESP_UM_MAX o el vector entero de CAL_DESP_TOTAL_UM_MAX. */
 int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int grados, int *adelante_um, int *derecha_um);
 
 /* Promedia `n` repeticiones (de 2 a CAL_MAX_MUESTRAS) de un mismo lado, vector por vector. `grados` es el ángulo que giró en cada repetición (para pasar la diferencia de µm por grado a cm

@@ -938,7 +938,8 @@ int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int 
     d_um = (long)derecha_mm * coseno_mil(medio) - (long)adelante_mm * seno_mil(medio);
     por_adelante = dividir_con_signo(f_um, grados);
     por_derecha = dividir_con_signo(d_um, grados);
-    if (por_adelante < -CAL_DESP_UM_MAX || por_adelante > CAL_DESP_UM_MAX || por_derecha < -CAL_DESP_UM_MAX || por_derecha > CAL_DESP_UM_MAX) {
+    if (por_adelante < -CAL_DESP_UM_MAX || por_adelante > CAL_DESP_UM_MAX || por_derecha < -CAL_DESP_UM_MAX || por_derecha > CAL_DESP_UM_MAX ||
+        raiz_entera(por_adelante * por_adelante + por_derecha * por_derecha) > CAL_DESP_TOTAL_UM_MAX) {
         return CAL_ERR_RANGO;
     }
     *adelante_um = (int)por_adelante;
@@ -950,6 +951,24 @@ int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int 
 static int um_a_mm10(long um)
 {
     return (int)dividir_con_signo(um, 100);
+}
+
+int cal_desplazamiento_arco(int grados, int adelante_mm, int derecha_mm, int *total_mm, int *radio_mm)
+{
+    long total, seno_medio_mil;
+
+    if (total_mm == NULL || radio_mm == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!en_rango(grados, 10, 360) || !en_rango(adelante_mm, -1000, 1000) || !en_rango(derecha_mm, -1000, 1000)) {
+        return CAL_ERR_DATOS;
+    }
+    total = raiz_entera((long)adelante_mm * adelante_mm + (long)derecha_mm * derecha_mm);
+    /* sen(grados/2) con los medios grados: el promedio de los senos de los dos grados enteros vecinos (45 grados da 22.5 y no 22). */
+    seno_medio_mil = ((long)seno_mil(grados / 2) + seno_mil((grados + 1) / 2)) / 2;
+    *total_mm = (int)total;
+    *radio_mm = (seno_medio_mil > 0) ? (int)dividir_con_signo(total * 1000, 2 * seno_medio_mil) : 0;
+    return CAL_OK;
 }
 
 int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, const int *grados, int n, int *prom_adelante_um, int *prom_derecha_um, CalDifDesp *detalle)

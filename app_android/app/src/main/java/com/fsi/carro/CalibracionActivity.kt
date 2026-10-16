@@ -119,6 +119,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var guardada: CalibracionGuardada
 
     private lateinit var aviso: AvisoBanda
+    private lateinit var avisoDesp: AvisoBanda   // «desplazamiento grande», dentro del bloque de contadores del desplazamiento
     private lateinit var chipConexion: ChipEstado
     private lateinit var textoPaso: TextView
     private lateinit var progreso: LinearProgressIndicator
@@ -257,6 +258,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         guardada = CalibracionGuardada(this)
 
         aviso = findViewById(R.id.calib_aviso)
+        avisoDesp = findViewById(R.id.dp_aviso)
         chipConexion = findViewById(R.id.calib_chip_conexion)
         textoPaso = findViewById(R.id.texto_paso)
         progreso = findViewById(R.id.calib_progreso)
@@ -526,6 +528,17 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         } else {
             aviso.ocultar()
         }
+    }
+
+    /** El aviso de «desplazamiento grande» (de 15 cm de desplazamiento total en el giro para arriba): el carro gira de pivote y el centro describe un arco; el radio sale de la cuerda
+     *  (C: cal_desplazamiento_arco). null si el desplazamiento no es tan grande. No bloquea nada: la medida se acepta hasta ~45 cm en un giro de 90°. */
+    private fun avisoDesplazamientoGrande(grados: Int, adelanteMm: Int, derechaMm: Int): Mensaje? {
+        val arco = CalibracionNativa.desplazamientoArco(grados, adelanteMm, derechaMm)
+        if (arco[0] != CalibracionNativa.OK || arco[1] < CalibracionNativa.DESP_AVISO_MM) {
+            return null
+        }
+        return Mensaje("Desplazamiento grande: confirma que mediste del centro inicial al centro final",
+            fmt("El carro avanza %.1f cm mientras gira (arco de unos %.1f cm de radio), no pivota sobre sí mismo.", arco[1] / 10.0, arco[2] / 10.0))
     }
 
     /** STOP inmediato y cancela cualquier prueba o temporizador en curso. */
@@ -1536,6 +1549,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             contadorAdelante.valor.text = textoMm(despAdelanteMm)
             contadorDerecha.valor.text = textoMm(despDerechaMm)
             contadorAngulo.valor.text = "$despAngulo°"
+            // Aviso no bloqueante: de 15 cm de desplazamiento total para arriba (la medida se acepta hasta ~45 cm en un giro de 90°)
+            val grande = avisoDesplazamientoGrande(despAngulo, despAdelanteMm, despDerechaMm)
+            if (grande != null) avisoDesp.mostrar(Nivel.AVISO, grande.quePaso, grande.queHacer) else avisoDesp.ocultar()
             botonGuardar.visibility = View.VISIBLE
             botonGuardar.setText(R.string.cal_b_guardar_rep)
             botonRepetir.visibility = View.VISIBLE
@@ -1608,7 +1624,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val (codigo, adelante, derecha) = CalibracionNativa.desplazamientoDeMedida(ladoAjuste, despAdelanteMm, despDerechaMm, despAngulo).let { Triple(it[0], it[1], it[2]) }
         if (codigo != CalibracionNativa.OK) {
             // La medida no sirve: no se pierde nada. Se queda con los contadores para corregirla y volver a guardar.
-            resumenAjuste = "Esa medida no se pudo usar (" + fmt("%.1f cm adelante, %.1f cm de lado, %d°", despAdelanteMm / 10.0, despDerechaMm / 10.0, despAngulo) + "): " + CalibracionNativa.textoError(codigo) +
+            resumenAjuste = "Esa medida no se pudo usar (" + fmt("%.1f cm adelante, %.1f cm de lado, %d°", despAdelanteMm / 10.0, despDerechaMm / 10.0, despAngulo) + "): " +
+                (if (codigo == CalibracionNativa.ERR_RANGO) "el desplazamiento total pasa de ~45 cm en un giro de 90° (el máximo que acepta la calibración); revisa que mediste del centro inicial al centro final." else CalibracionNativa.textoError(codigo)) +
                 " Corrígela con los contadores y toca «Guardar esta repetición» otra vez."
             diagDesp("repeticion=${despAdelanteUm[indice].size + 1} resultado=medida_rechazada motivo=medida_no_valida codigo=$codigo medida_mm=($despAdelanteMm,$despDerechaMm) grados=$despAngulo")
             Log.w(CalibracionGuardada.ETIQUETA, "desplazamiento: medida no valida (codigo $codigo)")
@@ -1620,10 +1637,14 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         despAdelanteUm[indice].add(adelante)
         despDerechaUm[indice].add(derecha)
         despGrados[indice].add(despAngulo)
-        diagDesp("repeticion=${despAdelanteUm[indice].size} resultado=guardada medida_mm=($despAdelanteMm,$despDerechaMm) grados=$despAngulo um_grado=($adelante,$derecha) giro_ms=$despMsUltimo prueba=\"${giroPrueba.texto()}\"")
+        val arco = CalibracionNativa.desplazamientoArco(despAngulo, despAdelanteMm, despDerechaMm)
+        val grande = avisoDesplazamientoGrande(despAngulo, despAdelanteMm, despDerechaMm)
+        diagDesp("repeticion=${despAdelanteUm[indice].size} resultado=guardada medida_mm=($despAdelanteMm,$despDerechaMm) grados=$despAngulo um_grado=($adelante,$derecha) giro_ms=$despMsUltimo prueba=\"${giroPrueba.texto()}\"" +
+            " total_mm=${arco[1]} radio_arco_mm=${arco[2]}" + (if (grande != null) " aviso=desplazamiento_grande" else ""))
         esperandoDato = false
         if (despAdelanteUm[indice].size < REPETICIONES_DESP) {
-            resumenAjuste = "Repetición ${despAdelanteUm[indice].size} guardada. Falta ${REPETICIONES_DESP - despAdelanteUm[indice].size}: vuelve a poner el carro en la marca y toca «Girar»."
+            resumenAjuste = "Repetición ${despAdelanteUm[indice].size} guardada. Falta ${REPETICIONES_DESP - despAdelanteUm[indice].size}: vuelve a poner el carro en la marca y toca «Girar»." +
+                (if (grande != null) "\nAviso: ${grande.quePaso}. ${grande.queHacer}" else "")
             mostrarPaso()
             return
         }

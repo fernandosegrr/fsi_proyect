@@ -143,6 +143,25 @@ completa y después este ajuste, que tarda un minuto). Si cambian las pilas otra
 
 ## Desplazamiento del centro al girar (J4, 16 oct)
 
+> **El giro es de PIVOTE y el centro se mueve (medido en el carro real, 16 oct).** `LEFT`/`RIGHT` mueven las ruedas de UN solo lado y las del otro quedan fijas. El giro sobre el eje (lados opuestos) ya se probó y
+> el carro no se mueve por falta de par, así que se queda el pivote. Medido 6 veces, siempre igual: giro a la derecha, AUTO 210, giro de 90° real: el centro del carro se desplaza **15 cm adelante y 16.5 cm al lado**
+> (22.3 cm en total, un arco de ~16 cm de radio), de **centro inicial a centro final**, en el marco del carro AL EMPEZAR el giro. «El carro avanza 22 cm mientras gira, no pivota sobre sí mismo.» Ese
+> desplazamiento NO es un error que haya que quitar: **se compensa en la pose** (`calcular_pose` del navegador y el simulador suman el vector del lado que giró) y por eso hay que medirlo.
+> **El límite de validez era demasiado chico.** La pantalla rechazaba esa medida: en `adb logcat -d -s TURN_DIAG:I` salía `resultado=medida_rechazada motivo=medida_no_valida codigo=-3 medida_mm=(150,165) grados=90`
+> (código −3 = `CAL_ERR_RANGO`). Lo que se superó fue **`CAL_DESP_UM_MAX` = 2000 µm por grado por componente**: la medida da **2474 µm/° hacia adelante** en el marco de mitad de giro (22.3 cm / 90° y la cuerda va
+> en la dirección del rumbo medio), un 24 % más. Ahora `CAL_DESP_UM_MAX` = **5000** y el vector entero tampoco pasa de `CAL_DESP_TOTAL_UM_MAX` = **5000 µm/°** (**45 cm de desplazamiento total en un giro de 90°**; 40 cm
+> se aceptan). **Aviso no bloqueante** desde 15 cm (`CAL_DESP_AVISO_MM`): «Desplazamiento grande: confirma que mediste del centro inicial al centro final. El carro avanza X cm mientras gira (arco de unos R cm de
+> radio), no pivota sobre sí mismo.» (aparece debajo de los contadores, sin moverlos, y queda en el resumen y en `TURN_DIAG`: `total_mm`, `radio_arco_mm`, `aviso=desplazamiento_grande`). El radio sale de la cuerda:
+> `radio = total / (2 x sen(grados/2))` (`cal_desplazamiento_arco`; 15 y 16.5 cm en 90° dan 22.3 cm y 15.8 cm).
+> **Marco de referencia (verificado):** «adelante/atrás» e «izquierda/derecha» son los del carro en su posición y orientación **INICIALES**; la app y el modelo los interpretan así (`cal_desplazamiento_de_medida` pasa
+> la medida al marco de mitad de giro y `cal_desplazamiento_giro` la devuelve al marco inicial). Pruebas en C (`pruebas_calibracion.c`, 253 casos): con los cuatro rumbos iniciales (0, 90, 180, 270) el desplazamiento vuelve a
+> dar 15 adelante y 16.5 a la derecha en el marco inicial y gira en el mapa ((165,−150), (150,165), (−165,150), (−150,−165)), y NO coincide con lo que se mediría en el marco final. Con 15 y 16.5 cm la pose final del
+> navegador queda 16.5 cm a la derecha y 15 cm arriba (±3 mm; el simulador igual) y un esquive completo con estos datos termina a **267 mm** de la línea con el modelo contra **613 mm** sin él (la pose estimada coincide con la
+> real a 3 mm; lo que queda es la geometría de reincorporación del navegador con giros de 22 cm).
+> **Límite del modelo:** es **lineal en el ángulo** (µm por grado). Un pivote real da una cuerda de `2R sen(θ/2)`, que no es lineal: medido a 90°, el modelo subestima ~8 % a 45°, sobrestima ~15 % a 135° y ~41 % a 180°
+> (con R = 15.8 cm: unos 13 cm de más en un giro de 180°). Por eso la medida se hace con el giro de prueba más parecido al que se usa (90° real por defecto). Si hace falta exactitud en otros ángulos, el siguiente paso es
+> guardar el punto de pivote y calcular la rotación alrededor de él (pendiente; no se tocó el navegador).
+
 **Qué pasó.** En la prueba real, con un giro de 1500 ms a la derecha (~200°) **todo el chasis se desplaza varios cm** y las ruedas traseras tampoco quedan fijas: con ruedas mecanum el carro no
 gira sobre un punto fijo (además aquí el giro se hace con un solo lado, ver `firmware_carro/carro.c`: LEFT usa solo el motor derecho y RIGHT solo el izquierdo, así que el carro pivota alrededor de
 las ruedas que quedan quietas y el centro describe un arco). El navegador estimaba la pose suponiendo giro en el sitio, así que **cada giro metía error de POSICIÓN** (no de ángulo). Un esquive tiene 3 o 4 giros.

@@ -2150,6 +2150,66 @@ static void pruebas_desplazamiento_al_girar(void)
     caso("... y pasa de 10 cm (el modelo es lo que lo deja dentro)", lleno);
     printf("      esquive con modelo: %d mm de la linea (estimada vs real %d mm); sin modelo: %d mm\n", dist_con, estimada_con, dist_sin);
 
+    /* ── (c) El pivote REAL medido: 15 cm adelante y 16.5 cm a la derecha en un giro de 90 a la derecha (AUTO 210) ── */
+    {
+        static const Punto DOS_DERECHAS[] = { {2, 8}, {3, 8}, {3, 9} };   /* gira 90 a la derecha, avanza 20 cm, gira 90 a la derecha otra vez y avanza 20 cm */
+        int pa_um, pd_um, ia_um, id_um, a1 = 0, d1 = 0, a2 = 0, d2 = 0, m1x = 0, m1y = 0, m2x = 0, m2y = 0, i, vistos = 0, x_antes, y_antes;
+
+        cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_um, &pd_um);
+        cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, 150, -165, 90, &ia_um, &id_um);
+
+        preparar_con_desplazamiento(A_LA_DERECHA, N(A_LA_DERECHA), 1, ia_um, id_um, pa_um, pd_um);
+        n_lineas_diag = 0;
+        while (nav.indice_paso < 1 && sim.t_ms < 3000) {
+            correr(NAV_TICK_MS);
+            leer_diag();
+        }
+        caso("pivote real: tras el giro de 90 a la derecha la pose estimada esta 16.5 cm a la derecha y 15 cm arriba del punto de partida (+-3 mm), mirando a la derecha",
+             valor_absoluto(nav.x_mm - (2 * MM + 165)) <= 3 && valor_absoluto(nav.y_mm - (8 * MM - 150)) <= 3 && nav.rumbo_grados == 90);
+        caso("... y el carro simulado quedo en el mismo lugar (+-3 mm): el simulador usa el mismo marco inicial",
+             valor_absoluto(sim_x_mm(&sim) - nav.x_mm) <= 3 && valor_absoluto(sim_y_mm(&sim) - nav.y_mm) <= 3 && valor_absoluto(sim_rumbo_grados(&sim) - 90) <= 1);
+
+        /* Una ruta de dos giros: el primero es el de 90 (el navegador ya sabe que el carro se corrio 22 cm, asi que el segundo sale de otro angulo). El marco se comprueba con el primero. */
+        preparar_con_desplazamiento(DOS_DERECHAS, N(DOS_DERECHAS), 1, ia_um, id_um, pa_um, pd_um);
+        n_lineas_diag = 0;
+        correr(15000);
+        leer_diag();
+        for (i = 0; i < n_lineas_diag; i++) {
+            const char *t = strstr(lineas_diag[i], "TURN_DIAG lado=DER");
+            const char *c = (t != NULL) ? strstr(t, "carro_mm=(") : NULL;
+            const char *m = (t != NULL) ? strstr(t, " mm=(") : NULL;
+
+            if (c != NULL && m != NULL && strstr(t, "um_grado=(0,0)") == NULL && vistos < 1) {
+                int ca = 0, cd = 0, mx = 0, my = 0;
+
+                if (sscanf(c, "carro_mm=(%d,%d)", &ca, &cd) == 2 && sscanf(m, " mm=(%d,%d)", &mx, &my) == 2) {
+                    if (vistos == 0) { a1 = ca; d1 = cd; m1x = mx; m1y = my; } else { a2 = ca; d2 = cd; m2x = mx; m2y = my; }
+                    vistos++;
+                }
+            }
+        }
+        caso("pivote real, el primer giro de la ruta de dos giros: TURN_DIAG anota el desplazamiento en el marco del carro al empezar (15 cm adelante, 16.5 cm a la derecha) y en el mapa (165, -150), +-2 mm",
+             vistos == 1 && valor_absoluto(a1 - 150) <= 2 && valor_absoluto(d1 - 165) <= 2 && valor_absoluto(m1x - 165) <= 2 && valor_absoluto(m1y + 150) <= 2);
+        (void)a2; (void)d2; (void)m2x; (void)m2y; (void)x_antes; (void)y_antes;
+
+        /* El esquive completo con el pivote real: 4 giros de ~22 cm cada uno. Con el modelo el navegador sabe a dónde lo lleva cada giro. */
+        preparar_con_desplazamiento(RECTA, N(RECTA), 1, ia_um, id_um, pa_um, pd_um);
+        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        correr(90000);
+        dist_con = distancia_a_la_ruta(RECTA, N(RECTA));
+        estimada_con = (valor_absoluto(nav.x_mm - sim_x_mm(&sim)) > valor_absoluto(nav.y_mm - sim_y_mm(&sim))) ? valor_absoluto(nav.x_mm - sim_x_mm(&sim)) : valor_absoluto(nav.y_mm - sim_y_mm(&sim));
+        errores_con = (nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
+        preparar_con_desplazamiento(RECTA, N(RECTA), 0, ia_um, id_um, pa_um, pd_um);
+        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        correr(90000);
+        dist_sin = distancia_a_la_ruta(RECTA, N(RECTA));
+        errores_sin = (nav.estado == NAV_TERMINADO || nav.estado == NAV_ERROR);
+        printf("      esquive con el pivote real: con el modelo termina=%d a %d mm de la linea (estimada vs real %d mm); sin modelo termina=%d a %d mm de la linea\n", errores_con, dist_con, estimada_con, errores_sin, dist_sin);
+        caso("esquive completo con el pivote real y el modelo: llega (TERMINADO, 1 esquivada)", errores_con);
+        caso("... y la reincorporacion MEJORA con el modelo: termina mas cerca de la linea que sin el (el navegador que cree que el carro gira en su sitio)", errores_sin && dist_con < dist_sin);
+        caso("... y con el modelo la pose estimada coincide con la real (+-3 cm)", estimada_con <= 30);
+    }
+
     /* ── Pantalla de resultado: «Giro pedido / Giro hecho» ── */
     {
         char texto[300];
