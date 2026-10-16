@@ -1620,6 +1620,123 @@ static void pruebas_reincorporacion(void)
     }
 }
 
+
+/* ── Casos: pedir ayuda («toma el control») en vez de ERROR ───────────────────────────────────── */
+
+/* Corre `ms` con el comando manual `cmd` puesto (como la cruceta sostenida) y lo suelta al final. */
+static void maniobra(ComandoNav cmd, uint32_t ms)
+{
+    uint32_t t0 = sim.t_ms;
+
+    navegador_ayuda_comando(&nav, cmd);
+    while (sim.t_ms - t0 < ms) {
+        correr(NAV_TICK_MS);
+    }
+    navegador_ayuda_comando(&nav, NAV_CMD_STOP);
+    correr(400);
+}
+
+static void pruebas_ayuda(void)
+{
+    char texto[NAV_DIAG_LARGO];
+    int hubo_movimiento_propio = 0;
+
+    /* Sin activarlo, la pared sigue dando ERROR (lo de siempre). */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_DERECHA, 3, 40);
+    correr(9000);
+    caso("ayuda apagada (por defecto): la pared de lado a lado sigue dando ERROR", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS);
+
+    /* Con ayuda: pasa a AYUDA y queda quieto. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 12000, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 12000, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 12000, ZONA_DERECHA, 3, 40);
+    correr(7000);
+    navegador_texto_error(&nav, texto, sizeof texto);
+    caso("ayuda activa: con los dos lados ocupados pasa a AYUDA (no a ERROR) y queda quieto", nav.estado == NAV_AYUDA && nav.ayudas == 1 &&
+         sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP && nav.cmd_actual == NAV_CMD_STOP);
+    caso("... y dice por que pide ayuda (la misma causa concreta)", strstr(texto, "dos lados") != NULL);
+    {
+        int x = sim_x_mm(&sim), y = sim_y_mm(&sim);
+
+        correr(2000);
+        caso("... y sigue quieto mientras nadie hace nada", sim_x_mm(&sim) == x && sim_y_mm(&sim) == y && nav.estado == NAV_AYUDA);
+    }
+    caso("navegador_ayuda_comando fuera de AYUDA y con comandos raros da error", (navegador_ayuda_comando(&nav, NAV_CMD_FORWARD) == NAV_OK) && navegador_ayuda_comando(&nav, (ComandoNav)9) == NAV_ERR_ARGUMENTO &&
+         navegador_ayuda_comando(NULL, NAV_CMD_STOP) == NAV_ERR_ARGUMENTO);
+    navegador_ayuda_comando(&nav, NAV_CMD_STOP);
+    correr(300);
+
+    /* El usuario rodea el obstáculo con la cruceta: derecha 90°, 40 cm de lado, izquierda 90°, 50 cm adelante. */
+    maniobra(NAV_CMD_RIGHT, 900);
+    maniobra(NAV_CMD_FORWARD, 2000);
+    maniobra(NAV_CMD_LEFT, 900);
+    maniobra(NAV_CMD_FORWARD, 2500);
+    caso("la cruceta mueve el carro (ya se aparto de la linea) y la pose estimada lo sigue (+-8 cm)",
+         nav.estado == NAV_AYUDA && valor_absoluto(sim_x_mm(&sim) - 400) > 250 && valor_absoluto(nav.x_mm - sim_x_mm(&sim)) <= 80 && valor_absoluto(nav.y_mm - sim_y_mm(&sim)) <= 80);
+    {
+        uint32_t t0 = sim.t_ms;
+
+        while (sim.t_ms - t0 < 15000) {
+            correr(NAV_TICK_MS);
+            if (nav.estado != NAV_AYUDA) {
+                hubo_movimiento_propio = 1;
+            }
+        }
+        caso("sin tocar nada en 15 s sigue en AYUDA (no se va solo)", !hubo_movimiento_propio);
+    }
+    caso("continuar: devuelve OK, pasa a REINCORPORANDO y las esquivadas se cuentan de nuevo desde cero", navegador_ayuda_continuar(&nav, sim.t_ms) == NAV_OK && nav.estado == NAV_REINCORPORANDO &&
+         nav.esquivadas == 0);
+    caso("... y continuar otra vez (ya no esta en AYUDA) da error de estado", navegador_ayuda_continuar(&nav, sim.t_ms) == NAV_ERR_ESTADO);
+    correr(40000);
+    caso("... vuelve a la linea y termina la ruta cerca del destino (2,3), a 15 cm o menos", nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
+    if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
+        informar_posicion("ayuda");
+    }
+
+    /* Un obstáculo que no se va y no hay a quién pedirle: a los 3 minutos ERROR. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 9999999, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 9999999, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 9999999, ZONA_DERECHA, 3, 40);
+    correr(8000);
+    caso("(antes) pide ayuda", nav.estado == NAV_AYUDA);
+    correr(NAV_AYUDA_MAX_MS - 2000);
+    caso("a los 3 minutos sin que nadie conteste: ERROR con el motivo con el que pidió ayuda y STOP",
+         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+
+    /* Otros errores NO piden ayuda: sin video sigue siendo ERROR. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(1500);
+    {
+        ResultadoObstaculos libre;
+
+        memset(&libre, 0, sizeof libre);
+        navegador_tick(&nav, sim.t_ms, &libre);   /* llega un cuadro: desde aquí se vigila el video */
+        navegador_tick(&nav, sim.t_ms + 700, NULL);   /* y pasan 700 ms sin cuadros */
+        caso("sin video sigue siendo ERROR aunque se pida ayuda (no hay con que ver al maniobrar)", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO);
+    }
+
+    /* Cancelar desde AYUDA. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_DERECHA, 3, 40);
+    correr(7000);
+    navegador_ayuda_comando(&nav, NAV_CMD_FORWARD);
+    correr(300);
+    navegador_cancelar(&nav);
+    caso("cancelar desde AYUDA: ESPERANDO y STOP en el siguiente tick", nav.estado == NAV_ESPERANDO && navegador_tick(&nav, sim.t_ms, NULL) == NAV_CMD_STOP);
+    caso("los textos del estado AYUDA", strcmp(navegador_texto_estado(NAV_AYUDA), "AYUDA") == 0);
+}
+
 /* Corre la ruta RECTA con un obstáculo programado y dice si hubo ERROR de esquivar. */
 static void pruebas_falso_obstaculo(void)
 {
@@ -1725,6 +1842,7 @@ int main(void)
     pruebas_esquive_objetos_grandes();
     pruebas_reincorporacion();
     pruebas_falso_obstaculo();
+    pruebas_ayuda();
     pruebas_corredor_en_navegador();
     pruebas_textos();
 

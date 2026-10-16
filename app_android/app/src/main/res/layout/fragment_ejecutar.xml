@@ -84,6 +84,96 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/e2" />
 
+            <!-- Modo «toma el control»: aparece cuando el carro no puede esquivar. Cruceta de mantener apretado y «Continuar la ruta». -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/ej_ayuda"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/ejecutar_ayuda_titulo" />
+
+                    <TextView
+                        android:id="@+id/ej_ayuda_causa"
+                        style="@style/Texto.Cuerpo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e0" />
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/ejecutar_ayuda_texto" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ej_ayuda_adelante"
+                        style="@style/Boton.Manejo"
+                        android:layout_width="@dimen/cruceta_boton"
+                        android:layout_height="@dimen/cruceta_boton"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="@dimen/e2"
+                        android:contentDescription="@string/cd_ayuda_adelante"
+                        app:icon="@drawable/ic_arrow_upward" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/ej_ayuda_izquierda"
+                            style="@style/Boton.Manejo"
+                            android:layout_width="@dimen/cruceta_boton"
+                            android:layout_height="@dimen/cruceta_boton"
+                            android:contentDescription="@string/cd_ayuda_izquierda"
+                            app:icon="@drawable/ic_arrow_back" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/ej_ayuda_atras"
+                            style="@style/Boton.Manejo"
+                            android:layout_width="@dimen/cruceta_boton"
+                            android:layout_height="@dimen/cruceta_boton"
+                            android:layout_marginStart="@dimen/e1"
+                            android:layout_marginEnd="@dimen/e1"
+                            android:contentDescription="@string/cd_ayuda_atras"
+                            app:icon="@drawable/ic_arrow_downward" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/ej_ayuda_derecha"
+                            style="@style/Boton.Manejo"
+                            android:layout_width="@dimen/cruceta_boton"
+                            android:layout_height="@dimen/cruceta_boton"
+                            android:contentDescription="@string/cd_ayuda_derecha"
+                            app:icon="@drawable/ic_arrow_forward" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ej_ayuda_continuar"
+                        style="@style/Boton.Primario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_manejo"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/ejecutar_ayuda_continuar"
+                        app:icon="@drawable/ic_play_arrow"
+                        app:iconGravity="textStart" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/ej_resumen"
                 android:layout_width="match_parent"

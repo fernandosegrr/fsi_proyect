@@ -447,9 +447,22 @@ static int duracion_fase(const Navegador *nav, int fase)
     return 0;
 }
 
+static void diag_escribir(Navegador *nav, const char *formato, ...);   /* se define más abajo */
+
 /* Pasa a ERROR. `causa` dice qué pasó en concreto (NAV_CAUSA_*; ver navegador_texto_error). */
 static void ir_a_error_causa(Navegador *nav, MotivoErrorNav motivo, int causa)
 {
+    /* Con «pedir ayuda» activo, no poder esquivar no es un ERROR: se queda quieto y pide que el usuario tome el control. */
+    if (nav->pedir_ayuda && (motivo == NAV_MOTIVO_LADOS_BLOQUEADOS || motivo == NAV_MOTIVO_MAX_ESQUIVADAS || motivo == NAV_MOTIVO_ESQUIVANDO)) {
+        nav->estado = NAV_AYUDA;
+        nav->ayuda_motivo = motivo;
+        nav->ayuda_cmd = NAV_CMD_STOP;
+        nav->ayuda_t_ini_ms = nav->t_ultimo_ms;
+        nav->ayudas++;
+        nav->error_causa = causa;          /* navegador_texto_error dice por qué pide ayuda */
+        diag_escribir(nav, "AYUDA_DIAG pide ayuda motivo=%d pose=(%d,%d,%d) esquivadas=%d ayudas=%d", (int)motivo, nav->x_mm, nav->y_mm, nav->rumbo_grados, nav->esquivadas, nav->ayudas);
+        return;
+    }
     nav->estado = NAV_ERROR;
     nav->motivo_error = motivo;
     nav->error_causa = causa;
@@ -780,6 +793,11 @@ void navegador_iniciar(Navegador *nav)
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_fila_min[z] = nav->zona_fila_max[z] = nav->zona_col_min[z] = nav->zona_col_max[z] = -1;
     }
+    nav->pedir_ayuda = 0;
+    nav->ayuda_cmd = NAV_CMD_STOP;
+    nav->ayuda_t_ini_ms = 0;
+    nav->ayuda_motivo = NAV_MOTIVO_NINGUNO;
+    nav->ayudas = 0;
     nav->salida_x_mm = nav->salida_y_mm = nav->salida_rumbo = 0;
     nav->salida_cercania = 0;
     nav->paralelo_mm = 0;
@@ -1618,6 +1636,57 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
     }
 }
 
+/* AYUDA: el usuario maneja con la cruceta. El carro hace lo que mande navegador_ayuda_comando (soltar = STOP) y sigue calculando su posición por tiempo; si pasan
+ * NAV_AYUDA_MAX_MS sin que nadie continúe, termina en ERROR con el motivo con el que pidió ayuda. */
+static ComandoNav tick_ayuda(Navegador *nav, uint32_t ahora_ms)
+{
+    if ((uint32_t)(ahora_ms - nav->ayuda_t_ini_ms) > (uint32_t)NAV_AYUDA_MAX_MS) {
+        nav->pedir_ayuda = 0;
+        ir_a_error_causa(nav, nav->ayuda_motivo, nav->error_causa);
+        nav->pedir_ayuda = 1;
+        return NAV_CMD_STOP;
+    }
+    return nav->ayuda_cmd;
+}
+
+int navegador_poner_pedir_ayuda(Navegador *nav, int activo)
+{
+    if (nav == NULL || (activo != 0 && activo != 1)) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->pedir_ayuda = activo;
+    return NAV_OK;
+}
+
+int navegador_ayuda_comando(Navegador *nav, ComandoNav comando)
+{
+    if (nav == NULL || (int)comando < (int)NAV_CMD_STOP || (int)comando > (int)NAV_CMD_RIGHT) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    if (nav->estado != NAV_AYUDA) {
+        return NAV_ERR_ESTADO;
+    }
+    nav->ayuda_cmd = comando;
+    return NAV_OK;
+}
+
+int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
+{
+    if (nav == NULL) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    if (nav->estado != NAV_AYUDA) {
+        return NAV_ERR_ESTADO;
+    }
+    nav->ayuda_cmd = NAV_CMD_STOP;
+    nav->esquivadas = 0;          /* tras la ayuda se vuelve a poder esquivar */
+    nav->reintentos = 0;
+    nav->error_causa = NAV_CAUSA_NINGUNA;
+    diag_escribir(nav, "AYUDA_DIAG continua pose=(%d,%d,%d)", nav->x_mm, nav->y_mm, nav->rumbo_grados);
+    entrar_reincorporando(nav, ahora_ms);   /* quieto 300 ms y calcula la vuelta a la línea con la pose estimada */
+    return NAV_OK;
+}
+
 /* ── Función principal ─────────────────────────────────────────────────── */
 
 ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
@@ -1657,6 +1726,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     case NAV_DETENIDO_OBSTACULO: comando = tick_detenido(nav, ahora_ms); break;
     case NAV_ESQUIVANDO:       comando = tick_esquivando(nav, ahora_ms); break;
     case NAV_REINCORPORANDO:   comando = tick_reincorporando(nav, ahora_ms); break;
+    case NAV_AYUDA:            comando = tick_ayuda(nav, ahora_ms); break;
     default:                   comando = NAV_CMD_STOP; break;   /* ESPERANDO, TERMINADO, ERROR */
     }
 
@@ -1691,6 +1761,7 @@ const char *navegador_texto_estado(EstadoNav estado)
     case NAV_REINCORPORANDO:     return "REINCORPORANDO";
     case NAV_TERMINADO:          return "TERMINADO";
     case NAV_ERROR:              return "ERROR";
+    case NAV_AYUDA:              return "AYUDA";
     default:                     return "DESCONOCIDO";
     }
 }

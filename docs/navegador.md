@@ -129,6 +129,17 @@ unas 30), como la ve el detector de verdad (`MIN_CELDAS` = 7).
 **Cuando no llega, la pantalla dice por qué** (`sr_texto_causa`): «El obstáculo bloqueó el camino y se agotaron los 2 reintentos», «…se agotaron las 3 esquivadas», «No había por
 dónde esquivar: los dos lados estaban ocupados», «No encontró cómo volver a la ruta» o «La simulación se cortó por tardar demasiado».
 
+## «Toma el control» (pedir ayuda en vez de rendirse)
+
+Idea del usuario (al estilo de los coches que piden que tomes el volante): cuando el carro **no puede esquivar**, en vez de terminar en ERROR **se queda quieto, vibra y pide ayuda**.
+
+- **Cuándo:** los dos lados ocupados (`LADOS_BLOQUEADOS`), esquivadas agotadas (`MAX_ESQUIVADAS`) o reintentos agotados (`ESQUIVANDO`). Otros errores (sin video, no hay camino) siguen siendo ERROR: sin video no hay con qué maniobrar. En C el modo está **apagado por defecto** (`navegador_poner_pedir_ayuda`) para que los casos de siempre sigan dando ERROR; la app lo enciende en las rutas (no en la prueba de obstáculo).
+- **Estado `AYUDA`** (`NAV_AYUDA`): el comando es el que manda la app con `navegador_ayuda_comando` (los botones de la cruceta; soltar = STOP). El navegador **sigue estimando su posición** por tiempo (las órdenes manuales también cuentan), pero **no mira obstáculos**: quien maneja es responsable (va en AUTO, lento). Pasados `NAV_AYUDA_MAX_MS` = 3 min sin que nadie conteste, termina en ERROR con el motivo de siempre.
+- **«Continuar la ruta»** (`navegador_ayuda_continuar`): el carro se queda quieto 300 ms, calcula con su posición estimada cómo volver a la línea (la misma vuelta de «Volver a la línea») y sigue; las esquivadas se cuentan de nuevo desde cero.
+- **En la app** (Ejecutar ruta): «Necesito ayuda: toma el control», la causa concreta, una cruceta de mantener apretado, «Continuar la ruta» y el PARO. Log `AYUDA_DIAG` (pide ayuda / continúa, con la pose).
+- **Pruebas en C** (`pruebas_ayuda`, 15 casos): apagado = ERROR como siempre; con ayuda la pared de lado a lado pasa a AYUDA y queda quieto; la cruceta mueve el carro y la pose estimada lo sigue (±8 cm); sin tocar nada no se va solo; continuar vuelve a la línea y termina a 15 cm o menos del destino; a los 3 min ERROR; sin video sigue siendo ERROR; cancelar.
+- **Límite:** la posición estimada tras maniobrar a mano depende de que mantengas apretados los botones (el tiempo es lo que cuenta); si empujas el carro con la mano, no lo sabe.
+
 ## Parámetros a calibrar con el carro
 
 Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el navegador).

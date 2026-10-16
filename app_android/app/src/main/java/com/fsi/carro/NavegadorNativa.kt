@@ -33,6 +33,7 @@ object NavegadorNativa {
     const val REINCORPORANDO = 4
     const val TERMINADO = 5
     const val ERROR = 6
+    const val AYUDA = 7   // no pudo esquivar y pide que tomes el control (modo «toma el control»)
 
     // Posiciones dentro del arreglo que devuelve estado().
     const val E_ESTADO = 0
@@ -93,6 +94,15 @@ object NavegadorNativa {
 
     /** Estado para mostrar en pantalla (ver los índices E_*). */
     external fun estado(): IntArray
+
+    /** Activa (1) o desactiva (0) pedir ayuda en vez de dar ERROR cuando no puede esquivar. Se aplica a las rutas que se carguen después. */
+    external fun pedirAyuda(activo: Int): Int
+
+    /** En AYUDA: el comando que manda el usuario con la cruceta (CMD_*; soltar = CMD_STOP). Devuelve 0 o un código de error. */
+    external fun ayudaComando(comando: Int): Int
+
+    /** En AYUDA: el usuario terminó de maniobrar; el carro vuelve a la línea de la ruta y sigue. `ahoraMs` es el mismo reloj que usa tick(). */
+    external fun ayudaContinuar(ahoraMs: Long): Int
 
     /** La siguiente línea de diagnóstico del navegador (empieza con REINC_DIAG o ESQUIVE_DIAG), o "" si no hay una nueva. Llamar hasta que devuelva "". */
     external fun diagnostico(): String

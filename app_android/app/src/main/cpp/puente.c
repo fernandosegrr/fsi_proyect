@@ -1309,6 +1309,7 @@ static int corredor_fuera_global[3] = { 0, 0, 0 };   /* 1 = la zona tiene un obs
 static int corredor_cercania_global[3] = { 0, 0, 0 };   /* cercanía de lo que está DENTRO del corredor en cada zona (0 = usar la de siempre) */
 static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
+static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
 {
@@ -1705,6 +1706,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_calibracion(&navegador_global, obtener_calibracion());   /* la calibración medida del carro */
     navegador_poner_frenar_lejos_centro(&navegador_global, frenar_lejos_centro_global);
     navegador_poner_latencia_visual(&navegador_global, latencia_visual_global);   /* el retraso de la cámara */
+    navegador_poner_pedir_ayuda(&navegador_global, pedir_ayuda_global);
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -1846,6 +1848,37 @@ Java_com_fsi_carro_NavegadorNativa_estado(JNIEnv *env, jobject objeto)
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_ESTADO_NAVEGADOR, salida);
     }
     return arreglo;
+}
+
+/* Activa (1) o desactiva (0) «pedir ayuda» (modo «toma el control») para las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_pedirAyuda(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    pedir_ayuda_global = (int)activo;
+    return navegador_poner_pedir_ayuda(obtener_navegador(), (int)activo);
+}
+
+/* En AYUDA: el comando que el usuario manda con la cruceta (0 STOP, 1 FORWARD, 2 REVERSE, 3 LEFT, 4 RIGHT). Devuelve 0 o un código de error. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ayudaComando(JNIEnv *env, jobject objeto, jint comando)
+{
+    (void)env;
+    (void)objeto;
+    return navegador_ayuda_comando(obtener_navegador(), (ComandoNav)comando);
+}
+
+/* En AYUDA: el usuario terminó de maniobrar, el carro vuelve a la línea y sigue la ruta. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ayudaContinuar(JNIEnv *env, jobject objeto, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    return navegador_ayuda_continuar(obtener_navegador(), (uint32_t)ahora_ms);
 }
 
 /* La siguiente línea de diagnóstico del navegador (REINC_DIAG o ESQUIVE_DIAG), o "" si no hay ninguna nueva. La app la llama después de cada tick hasta que

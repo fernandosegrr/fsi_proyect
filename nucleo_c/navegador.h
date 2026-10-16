@@ -15,6 +15,10 @@
  *     de ejemplo, o la medida con navegador_poner_calibracion(). Es una estimación.
  *  5. Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
  *  6. Regla de seguridad: en los estados ESPERANDO, TERMINADO y ERROR el comando es SIEMPRE STOP.
+ *  7. PEDIR AYUDA (opcional, navegador_poner_pedir_ayuda): cuando el carro no puede esquivar (los dos lados ocupados, esquivadas o reintentos agotados) en vez de ERROR pasa a AYUDA:
+ *     queda quieto y «pide que tomes el control». Mientras está en AYUDA el comando es el que la app le pone con navegador_ayuda_comando (los botones de la cruceta, soltar = STOP) y
+ *     sigue calculando su posición por tiempo; no mira obstáculos (el responsable es quien maneja). Con navegador_ayuda_continuar vuelve solo a la línea de la ruta (como después de
+ *     esquivar) y sigue. Apagado por defecto: sin él esos casos terminan en ERROR como siempre.
  */
 #ifndef NAVEGADOR_H
 #define NAVEGADOR_H
@@ -100,6 +104,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  * (el mismo obstáculo en el borde, patas o sombras lejanas, juntas de loseta) no cuenta. Después del giro se ignoran los cuadros hasta que hayan llegado
  * NAV_ESQ_CUADROS_ESTABLES cuadros o pasado NAV_ESQ_MS_ESTABLE ms (lo que ocurra primero). Y solo bloquea un obstáculo en la zona CENTRAL con cercanía de al menos
  * NAV_ESQ_CERCANIA_BLOQUEA, visto MS_CONFIRMAR_LEJOS ms seguidos (y en 2 cuadros): uno lateral o lejano no aborta la esquivada. */
+#define NAV_AYUDA_MAX_MS        180000   /* si nadie toma el control ni continúa en este tiempo (3 min): ERROR con el motivo de siempre */
+
 #define NAV_ESQ_CUADROS_ESTABLES    2
 #define NAV_ESQ_MS_ESTABLE        150
 #define NAV_ESQ_CERCANIA_BLOQUEA    2
@@ -132,7 +138,8 @@ typedef enum {
     NAV_ESQUIVANDO,
     NAV_REINCORPORANDO,
     NAV_TERMINADO,
-    NAV_ERROR
+    NAV_ERROR,
+    NAV_AYUDA       /* no pudo esquivar y pide que tomes el control (solo con navegador_poner_pedir_ayuda) */
 } EstadoNav;
 
 /* Los 5 comandos del protocolo real del carro (texto sin parámetros). */
@@ -260,6 +267,13 @@ typedef struct {
     int      zona_fila_min[OBS_ZONAS], zona_fila_max[OBS_ZONAS];   /* filas y columnas de las celdas de obstáculo de cada zona en el último cuadro (-1 = no se sabe) */
     int      zona_col_min[OBS_ZONAS], zona_col_max[OBS_ZONAS];
 
+    /* Pedir ayuda (modo «toma el control»). */
+    int            pedir_ayuda;      /* 1 = en vez de ERROR por no poder esquivar, pasa a AYUDA */
+    ComandoNav     ayuda_cmd;        /* el comando que el usuario manda ahora con la cruceta */
+    uint32_t       ayuda_t_ini_ms;   /* hora en que pidió ayuda */
+    MotivoErrorNav ayuda_motivo;     /* por qué la pidió (el motivo con el que habría dado ERROR) */
+    int            ayudas;           /* cuántas veces pidió ayuda en esta ruta */
+
     /* Dónde salió de la línea (pose estimada al empezar la esquivada). */
     int salida_x_mm, salida_y_mm, salida_rumbo;
     int salida_cercania;         /* cercanía (1 a 3) con la que frenó: dice a qué distancia estaba el obstáculo */
@@ -330,6 +344,16 @@ void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int
 
 /* 1 si el retroceso de los reintentos usa una calibración medida de verdad (CAL_MEDIDO_ATRAS); 0 si usa los ms por cm del avance (sin medir). */
 int navegador_retroceso_calibrado(const Navegador *nav);
+
+/* Activa (1) o desactiva (0) pedir ayuda en vez de dar ERROR cuando no puede esquivar (ver arriba, punto 7). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
+int navegador_poner_pedir_ayuda(Navegador *nav, int activo);
+
+/* En AYUDA: el comando que el usuario quiere ahora (STOP, FORWARD, REVERSE, LEFT o RIGHT). Devuelve NAV_OK, NAV_ERR_ARGUMENTO o NAV_ERR_ESTADO (no está en AYUDA). */
+int navegador_ayuda_comando(Navegador *nav, ComandoNav comando);
+
+/* En AYUDA: el usuario terminó de maniobrar. El carro se queda quieto un momento, calcula con su posición estimada cómo volver a la línea (igual que tras esquivar) y sigue la ruta
+ * (las esquivadas se cuentan de nuevo desde cero). Devuelve NAV_OK o NAV_ERR_ESTADO (no está en AYUDA). */
+int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
 
 /* Saca la siguiente línea de diagnóstico que el navegador escribió y la copia a `texto` (capacidad `capacidad`, termina en '\0'). Devuelve 1 si había una
  * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG o ESQUIVE_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick

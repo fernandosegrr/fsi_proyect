@@ -10,6 +10,9 @@
  *     cancela la cuenta). Cada ruta que sale queda como «la última ruta» (AlmacenRutas) para repetirla desde Inicio. «Aprender piso» a mano sigue en «Avanzado».
  *  3. Lo grande es el ESTADO EN PALABRAS («Avanzando», «Obstáculo: esquivando», «Terminado»), con el progreso por puntos. El PARO rojo ocupa el lugar del botón de iniciar
  *     mientras corre (y también está en la cabecera).
+ *  3b. TOMA EL CONTROL: si el carro no puede esquivar (los dos lados ocupados, esquivadas o reintentos agotados) el navegador pasa a AYUDA en vez de dar ERROR: el carro se queda
+ *     quieto, el teléfono vibra y la pantalla dice «Necesito ayuda: toma el control» con la causa. Una cruceta de mantener apretado manda el comando manual al navegador
+ *     (NavegadorNativa.ayudaComando; soltar = STOP), que sigue estimando la posición. «Continuar la ruta» (ayudaContinuar) hace que vuelva solo a la línea y siga. El PARO cancela la ruta.
  *  4. Al terminar (o al cancelar) se muestra un RESUMEN (resultado, duración y obstáculos esquivados) y se anota en el historial (AlmacenRutas).
  *  5. Al salir de la pantalla la ruta se cancela (STOP) y se suelta el video. Los detalles técnicos (posición estimada, cuadros, la prueba de obstáculos) están
  *     detrás del botón «Detalles técnicos».
@@ -74,6 +77,9 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     private lateinit var botonCancelar: MaterialButton
     private lateinit var ayudaConfirmar: TextView
     private lateinit var avanzado: View
+    private lateinit var tarjetaAyuda: View
+    private lateinit var textoAyudaCausa: TextView
+    private var ayudaAvisada = false   // ya se vibró por la ayuda actual
 
     /** Lo que pasa entre tocar «Iniciar ruta» y que el carro salga. */
     private enum class Fase { OCIOSA, COMPROBANDO, CONFIRMAR, CUENTA }
@@ -183,6 +189,17 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         ayudaConfirmar = vista.findViewById(R.id.ej_ayuda_confirmar)
         avanzado = vista.findViewById(R.id.ej_avanzado)
         botonCancelar.setOnClickListener { cancelarSalida() }
+        tarjetaAyuda = vista.findViewById(R.id.ej_ayuda)
+        textoAyudaCausa = vista.findViewById(R.id.ej_ayuda_causa)
+        enlazarCrucetaAyuda(vista.findViewById(R.id.ej_ayuda_adelante), NavegadorNativa.CMD_FORWARD)
+        enlazarCrucetaAyuda(vista.findViewById(R.id.ej_ayuda_atras), NavegadorNativa.CMD_REVERSE)
+        enlazarCrucetaAyuda(vista.findViewById(R.id.ej_ayuda_izquierda), NavegadorNativa.CMD_LEFT)
+        enlazarCrucetaAyuda(vista.findViewById(R.id.ej_ayuda_derecha), NavegadorNativa.CMD_RIGHT)
+        vista.findViewById<MaterialButton>(R.id.ej_ayuda_continuar).setOnClickListener {
+            NavegadorNativa.ayudaComando(NavegadorNativa.CMD_STOP)
+            NavegadorNativa.ayudaContinuar(SystemClock.elapsedRealtime())
+            Haptica.corta(requireContext())
+        }
         for (id in listOf(R.id.ej_iniciar, R.id.ej_aprender)) {
             Movimiento.respuestaAlTocar(vista.findViewById(id))
         }
@@ -269,6 +286,25 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             }
         } else {
             (activity as? MainActivity)?.volver()
+        }
+    }
+
+    /** Un botón de la cruceta del modo «toma el control»: apretado = ese comando; soltado o cancelado = STOP. El navegador lo ejecuta en su siguiente vuelta (cada 50 ms). */
+    private fun enlazarCrucetaAyuda(boton: View, comando: Int) {
+        boton.setOnTouchListener { v, evento ->
+            when (evento.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    v.isPressed = true
+                    Movimiento.escala(v, true)
+                    NavegadorNativa.ayudaComando(comando)
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    v.isPressed = false
+                    Movimiento.escala(v, false)
+                    NavegadorNativa.ayudaComando(NavegadorNativa.CMD_STOP)
+                }
+            }
+            true
         }
     }
 
@@ -405,6 +441,19 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             ultimaEsquivadas = e[NavegadorNativa.E_ESQUIVADAS]
         }
 
+        // Modo «toma el control»: la tarjeta con la cruceta, y una vibración la primera vez
+        val enAyuda = semi.activo && e[NavegadorNativa.E_ESTADO] == NavegadorNativa.AYUDA
+        tarjetaAyuda.visibility = if (enAyuda) View.VISIBLE else View.GONE
+        if (enAyuda) {
+            textoAyudaCausa.text = NavegadorNativa.textoError().replaceFirstChar { it.uppercase() }
+            if (!ayudaAvisada) {
+                ayudaAvisada = true
+                Haptica.obstaculo(requireContext())
+            }
+        } else {
+            ayudaAvisada = false
+        }
+
         // Lo grande: el estado en palabras
         val palabra = when {
             fase == Fase.CUENTA -> "$cuenta"
@@ -461,6 +510,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     }
 
     private fun palabraEstado(e: IntArray): String = when (e[NavegadorNativa.E_ESTADO]) {
+        NavegadorNativa.AYUDA -> getString(R.string.ejecutar_estado_ayuda)
         NavegadorNativa.DETENIDO_OBSTACULO -> getString(R.string.ejecutar_estado_obstaculo)
         NavegadorNativa.ESQUIVANDO -> getString(R.string.ejecutar_estado_esquivando)
         NavegadorNativa.REINCORPORANDO -> getString(R.string.ejecutar_estado_volviendo)

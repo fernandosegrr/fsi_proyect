@@ -78,6 +78,14 @@
     <string name="ejecutar_estado_terminado">Terminado</string>
     <string name="ejecutar_estado_error">La ruta se detuvo</string>
     <string name="ejecutar_estado_cancelado">Ruta cancelada</string>
+    <string name="ejecutar_estado_ayuda">Necesito ayuda: toma el control</string>
+    <string name="ejecutar_ayuda_titulo">Toma el control</string>
+    <string name="ejecutar_ayuda_texto">Rodea el obstáculo con la cruceta (mantén el botón apretado) y deja el carro cerca de la ruta. Luego toca «Continuar la ruta»: vuelve solo a la línea.</string>
+    <string name="ejecutar_ayuda_continuar">Continuar la ruta</string>
+    <string name="cd_ayuda_adelante">Adelante</string>
+    <string name="cd_ayuda_atras">Atrás</string>
+    <string name="cd_ayuda_izquierda">Girar a la izquierda</string>
+    <string name="cd_ayuda_derecha">Girar a la derecha</string>
     <string name="ejecutar_estado_preparando">Preparando el carro…</string>
     <string name="ejecutar_estado_comprobando">Comprobando el carro y el piso…</string>
     <string name="ejecutar_estado_confirmar">Listo para salir</string>
