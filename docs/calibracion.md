@@ -275,7 +275,7 @@ Todo lo que necesita el carro real:
    el desplazamiento medido, así que mientras no se mide el simulador y el navegador suponen giro en el sitio, como antes.
 5. **Giro de prueba**: medir los dos lados con el mismo giro de prueba («Giro de 90° real»), repetir el ajuste fino del giro de 90° y comprobar que `RUTA_DIAG` y la pantalla de resultado coinciden con el carro.
 6. **Ruta que no giró una vez de tres**: repetir la ruta de 40 cm a la derecha y guardar el `RUTA_DIAG` de una corrida que falle (ver «Una ruta que no giró»).
-7. Instalar la app nueva en el teléfono y revisar las pantallas de Calibración (lista, giro de prueba, desplazamiento): en esta sesión se compiló pero el teléfono estaba bloqueado y no se pudo instalar ni capturar.
+7. (Hecho el 16 oct) La app nueva se instaló en el teléfono y las pantallas de Calibración (lista, giro de prueba, desplazamiento, ajuste fino) se revisaron con el carro falso; ver `docs/bitacora.md`. Falta repetirlo con el carro real.
 
 ## Límites
 

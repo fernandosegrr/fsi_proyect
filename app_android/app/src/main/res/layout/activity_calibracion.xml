@@ -84,19 +84,11 @@
                 android:visibility="gone">
 
                 <TextView
-                    android:id="@+id/texto_lista_titulo"
-                    style="@style/Texto.Titulo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/e2"
-                    android:text="@string/cal_t_lista" />
-
-                <TextView
                     android:id="@+id/texto_lista_intro"
                     style="@style/Texto.Cuerpo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/e1"
+                    android:layout_marginTop="@dimen/e2"
                     android:text="@string/cal_i_lista" />
 
                 <TextView
@@ -147,7 +139,7 @@
                 <com.fsi.carro.IlustracionCalibracion
                     android:id="@+id/calib_ilustracion"
                     android:layout_width="match_parent"
-                    android:layout_height="144dp"
+                    android:layout_height="120dp"
                     android:layout_marginTop="@dimen/e1" />
 
                 <TextView
@@ -167,30 +159,6 @@
                     android:textSize="20sp"
                     android:visibility="gone" />
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/e2">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="@dimen/e2">
-
-                        <TextView
-                            android:id="@+id/texto_nota"
-                            style="@style/Texto.Suave"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
-
-                        <TextView
-                            android:id="@+id/texto_datos"
-                            style="@style/Texto.Datos"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
                 <!-- Perfil y lado (ajuste fino del giro de 90°, recta y desplazamiento al girar). -->
                 <LinearLayout
@@ -282,6 +250,14 @@
                         android:layout_height="wrap_content"
                         android:text="@string/cal_gp_titulo" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/gp_90"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/cal_gp_90" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -289,20 +265,10 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/gp_90"
-                            style="@style/Boton.Secundario"
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/toque_minimo"
-                            android:layout_marginEnd="@dimen/e0"
-                            android:layout_weight="1"
-                            android:text="@string/cal_gp_90" />
-
-                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/gp_180"
                             style="@style/Boton.Secundario"
                             android:layout_width="0dp"
                             android:layout_height="@dimen/toque_minimo"
-                            android:layout_marginStart="@dimen/e0"
                             android:layout_marginEnd="@dimen/e0"
                             android:layout_weight="1"
                             android:text="@string/cal_gp_180" />
@@ -377,6 +343,32 @@
                         android:layout_marginTop="@dimen/e1"
                         android:textColor="@color/aviso" />
                 </LinearLayout>
+
+                <!-- Nota y datos de la prueba: debajo de los selectores (perfil, lado y giro de prueba) para que lo que se elige se vea sin desplazar. -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e2">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/e2">
+
+                        <TextView
+                            android:id="@+id/texto_nota"
+                            style="@style/Texto.Suave"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+
+                        <TextView
+                            android:id="@+id/texto_datos"
+                            style="@style/Texto.Datos"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
                 <!-- Ajuste fino del giro de 90°: ¿cómo giró? (aparece cuando termina la prueba) -->
                 <LinearLayout

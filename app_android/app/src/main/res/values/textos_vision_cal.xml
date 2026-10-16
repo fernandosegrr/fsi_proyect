@@ -54,12 +54,13 @@
     <!-- ═══ Calibración ═══ -->
     <string name="cal_titulo">Calibración</string>
     <string name="cal_paso">Paso %1$d de %2$d</string>
-    <string name="cal_paso_todo">Parte %1$d de %2$d · paso %3$d de %4$d</string>
+    <string name="cal_paso_todo">Parte %1$d/%2$d · paso %3$d/%4$d</string>
+    <string name="cal_paso_unico">Una sola pantalla</string>
     <string name="cal_paso_lista">Elige qué calibrar</string>
 
     <!-- La lista de partes -->
     <string name="cal_t_lista">Calibración del carro</string>
-    <string name="cal_i_lista">Cada parte se mide sola: toca «Calibrar solo esto» en la que quieras repetir. No hace falta hacer las demás ni se borran sus valores. Lo que no termines no se guarda.</string>
+    <string name="cal_i_lista">Cada parte se mide sola y no toca las demás. Lo que no termines no se guarda.</string>
     <string name="cal_pilas">Repite si cambiaste pilas.</string>
     <string name="cal_b_solo_esto">Calibrar solo esto</string>
     <string name="cal_b_todo">Calibrar todo, en orden</string>
@@ -149,10 +150,10 @@
 
     <!-- Giro de prueba -->
     <string name="cal_gp_titulo">GIRO DE PRUEBA</string>
-    <string name="cal_gp_90">90° real</string>
+    <string name="cal_gp_90">Giro de 90° real</string>
     <string name="cal_gp_180">180°</string>
     <string name="cal_gp_libre">Libre</string>
-    <string name="cal_gp_tres">Completa: tres tiempos (500, 1000 y 1500 ms)</string>
+    <string name="cal_gp_tres">Tres tiempos (500, 1000, 1500)</string>
     <string name="cal_gp_menos">100 ms menos</string>
     <string name="cal_gp_mas">100 ms más</string>
 
@@ -166,8 +167,8 @@
     <string name="cal_aj_mas">Un centímetro más</string>
     <string name="cal_aj_ejes">Ancho entre las ruedas de un lado y las del otro (cm)</string>
     <string name="cal_aj_perfil">PERFIL</string>
-    <string name="cal_aj_perfil_auto">AUTO (210)</string>
-    <string name="cal_aj_perfil_manual">MANUAL (255)</string>
+    <string name="cal_aj_perfil_auto">AUTO 210</string>
+    <string name="cal_aj_perfil_manual">MANUAL 255</string>
     <string name="cal_aj_lado">LADO</string>
     <string name="cal_aj_lado_izq">Izquierda</string>
     <string name="cal_aj_lado_der">Derecha</string>

@@ -914,7 +914,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     /** Arma las tarjetas de la lista (una por parte). */
     private fun armarLista() {
-        textoListaAviso.text = (guardada.avisoSiFalta() ?: "Ya están medidos el arranque, la velocidad y los dos giros.") + (guardada.avisoRetroceso()?.let { "\n$it" } ?: "")
+        // Solo se avisa de lo que falta de lo indispensable; el retroceso y lo demás se ven en su tarjeta.
+        val falta = guardada.avisoSiFalta()
+        textoListaAviso.text = falta ?: ""
+        textoListaAviso.visibility = if (falta == null) View.GONE else View.VISIBLE
         listaPartes.removeAllViews()
         for (p in Parte.values()) {
             val fila = layoutInflater.inflate(R.layout.item_calibracion_parte, listaPartes, false)
@@ -975,9 +978,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val lista = todo
         textoPaso.text = when {
             lista != null -> getString(R.string.cal_paso_todo, todoIndice + 1, lista.size, indicePaso + 1, total)
-            p != null && total > 1 -> nombreParte(p) + " · " + getString(R.string.cal_paso, indicePaso + 1, total)
-            p != null -> nombreParte(p)
-            else -> ""
+            total > 1 -> getString(R.string.cal_paso, indicePaso + 1, total)   // el nombre de la parte ya es el título de la pantalla
+            else -> getString(R.string.cal_paso_unico)
         }
         if (progreso.max != total) {
             progreso.max = total
@@ -1090,7 +1092,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         // Cuando aparece el campo del resultado, la pantalla baja hasta el botón «Guardar este resultado» (solo esa primera vez).
         if (esperandoDato && !datoMostrado) {
-            scroll.post { scroll.smoothScrollTo(0, (botonGuardar.bottom - scroll.height).coerceAtLeast(0)) }
+            scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }   // hasta el final: ahí están el campo, «Guardar» y «Borrar el último dato» (botonGuardar.bottom es relativo a su contenedor, no al scroll)
         }
         datoMostrado = esperandoDato
         actualizarBotones()

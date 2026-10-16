@@ -232,10 +232,10 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
         pincelLinea.color = colorContorno
         pincelLinea.strokeWidth = dp(2f)
         pincelLinea.pathEffect = DashPathEffect(floatArrayOf(dp(5f), dp(5f)), 0f)
-        c.drawLine(carroX - 0.24f * u, rayaY, cx + 0.06f * u, rayaY, pincelLinea)
+        c.drawLine(carroX - 0.26f * u, rayaY, cx + 0.06f * u, rayaY, pincelLinea)
         pincelLinea.pathEffect = null
         pincelTexto.color = colorRueda
-        c.drawText("STOP", carroX - 0.34f * u, rayaY + pincelTexto.textSize / 3f, pincelTexto)
+        c.drawText("STOP", carroX - 0.52f * u, rayaY + pincelTexto.textSize / 3f, pincelTexto)   // la palabra queda a la izquierda de la raya, sin tocar la rueda
         dibujarFlecha(c, cx + 0.04f * u, rayaY, cx + 0.04f * u, frenadoY, u)               // el frenado: de la raya a donde queda el frente
         val posicion = if (enMarcha) salida + (reposo - salida) * fase else reposo
         dibujarCarro(c, carroX, posicion, u, 1f)
