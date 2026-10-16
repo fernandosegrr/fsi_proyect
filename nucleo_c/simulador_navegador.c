@@ -67,6 +67,8 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->t_cuadro_visual_ms = 0;
     sim->cmd_previo = NAV_CMD_STOP;
     sim->ms_en_comando = 0;
+    sim->desbalance_mil = 1000;
+    sim->balance_mil = 1000;
     sim->periodo_cuadro_ms = NAV_TICK_MS;
     sim->t_cancelar_ms = 0xFFFFFFFFu;
 }
@@ -118,6 +120,12 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
         /* rumbo 0 = arriba (y decrece), 90 = derecha (x crece) */
         sim->x_cmm += seno(rumbo) * distancia / 1000;
         sim->y_cmm -= coseno(rumbo) * distancia / 1000;
+        {   /* Si un lado empuja más que el otro el carro se tuerce: el giro es la diferencia de lo que recorre cada lado entre el ancho entre ruedas. Hacia atrás se tuerce al revés. */
+            long long razon_mil = (long long)sim->desbalance_mil * sim->balance_mil / 1000;   /* velocidad izquierda / derecha, en milésimas */
+            long long giro_cgrados = (long long)distancia * 2 * (razon_mil - 1000) * 4775 / ((razon_mil + 1000) * 10000);   /* 4775 = 57.3 grados por radián / 120 mm de ejes, por 10 000 */
+
+            sim->rumbo_cgrados += (long)giro_cgrados;
+        }
         break;
     case NAV_CMD_LEFT:
     case NAV_CMD_RIGHT:

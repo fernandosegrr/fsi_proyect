@@ -64,6 +64,8 @@
     <string name="cal_t_retroceso">Retroceso (opcional)</string>
     <string name="cal_t_giro_visual">Giro con la cámara (opcional)</string>
     <string name="cal_t_resumen">Resumen</string>
+    <string name="cal_t_giro_90">Ajuste fino: giro de 90°</string>
+    <string name="cal_t_recta">Ajuste fino: recta</string>
 
     <!-- Instrucciones: máximo 3 líneas. Lo que sobra va en la nota (letra suave). -->
     <string name="cal_i_intro">Vamos a medir cómo arranca, avanza y gira el carro. Ponlo en el piso donde andará, con batería y 2 m libres.</string>
@@ -74,6 +76,8 @@
     <string name="cal_i_retroceso">Igual que el avance, pero en reversa. Deja 80 cm libres DETRÁS: el carro no ve hacia atrás.</string>
     <string name="cal_i_giro_visual">Frente a algo con detalles (no una pared lisa), toca «Probar»: gira 90° a la derecha. Escribe cuántos grados giró de verdad.</string>
     <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones.</string>
+    <string name="cal_i_giro_90">Pon el carro sobre una marca de 90°, elige el lado y toca «Probar»: gira lo que la calibración dice que son 90°. Después dime cómo giró.</string>
+    <string name="cal_i_recta">Pon el carro sobre una línea de cinta, mirando a lo largo de ella, y toca «Avanzar 2 s». Después dime hacia dónde se desvió y cuántos cm.</string>
 
     <string name="cal_n_intro">Necesitas una cinta o regla y marcas de 90° en el piso. El botón PARO siempre detiene el carro.</string>
     <string name="cal_n_intro_giro">«Solo calibrar el giro con la cámara» salta al paso 8 y conserva la calibración guardada.</string>
@@ -82,6 +86,8 @@
     <string name="cal_n_avance">Espera a que pare del todo y mide de la marca a las ruedas. Cada vez, vuelve a poner el carro en la marca.</string>
     <string name="cal_n_giro">Pon grados aproximados (45, 90, 135…). Espera a que pare y vuelve a alinear el carro cada vez.</string>
     <string name="cal_n_retroceso">Mide cuántos cm retrocedió, de la marca a las ruedas. Si no lo mides, toca «Siguiente»: se usa el valor del avance.</string>
+    <string name="cal_n_giro_90">Hazlo con las pilas que usarás en la demo. Se repite hasta que quede justo. El ajuste se guarda por lado y por perfil y lo usan las rutas y el simulador.</string>
+    <string name="cal_n_recta">Hazlo con las pilas que usarás en la demo. Se repite hasta que el desvío sea de 1 cm o menos (hasta 4 intentos). El ajuste se guarda en el carro y en el teléfono.</string>
     <string name="cal_n_giro_visual">Se repite hasta 3 veces. Si no quieres este paso, toca «Ver resumen».</string>
 
     <string name="cal_b_empezar">Empezar</string>
@@ -92,6 +98,26 @@
     <string name="cal_b_visual_n">Probar: girar 90° a la derecha (%1$d de 3)</string>
     <string name="cal_b_visual_listo">Ya están las 3 pruebas</string>
     <string name="cal_b_ver_resumen">Ver resumen</string>
+    <string name="cal_b_ajuste_fino">Ajuste fino: giro y recta</string>
+    <string name="cal_b_solo_ajuste">Solo el ajuste fino (giro de 90° y recta)</string>
+    <string name="cal_b_probar_giro_izq">Probar: girar 90° a la izquierda</string>
+    <string name="cal_b_probar_giro_der">Probar: girar 90° a la derecha</string>
+    <string name="cal_b_aplicar_grados">Aplicar los grados</string>
+    <string name="cal_b_restaurar">Restaurar valor por defecto</string>
+    <string name="cal_aj_perfil">PERFIL</string>
+    <string name="cal_aj_perfil_auto">AUTO (210)</string>
+    <string name="cal_aj_perfil_manual">MANUAL (255)</string>
+    <string name="cal_aj_lado">LADO</string>
+    <string name="cal_aj_lado_izq">Izquierda</string>
+    <string name="cal_aj_lado_der">Derecha</string>
+    <string name="cal_aj_como_giro">¿CÓMO GIRÓ?</string>
+    <string name="cal_op_mucho">Se pasó mucho</string>
+    <string name="cal_op_poco">Se pasó un poco</string>
+    <string name="cal_op_justo">Quedó justo</string>
+    <string name="cal_op_corto">Se quedó corto</string>
+    <string name="cal_h_grados_giro_90">…o escribe cuántos grados giró</string>
+    <string name="cal_aj_sin_cal">Primero guarda una calibración completa (los pasos 1 a 6 y «Usar estos valores»): el ajuste fino parte de ella.</string>
+    <string name="cal_aj_pilas">Recalibra con las pilas que usarás en la demo.</string>
     <string name="cal_b_ya_toca">¡TOCA YA!</string>
     <string name="cal_b_ya_espera">Espera el verde…</string>
     <string name="cal_b_ya_empezar">Toca «Empezar»</string>
@@ -114,5 +140,7 @@
     <string name="cal_ilus_giro_der">Dibujo: el carro gira 90 grados a la derecha.</string>
     <string name="cal_ilus_retroceso">Dibujo: el carro retrocede en línea recta junto a una regla en centímetros.</string>
     <string name="cal_ilus_giro_visual">Dibujo: el carro gira a la derecha mientras la cámara, un ojo, mide el giro.</string>
+    <string name="cal_ilus_giro_90">Dibujo: el carro gira 90 grados y un arco muestra cuánto se pasó o se quedó corto.</string>
+    <string name="cal_ilus_recta">Dibujo: el carro avanza en línea recta sobre una línea de cinta.</string>
     <string name="cal_ilus_resumen">Dibujo: una palomita verde, las mediciones están listas.</string>
 </resources>

@@ -150,6 +150,16 @@ static int azar_mil(uint32_t semilla)
 /* La simulación usa memoria estática (cabe en la pila del hilo principal de la app, pero no se repite en otros hilos): se llama siempre desde el mismo hilo. */
 static Navegador nav_sim;
 static Simulador car_sim;
+static int desbalance_global_mil = 1000;   /* ver sr_poner_balance */
+static int balance_global_mil = 1000;
+
+void sr_poner_balance(int desbalance_mil, int balance_mil)
+{
+    if (desbalance_mil >= 500 && desbalance_mil <= 2000 && balance_mil >= 500 && balance_mil <= 2000) {
+        desbalance_global_mil = desbalance_mil;
+        balance_global_mil = balance_mil;
+    }
+}
 
 int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const Punto *obstaculos, int n_obstaculos, int ruido_giro_grados, uint32_t semilla, ResultadoSimRuta *r)
 {
@@ -181,6 +191,8 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
     }
     sim_iniciar(&car_sim, ruta[0].columna, ruta[0].fila, 0);
     car_sim.real = calibracion;
+    car_sim.desbalance_mil = desbalance_global_mil;
+    car_sim.balance_mil = balance_global_mil;
     car_sim.periodo_cuadro_ms = NAV_TICK_MS;
     if (semilla != 0 && ruido_giro_grados > 0) {   /* un giro de 90 grados sale 90 + d: d entre -ruido y +ruido */
         int d_mil = azar_mil(semilla) * ruido_giro_grados;   /* grados x 1000 */

@@ -627,6 +627,107 @@ static void pruebas_retroceso(void)
     caso("el texto con todas las claves cabe en CAL_LARGO_TEXTO", cal_a_texto(&cal, texto, CAL_LARGO_TEXTO) > 0);
 }
 
+
+/* ── Ajuste fino: giro de 90° y recta ────────────────────────────────────── */
+
+static void pruebas_ajuste_fino(void)
+{
+    CalibracionCarro cal, fino;
+    int nuevo = 0, i, factor, codigo;
+
+    /* Opciones del giro de 90°. */
+    caso("opciones del giro: mucho 120, un poco 105, justo 90, corto 78 y una opcion desconocida da 0",
+         cal_grados_de_opcion_giro(CAL_GIRO_SE_PASO_MUCHO) == 120 && cal_grados_de_opcion_giro(CAL_GIRO_SE_PASO_UN_POCO) == 105 &&
+         cal_grados_de_opcion_giro(CAL_GIRO_JUSTO) == 90 && cal_grados_de_opcion_giro(CAL_GIRO_QUEDO_CORTO) == 78 && cal_grados_de_opcion_giro(9) == 0);
+
+    /* Factor del giro. */
+    caso("giro 110 grados por 90 pedidos: el factor baja a 818 (los giros duran 18 % menos)", cal_factor_giro_nuevo(1000, 90, 110, &nuevo) == CAL_OK && nuevo == 818);
+    caso("giro justo (90 por 90): el factor no cambia", cal_factor_giro_nuevo(1000, 90, 90, &nuevo) == CAL_OK && nuevo == 1000);
+    caso("giro corto (70 por 90): el factor sube a 1286", cal_factor_giro_nuevo(1000, 90, 70, &nuevo) == CAL_OK && nuevo == 1286);
+    caso("el factor nuevo parte del anterior (818 y se pasa otros 10 grados)", cal_factor_giro_nuevo(818, 90, 100, &nuevo) == CAL_OK && nuevo == 736);
+    caso("el factor no baja de 500 ni sube de 1500", cal_factor_giro_nuevo(600, 90, 200, &nuevo) == CAL_OK && nuevo == CAL_FACTOR_GIRO_MIN &&
+         cal_factor_giro_nuevo(1400, 90, 40, &nuevo) == CAL_OK && nuevo == CAL_FACTOR_GIRO_MAX);
+    caso("grados absurdos (5 o 400) o factor fuera de rango: error y no cambia nada",
+         (nuevo = 777, cal_factor_giro_nuevo(1000, 90, 5, &nuevo) == CAL_ERR_DATOS) && nuevo == 777 && cal_factor_giro_nuevo(1000, 90, 400, &nuevo) == CAL_ERR_DATOS &&
+         cal_factor_giro_nuevo(100, 90, 90, &nuevo) == CAL_ERR_ARGUMENTO && cal_factor_giro_nuevo(1000, 90, 90, NULL) == CAL_ERR_ARGUMENTO);
+
+    /* Aplicar el factor a la calibración. */
+    cal_defecto(&cal);
+    cal.medidos = CAL_MEDIDO_TODO;
+    cal.ms_por_grado_izq_x10 = 100;
+    cal.ms_por_grado_der_x10 = 80;
+    cal.arranque_ms = 100;
+    caso("con factores 1000 la calibracion queda igual", cal_con_factor_giro(&cal, 1000, 1000, &fino) == CAL_OK && memcmp(&cal, &fino, sizeof cal) == 0);
+    caso("con factor 818 a la izquierda y 900 a la derecha los ms por grado bajan, lo demas igual",
+         cal_con_factor_giro(&cal, 818, 900, &fino) == CAL_OK && fino.ms_por_grado_izq_x10 == 82 && fino.ms_por_grado_der_x10 == 72 && fino.arranque_ms == 100 &&
+         fino.ms_por_cm_x10 == cal.ms_por_cm_x10 && fino.medidos == cal.medidos);
+    caso("el giro de 90 grados dura menos con el factor (izquierda)", cal_grados_a_ms(&fino, -90) < cal_grados_a_ms(&cal, -90) && cal_grados_a_ms(&fino, 90) < cal_grados_a_ms(&cal, 90));
+    caso("un factor que deja la calibracion fuera de rango: CAL_ERR_RANGO y salida = entrada", (cal.ms_por_grado_izq_x10 = 15, cal_con_factor_giro(&cal, 500, 1000, &fino) == CAL_ERR_RANGO) &&
+         memcmp(&cal, &fino, sizeof cal) == 0);
+    caso("factores o punteros fuera de rango: CAL_ERR_ARGUMENTO", cal_con_factor_giro(&cal, 400, 1000, &fino) == CAL_ERR_ARGUMENTO && cal_con_factor_giro(NULL, 1000, 1000, &fino) == CAL_ERR_ARGUMENTO &&
+         cal_con_factor_giro(&cal, 1000, 1000, NULL) == CAL_ERR_ARGUMENTO);
+
+    /* Un carro que se pasa 22 % (110 por 90): con lo que escribe el usuario converge a menos de 3 grados en 2 pasadas; con solo las opciones, a menos de 10 en 4. */
+    cal_defecto(&cal);
+    factor = CAL_FACTOR_GIRO_DEFECTO;
+    for (i = 0; i < 2; i++) {
+        long real_x100 = 9000L * 1222 / 1000 * factor / 1000;   /* el carro real gira 22 % mas de lo pedido, y el factor acorta el giro */
+        cal_factor_giro_nuevo(factor, 90, (int)((real_x100 + 50) / 100), &nuevo);
+        factor = nuevo;
+    }
+    {
+        long real_x100 = 9000L * 1222 / 1000 * factor / 1000;
+
+        caso("escribiendo los grados: dos pasadas dejan el giro de 90 en 90 +-3 grados", real_x100 >= 8700 && real_x100 <= 9300);
+    }
+    factor = CAL_FACTOR_GIRO_DEFECTO;
+    for (i = 0; i < 4; i++) {
+        long real_x100 = 9000L * 1222 / 1000 * factor / 1000;
+        int opcion = (real_x100 > 11000) ? CAL_GIRO_SE_PASO_MUCHO : (real_x100 > 9800) ? CAL_GIRO_SE_PASO_UN_POCO : (real_x100 < 8300) ? CAL_GIRO_QUEDO_CORTO : CAL_GIRO_JUSTO;
+
+        cal_factor_giro_nuevo(factor, 90, cal_grados_de_opcion_giro(opcion), &nuevo);
+        factor = nuevo;
+    }
+    {
+        long real_x100 = 9000L * 1222 / 1000 * factor / 1000;
+
+        caso("con solo las opciones (mucho, un poco, justo, corto): cuatro pasadas dejan el giro en 90 +-10 grados", real_x100 >= 8000 && real_x100 <= 10000);
+    }
+
+    /* Balance de la recta. */
+    codigo = cal_balance_nuevo(986, 60, 387, CAL_EJES_MM_DEFECTO, &nuevo);
+    caso("recta: 6 cm a la derecha en 38.7 cm con ejes de 12 cm: el balance baja de 986 a ~895", codigo == CAL_OK && nuevo >= 890 && nuevo <= 900);
+    caso("recta: desvio de 1 cm o menos no cambia nada (ni a un lado ni al otro)", cal_balance_nuevo(900, 10, 387, 120, &nuevo) == CAL_OK && nuevo == 900 &&
+         cal_balance_nuevo(900, -10, 387, 120, &nuevo) == CAL_OK && nuevo == 900 && cal_balance_nuevo(900, 0, 387, 120, &nuevo) == CAL_OK && nuevo == 900);
+    caso("recta: un desvio a la izquierda sube el balance (el lado izquierdo es mas lento) pero nunca pasa de 1000",
+         cal_balance_nuevo(900, -40, 387, 120, &nuevo) == CAL_OK && nuevo > 900 && nuevo <= 1000 && cal_balance_nuevo(990, -80, 387, 120, &nuevo) == CAL_OK && nuevo == 1000);
+    caso("recta: el balance nunca baja de 800", cal_balance_nuevo(810, 150, 387, 120, &nuevo) == CAL_OK && nuevo == CAL_BALANCE_MIN);
+    caso("recta: con ejes mas anchos el balance cambia mas", (cal_balance_nuevo(1000, 50, 387, 100, &nuevo) == CAL_OK && (codigo = nuevo, cal_balance_nuevo(1000, 50, 387, 200, &nuevo) == CAL_OK && nuevo < codigo)));
+    caso("recta: datos sin sentido (recorrido 0, desvio mayor que la mitad del recorrido): CAL_ERR_DATOS",
+         cal_balance_nuevo(900, 20, 0, 120, &nuevo) == CAL_ERR_DATOS && cal_balance_nuevo(900, 300, 400, 120, &nuevo) == CAL_ERR_DATOS);
+    caso("recta: balance fuera de 800 a 1000, ejes fuera de rango o puntero nulo: CAL_ERR_ARGUMENTO",
+         cal_balance_nuevo(700, 30, 387, 120, &nuevo) == CAL_ERR_ARGUMENTO && cal_balance_nuevo(900, 30, 387, 10, &nuevo) == CAL_ERR_ARGUMENTO && cal_balance_nuevo(900, 30, 387, 120, NULL) == CAL_ERR_ARGUMENTO);
+
+    /* Un carro cuyo lado izquierdo empuja 12 % mas: el balance que lo endereza es ~893. En 4 pasadas el desvio queda en 1 cm o menos. */
+    {
+        int balance = 986, pasada, desvio_mm = 0;
+
+        for (pasada = 0; pasada < CAL_RECTA_MAX_ITERACIONES; pasada++) {
+            /* velocidad izquierda / derecha = 1.12 x balance; desvio de un arco de 387 mm con ejes de 120 mm: L^2 x delta / (2 x ejes), delta = 2 x (r - 1) / (r + 1) */
+            long long r_x1e6 = 1120LL * balance;
+            long long delta_x1e6 = 2000000LL * (r_x1e6 - 1000000LL) / (r_x1e6 + 1000000LL);
+            desvio_mm = (int)(387LL * 387 * delta_x1e6 / 1000000 / (2 * 120));
+            if (desvio_mm <= CAL_RECTA_OK_MM && desvio_mm >= -CAL_RECTA_OK_MM) {
+                break;
+            }
+            cal_balance_nuevo(balance, desvio_mm, 387, 120, &nuevo);
+            balance = nuevo;
+        }
+        printf("      recta simulada: balance final %d con desvio %d mm tras %d pasadas\n", balance, desvio_mm, pasada);
+        caso("recta simulada: en 4 pasadas o menos el desvio queda en 1 cm o menos y el balance cerca de 893", desvio_mm <= CAL_RECTA_OK_MM && desvio_mm >= -CAL_RECTA_OK_MM && balance >= 880 && balance <= 905);
+    }
+}
+
 int main(void)
 {
     pruebas_estadistica();
@@ -636,6 +737,7 @@ int main(void)
     pruebas_texto();
     pruebas_fov();
     pruebas_retroceso();
+    pruebas_ajuste_fino();
     pruebas_sin_ruido();
     pruebas_ruido();
     pruebas_disparates();

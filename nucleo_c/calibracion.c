@@ -610,3 +610,91 @@ int cal_de_texto(const char *texto, CalibracionCarro *cal)
     *cal = nueva;
     return CAL_OK;
 }
+
+/* ── Ajuste fino: el giro de 90° y la recta ────────────────────────────── */
+
+int cal_grados_de_opcion_giro(int opcion)
+{
+    switch (opcion) {
+    case CAL_GIRO_SE_PASO_MUCHO:   return 120;
+    case CAL_GIRO_SE_PASO_UN_POCO: return 105;
+    case CAL_GIRO_JUSTO:           return 90;
+    case CAL_GIRO_QUEDO_CORTO:     return 78;
+    default:                       return 0;
+    }
+}
+
+int cal_factor_giro_nuevo(int factor_mil, int pedidos, int reales, int *nuevo_mil)
+{
+    long nuevo;
+
+    if (nuevo_mil == NULL || !en_rango(factor_mil, CAL_FACTOR_GIRO_MIN, CAL_FACTOR_GIRO_MAX)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!en_rango(pedidos, 10, 360) || !en_rango(reales, 10, 360)) {
+        return CAL_ERR_DATOS;
+    }
+    nuevo = dividir_redondeado((long)factor_mil * pedidos, reales);
+    if (nuevo < CAL_FACTOR_GIRO_MIN) {
+        nuevo = CAL_FACTOR_GIRO_MIN;
+    }
+    if (nuevo > CAL_FACTOR_GIRO_MAX) {
+        nuevo = CAL_FACTOR_GIRO_MAX;
+    }
+    *nuevo_mil = (int)nuevo;
+    return CAL_OK;
+}
+
+int cal_con_factor_giro(const CalibracionCarro *cal, int factor_izq_mil, int factor_der_mil, CalibracionCarro *salida)
+{
+    CalibracionCarro copia;
+
+    if (cal == NULL || salida == NULL || !en_rango(factor_izq_mil, CAL_FACTOR_GIRO_MIN, CAL_FACTOR_GIRO_MAX) ||
+        !en_rango(factor_der_mil, CAL_FACTOR_GIRO_MIN, CAL_FACTOR_GIRO_MAX)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    copia = *cal;
+    copia.ms_por_grado_izq_x10 = (int)dividir_redondeado((long)cal->ms_por_grado_izq_x10 * factor_izq_mil, 1000);
+    copia.ms_por_grado_der_x10 = (int)dividir_redondeado((long)cal->ms_por_grado_der_x10 * factor_der_mil, 1000);
+    if (!cal_es_valida(&copia)) {
+        *salida = *cal;
+        return CAL_ERR_RANGO;
+    }
+    *salida = copia;
+    return CAL_OK;
+}
+
+int cal_balance_nuevo(int balance_mil, int desvio_mm, int recorrido_mm, int ejes_mm, int *nuevo_mil)
+{
+    long delta_mil, nuevo;
+    int magnitud = valor_absoluto(desvio_mm);
+
+    if (nuevo_mil == NULL || !en_rango(balance_mil, CAL_BALANCE_MIN, CAL_BALANCE_MAX) || !en_rango(ejes_mm, CAL_EJES_MM_MIN, CAL_EJES_MM_MAX)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (recorrido_mm <= 0 || recorrido_mm > 5000 || magnitud * 2 > recorrido_mm) {
+        return CAL_ERR_DATOS;
+    }
+    *nuevo_mil = balance_mil;
+    if (magnitud <= CAL_RECTA_OK_MM) {
+        return CAL_OK;
+    }
+    /* Ángulo ~ 2 x desvío / recorrido; diferencia relativa de velocidades = ángulo x ejes / recorrido  →  delta (en milésimas) = 2000 x desvío x ejes / recorrido^2. */
+    delta_mil = dividir_redondeado(2000L * magnitud * ejes_mm, (long)recorrido_mm * recorrido_mm);
+    if (delta_mil > 1000) {
+        delta_mil = 1000;   /* nunca se corrige más de la mitad de la potencia en un solo paso */
+    }
+    if (desvio_mm > 0) {   /* se fue a la derecha: el lado izquierdo es más rápido: se baja su factor */
+        nuevo = dividir_redondeado((long)balance_mil * (2000 - delta_mil), 2000 + delta_mil);
+    } else {               /* se fue a la izquierda: el lado izquierdo es más lento: se sube su factor */
+        nuevo = dividir_redondeado((long)balance_mil * (2000 + delta_mil), 2000 - delta_mil);
+    }
+    if (nuevo < CAL_BALANCE_MIN) {
+        nuevo = CAL_BALANCE_MIN;
+    }
+    if (nuevo > CAL_BALANCE_MAX) {
+        nuevo = CAL_BALANCE_MAX;
+    }
+    *nuevo_mil = (int)nuevo;
+    return CAL_OK;
+}

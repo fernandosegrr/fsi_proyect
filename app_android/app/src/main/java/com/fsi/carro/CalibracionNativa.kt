@@ -78,6 +78,30 @@ object CalibracionNativa {
     /** Cuántos ms de motor se piden para girar `grados` (negativo = izquierda). */
     external fun gradosAMs(calibracion: IntArray, grados: Int): Int
 
+    // ── Ajuste fino: giro de 90° y recta (ver docs/calibracion.md y docs/perfiles_velocidad.md) ──
+    const val FACTOR_GIRO_DEFECTO = 1000   // milésimas: 1000 = sin corrección
+    const val GIRO_SE_PASO_MUCHO = 0
+    const val GIRO_SE_PASO_UN_POCO = 1
+    const val GIRO_JUSTO = 2
+    const val GIRO_QUEDO_CORTO = 3
+    const val BALANCE_MIN = 800
+    const val BALANCE_MAX = 1000
+    const val EJES_MM_DEFECTO = 120
+    const val RECTA_OK_MM = 10
+    const val RECTA_MAX_ITERACIONES = 4
+
+    /** Los grados que se suponen girados en cada opción de «¿cómo giró?» con 90 pedidos (0 si no existe la opción). */
+    external fun gradosDeOpcionGiro(opcion: Int): Int
+
+    /** Factor nuevo del giro (milésimas) si se pidieron `pedidos` grados y el carro giró `reales`: [código, factor]. */
+    external fun factorGiroNuevo(factorMil: Int, pedidos: Int, reales: Int): IntArray
+
+    /** La calibración con el factor de giro de cada lado aplicado (los ms por grado cambian): [código, calibración]. */
+    external fun conFactorGiro(calibracion: IntArray, factorIzqMil: Int, factorDerMil: Int): IntArray
+
+    /** Balance nuevo (milésimas, de 800 a 1000) tras una recta: desvío en mm (+ derecha), recorrido y ancho entre ruedas en mm: [código, balance]. */
+    external fun balanceNuevo(balanceMil: Int, desvioMm: Int, recorridoMm: Int, ejesMm: Int): IntArray
+
     /** La calibración como texto "clave=valor" (vacío si no es válida). */
     external fun aTexto(calibracion: IntArray): String
 

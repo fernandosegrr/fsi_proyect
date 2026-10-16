@@ -128,6 +128,136 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Ajuste fino (giro de 90°): perfil, lado y cómo giró. Solo se ve en ese paso. -->
+            <LinearLayout
+                android:id="@+id/aj_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/Seccion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cal_aj_perfil" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_perfil_auto"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginEnd="@dimen/e0"
+                        android:layout_weight="1"
+                        android:text="@string/cal_aj_perfil_auto" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_perfil_manual"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginStart="@dimen/e0"
+                        android:layout_weight="1"
+                        android:text="@string/cal_aj_perfil_manual" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Seccion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e2"
+                    android:text="@string/cal_aj_lado" />
+
+                <LinearLayout
+                    android:id="@+id/aj_fila_lado"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_lado_izq"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginEnd="@dimen/e0"
+                        android:layout_weight="1"
+                        android:text="@string/cal_aj_lado_izq" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_lado_der"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginStart="@dimen/e0"
+                        android:layout_weight="1"
+                        android:text="@string/cal_aj_lado_der" />
+                </LinearLayout>
+
+                <!-- ¿Cómo giró? (aparece cuando termina la prueba) -->
+                <LinearLayout
+                    android:id="@+id/aj_bloque_giro"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/Seccion"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/cal_aj_como_giro" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_op_mucho"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/cal_op_mucho" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_op_poco"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/cal_op_poco" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_op_justo"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/cal_op_justo" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/aj_op_corto"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/cal_op_corto" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/aj_restaurar"
+                    style="@style/Boton.Texto"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e2"
+                    android:text="@string/cal_b_restaurar" />
+            </LinearLayout>
+
             <!-- Anotar el resultado de la prueba -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/calib_campo_layout"
@@ -146,6 +276,15 @@
                     android:maxLines="1"
                     android:textAppearance="@style/Texto.Cuerpo" />
             </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/boton_ajuste"
+                style="@style/Boton.Secundario"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e2"
+                android:text="@string/cal_b_solo_ajuste"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/boton_guardar"

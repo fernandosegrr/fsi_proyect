@@ -96,6 +96,11 @@ typedef struct {
 /* Repite la ruta `corridas` veces (hasta SR_MAX_CORRIDAS) con ruido de giro distinto cada vez (semillas 1, 2, 3...). */
 int sr_dispersion(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const Punto *obstaculos, int n_obstaculos, int ruido_giro_grados, int corridas, DispersionSim *d);
 
+/* El equilibrio de los dos lados del carro VIRTUAL (ver simulador_navegador.h): `desbalance_mil` cuánto más rápido empuja el lado izquierdo (1000 = igual) y `balance_mil` el factor con que
+ * se reduce su potencia (1000 = sin reducir). Con desbalance x balance = 1000 x 1000 el carro virtual va recto; si no, se tuerce y la ruta sale chueca. Valen para las simulaciones que vengan
+ * después. Por defecto 1000 y 1000 (sin desvío). Fuera de 500 a 2000 el valor se ignora. */
+void sr_poner_balance(int desbalance_mil, int balance_mil);
+
 /* Qué vería la cámara: rellena zona[3] (hay, cercanía, celdas) para un carro en (x_mm, y_mm) con rumbo `rumbo_grados`. Se deja pública para probarla. */
 void sr_vista(int x_mm, int y_mm, int rumbo_grados, const Punto *obstaculos, int n_obstaculos, int hay[3], int cercania[3], int celdas[3]);
 

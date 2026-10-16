@@ -31,7 +31,7 @@ import androidx.core.content.res.ResourcesCompat
 class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atributos: AttributeSet? = null) : View(contexto, atributos) {
 
     /** Una escena por paso del asistente (mismos nombres que los pasos de CalibracionActivity). */
-    enum class Escena { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN }
+    enum class Escena { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90, RECTA }
 
     /** Qué paso se dibuja. */
     var escena: Escena = Escena.INTRO
@@ -73,6 +73,8 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
             Escena.RETROCESO -> R.string.cal_ilus_retroceso
             Escena.GIRO_VISUAL -> R.string.cal_ilus_giro_visual
             Escena.RESUMEN -> R.string.cal_ilus_resumen
+            Escena.GIRO_90 -> R.string.cal_ilus_giro_90
+            Escena.RECTA -> R.string.cal_ilus_recta
         }
     )
 
@@ -158,6 +160,8 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
             Escena.GIRO_DER -> escenaGiro(lienzo, cx, cy, u, 1f)
             Escena.GIRO_VISUAL -> escenaGiroVisual(lienzo, cx, cy, u)
             Escena.RESUMEN -> escenaResumen(lienzo, cx, cy, u)
+            Escena.GIRO_90 -> escenaGiro(lienzo, cx, cy, u, 1f)
+            Escena.RECTA -> escenaAvance(lienzo, cx, u)
         }
     }
 

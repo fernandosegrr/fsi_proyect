@@ -3,7 +3,7 @@
  * distancias y giros en tiempos reales (el carro no tiene encoders ni IMU).
  *
  * GUÍA DE LECTURA
- *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN. UNA prueba por pantalla.
+ *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN → GIRO_90. UNA prueba por pantalla.
  *       - REACCION: mide tu tiempo de reacción (toca cuando el botón se pone verde).
  *       - ARRANQUE: manda FORWARD y tú tocas "YA SE MOVIÓ" cuando ves moverse las ruedas; el
  *         arranque es ese tiempo menos tu reacción. 5 repeticiones, se descartan los datos raros.
@@ -18,6 +18,10 @@
  *         de la cámara, que convierte píxeles en grados (docs/giro_visual.md).
  *       - RESUMEN: calcula con el código en C (CalibracionNativa) y muestra los valores; "Usar estos
  *         valores" los guarda (CalibracionGuardada) y el navegador los usa en la próxima ruta.
+ *       - GIRO_90 (AJUSTE FINO, después del resumen o desde el atajo de la primera pantalla; parte de la calibración GUARDADA): el carro gira lo que la calibración dice que son
+ *         90° y tú dices cómo giró («se pasó mucho / un poco / justo / se quedó corto») o escribes los grados. Con eso se corrige un FACTOR del giro por lado (izquierda y derecha) y
+ *         por perfil (AUTO y MANUAL), que se guarda en CalibracionGuardada y lo usan las rutas y el simulador. Se repite hasta que quede justo. «Restaurar valor por defecto»
+ *         lo vuelve a 1000. Con pilas nuevas hay que repetirlo (docs/calibracion.md).
  *  2. Toda la cuenta (promedios, atípicos, rectas, frenado) está en C y probada en PC
  *     (nucleo_c/calibracion.c). Aquí solo hay pantalla y temporizadores.
  *  3. LA PANTALLA (diseño nuevo, docs/diseno.md): «Paso X de 9» con una barra de avance, el título, una ilustración dibujada por código
@@ -71,7 +75,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         private const val LADO_ATRAS = 2                    // en ajustarGrupo: 0 = avance, -1 / 1 = giros, 2 = retroceso
     }
 
-    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN }
+    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90 }
 
     private val principal = Handler(Looper.getMainLooper())   // las pruebas con tiempo (se cancelan todas con pararTodo)
     private val reloj = Handler(Looper.getMainLooper())       // solo refresca el chip y el aviso de conexión (no se cancela con pararTodo)
@@ -100,9 +104,22 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var botonCopiar: MaterialButton
     private lateinit var botonBorrarCal: MaterialButton
     private lateinit var botonParo: MaterialButton
+    private lateinit var botonAjuste: MaterialButton            // atajo de la primera pantalla al ajuste fino
+    private lateinit var panelAjuste: View                      // perfil, lado y «¿cómo giró?» del ajuste fino
+    private lateinit var botonPerfilAuto: MaterialButton
+    private lateinit var botonPerfilManual: MaterialButton
+    private lateinit var botonLadoIzq: MaterialButton
+    private lateinit var botonLadoDer: MaterialButton
+    private lateinit var bloqueGiro: View
+    private lateinit var botonesOpcionGiro: List<MaterialButton>   // mucho, un poco, justo, corto (en el orden de CalibracionNativa.GIRO_*)
+    private lateinit var botonRestaurar: MaterialButton
 
     private var paso = Paso.INTRO
     private var soloGiroVisual = false   // se saltó directo al paso 8 (giro con la cámara): el resumen parte de la calibración guardada, no de los valores por defecto
+    private var soloAjusteFino = false   // se saltó directo al ajuste fino: el resumen también parte de la calibración guardada
+    private var perfilAjuste = ControlLogica.Perfil.AUTO       // el perfil con el que se prueba y al que se le guarda el factor (ajuste fino)
+    private var ladoAjuste = CalibracionNativa.LADO_DERECHA    // el lado del giro de 90° que se prueba
+    private var resumenAjuste = ""                              // lo que pasó con el último ajuste (se muestra en la tarjeta de datos)
 
     // Datos anotados.
     private val reacciones = ArrayList<Int>()
@@ -169,6 +186,15 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonCopiar = findViewById(R.id.boton_copiar)
         botonBorrarCal = findViewById(R.id.boton_borrar_cal)
         botonParo = findViewById(R.id.boton_paro)
+        botonAjuste = findViewById(R.id.boton_ajuste)
+        panelAjuste = findViewById(R.id.aj_panel)
+        botonPerfilAuto = findViewById(R.id.aj_perfil_auto)
+        botonPerfilManual = findViewById(R.id.aj_perfil_manual)
+        botonLadoIzq = findViewById(R.id.aj_lado_izq)
+        botonLadoDer = findViewById(R.id.aj_lado_der)
+        bloqueGiro = findViewById(R.id.aj_bloque_giro)
+        botonesOpcionGiro = listOf(R.id.aj_op_mucho, R.id.aj_op_poco, R.id.aj_op_justo, R.id.aj_op_corto).map { findViewById<MaterialButton>(it) }
+        botonRestaurar = findViewById(R.id.aj_restaurar)
         findViewById<TextView>(R.id.barra_titulo).setText(R.string.cal_titulo)
         findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
         // Para pruebas con adb: la dirección del carro (el servidor falso) se guarda en Ajustes, como hace MainActivity con ws_url.
@@ -191,6 +217,18 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonUsar.setOnClickListener { usarValores() }
         botonCopiar.setOnClickListener { copiarTexto() }
         botonBorrarCal.setOnClickListener { borrarCalibracion() }
+        botonAjuste.setOnClickListener {
+            soloAjusteFino = true
+            cambiarPaso(Paso.GIRO_90.ordinal - Paso.INTRO.ordinal)
+        }
+        botonPerfilAuto.setOnClickListener { elegirPerfilAjuste(ControlLogica.Perfil.AUTO) }
+        botonPerfilManual.setOnClickListener { elegirPerfilAjuste(ControlLogica.Perfil.MANUAL) }
+        botonLadoIzq.setOnClickListener { elegirLadoAjuste(CalibracionNativa.LADO_IZQUIERDA) }
+        botonLadoDer.setOnClickListener { elegirLadoAjuste(CalibracionNativa.LADO_DERECHA) }
+        for (opcion in botonesOpcionGiro.indices) {
+            botonesOpcionGiro[opcion].setOnClickListener { aplicarGradosGiro(CalibracionNativa.gradosDeOpcionGiro(opcion)) }
+        }
+        botonRestaurar.setOnClickListener { restaurarAjuste() }
         campoResultado.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(texto: CharSequence?, inicio: Int, cuenta: Int, despues: Int) {}
             override fun onTextChanged(texto: CharSequence?, inicio: Int, antes: Int, cuenta: Int) {
@@ -206,7 +244,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         super.onResume()
         SesionCarro.escuchar(alCambiar)
         SesionCarro.entrar(this, SesionNativa.USUARIO_CALIBRACION)
-        logica.pedirPerfil(ControlLogica.Perfil.AUTO)   // la calibración SIEMPRE en el perfil AUTO (210): es la velocidad a la que andan las rutas
+        logica.pedirPerfil(perfilEsperado())   // la calibración en el perfil AUTO (210), que es la velocidad a la que andan las rutas; el ajuste fino puede usar también MANUAL
         reloj.removeCallbacks(tareaReloj)
         reloj.post(tareaReloj)
         if (paso == Paso.GIRO_VISUAL) {
@@ -252,8 +290,11 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private fun conectado() = logica.conexion == ControlLogica.Conexion.CONECTADO
 
-    /** Conectado Y con el perfil AUTO confirmado por el carro: sin eso las pruebas medirían otra velocidad (firmware viejo o perfil MANUAL). */
-    private fun listoParaProbar() = conectado() && logica.perfilConfirmado == ControlLogica.Perfil.AUTO
+    /** El perfil que debe tener el carro en el paso actual: AUTO siempre, salvo en el ajuste fino, donde es el que se eligió. */
+    private fun perfilEsperado() = if (paso == Paso.GIRO_90) perfilAjuste else ControlLogica.Perfil.AUTO
+
+    /** Conectado Y con el perfil esperado confirmado por el carro: sin eso las pruebas medirían otra velocidad (firmware viejo o perfil equivocado). */
+    private fun listoParaProbar() = conectado() && logica.perfilConfirmado == perfilEsperado()
 
     private fun mostrarConexion() {
         actualizarChipYAviso()
@@ -272,8 +313,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         when (logica.conexion) {
             ControlLogica.Conexion.CONECTADO -> {
-                if (logica.perfilConfirmado == ControlLogica.Perfil.AUTO) {
-                    chipConexion.poner(Nivel.OK, getString(R.string.conexion_conectado) + " · " + getString(R.string.cal_chip_auto) + (logica.latenciaMs?.let { " · $it ms" } ?: ""))
+                if (logica.perfilConfirmado == perfilEsperado()) {
+                    chipConexion.poner(Nivel.OK, getString(R.string.conexion_conectado) + " · " + (if (perfilEsperado() == ControlLogica.Perfil.AUTO) getString(R.string.cal_chip_auto) else "MANUAL") + (logica.latenciaMs?.let { " · $it ms" } ?: ""))
                 } else {
                     chipConexion.poner(Nivel.AVISO, getString(R.string.cal_chip_sin_confirmar))
                 }
@@ -292,7 +333,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             } else {
                 aviso.ocultar()
             }
-        } else if (logica.perfilConfirmado != ControlLogica.Perfil.AUTO && conectadoDesdeMs != 0L && ahora - conectadoDesdeMs > 5000L) {
+        } else if (logica.perfilConfirmado != perfilEsperado() && conectadoDesdeMs != 0L && ahora - conectadoDesdeMs > 5000L) {
             val m = Mensajes.perfilSinConfirmar()
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
         } else {
@@ -321,6 +362,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         val pasos = Paso.values()
         val nuevo = (paso.ordinal + delta).coerceIn(0, pasos.size - 1)
+        if (pasos[nuevo] == Paso.REACCION) {   // empieza una calibración completa: parte de los valores por defecto, no de la guardada
+            soloGiroVisual = false
+            soloAjusteFino = false
+        }
         if (pasos[nuevo] == Paso.RESUMEN || pasos[nuevo] == Paso.GIRO_VISUAL) {
             calcularResumen()   // la prueba visual usa la calibración medida hasta ahora
         }
@@ -332,7 +377,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         paso = pasos[nuevo]
         esperandoDato = false
+        resumenAjuste = ""
         campoResultado.setText("")
+        logica.pedirPerfil(perfilEsperado())   // al entrar o salir del ajuste fino el carro cambia de perfil si hace falta
         mostrarPaso()
         scroll.scrollTo(0, 0)   // cada paso empieza arriba
     }
@@ -352,6 +399,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.RETROCESO -> true     // es opcional: si no se mide, el retroceso usa el valor del avance
         Paso.GIRO_VISUAL -> true   // es opcional
         Paso.RESUMEN -> true
+        Paso.GIRO_90 -> true
     }
 
     /** La lista de listas del paso actual (avance o giro) o null. */
@@ -391,6 +439,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.RETROCESO -> IlustracionCalibracion.Escena.RETROCESO
         Paso.GIRO_VISUAL -> IlustracionCalibracion.Escena.GIRO_VISUAL
         Paso.RESUMEN -> IlustracionCalibracion.Escena.RESUMEN
+        Paso.GIRO_90 -> IlustracionCalibracion.Escena.GIRO_90
     }
 
     /** Pone la pista del campo de resultado solo si cambió (cambiarla en cada cuadro de la prueba visual haría parpadear el campo). */
@@ -411,6 +460,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonCopiar.visibility = View.GONE
         botonBorrarCal.visibility = View.GONE
         textoNota.visibility = View.GONE
+        botonAjuste.visibility = View.GONE
+        panelAjuste.visibility = View.GONE
+        bloqueGiro.visibility = View.GONE
 
         textoPaso.text = getString(R.string.cal_paso, paso.ordinal + 1, Paso.values().size)
         if (progreso.max != Paso.values().size) {
@@ -432,6 +484,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                     (guardada.avisoRetroceso()?.let { "\n" + it } ?: "")
                 botonProbar.visibility = View.VISIBLE
                 botonProbar.setText(R.string.cal_b_solo_giro)
+                botonAjuste.visibility = View.VISIBLE
             }
             Paso.REACCION -> {
                 textoTitulo.setText(R.string.cal_t_reaccion)
@@ -526,6 +579,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 botonCopiar.visibility = View.VISIBLE
                 botonBorrarCal.visibility = View.VISIBLE
             }
+            Paso.GIRO_90 -> mostrarGiro90()
         }
         // Cuando aparece el campo del resultado, la pantalla baja hasta el botón «Guardar este resultado» (solo esa primera vez).
         if (esperandoDato && !datoMostrado) {
@@ -594,6 +648,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO ->
                 listoParaProbar() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
             Paso.GIRO_VISUAL -> listoParaProbar() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
+            Paso.GIRO_90 -> listoParaProbar() && !corriendo && !esperandoDato && guardada.estaCompleta()
             else -> false
         }
         habilitar(botonProbar, probarActivo)
@@ -605,11 +660,12 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             else -> false
         })
         habilitar(botonAtras, !ocupado && paso != Paso.INTRO)
-        habilitar(botonSiguiente, !ocupado && paso != Paso.RESUMEN && pasoCompleto() && !esperandoDato)
-        botonSiguiente.visibility = if (paso == Paso.RESUMEN) View.GONE else View.VISIBLE
+        habilitar(botonSiguiente, !ocupado && paso != Paso.GIRO_90 && pasoCompleto() && !esperandoDato)
+        botonSiguiente.visibility = if (paso == Paso.GIRO_90) View.GONE else View.VISIBLE
         botonSiguiente.setText(when (paso) {
             Paso.INTRO -> R.string.cal_b_empezar
             Paso.GIRO_VISUAL -> R.string.cal_b_ver_resumen
+            Paso.RESUMEN -> R.string.cal_b_ajuste_fino
             else -> R.string.cal_siguiente
         })
 
@@ -617,7 +673,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val destacado: MaterialButton? = when {
             ocupado -> null
             paso == Paso.RESUMEN -> botonUsar
-            esperandoDato -> botonGuardar
+            esperandoDato -> if (paso == Paso.GIRO_90) null else botonGuardar   // en el ajuste fino las opciones de «¿cómo giró?» son las que se tocan
             paso != Paso.INTRO && probarActivo -> botonProbar
             else -> botonSiguiente
         }
@@ -638,6 +694,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.ARRANQUE -> empezarArranque()
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> empezarPruebaDeTiempo()
             Paso.GIRO_VISUAL -> empezarGiroVisual()
+            Paso.GIRO_90 -> empezarGiro90()
             else -> {}
         }
     }
@@ -763,11 +820,159 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         principal.postDelayed(tarea, 40)
     }
 
+    // ── Ajuste fino: giro de 90° ──────────────────────────────────────────
+
+    /** Un botón de selección (perfil o lado): el elegido lleva un borde del acento y fondo de tarjeta elevada; los demás se ven como secundarios. No es «el primario». */
+    private fun marcarSeleccion(boton: MaterialButton, elegido: Boolean) {
+        if (elegido) {
+            boton.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.superficie_alta))
+            boton.setTextColor(ContextCompat.getColor(this, R.color.texto))
+            boton.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.acento))
+            boton.strokeWidth = Diseno.dp(this, 2)
+        } else {
+            boton.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            boton.setTextColor(ContextCompat.getColor(this, R.color.acento_texto))
+            boton.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.borde_fuerte))
+            boton.strokeWidth = Diseno.dp(this, 1)
+        }
+    }
+
+    private fun elegirPerfilAjuste(perfil: ControlLogica.Perfil) {
+        if (corriendo || esperandoDato || perfil == perfilAjuste) {
+            return
+        }
+        perfilAjuste = perfil
+        logica.pedirPerfil(perfilEsperado())
+        resumenAjuste = ""
+        mostrarPaso()
+    }
+
+    private fun elegirLadoAjuste(lado: Int) {
+        if (corriendo || esperandoDato || lado == ladoAjuste) {
+            return
+        }
+        ladoAjuste = lado
+        resumenAjuste = ""
+        mostrarPaso()
+    }
+
+    private fun nombreLado(lado: Int) = if (lado < 0) "izquierda" else "derecha"
+
+    /** La pantalla del giro de 90°: panel de perfil y lado, las opciones de «¿cómo giró?» cuando termina la prueba, el campo de grados y lo que se ha ajustado. */
+    private fun mostrarGiro90() {
+        textoTitulo.setText(R.string.cal_t_giro_90)
+        textoInstruccion.setText(R.string.cal_i_giro_90)
+        textoNota.text = getString(R.string.cal_n_giro_90) + "\n" + getString(R.string.cal_aj_pilas)
+        textoNota.visibility = View.VISIBLE
+        panelAjuste.visibility = View.VISIBLE
+        marcarSeleccion(botonPerfilAuto, perfilAjuste == ControlLogica.Perfil.AUTO)
+        marcarSeleccion(botonPerfilManual, perfilAjuste == ControlLogica.Perfil.MANUAL)
+        marcarSeleccion(botonLadoIzq, ladoAjuste == CalibracionNativa.LADO_IZQUIERDA)
+        marcarSeleccion(botonLadoDer, ladoAjuste == CalibracionNativa.LADO_DERECHA)
+        botonProbar.visibility = View.VISIBLE
+        botonProbar.setText(if (ladoAjuste < 0) R.string.cal_b_probar_giro_izq else R.string.cal_b_probar_giro_der)
+        if (esperandoDato) {
+            bloqueGiro.visibility = View.VISIBLE
+            campoLayout.visibility = View.VISIBLE
+            ponerPista(getString(R.string.cal_h_grados_giro_90))
+            botonGuardar.visibility = View.VISIBLE
+            botonGuardar.setText(R.string.cal_b_aplicar_grados)
+        } else {
+            botonGuardar.setText(R.string.cal_guardar)
+        }
+        textoDatos.text = textoAjusteGiro()
+    }
+
+    private fun textoAjusteGiro(): String {
+        if (!guardada.estaCompleta()) {
+            return getString(R.string.cal_aj_sin_cal)
+        }
+        val cal = guardada.leerAjustada(perfilAjuste)
+        val sb = StringBuilder()
+        sb.append(String.format(Locale.US, "Factor del giro (%s): izquierda %d, derecha %d (1000 = sin corrección)\n", perfilAjuste.texto,
+            guardada.factorGiro(perfilAjuste, CalibracionNativa.LADO_IZQUIERDA), guardada.factorGiro(perfilAjuste, CalibracionNativa.LADO_DERECHA)))
+        sb.append(String.format(Locale.US, "Un giro de 90° dura: izquierda %d ms, derecha %d ms\n",
+            CalibracionNativa.gradosAMs(cal, -90), CalibracionNativa.gradosAMs(cal, 90)))
+        if (resumenAjuste.isNotEmpty()) {
+            sb.append("\n").append(resumenAjuste)
+        }
+        return sb.toString()
+    }
+
+    /** El carro gira lo que la calibración (con el factor de ese lado y perfil) dice que son 90° y se detiene; después se pregunta cómo giró. */
+    private fun empezarGiro90() {
+        if (!conectado() || corriendo) {
+            return
+        }
+        val cal = guardada.leerAjustada(perfilAjuste)
+        val ms = CalibracionNativa.gradosAMs(cal, ladoAjuste * 90)
+        val comando = if (ladoAjuste < 0) "LEFT" else "RIGHT"
+        corriendo = true
+        resumenAjuste = ""
+        Log.i(CalibracionGuardada.ETIQUETA, "ajuste del giro de 90°: $comando durante $ms ms (perfil ${perfilAjuste.name}, factor ${guardada.factorGiro(perfilAjuste, ladoAjuste)})")
+        logica.presionar(comando)
+        mostrarPaso()
+        principal.postDelayed({
+            logica.parar()
+            corriendo = false
+            esperandoDato = true
+            mostrarPaso()
+        }, ms.toLong())
+    }
+
+    /** Corrige el factor del lado probado con los grados que giró de verdad (los de la opción elegida o los que escribió el usuario). */
+    private fun aplicarGradosGiro(reales: Int) {
+        if (!esperandoDato) {
+            return
+        }
+        val antes = guardada.factorGiro(perfilAjuste, ladoAjuste)
+        val msAntes = CalibracionNativa.gradosAMs(guardada.leerAjustada(perfilAjuste), ladoAjuste * 90)
+        val (codigo, factor) = CalibracionNativa.factorGiroNuevo(antes, 90, reales).let { Pair(it[0], it[1]) }
+        if (codigo != CalibracionNativa.OK) {
+            campoLayout.error = getString(R.string.cal_error_numero)
+            return
+        }
+        guardada.guardarFactorGiro(perfilAjuste, ladoAjuste, factor)
+        guardada.aplicarAlNavegador()
+        val msDespues = CalibracionNativa.gradosAMs(guardada.leerAjustada(perfilAjuste), ladoAjuste * 90)
+        resumenAjuste = if (factor == antes) {
+            "Giro a la ${nombreLado(ladoAjuste)}: quedó justo, no se cambia nada. Prueba el otro lado si falta."
+        } else {
+            "Giro a la ${nombreLado(ladoAjuste)}: giró ~$reales° en vez de 90°. El factor pasó de $antes a $factor y el giro de 90° dura $msDespues ms (antes $msAntes ms). Vuelve a probar para comprobar."
+        }
+        Log.i(CalibracionGuardada.ETIQUETA, "ajuste giro 90°: lado=${nombreLado(ladoAjuste)} perfil=${perfilAjuste.name} reales=$reales factor $antes -> $factor ms $msAntes -> $msDespues")
+        esperandoDato = false
+        campoResultado.setText("")
+        mostrarPaso()
+    }
+
+    /** «Restaurar valor por defecto»: los dos lados del perfil vuelven a 1000 (sin corrección). */
+    private fun restaurarAjuste() {
+        if (corriendo) {
+            return
+        }
+        guardada.restaurarFactoresGiro(perfilAjuste)
+        guardada.aplicarAlNavegador()
+        resumenAjuste = "Se restauró el valor por defecto del giro en el perfil ${perfilAjuste.texto}."
+        esperandoDato = false
+        campoResultado.setText("")
+        mostrarPaso()
+    }
+
     // ── Datos ─────────────────────────────────────────────────────────────
 
     private fun guardarDato() {
         if (paso == Paso.GIRO_VISUAL) {
             guardarGiroVisual()
+            return
+        }
+        if (paso == Paso.GIRO_90) {
+            val grados = campoResultado.text.toString().trim().replace(',', '.').toDoubleOrNull()
+            if (grados == null || grados < 10.0 || grados > 360.0) {
+                campoLayout.error = getString(R.string.cal_error_numero)
+                return
+            }
+            aplicarGradosGiro(Math.round(grados).toInt())
             return
         }
         val datos = datosDelPaso() ?: return
@@ -842,9 +1047,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun calcularResumen() {
         val sb = StringBuilder()
         // Si se saltó al paso del giro visual solo para el campo de visión, se parte de lo guardado; si no, de los valores por defecto.
-        var cal = if (soloGiroVisual) guardada.leer() else CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
-        if (soloGiroVisual) {
-            sb.append("Se conservan el arranque, el avance y los giros de la calibración guardada (solo se ajusta el campo de visión).\n")
+        val partirDeGuardada = soloGiroVisual || soloAjusteFino
+        var cal = if (partirDeGuardada) guardada.leer() else CalibracionNativa.desempaquetar(CalibracionNativa.defecto()).second
+        if (partirDeGuardada) {
+            sb.append("Se conservan el arranque, el avance y los giros de la calibración guardada" + (if (soloGiroVisual) " (solo se ajusta el campo de visión).\n" else ".\n"))
         }
 
         if (toquesArranque.size >= 3) {
@@ -938,6 +1144,11 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun usarValores() {
         val cal = resultado ?: return
         if (guardada.guardar(cal)) {
+            if (cuantas(giroIzq) > 0 || cuantas(giroDer) > 0) {
+                for (perfil in ControlLogica.Perfil.values()) {
+                    guardada.restaurarFactoresGiro(perfil)   // los giros se acaban de medir: el factor de antes ya no aplica
+                }
+            }
             guardada.aplicarAlNavegador()
             Toast.makeText(this, "Calibración guardada. El navegador la usará en la próxima ruta.", Toast.LENGTH_LONG).show()
         } else {

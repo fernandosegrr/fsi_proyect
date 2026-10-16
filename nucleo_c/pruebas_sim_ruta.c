@@ -227,6 +227,25 @@ int main(void)
         caso("sr_texto_causa con punteros nulos no revienta", sr_texto_causa(NULL, causa, sizeof causa) == 0 && sr_texto_causa(&res, NULL, 10) == 0);
     }
 
+
+    /* ── Equilibrio de los lados: con el factor equivocado la recta se tuerce, con el calibrado llega ── */
+    n = ruta_de(RE_PLANTILLA_RECTA, ruta);
+    sr_poner_balance(1120, 986);   /* el carro real medido: el izquierdo empuja ~12 % más y el factor por defecto (986) solo corrige 1.4 % */
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res2);
+    printf("      recta de 1 m con el factor por defecto (986): llego=%d error final=%d mm\n", res2.llego, res2.error_final_mm);
+    sr_poner_balance(1120, 893);   /* el factor que calibra la prueba de recta (1000 / 1.12) */
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
+    printf("      recta de 1 m con el factor calibrado (893): llego=%d error final=%d mm\n", res.llego, res.error_final_mm);
+    caso("recta de 1 m con el factor por defecto (986) en un carro que empuja 12 % mas del izquierdo: se desvia mas de 15 cm del punto final", codigo == SR_OK && res2.error_final_mm > 150);
+    caso("... con el factor calibrado (893) llega a menos de 5 cm del punto final", res.llego && res.error_final_mm < 50);
+    sr_poner_balance(1000, 1000);
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
+    caso("sin desbalance (1000 y 1000) la recta sale como siempre (menos de 8 cm)", codigo == SR_OK && res.llego && res.error_final_mm < 80);
+    sr_poner_balance(100, 5000);
+    sr_poner_balance(1000, 1000);
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
+    caso("valores de balance fuera de 500 a 2000 se ignoran", codigo == SR_OK && res.error_final_mm < 80);
+
     /* ── Ruido de giro y dispersión ────────────────────────────────────── */
     n = ruta_de(RE_PLANTILLA_CUADRADO, ruta);
     codigo = sr_dispersion(ruta, n, NULL, NULL, 0, 0, 8, &disp0);

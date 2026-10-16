@@ -63,6 +63,11 @@ typedef struct {
     uint32_t pend_llegada_ms[64];
     int n_pendientes;
     uint32_t t_cuadro_visual_ms;      /* hora del último cuadro visual */
+    /* Equilibrio de los lados (recta). `desbalance_mil` = cuánto más rápido empuja el lado IZQUIERDO que el derecho con la misma potencia (1000 = igual, 1120 = 12 % más);
+     * `balance_mil` = el factor con que el firmware reduce la potencia del lado izquierdo (1000 = sin reducir, 893 = 10.7 % menos). El carro avanza recto cuando
+     * desbalance x balance = 1000 x 1000; si no, al avanzar o retroceder se tuerce (hacia la derecha si el izquierdo gana). Por defecto los dos valen 1000 (sin desvío). */
+    int desbalance_mil;
+    int balance_mil;
     ComandoNav cmd_previo;   /* comando del tick anterior */
     int ms_en_comando;       /* cuánto lleva activo el comando actual */
 

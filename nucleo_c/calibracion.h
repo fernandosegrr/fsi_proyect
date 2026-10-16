@@ -168,6 +168,52 @@ int cal_ms_a_grados(const CalibracionCarro *cal, int lado, int ms);
 /* Lo que sigue girando después del STOP, en grados enteros, para ese lado. */
 int cal_frenado_grados(const CalibracionCarro *cal, int lado);
 
+/* ── Ajuste fino: el giro de 90° y la recta ────────────────────────────────
+ * Dos pruebas rápidas que se hacen con el carro ya calibrado (la recalibración completa tarda; estas tardan un minuto), con las pilas que se usarán en la demo:
+ *
+ *  GIRO DE 90°. El carro gira lo que la calibración dice que son 90°. El usuario dice qué pasó (se pasó mucho / un poco / justo / se quedó corto) o escribe los grados que
+ *  giró de verdad. Si giró `reales` grados cuando se pidieron `pedidos`, los ms por grado eran `reales / pedidos` veces demasiado grandes: se corrigen con un FACTOR
+ *  (en milésimas, 1000 = sin cambio) que se guarda por lado (izquierda y derecha) y por perfil (AUTO y MANUAL) y que multiplica los ms por grado medidos. Se puede repetir:
+ *  el factor nuevo parte del anterior. Con 110° por 90° el factor sale ~818 (los giros duran 18 % menos).
+ *
+ *  RECTA. El carro avanza 2 s sobre una línea; el usuario dice hacia dónde se desvió y cuántos cm. Con la geometría de un arco (ángulo ~ 2 x desvío / recorrido; la diferencia
+ *  entre las dos ruedas es ángulo x ancho de ejes / recorrido) sale cuánto más rápido va un lado, y el BALANCE (en milésimas, de 800 a 1000) es el factor con que el firmware
+ *  reduce la potencia del lado izquierdo. Ver docs/perfiles_velocidad.md. */
+#define CAL_FACTOR_GIRO_DEFECTO   1000   /* sin corrección */
+#define CAL_FACTOR_GIRO_MIN        500
+#define CAL_FACTOR_GIRO_MAX       1500
+
+/* Qué dice el usuario del giro de 90° (cal_grados_de_opcion_giro). */
+#define CAL_GIRO_SE_PASO_MUCHO     0   /* se pasó mucho: se supone que giró 120° */
+#define CAL_GIRO_SE_PASO_UN_POCO   1   /* se pasó un poco: 105° */
+#define CAL_GIRO_JUSTO             2   /* justo: 90° (no cambia nada) */
+#define CAL_GIRO_QUEDO_CORTO       3   /* se quedó corto: 78° */
+
+/* Los grados que se suponen girados en cada opción, con 90 pedidos. 0 si la opción no existe. */
+int cal_grados_de_opcion_giro(int opcion);
+
+/* Factor nuevo: `factor_mil` x pedidos / reales (redondeado y dentro de CAL_FACTOR_GIRO_MIN a MAX). Con `pedidos` o `reales` fuera de 10 a 360: CAL_ERR_DATOS y no cambia
+ * nada. Devuelve CAL_OK, CAL_ERR_ARGUMENTO (puntero nulo o factor fuera de rango) o CAL_ERR_DATOS. */
+int cal_factor_giro_nuevo(int factor_mil, int pedidos, int reales, int *nuevo_mil);
+
+/* Copia `cal` en `salida` con los ms por grado multiplicados por el factor de cada lado (en milésimas). Es lo que usan el navegador y el simulador. Devuelve CAL_OK,
+ * CAL_ERR_ARGUMENTO (puntero nulo o factor fuera de rango) o CAL_ERR_RANGO (el resultado no es una calibración válida; `salida` queda igual a `cal`). */
+int cal_con_factor_giro(const CalibracionCarro *cal, int factor_izq_mil, int factor_der_mil, CalibracionCarro *salida);
+
+#define CAL_BALANCE_MIN            800   /* el factor del lado izquierdo (en milésimas) va de 800 a 1000 */
+#define CAL_BALANCE_MAX           1000
+#define CAL_EJES_MM_DEFECTO        120   /* ancho entre las ruedas de un lado y las del otro (12 cm), se puede cambiar */
+#define CAL_EJES_MM_MIN             50
+#define CAL_EJES_MM_MAX            400
+#define CAL_RECTA_OK_MM             10   /* con 1 cm de desvío o menos la recta ya está bien */
+#define CAL_RECTA_MAX_ITERACIONES    4
+
+/* Balance nuevo después de una prueba de recta. `desvio_mm` es lo que se desvió al final (positivo = a la derecha, negativo = a la izquierda) en `recorrido_mm` de avance, con
+ * `ejes_mm` entre las ruedas. Un desvío a la derecha quiere decir que el lado izquierdo empuja más: se baja su factor. Un desvío a la izquierda lo sube (sin pasar de 1000). Devuelve
+ * CAL_OK (y el nuevo en *nuevo_mil), CAL_ERR_ARGUMENTO (punteros nulos, balance fuera de 800 a 1000 o ejes fuera de rango) o CAL_ERR_DATOS (recorrido no positivo o desvío mayor que el
+ * recorrido). Con `desvio_mm` en cero o hasta CAL_RECTA_OK_MM en valor absoluto no cambia nada. */
+int cal_balance_nuevo(int balance_mil, int desvio_mm, int recorrido_mm, int ejes_mm, int *nuevo_mil);
+
 /* ── Texto (para exportar a un archivo o copiar y pegar) ───────────────── */
 
 /* Escribe la calibración como texto "clave=valor", una por línea. Devuelve el largo escrito o

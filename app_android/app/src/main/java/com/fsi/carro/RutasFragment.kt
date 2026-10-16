@@ -200,7 +200,7 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
     /** La calibración guardada si está completa; null = valores de ejemplo (el resumen y la simulación avisan). */
     private fun calibracionParaSimular(): IntArray? {
         val guardada = CalibracionGuardada(requireContext())
-        return if (guardada.estaCompleta()) guardada.leer() else null
+        return if (guardada.estaCompleta()) guardada.leerAjustada() else null   // la medida con el factor de giro (la misma que usan las rutas de verdad)
     }
 
     private fun textoDuracion(ms: Long): String {

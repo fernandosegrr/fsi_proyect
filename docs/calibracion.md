@@ -62,6 +62,39 @@ mediana), pero no puede arreglar varias medidas malas.
 - La posición estimada suma el frenado al soltar cada comando, y al reanudar tras una detención por
   obstáculo se compensa el arranque.
 
+## Ajuste fino: giro de 90° (ajustes del 15 oct)
+
+**Qué pasó.** En la prueba real los giros de «90°» salían de unos 110°. Se revisó el camino completo del tiempo de giro y estaba bien:
+
+- **La calibración que usa es la del perfil AUTO (210).** La pantalla de calibración pide siempre AUTO y no deja probar hasta que el carro confirma `ACK_AUTO`; al abrir una ruta
+  (`EjecutarRutaFragment.onStart`) la app le pasa al navegador la calibración guardada. Los pivotes van a 255 en los dos perfiles (el perfil solo cambia avanzar y retroceder), así que
+  la medida del giro no depende del perfil. Lo que sí envejece es **la medida**: con pilas o contactos nuevos el carro gira más rápido y los 8.2 ms/° de la calibración del 14 de octubre ya
+  no valen (por ejemplo, a un carro de 8.2 ms/° que se le piden 900 ms, los 10 ms/° por defecto, gira ~110°). No se pudo comprobar con el carro cuál fue la causa exacta; por eso se agrega el ajuste.
+- **La compensación de frenado se aplica UNA sola vez por giro**: `cal_grados_a_ms` descuenta los grados que el carro sigue girando al soltar (`frenado_grados`) al pedir el tiempo;
+  `cal_ms_a_grados` no los cuenta y `sumar_frenado` los agrega a la pose una vez al soltar el comando. Con la cámara (giro visual) el objetivo también los descuenta una sola vez
+  (y el respaldo por tiempo usa el tiempo ya descontado, sin repetirlo). Probado en `pruebas_calibracion.c` y `pruebas_navegador.c`.
+- **La pausa de 300 ms** (`NAV_PAUSA_ASENTAR_MS`) es la misma entre todos los movimientos: entre avanzar y girar o dos giros distintos al seguir la ruta, después de retroceder, al
+  enderezarse, antes de calcular la vuelta a la línea y entre los tres movimientos de la vuelta.
+
+**Qué se agregó: «Giro 90°».** Después del resumen (botón «Ajuste fino: giro y recta»), o directo desde la primera pantalla («Solo el ajuste fino»), hay un paso por prueba. Parte de la calibración
+**guardada** (si no hay una completa, avisa y no deja probar).
+
+1. Elige el **perfil** (AUTO por defecto; MANUAL también se puede) y el **lado** (izquierda o derecha).
+2. Toca «Probar»: el carro gira lo que la calibración (con el factor de ese lado y perfil) dice que son 90° y se detiene.
+3. Di cómo giró: **«Se pasó mucho»** (se supone 120°), **«Se pasó un poco»** (105°), **«Quedó justo»** (90°) o **«Se quedó corto»** (78°), o escribe los **grados** que giró y toca «Aplicar los grados».
+4. El **factor** de ese lado y perfil se corrige: `factor nuevo = factor × 90 / grados que giró`, dentro de 500 a 1500 milésimas (1000 = sin corrección). Con 110° por 90°, 1000 pasa a 818 y el
+   giro de 90° dura 18 % menos. Repite hasta que quede justo; el factor nuevo parte del anterior. Con solo las opciones, cuatro pasadas dejan un carro que se pasa 22 % en 90 ± 10°; escribiendo
+   los grados, dos pasadas dejan 90 ± 3° (probado en `pruebas_calibracion.c`).
+5. **«Restaurar valor por defecto»** vuelve los dos lados del perfil a 1000.
+
+El factor **no cambia la calibración medida**: se guarda aparte, por lado y por perfil, en el teléfono (`giro_factor_auto_izq`, `giro_factor_auto_der`, `giro_factor_manual_izq`, `giro_factor_manual_der` en las
+preferencias «calibracion»), y se aplica a los ms por grado cuando hacen falta: `CalibracionGuardada.leerAjustada()` (código en C: `cal_con_factor_giro`) es lo que reciben el **navegador** al abrir una
+ruta, el **simulador** de la pantalla Rutas y la propia prueba del giro. Así la simulación y el carro usan los mismos valores. Si se vuelve a medir el giro con la calibración completa y se guarda, los
+factores vuelven a 1000 (los giros nuevos ya traen el efecto).
+
+**Cuándo hacerlo.** Hoy se cambiaron pilas y contactos, así que la calibración vieja puede estar desfasada. La recalibración real se hace al final, con las pilas de la demo (primero la calibración
+completa y después este ajuste, que tarda un minuto). Si cambian las pilas otra vez, repite el ajuste.
+
 ## Dónde se guarda
 
 En el teléfono, como **texto** (`clave=valor`, una por línea): SharedPreferences ("calibracion") y el archivo
@@ -90,6 +123,8 @@ ms_por_cm_atras_x10=420
 4 giro izquierdo, 8 giro derecho (15 = todo medido), 16 el campo de visión de la cámara y 32 el retroceso (los dos últimos son opcionales y no cuentan para «todo medido»). `fov_grados_x10` es el campo de visión
 horizontal de la cámara (600 = 60.0 grados); `ms_por_cm_atras_x10` son los ms por cm hacia atrás (vale solo con el bit 32; si no, se usa `ms_por_cm_x10`). Los textos guardados
 sin esas líneas se siguen leyendo.
+
+El factor de giro **no** está en `calibracion.txt` (ese archivo solo trae lo medido); vive en las preferencias de la app.
 
 ## Si no se calibró
 

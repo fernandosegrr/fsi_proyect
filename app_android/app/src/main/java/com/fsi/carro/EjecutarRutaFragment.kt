@@ -143,7 +143,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         logica.pedirPerfil(ControlLogica.Perfil.AUTO)
         val semi = SesionCarro.semi
         calibracion.aplicarAlNavegador()
-        semi.leerCalibracion = { calibracion.leer() }
+        semi.leerCalibracion = { calibracion.leerAjustada() }
         PruebaObstaculoNativa.iniciarResumen()
 
         visor = VisorJpeg(imagen)

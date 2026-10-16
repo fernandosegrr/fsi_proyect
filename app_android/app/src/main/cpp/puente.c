@@ -1365,6 +1365,65 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
     return arreglo;
 }
 
+/* Ajuste fino del giro de 90°: los grados que se suponen girados en cada opción (0 = opción desconocida). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_gradosDeOpcionGiro(JNIEnv *env, jobject objeto, jint opcion)
+{
+    (void)env;
+    (void)objeto;
+    return (jint)cal_grados_de_opcion_giro((int)opcion);
+}
+
+/* Factor nuevo del giro (milésimas) tras pedir `pedidos` grados y girar `reales`: devuelve [código, factor nuevo] (el factor no cambia si hay error). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_factorGiroNuevo(JNIEnv *env, jobject objeto, jint factor_mil, jint pedidos, jint reales)
+{
+    jint salida[2];
+    int nuevo = (int)factor_mil;
+    jintArray arreglo = (*env)->NewIntArray(env, 2);
+
+    (void)objeto;
+    salida[0] = cal_factor_giro_nuevo((int)factor_mil, (int)pedidos, (int)reales, &nuevo);
+    salida[1] = nuevo;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2, salida);
+    }
+    return arreglo;
+}
+
+/* La calibración con los factores de giro de cada lado aplicados: [código, calibración] (la que usan el navegador y el simulador). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_conFactorGiro(JNIEnv *env, jobject objeto, jintArray calibracion, jint factor_izq_mil, jint factor_der_mil)
+{
+    CalibracionCarro cal, fina;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_con_factor_giro(&cal, (int)factor_izq_mil, (int)factor_der_mil, &fina);
+    return devolver_calibracion(env, codigo, &fina);
+}
+
+/* Balance nuevo (milésimas) tras una prueba de recta: devuelve [código, balance nuevo]. `desvio_mm` es positivo si se fue a la derecha. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_balanceNuevo(JNIEnv *env, jobject objeto, jint balance_mil, jint desvio_mm, jint recorrido_mm, jint ejes_mm)
+{
+    jint salida[2];
+    int nuevo = (int)balance_mil;
+    jintArray arreglo = (*env)->NewIntArray(env, 2);
+
+    (void)objeto;
+    salida[0] = cal_balance_nuevo((int)balance_mil, (int)desvio_mm, (int)recorrido_mm, (int)ejes_mm, &nuevo);
+    salida[1] = nuevo;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2, salida);
+    }
+    return arreglo;
+}
+
 /* Calibración por defecto (código 0). */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_CalibracionNativa_defecto(JNIEnv *env, jobject objeto)
