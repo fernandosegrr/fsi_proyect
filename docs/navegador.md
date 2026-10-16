@@ -487,3 +487,10 @@ Ruta `LARGA` (6 m recta), pivote real 15/16.5 cm, distancia final a la línea y 
 Ruta corta `RECTA` (5 celdas): 267 mm antes (modelo lineal), 224 mm con el modelo de pivote y el plan viejo, **1 mm** con el plan con pivote. Red de seguridad con un empujón de 12 cm a la pose en plena vuelta:
 **356 mm sin la red, 7 mm con ella** (1 corrección); sin empujón las dos dan lo mismo. Pruebas: `pruebas_navegador.c`, `pruebas_plan_pivote` (obstáculo izquierda/derecha/centro, desplazamientos 0, real y 2x,
 espejo y medida propia, no cabe, cambio de lado, red de seguridad y su agotamiento).
+
+### Final de ruta después de esquivar (16 oct, prueba real)
+
+Al terminar la vuelta a la línea, `indice_objetivo` (el siguiente punto de la ruta) puede haber quedado ATRÁS del carro: mientras esquivaba y pasaba el obstáculo en paralelo el carro avanzó más allá de esos puntos, pero la vuelta que solo corrige el rumbo
+no tocaba el índice. Con el índice viejo la ruta mandaba al carro dar media vuelta y recorrerla hacia atrás (síntoma: «se volvió loco» al final). Ahora `reinc_saltar_puntos_pasados` salta los puntos que el carro ya pasó por
+`NAV_REINC_PUNTO_PASADO_MM` (10 cm) o más, medido a lo largo de la ruta y solo si está a 30 cm o menos de la línea; si no queda ninguno, TERMINADO (`REINC_DIAG saltados=N ... siguiente_punto=M`). La ruta se retoma desde la celda más cercana
+a la pose, así que el final puede quedar hasta media celda (10 cm) antes o después. Prueba: `pruebas_final_de_ruta` en `pruebas_navegador.c`. Diagnóstico completo en `docs/bitacora.md` (16 oct, «Diagnóstico de la prueba real»).

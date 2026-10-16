@@ -144,6 +144,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PLAN_ERROR_MM          80    /* error de la pose estimada respecto del punto planeado a partir del cual se vuelve a planear (8 cm) */
 #define NAV_PLAN_CORRECCIONES       4    /* máximo de correcciones (nuevos planes) en una vuelta a la línea */
 #define NAV_PLAN_MAS_MM           200    /* si el punto de la línea no sirve, prueba NAV_PLAN_INTENTOS veces con un punto este tanto más adelante (una celda) */
+#define NAV_REINC_PUNTO_PASADO_MM 100    /* al terminar la vuelta, un punto de la ruta que el carro ya dejó atrás por esto (medio cuadro) o más se salta: no se vuelve a él */
 #define NAV_REINC_VERTICE_MIN_MM  150    /* el punto al que se vuelve (un centro de celda de la ruta) queda al menos esto por delante del carro */
 #define NAV_PLAN_INTENTOS           5
 #define NAV_ARCO_MARGEN_MM        100    /* colchón entre el desplazamiento hacia adelante del giro de salida y la cara del obstáculo */

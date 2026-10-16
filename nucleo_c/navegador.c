@@ -1979,6 +1979,28 @@ static void reinc_replanear(Navegador *nav, uint32_t ahora_ms)
     reinc_cambiar_fase(nav, NAV_RF_PLAN, ahora_ms);
 }
 
+/* Al terminar la vuelta el siguiente punto de la ruta no puede quedar ATRÁS del carro. Mientras esquivaba o pasaba el obstáculo en paralelo el carro avanzó a lo largo de la línea, pero
+ * `indice_objetivo` se queda en el punto al que iba al detenerse (si la vuelta solo corrige el rumbo ni se toca): con ese índice viejo el carro daba media vuelta de 180 grados y recorría la
+ * ruta hacia atrás (prueba real del 16 oct: «se volvió loco» al final). Se saltan los puntos que el carro ya pasó por NAV_REINC_PUNTO_PASADO_MM o más (medido a lo largo de la ruta). Si no
+ * queda ninguno, la ruta ya terminó. Solo cuenta con el carro cerca de la línea (a 30 cm o menos): lejos de ella la posición a lo largo de la ruta no es confiable. */
+static void reinc_saltar_puntos_pasados(Navegador *nav)
+{
+    int tramo, saltados = 0;
+    long s, desvio;
+
+    ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
+    if (desvio > 300) {
+        return;
+    }
+    while (nav->indice_objetivo < nav->n_puntos && distancia_hasta_tramo(nav, nav->indice_objetivo) + NAV_REINC_PUNTO_PASADO_MM <= s) {
+        nav->indice_objetivo++;
+        saltados++;
+    }
+    if (saltados > 0) {
+        diag_escribir(nav, "REINC_DIAG saltados=%d puntos de la ruta que el carro ya paso (s=%ld mm): siguiente_punto=%d", saltados, s, nav->indice_objetivo);
+    }
+}
+
 /* Terminó la vuelta: anota la pose final, se dirige al siguiente punto de la ruta y sigue (SIGUIENDO). */
 static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
 {
@@ -1995,8 +2017,13 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
     if (!nav->reinc_solo_rumbo) {
         nav->indice_objetivo = nav->reinc_indice_obj;
     }
+    reinc_saltar_puntos_pasados(nav);
     ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
     diag_escribir(nav, "REINC_DIAG fin pose_despues=(%d,%d,%d) desvio_mm=%d siguiente_punto=%d", nav->x_mm, nav->y_mm, nav->rumbo_grados, (int)desvio, nav->indice_objetivo);
+    if (nav->indice_objetivo >= nav->n_puntos) {
+        nav->estado = NAV_TERMINADO;   /* ya pasó el último punto de la ruta */
+        return NAV_CMD_STOP;
+    }
     if (planificar(nav) != NAV_OK) {
         ir_a_error(nav, NAV_MOTIVO_PLAN);
         return NAV_CMD_STOP;

@@ -2309,6 +2309,8 @@ typedef struct {
     int tramo_100;         /* ESQUIVE_DIAG tramo ... tramo_mm=100 */
     int sin_solucion;      /* REINC_DIAG sin_solucion */
     int agotada;           /* REINC_DIAG correccion_agotada */
+    int giros_180_de_ruta;    /* RUTA_DIAG envia ... origen=ruta pedido=180: media vuelta de la ruta (despues de una vuelta a la linea es el sintoma de «se volvio loco») */
+    int puntos_saltados;      /* REINC_DIAG saltados: puntos de la ruta que el carro ya habia pasado al terminar la vuelta */
     int correcciones_rumbo;   /* REINC_DIAG correccion_rumbo (el rumbo quedo a 4 grados o mas de la linea: los giros por tiempo salen de a 5 grados) */
 } MarcasPlan;
 
@@ -2326,6 +2328,8 @@ static void vigilar_marcas(void)
         marcas_plan.tramo_100 += (strstr(linea, "ESQUIVE_DIAG tramo") != NULL && strstr(linea, "tramo_mm=100 ") != NULL);
         marcas_plan.sin_solucion += (strstr(linea, "REINC_DIAG sin_solucion") != NULL);
         marcas_plan.agotada += (strstr(linea, "REINC_DIAG correccion_agotada") != NULL);
+        marcas_plan.giros_180_de_ruta += (strstr(linea, "RUTA_DIAG envia") != NULL && strstr(linea, "origen=ruta") != NULL && strstr(linea, "pedido=180") != NULL);
+        marcas_plan.puntos_saltados += (strstr(linea, "REINC_DIAG saltados=") != NULL);
         marcas_plan.correcciones_rumbo += (strstr(linea, "REINC_DIAG correccion_rumbo") != NULL);
     }
 }
@@ -2524,11 +2528,75 @@ static void pruebas_plan_pivote(void)
     caso("los esquives normales nunca terminan en 'sin solucion'", marcas_plan.sin_solucion == 0 && marcas_plan.agotada == 0);
 }
 
+/* ── Caso real del 16 oct: «al final se volvió loco» ──────────────────────────────────────────────────────────────────────────────
+ * Ruta recta de 8 puntos (1.4 m). Al arrancar hay un obstáculo falso en la izquierda (esquiva y vuelve) y más adelante otro (segunda esquivada). La vuelta solo corrige el rumbo, así que el
+ * índice del siguiente punto se quedaba en el punto al que iba al detenerse (el 1): el carro, ya a 1.1 m de él, daba media vuelta y recorría la ruta hacia atrás. Calibración del teléfono: la
+ * izquierda medida a 180 grados (-88, -148 mm) y la derecha sin medir (espejo); el carro real tiene la derecha medida a 90 grados (150, 165 mm). */
+static void preparar_final_de_ruta(int derecha_conocida, int segundo_inicio_ms)
+{
+    static const Punto OCHO[] = { {4, 7}, {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0} };
+    CalibracionCarro real, modelo;
+    int pa, pd, ia, id;
+
+    cal_defecto(&real);
+    cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa, &pd);
+    cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, pa, pd);
+    cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, -88, -148, 180, &ia, &id);
+    cal_poner_desplazamiento(&real, CAL_LADO_IZQUIERDA, ia, id);
+    cal_poner_desplazamiento_grados(&real, CAL_LADO_IZQUIERDA, 180);
+    modelo = real;
+    if (!derecha_conocida) {
+        cal_poner_desplazamiento(&modelo, CAL_LADO_DERECHA, 0, 0);   /* el navegador solo conoce la izquierda: la derecha es su espejo */
+    }
+    memset(&marcas_plan, 0, sizeof marcas_plan);
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &modelo);
+    navegador_poner_pedir_ayuda(&nav, 1);
+    navegador_cargar_ruta(&nav, OCHO, N(OCHO));
+    sim_iniciar(&sim, OCHO[0].columna, OCHO[0].fila, 0);
+    sim.real = real;
+    sim_agregar_obstaculo(&sim, 0, 900, ZONA_IZQUIERDA, 3);
+    sim_agregar_obstaculo(&sim, (uint32_t)segundo_inicio_ms, (uint32_t)(segundo_inicio_ms + 700), ZONA_CENTRO, 3);
+    navegador_comenzar(&nav, 0);
+    vigilar_marcas();
+}
+
+static void pruebas_final_de_ruta(void)
+{
+    /* Derecha sin medir (como estaba el teléfono): el navegador cree que el carro está donde no está, pero la ruta no debe dar media vuelta. */
+    preparar_final_de_ruta(0, 6000);
+    correr_hasta_el_final(60000);
+    caso("final de ruta con la derecha sin medir y dos esquivadas: termina (TERMINADO) y NO da media vuelta de 180 grados para volver a un punto que ya pasó",
+         nav.estado == NAV_TERMINADO && nav.esquivadas == 2 && marcas_plan.giros_180_de_ruta == 0);
+    caso("... la vuelta salta los puntos de la ruta que el carro ya paso y la pose estimada termina a 10 cm o menos del final (hasta media celda: la ruta se retoma desde la celda mas cercana)",
+         marcas_plan.puntos_saltados >= 1 && valor_absoluto(nav.y_mm) <= 100 && valor_absoluto(nav.x_mm - 4 * MM) <= 100);
+
+    /* Con las dos calibraciones conocidas y el segundo obstaculo en otros momentos tampoco hay media vuelta ni vuelta atras. */
+    {
+        static const int INICIOS[] = { 6000, 8000, 10000, 12000 };
+        int i, bien = 1, lejos = 0;
+
+        for (i = 0; i < 4; i++) {
+            preparar_final_de_ruta(1, INICIOS[i]);
+            correr_hasta_el_final(60000);
+            if (nav.estado != NAV_TERMINADO || marcas_plan.giros_180_de_ruta != 0) {
+                bien = 0;
+            }
+            if (valor_absoluto(sim_x_mm(&sim) - 4 * MM) > 100 || sim_y_mm(&sim) < -100 || sim_y_mm(&sim) > 100) {
+                lejos++;
+            }
+        }
+        caso("con las dos calibraciones conocidas y el segundo obstaculo a los 6, 8, 10 y 12 s: siempre termina (TERMINADO) sin media vuelta de la ruta", bien);
+        caso("... y el carro REAL queda a 10 cm o menos del final de la ruta en las cuatro", lejos == 0);
+    }
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
     pruebas_desplazamiento_al_girar();
     pruebas_plan_pivote();
+    pruebas_final_de_ruta();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

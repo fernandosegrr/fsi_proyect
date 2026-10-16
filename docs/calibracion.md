@@ -359,3 +359,8 @@ El giro es de pivote (un lado gira, el otro queda fijo), así que el centro del 
   al comenzar la ruta y ` aviso=espejo_estimado` en el `TURN_DIAG` de cada giro que lo usa. Mide el giro a la izquierda para quitarlo.
 - La pantalla de la lista muestra ahora lo que da el modelo a 90° (no el promedio lineal) y el punto fijo del giro a la derecha.
 - **Sigue siendo una aproximación**: supone que el pivote no se mueve entre un giro y otro del mismo lado (el punto fijo depende del piso y las pilas, como todo lo demás) y que el giro es de ruedas de un solo lado.
+
+### Lo que mostró la prueba real del 16 oct sobre el espejo
+
+La izquierda y la derecha de este carro **no son espejo**: medido a 90° la derecha da (15 cm adelante, 16.5 de lado, R = 15.8 cm) y la izquierda, a 90° y a 180°, R = 8.7 a 9 cm. Con la derecha como espejo de la izquierda el navegador se equivocó 12 cm hacia adelante y
+4.8 de lado por cada giro de 90° a la derecha. Mide **los dos lados**. «Restaurar valor por defecto» borra el desplazamiento de los DOS lados: no lo uses para rehacer uno solo (se perdió la derecha medida a las 15:03 y las cinco corridas usaron el espejo).

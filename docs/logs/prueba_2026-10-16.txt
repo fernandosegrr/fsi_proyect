@@ -1,0 +1,1020 @@
+# Log de la prueba real del 16 oct 2026 (Huawei P40 Pro, app 0.3, carro AUTO 210). Solo numeros y texto de diagnostico: ninguna imagen, ningun secreto.
+# Origen: adb logcat -d -v threadtime (el buffer completo, sin borrarlo), filtrado a las etiquetas del navegador y de la sesion desde las 15:00. Horas del telefono (UTC-6).
+# Etiquetas: NAV RUTA_DIAG TURN_DIAG ESQUIVE_DIAG REINC_DIAG AYUDA_DIAG VIDEO_STATS CALIBRACION SESION_VIDEO SESION_CARRO VIDEO PANTALLA.
+# Corridas: 15:15:54 (AYUDA 15:16:19, PARO), 15:17:15 (video 503 ms), 15:17:35 (PARO), 15:18:07 (termina con media vuelta), 15:20:21 (AYUDA 15:20:39, manual, TERMINADO).
+#
+# ===== PARTE 1: navegador, calibracion y video (15:00 a 15:22) =====
+15:00:03.586 28175 28175 I CALIBRACION: calibrar solo esto: DESPLAZAMIENTO
+15:00:07.672 28175 28175 I CALIBRACION: desplazamiento: RIGHT durante 724 ms (perfil AUTO, Giro de 90° real)
+15:00:22.601 28175 28175 I CALIBRACION: desplazamiento: RIGHT durante 724 ms (perfil AUTO, Giro de 90° real)
+15:00:58.967 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=derecha adelante_mm=150 derecha_mm=165 grados=90 -> 2475 um/grado adelante, 118 um/grado derecha (giro 724 ms, Giro de 90° real)
+15:00:58.967 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(150,165) grados=90 um_grado=(2475,118) giro_ms=724 prueba="Giro de 90° real" total_mm=222 radio_arco_mm=157 aviso=desplazamiento_grande
+15:01:26.173 28175 28175 I CALIBRACION: desplazamiento: RIGHT durante 724 ms (perfil AUTO, Giro de 90° real)
+15:01:44.721 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=derecha adelante_mm=150 derecha_mm=165 grados=90 -> 2475 um/grado adelante, 118 um/grado derecha (giro 724 ms, Giro de 90° real)
+15:01:44.721 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(150,165) grados=90 um_grado=(2475,118) giro_ms=724 prueba="Giro de 90° real" total_mm=222 radio_arco_mm=157 aviso=desplazamiento_grande
+15:01:44.722 28175 28175 I CALIBRACION: desplazamiento al girar AUTO derecha: adelante=2475 um/grado derecha=118 um/grado medido a 90 grados
+15:01:44.722 28175 28175 I CALIBRACION: parte calibrada: DESPLAZAMIENTO (AUTO)
+15:01:44.723 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=calibracion perfil=AUTO resultado=promedio_guardado poca_precision=no promedio_um=(2475,118)
+15:02:12.134 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:02:57.763 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=75 derecha_mm=115 grados=90 -> -314 um/grado adelante, 1493 um/grado derecha (giro 918 ms, Giro de 90° real)
+15:02:57.763 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(75,115) grados=90 um_grado=(-314,1493) giro_ms=918 prueba="Giro de 90° real" total_mm=137 radio_arco_mm=97
+15:03:10.130 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:03:52.669 28175 28175 I CALIBRACION: desplazamiento al girar AUTO restaurado a 0
+15:04:00.074 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:04:13.452 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=70 derecha_mm=115 grados=90 -> -354 um/grado adelante, 1453 um/grado derecha (giro 918 ms, Giro de 90° real)
+15:04:13.452 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(70,115) grados=90 um_grado=(-354,1453) giro_ms=918 prueba="Giro de 90° real" total_mm=134 radio_arco_mm=95
+15:04:15.879 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:04:32.344 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=70 derecha_mm=115 grados=90 -> -354 um/grado adelante, 1453 um/grado derecha (giro 918 ms, Giro de 90° real)
+15:04:32.344 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(70,115) grados=90 um_grado=(-354,1453) giro_ms=918 prueba="Giro de 90° real" total_mm=134 radio_arco_mm=95
+15:04:32.345 28175 28175 I CALIBRACION: desplazamiento al girar AUTO izquierda: adelante=-354 um/grado derecha=1453 um/grado medido a 90 grados
+15:04:32.346 28175 28175 I CALIBRACION: parte calibrada: DESPLAZAMIENTO (AUTO)
+15:04:32.347 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=promedio_guardado poca_precision=no promedio_um=(-354,1453)
+15:04:51.384 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:06:19.892 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=-90 derecha_mm=150 grados=180 -> -833 um/grado adelante, -500 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:06:19.892 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(-90,150) grados=180 um_grado=(-833,-500) giro_ms=1836 prueba="Giro de 180°" total_mm=174 radio_arco_mm=87 aviso=desplazamiento_grande
+15:06:26.855 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:06:59.491 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=95 derecha_mm=150 grados=180 -> -833 um/grado adelante, 528 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:06:59.491 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(95,150) grados=180 um_grado=(-833,528) giro_ms=1836 prueba="Giro de 180°" total_mm=177 radio_arco_mm=89 aviso=desplazamiento_grande
+15:06:59.492 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=rechazada motivo=difieren_mas_de_30pct_y_1cm rep_a=1 rep_b=2 mov_a_cm=17.5 mov_b_cm=17.8 dif_cm=6.6 tolerancia_cm=5.3
+15:06:59.492 28175 28175 W CALIBRACION: desplazamiento: las repeticiones no coinciden (repetición 1: 17.5 cm, repetición 2: 17.8 cm, difieren 6.6 cm (se acepta hasta 5.3 cm: el 30 % o 1 cm, lo que sea mayor))
+15:07:20.145 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=cancelado
+15:07:28.503 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:08:01.072 28175 28175 I CALIBRACION: calibrar solo esto: DESPLAZAMIENTO
+15:08:06.271 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:08:22.412 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=-90 derecha_mm=150 grados=180 -> -833 um/grado adelante, -500 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:08:22.412 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(-90,150) grados=180 um_grado=(-833,-500) giro_ms=1836 prueba="Giro de 180°" total_mm=174 radio_arco_mm=87 aviso=desplazamiento_grande
+15:08:23.858 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:08:39.870 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=-90 derecha_mm=150 grados=180 -> -833 um/grado adelante, -500 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:08:39.870 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(-90,150) grados=180 um_grado=(-833,-500) giro_ms=1836 prueba="Giro de 180°" total_mm=174 radio_arco_mm=87 aviso=desplazamiento_grande
+15:08:39.871 28175 28175 I CALIBRACION: desplazamiento al girar AUTO izquierda: adelante=-833 um/grado derecha=-500 um/grado medido a 180 grados
+15:08:39.871 28175 28175 I CALIBRACION: parte calibrada: DESPLAZAMIENTO (AUTO)
+15:08:39.872 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=promedio_guardado poca_precision=no promedio_um=(-833,-500)
+15:09:21.006 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:11:12.000 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=65 derecha_mm=-110 grados=90 -> 1375 um/grado adelante, -354 um/grado derecha (giro 918 ms, Giro de 90° real)
+15:11:12.000 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(65,-110) grados=90 um_grado=(1375,-354) giro_ms=918 prueba="Giro de 90° real" total_mm=127 radio_arco_mm=90
+15:11:13.743 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:11:28.172 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=65 derecha_mm=-110 grados=90 -> 1375 um/grado adelante, -354 um/grado derecha (giro 918 ms, Giro de 90° real)
+15:11:28.172 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(65,-110) grados=90 um_grado=(1375,-354) giro_ms=918 prueba="Giro de 90° real" total_mm=127 radio_arco_mm=90
+15:11:28.172 28175 28175 I CALIBRACION: desplazamiento al girar AUTO izquierda: adelante=1375 um/grado derecha=-354 um/grado medido a 90 grados
+15:11:28.173 28175 28175 I CALIBRACION: parte calibrada: DESPLAZAMIENTO (AUTO)
+15:11:28.173 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=promedio_guardado poca_precision=no promedio_um=(1375,-354)
+15:11:54.056 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 918 ms (perfil AUTO, Giro de 90° real)
+15:12:07.010 28175 28175 I CALIBRACION: calibrar solo esto: DESPLAZAMIENTO
+15:12:44.071 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:13:00.623 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=-90 derecha_mm=-150 grados=180 -> 833 um/grado adelante, -500 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:13:00.623 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(-90,-150) grados=180 um_grado=(833,-500) giro_ms=1836 prueba="Giro de 180°" total_mm=174 radio_arco_mm=87 aviso=desplazamiento_grande
+15:13:02.254 28175 28175 I CALIBRACION: desplazamiento: LEFT durante 1836 ms (perfil AUTO, Giro de 180°)
+15:13:18.572 28175 28175 I CALIBRACION: desplazamiento medida: perfil=AUTO lado=izquierda adelante_mm=-85 derecha_mm=-145 grados=180 -> 806 um/grado adelante, -472 um/grado derecha (giro 1836 ms, Giro de 180°)
+15:13:18.572 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO repeticion=2 resultado=guardada medida_mm=(-85,-145) grados=180 um_grado=(806,-472) giro_ms=1836 prueba="Giro de 180°" total_mm=168 radio_arco_mm=84 aviso=desplazamiento_grande
+15:13:18.573 28175 28175 I CALIBRACION: desplazamiento al girar AUTO izquierda: adelante=820 um/grado derecha=-486 um/grado medido a 180 grados
+15:13:18.574 28175 28175 I CALIBRACION: parte calibrada: DESPLAZAMIENTO (AUTO)
+15:13:18.574 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=calibracion perfil=AUTO resultado=promedio_guardado poca_precision=no promedio_um=(820,-486)
+15:14:15.935 28175 28175 I SESION_CARRO: sale usuario=5
+15:14:15.958 28175 28175 I SESION_CARRO: entra usuario=7 accion=0
+15:14:15.958 28175 28175 I PANTALLA: abierta=MAS ok
+15:14:15.959 28175 28175 I SESION_CARRO: entra usuario=7 accion=0
+15:14:33.611 28175 28175 I SESION_CARRO: sale usuario=7
+15:14:33.655 28175 28175 I SESION_CARRO: entra usuario=0 accion=0
+15:14:33.656 28175 28175 I SESION_VIDEO: entra usuario=0 accion=1 usuarios=1 estado=1
+15:14:33.656 28175 28175 I SESION_VIDEO: abriendo el video (http://192.168.4.2/stream, modo jpeg)
+15:14:33.658 28175 28175 I VIDEO   : red_video=WIFI_DEL_CARRO (conexiones vinculadas a esa red) red_activa_del_telefono=WiFi
+15:14:33.659 28175 28175 I PANTALLA: abierta=INICIO ok
+15:14:33.715 28175 30810 I VIDEO_STATS: camara: reconexiones=0 rssi_min_10s=-33 fps_envio=0.0 edad_max_ms=0
+15:14:34.059 28175 30810 I VIDEO   : tamaño HQVGA pedido a la cámara del carro: respuesta 200
+15:14:34.090 28175 30810 I VIDEO   : modo de video jpeg pedido a la cámara: respuesta 200
+15:14:34.204 28175 30810 I VIDEO   : llegó el primer cuadro del carro (3933 bytes)
+15:14:34.212 28175 28175 I SESION_VIDEO: video estado=OK sesion=2
+15:14:34.636 28175 28175 I SESION_VIDEO: sale usuario=0 usuarios=0 estado=2
+15:14:34.636 28175 28175 I SESION_CARRO: sale usuario=0
+15:14:34.694 28175 28175 I SESION_CARRO: entra usuario=4 accion=0
+15:14:34.694 28175 28175 I PANTALLA: abierta=RUTAS ok
+15:14:36.290 28175 28175 I SESION_VIDEO: cerrando el video
+15:15:45.670 28175 28175 I SESION_CARRO: sale usuario=4
+15:15:45.741 28175 28175 I SESION_CARRO: entra usuario=3 accion=0
+15:15:45.747 28175 28175 I SESION_VIDEO: entra usuario=3 accion=1 usuarios=1 estado=1
+15:15:45.748 28175 28175 I SESION_VIDEO: abriendo el video (http://192.168.4.2/stream, modo jpeg)
+15:15:45.749 28175 28175 I VIDEO   : red_video=WIFI_DEL_CARRO (conexiones vinculadas a esa red) red_activa_del_telefono=WiFi
+15:15:45.751 28175 28175 I SESION_VIDEO: entra usuario=8 accion=0 usuarios=2 estado=1
+15:15:45.752 28175 28175 I PANTALLA: abierta=EJECUTAR_RUTA ok
+15:15:45.799 28175 30858 I VIDEO_STATS: camara: reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0
+15:15:45.868 28175 30858 I VIDEO   : tamaño HQVGA pedido a la cámara del carro: respuesta 200
+15:15:45.911 28175 30858 I VIDEO   : modo de video jpeg pedido a la cámara: respuesta 200
+15:15:46.008 28175 30858 I VIDEO   : llegó el primer cuadro del carro (3991 bytes)
+15:15:46.022 28175 28175 I SESION_VIDEO: video estado=OK sesion=2
+15:15:50.750 28175 30859 I VIDEO_STATS: fps=12.6 hueco_max_ms=106 huecos_mayores_500ms=0 cuadros_10s=60 hueco_actual_ms=20 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:15:54.014 28175 28175 I NAV     : ruta iniciada (8 puntos)
+15:15:54.033 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:15:54.033 28175 28175 I TURN_DIAG: TURN_DIAG aviso=derecha_estimada_como_espejo_de_la_izquierda: no tiene medida propia, midela en Calibracion
+15:15:54.575 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=800 y_mm=1400
+15:15:54.575 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532542436
+15:15:54.575 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:15:54.641 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=45 filas=? cols=? ms_giro=67 cuadros_tras_giro=2 accion=ignorada_girando
+15:15:54.942 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:15:54.943 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=1 zona=IZQ celdas=44 filas=? cols=? ms_giro=368 cuadros_tras_giro=2 accion=ignorada_girando
+15:15:55.124 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:15:55.307 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=90 x_mm=917 y_mm=1369
+15:15:55.307 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=90 plan_ms=724 real_ms=732 um_grado=(0,0) mm=(117,-31) carro_mm=(31,117) rumbo=0>90 aviso=espejo_estimado
+15:15:55.307 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=732 hecho=90
+15:15:55.307 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:15:55.638 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=2 zona=IZQ celdas=71 filas=? cols=? ms_giro=1064 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:15:55.694 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=2 zona=IZQ celdas=64 filas=? cols=? ms_giro=1119 cuadros_tras_giro=2 accion=lateral_no_bloquea
+15:15:55.751 28175 30859 I VIDEO_STATS: fps=12.2 hueco_max_ms=106 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=25 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:15:55.985 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=90 x_mm=917 y_mm=1369
+15:15:55.985 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=117 lateral_vuelta_mm=30 tramo_mm=253 margen_mm=400
+15:15:55.985 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=253 plan_ms=793 t_ms=532543847
+15:15:55.985 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:15:56.101 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=IZQ celdas=64 filas=? cols=? ms_giro=1527 cuadros_tras_giro=7 accion=lateral_no_bloquea
+15:15:56.587 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=1 zona=IZQ celdas=53 filas=? cols=? ms_giro=2012 cuadros_tras_giro=13 accion=lateral_no_bloquea
+15:15:56.650 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=DER celdas=59 filas=? cols=? ms_giro=2076 cuadros_tras_giro=14 accion=lateral_no_bloquea
+15:15:56.719 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=IZQ celdas=61 filas=? cols=? ms_giro=2145 cuadros_tras_giro=15 accion=lateral_no_bloquea
+15:15:56.782 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=90 x_mm=1168 y_mm=1369
+15:15:56.783 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=253 plan_ms=793 real_ms=797 hecho=251
+15:15:56.783 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:15:56.983 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=3 zona=DER celdas=94 filas=? cols=? ms_giro=2409 cuadros_tras_giro=16 accion=lateral_no_bloquea
+15:15:57.049 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:15:57.049 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=3 zona=IZQ celdas=88 filas=? cols=? ms_giro=2474 cuadros_tras_giro=17 accion=lateral_no_bloquea
+15:15:57.114 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:15:57.115 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=90 x_mm=1168 y_mm=1369
+15:15:57.115 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=3 zona=IZQ celdas=92 filas=? cols=? ms_giro=2540 cuadros_tras_giro=18 accion=centro_cuenta
+15:15:57.115 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532544976
+15:15:57.115 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:15:57.248 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=IZQ celdas=102 filas=? cols=? ms_giro=134 cuadros_tras_giro=18 accion=ignorada_girando
+15:15:57.301 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=DER celdas=93 filas=? cols=? ms_giro=187 cuadros_tras_giro=18 accion=ignorada_girando
+15:15:57.496 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:15:57.563 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=2 zona=DER celdas=59 filas=? cols=? ms_giro=448 cuadros_tras_giro=18 accion=ignorada_girando
+15:15:58.013 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=2 x_mm=1200 y_mm=1254
+15:15:58.013 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=88 plan_ms=918 real_ms=898 um_grado=(820,-486) mm=(32,-115) carro_mm=(32,-115) rumbo=90>2
+15:15:58.013 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=898 hecho=88
+15:15:58.013 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:15:58.343 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=2 x_mm=1200 y_mm=1254
+15:15:58.343 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=504 pose=(1200,1254,2) salida=(800,1400) cercania_salida=3
+15:15:58.343 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=504 plan_ms=1606 t_ms=532546205
+15:15:58.343 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:15:58.580 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=1 zona=IZQ celdas=12 filas=? cols=? ms_giro=1465 cuadros_tras_giro=4 accion=lateral_no_bloquea
+15:15:58.696 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=16 filas=? cols=? ms_giro=1582 cuadros_tras_giro=5 accion=lateral_no_bloquea
+15:15:58.941 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=1 zona=IZQ celdas=5 filas=? cols=? ms_giro=1827 cuadros_tras_giro=8 accion=lateral_no_bloquea
+15:15:59.073 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:15:59.073 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=1 zona=CEN celdas=13 filas=? cols=? ms_giro=1959 cuadros_tras_giro=10 accion=lejos_no_bloquea
+15:15:59.588 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:15:59.705 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=2 zona=DER celdas=53 filas=? cols=? ms_giro=2591 cuadros_tras_giro=16 accion=lateral_no_bloquea
+15:15:59.954 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=504 plan_ms=1606 real_ms=1611 hecho=499
+15:15:59.954 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:16:00.320 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1217,755,2) salida=(800,1400,0) desvio_mm=417 solo_rumbo=0 objetivo=(800,400) dist_mm=417 giro1=-59 giro2=56 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=650
+15:16:00.320 28175 28175 I REINC_DIAG: REINC_DIAG pivote giro1_pose=(1145,710,303) previo=(796,480) final=(800,400,0) correcciones=0
+15:16:00.321 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=59 plan_ms=602 t_ms=532548182
+15:16:00.321 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:16:00.718 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=IZQ celdas=31 filas=? cols=? ms_giro=398 cuadros_tras_giro=23 accion=ignorada_girando
+15:16:00.752 28175 30859 I VIDEO_STATS: fps=11.5 hueco_max_ms=250 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=25 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:00.838 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:00.901 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=CEN celdas=53 filas=? cols=? ms_giro=580 cuadros_tras_giro=23 accion=ignorada_girando
+15:16:00.901 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=59 hecho=56 plan_ms=602 real_ms=580 um_grado=(820,-486) mm=(-67,-44) carro_mm=(41,-68) rumbo=2>306
+15:16:00.901 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=59 plan_ms=602 real_ms=580 hecho=56
+15:16:00.901 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:16:01.033 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:01.087 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=12 filas=? cols=? ms_giro=766 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:16:01.150 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=IZQ celdas=16 filas=? cols=? ms_giro=830 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:16:01.204 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=417 plan_ms=1346 t_ms=532549066
+15:16:01.205 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:16:01.266 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=IZQ celdas=19 filas=? cols=? ms_giro=946 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:16:01.332 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=IZQ celdas=20 filas=? cols=? ms_giro=1012 cuadros_tras_giro=2 accion=lado_cuenta
+15:16:01.532 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=IZQ celdas=24 accion=BLOQUEA_se_detiene
+15:16:01.532 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=417 plan_ms=1346 real_ms=328 hecho=103
+15:16:01.532 28175 28175 I NAV     : comando=STOP estado=DETENIDO_OBSTACULO
+15:16:02.046 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=306 x_mm=1066 y_mm=650
+15:16:02.046 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532549908
+15:16:02.046 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:16:02.115 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=57 filas=? cols=? ms_giro=69 cuadros_tras_giro=4 accion=ignorada_girando
+15:16:02.494 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=DER celdas=10 filas=? cols=? ms_giro=448 cuadros_tras_giro=4 accion=ignorada_girando
+15:16:02.614 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:02.614 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=12 filas=? cols=? ms_giro=568 cuadros_tras_giro=4 accion=ignorada_girando
+15:16:02.810 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:02.811 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=40 x_mm=1116 y_mm=535
+15:16:02.811 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=10 filas=? cols=? ms_giro=764 cuadros_tras_giro=4 accion=ignorada_girando
+15:16:02.811 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=94 plan_ms=724 real_ms=764 um_grado=(0,0) mm=(50,-115) carro_mm=(27,122) rumbo=306>40 aviso=espejo_estimado
+15:16:02.811 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=764 hecho=94
+15:16:02.811 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:16:02.877 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=IZQ celdas=12 filas=? cols=? ms_giro=831 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:16:02.942 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=DER celdas=96 filas=? cols=? ms_giro=896 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:16:03.004 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:03.004 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=39 filas=? cols=? ms_giro=958 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:16:03.191 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=IZQ celdas=28 filas=? cols=? ms_giro=1145 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:16:03.508 28175 28175 I NAV     : esquivar fase=RETROCEDER reintentos=1 rumbo=40 x_mm=1116 y_mm=535
+15:16:03.508 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=IZQ celdas=54 filas=? cols=? ms_giro=1462 cuadros_tras_giro=2 accion=centro_cuenta
+15:16:03.508 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=154 reintentos=0 accion=BLOQUEA_reintento
+15:16:03.508 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=REVERSE origen=esquive pedido=150 plan_ms=485 t_ms=532551370
+15:16:03.508 28175 28175 I NAV     : comando=REVERSE estado=ESQUIVANDO
+15:16:03.574 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=RETROCEDER cerc=3 zona=IZQ celdas=54 filas=? cols=? ms_giro=1528 cuadros_tras_giro=3 accion=centro_cuenta
+15:16:03.995 28175 28175 I NAV     : esquivar fase=ASENTAR reintentos=1 rumbo=40 x_mm=1021 y_mm=649
+15:16:03.996 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=RETROCEDER cerc=3 zona=CEN celdas=152 filas=? cols=? ms_giro=1949 cuadros_tras_giro=8 accion=centro_cuenta
+15:16:03.996 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=REVERSE origen=esquive pedido=150 plan_ms=485 real_ms=487 hecho=148
+15:16:03.996 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:16:04.055 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=ASENTAR cerc=3 zona=IZQ celdas=57 filas=? cols=? ms_giro=2009 cuadros_tras_giro=9 accion=centro_cuenta
+15:16:04.305 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=1 rumbo=40 x_mm=1021 y_mm=649
+15:16:04.305 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=45 plan_ms=305 t_ms=532552167
+15:16:04.305 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:16:04.437 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=91 filas=? cols=? ms_giro=132 cuadros_tras_giro=12 accion=ignorada_girando
+15:16:04.570 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:04.636 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=1 rumbo=87 x_mm=1090 y_mm=654
+15:16:04.636 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=45 hecho=47 plan_ms=305 real_ms=331 um_grado=(0,0) mm=(69,5) carro_mm=(40,56) rumbo=40>87 aviso=espejo_estimado
+15:16:04.636 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=45 plan_ms=305 real_ms=331 hecho=47
+15:16:04.636 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:16:05.305 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=1 rumbo=87 x_mm=1090 y_mm=654
+15:16:05.305 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=10 lateral_vuelta_mm=107 tramo_mm=449 margen_mm=400
+15:16:05.305 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=449 plan_ms=1443 t_ms=532553166
+15:16:05.305 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:16:05.748 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:05.748 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=3 zona=IZQ celdas=30 filas=? cols=? ms_giro=1443 cuadros_tras_giro=11 accion=centro_cuenta
+15:16:05.752 28175 30859 I VIDEO_STATS: fps=11.3 hueco_max_ms=298 huecos_mayores_500ms=0 cuadros_10s=113 hueco_actual_ms=17 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:05.866 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:06.362 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:06.363 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=CEN celdas=40 filas=? cols=? ms_giro=2057 cuadros_tras_giro=18 accion=lejos_no_bloquea
+15:16:06.416 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:06.417 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=IZQ celdas=36 filas=? cols=? ms_giro=2111 cuadros_tras_giro=19 accion=lateral_no_bloquea
+15:16:06.479 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:06.479 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=CEN celdas=41 filas=? cols=? ms_giro=2174 cuadros_tras_giro=20 accion=centro_cuenta
+15:16:06.597 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:06.648 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:06.648 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=IZQ celdas=45 filas=? cols=? ms_giro=2343 cuadros_tras_giro=22 accion=centro_cuenta
+15:16:06.762 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:16:06.763 28175 28175 I NAV     : esquivar fase=? reintentos=1 rumbo=87 x_mm=1542 y_mm=631
+15:16:06.763 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=IZQ celdas=47 filas=? cols=? ms_giro=2457 cuadros_tras_giro=23 accion=lateral_no_bloquea
+15:16:06.763 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=449 plan_ms=1443 real_ms=1458 hecho=452
+15:16:06.763 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:16:06.830 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:06.830 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=2 zona=CEN celdas=57 filas=? cols=? ms_giro=2525 cuadros_tras_giro=24 accion=centro_cuenta
+15:16:06.960 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=3 zona=DER celdas=85 filas=? cols=? ms_giro=2655 cuadros_tras_giro=26 accion=centro_cuenta
+15:16:07.068 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=1 rumbo=87 x_mm=1542 y_mm=631
+15:16:07.068 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_VOLVER cerc=2 zona=IZQ celdas=57 filas=? cols=? ms_giro=2763 cuadros_tras_giro=27 accion=centro_cuenta
+15:16:07.068 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=135 plan_ms=1377 t_ms=532554930
+15:16:07.068 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:16:07.126 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=DER celdas=100 filas=? cols=? ms_giro=58 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:07.377 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:07.378 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=CEN celdas=67 filas=? cols=? ms_giro=309 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:07.558 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=IZQ celdas=78 filas=? cols=? ms_giro=490 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:07.691 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:07.691 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=2 zona=IZQ celdas=40 filas=? cols=? ms_giro=623 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:07.757 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=2 zona=CEN celdas=43 filas=? cols=? ms_giro=689 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:08.010 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:08.143 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=IZQ celdas=8 filas=? cols=? ms_giro=1075 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:08.259 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:08.259 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=CEN celdas=13 filas=? cols=? ms_giro=1191 cuadros_tras_giro=27 accion=ignorada_girando
+15:16:08.322 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:08.454 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=1 rumbo=312 x_mm=1511 y_mm=475
+15:16:08.454 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=135 hecho=135 plan_ms=1377 real_ms=1386 um_grado=(820,-486) mm=(-31,-156) carro_mm=(-22,-157) rumbo=87>312
+15:16:08.455 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=135 plan_ms=1377 real_ms=1386 hecho=135
+15:16:08.455 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:16:08.769 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=1 rumbo=312 x_mm=1511 y_mm=475
+15:16:08.770 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=425 pose=(1511,475,312) salida=(1066,650) cercania_salida=3
+15:16:08.770 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=425 plan_ms=1378 t_ms=532556631
+15:16:08.770 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:16:09.144 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:09.144 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=2 zona=CEN celdas=29 filas=? cols=? ms_giro=2076 cuadros_tras_giro=5 accion=centro_cuenta
+15:16:09.321 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:09.321 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=4 filas=? cols=? ms_giro=2253 cuadros_tras_giro=7 accion=centro_cuenta
+15:16:09.321 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=CEN celdas=44 accion=BLOQUEA_se_detiene
+15:16:09.321 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=425 plan_ms=1378 real_ms=552 hecho=174
+15:16:09.321 28175 28175 I NAV     : comando=STOP estado=DETENIDO_OBSTACULO
+15:16:09.385 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:09.510 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:09.566 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:10.131 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1382,358,312) salida=(1066,650,306) desvio_mm=582 solo_rumbo=1 objetivo=(1390,-19) dist_mm=308 giro1=48 giro2=0 rumbo_linea=0 esquivadas=2 pasar_primero=1 fin_obstaculo=1350
+15:16:10.131 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=48 plan_ms=333 t_ms=532557993
+15:16:10.131 28175 28175 I NAV     : comando=RIGHT estado=REINCORPORANDO
+15:16:10.462 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=vuelta pedido=48 hecho=47 plan_ms=333 real_ms=331 um_grado=(0,0) mm=(7,-68) carro_mm=(40,55) rumbo=312>359 aviso=espejo_estimado
+15:16:10.463 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=48 plan_ms=333 real_ms=331 hecho=47
+15:16:10.463 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:16:10.753 28175 30859 I VIDEO_STATS: fps=11.5 hueco_max_ms=298 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=29 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:10.796 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=308 plan_ms=988 t_ms=532558657
+15:16:10.796 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:16:10.861 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=DER celdas=7 filas=? cols=? ms_giro=730 cuadros_tras_giro=2 accion=lado_cuenta
+15:16:11.707 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=DER celdas=9 filas=? cols=? ms_giro=1576 cuadros_tras_giro=11 accion=lado_cuenta
+15:16:11.774 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=308 plan_ms=988 real_ms=979 hecho=307
+15:16:11.774 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:16:11.827 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=10 filas=? cols=? ms_giro=1696 cuadros_tras_giro=12 accion=lado_cuenta
+15:16:12.076 28175 28175 I REINC_DIAG: REINC_DIAG paso_el_obstaculo pose=(1384,-17,359)
+15:16:12.388 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1384,-17,359) salida=(1066,650,306) desvio_mm=584 solo_rumbo=0 objetivo=(800,0) dist_mm=412 giro1=-111 giro2=111 rumbo_linea=0 esquivadas=2 pasar_primero=0 fin_obstaculo=1350
+15:16:12.388 28175 28175 I REINC_DIAG: REINC_DIAG pivote giro1_pose=(1243,-24,248) previo=(859,128) final=(800,0,0) correcciones=0
+15:16:12.388 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=111 plan_ms=1132 t_ms=532560250
+15:16:12.388 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:16:13.533 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=111 hecho=112 plan_ms=1132 real_ms=1145 um_grado=(820,-486) mm=(-142,-6) carro_mm=(8,-141) rumbo=359>247
+15:16:13.533 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=111 plan_ms=1132 real_ms=1145 hecho=112
+15:16:13.534 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:16:13.834 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=412 plan_ms=1313 t_ms=532561696
+15:16:13.834 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:16:14.396 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:16:14.396 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=1 zona=CEN celdas=36 filas=? cols=? ms_giro=2008 cuadros_tras_giro=7 accion=lejos_no_bloquea
+15:16:14.580 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:16:14.633 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=2 zona=DER celdas=65 filas=? cols=? ms_giro=2245 cuadros_tras_giro=10 accion=lateral_no_bloquea
+15:16:14.749 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:16:14.812 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:16:14.812 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=2 zona=CEN celdas=71 filas=? cols=? ms_giro=2424 cuadros_tras_giro=12 accion=centro_cuenta
+15:16:14.879 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=3 zona=DER celdas=97 filas=? cols=? ms_giro=2491 cuadros_tras_giro=13 accion=centro_cuenta
+15:16:14.999 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_AVANZAR cerc=2 zona=CEN celdas=85 accion=BLOQUEA_se_detiene
+15:16:14.999 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=412 plan_ms=1313 real_ms=1165 hecho=362
+15:16:14.999 28175 28175 I NAV     : comando=STOP estado=DETENIDO_OBSTACULO
+15:16:15.126 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:16:15.754 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:19.045 28175 28175 I AYUDA_DIAG: AYUDA_DIAG pide ayuda motivo=1 pose=(908,118,247) esquivadas=2 ayudas=1
+15:16:20.755 28175 30859 I VIDEO_STATS: fps=12.0 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=120 hueco_actual_ms=30 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:20.812 28175 28175 I NAV     : cancelado: PARO (ruta)
+15:16:25.756 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=334 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=30 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:30.756 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=334 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=8 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:35.757 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=181 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=27 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:40.757 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=181 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:45.758 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=106 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:50.759 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=106 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=32 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:16:55.759 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=95 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=33 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:00.760 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=91 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=36 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:05.760 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=293 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=38 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:10.761 28175 30859 I VIDEO_STATS: fps=11.5 hueco_max_ms=293 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=38 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:15.025 28175 28175 I NAV     : ruta iniciada (8 puntos)
+15:17:15.033 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:17:15.033 28175 28175 I TURN_DIAG: TURN_DIAG aviso=derecha_estimada_como_espejo_de_la_izquierda: no tiene medida propia, midela en Calibracion
+15:17:15.588 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=800 y_mm=1400
+15:17:15.588 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532623450
+15:17:15.589 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:17:15.761 28175 30859 I VIDEO_STATS: fps=11.4 hueco_max_ms=261 huecos_mayores_500ms=0 cuadros_10s=114 hueco_actual_ms=261 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:15.833 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=27 filas=? cols=? ms_giro=245 cuadros_tras_giro=2 accion=ignorada_girando
+15:17:16.322 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=90 x_mm=917 y_mm=1369
+15:17:16.323 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=90 plan_ms=724 real_ms=734 um_grado=(0,0) mm=(117,-31) carro_mm=(31,117) rumbo=0>90 aviso=espejo_estimado
+15:17:16.323 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=734 hecho=90
+15:17:16.323 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:17:16.387 28175 28175 I NAV     : fin: DETENIDO: se perdió el video de la cámara (más de 500 ms sin cuadros). No reanuda solo: inicia la ruta otra vez.
+15:17:20.762 28175 30859 I VIDEO_STATS: fps=11.0 hueco_max_ms=499 huecos_mayores_500ms=0 cuadros_10s=110 hueco_actual_ms=42 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:25.763 28175 30859 I VIDEO_STATS: fps=11.4 hueco_max_ms=499 huecos_mayores_500ms=0 cuadros_10s=114 hueco_actual_ms=39 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:30.763 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=274 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=40 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:35.584 28175 28175 I NAV     : ruta iniciada (8 puntos)
+15:17:35.607 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:17:35.607 28175 28175 I TURN_DIAG: TURN_DIAG aviso=derecha_estimada_como_espejo_de_la_izquierda: no tiene medida propia, midela en Calibracion
+15:17:35.764 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=91 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=43 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:36.160 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=800 y_mm=1400
+15:17:36.160 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532644022
+15:17:36.160 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:17:36.474 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=30 filas=? cols=? ms_giro=314 cuadros_tras_giro=2 accion=ignorada_girando
+15:17:36.905 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=92 x_mm=920 y_mm=1371
+15:17:36.905 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=92 plan_ms=724 real_ms=745 um_grado=(0,0) mm=(120,-29) carro_mm=(29,120) rumbo=0>92 aviso=espejo_estimado
+15:17:36.905 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=745 hecho=92
+15:17:36.905 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:17:37.403 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=MIRAR cerc=3 zona=DER celdas=27 filas=? cols=? ms_giro=1243 cuadros_tras_giro=2 accion=lateral_no_bloquea
+15:17:37.587 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=92 x_mm=920 y_mm=1371
+15:17:37.588 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=120 lateral_vuelta_mm=34 tramo_mm=246 margen_mm=400
+15:17:37.588 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=246 plan_ms=793 t_ms=532645449
+15:17:37.588 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:17:37.702 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=3 zona=DER celdas=27 filas=? cols=? ms_giro=1542 cuadros_tras_giro=6 accion=lateral_no_bloquea
+15:17:38.416 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=92 x_mm=1179 y_mm=1379
+15:17:38.416 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=2 zona=DER celdas=34 filas=? cols=? ms_giro=2256 cuadros_tras_giro=15 accion=lateral_no_bloquea
+15:17:38.416 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=246 plan_ms=793 real_ms=829 hecho=259
+15:17:38.416 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:17:38.733 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=92 x_mm=1179 y_mm=1379
+15:17:38.733 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532646595
+15:17:38.733 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:17:39.645 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=3 x_mm=1214 y_mm=1264
+15:17:39.645 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=89 plan_ms=918 real_ms=912 um_grado=(820,-486) mm=(35,-115) carro_mm=(30,-116) rumbo=92>3
+15:17:39.645 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=912 hecho=89
+15:17:39.645 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:17:39.698 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=IZQ celdas=11 filas=? cols=? ms_giro=965 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:17:39.880 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:17:39.880 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=CEN celdas=22 filas=? cols=? ms_giro=1147 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:17:39.944 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=3 x_mm=1214 y_mm=1264
+15:17:39.944 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=514 pose=(1214,1264,3) salida=(800,1400) cercania_salida=3
+15:17:39.944 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=514 plan_ms=1638 t_ms=532647805
+15:17:39.944 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:17:40.011 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:17:40.011 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=DER celdas=18 filas=? cols=? ms_giro=1278 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:17:40.126 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=DER celdas=21 filas=? cols=? ms_giro=1393 cuadros_tras_giro=2 accion=lateral_no_bloquea
+15:17:40.677 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=DER celdas=18 filas=? cols=? ms_giro=1944 cuadros_tras_giro=9 accion=lateral_no_bloquea
+15:17:40.765 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=268 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=22 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:41.255 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=DER celdas=25 filas=? cols=? ms_giro=2522 cuadros_tras_giro=16 accion=lateral_no_bloquea
+15:17:41.556 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=514 plan_ms=1638 real_ms=1613 hecho=500
+15:17:41.556 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:17:41.670 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=24 filas=? cols=? ms_giro=2937 cuadros_tras_giro=21 accion=lado_cuenta
+15:17:41.870 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1239,764,3) salida=(800,1400,0) desvio_mm=439 solo_rumbo=0 objetivo=(800,400) dist_mm=438 giro1=-60 giro2=57 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=650
+15:17:41.870 28175 28175 I REINC_DIAG: REINC_DIAG pivote giro1_pose=(1166,718,303) previo=(797,482) final=(800,400,0) correcciones=0
+15:17:41.870 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=60 plan_ms=612 t_ms=532649731
+15:17:41.870 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:17:41.986 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=DER celdas=24 filas=? cols=? ms_giro=117 cuadros_tras_giro=24 accion=ignorada_girando
+15:17:42.471 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=60 hecho=59 plan_ms=612 real_ms=602 um_grado=(820,-486) mm=(-71,-46) carro_mm=(42,-73) rumbo=3>304
+15:17:42.471 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=60 plan_ms=612 real_ms=602 hecho=59
+15:17:42.471 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:17:42.782 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=438 plan_ms=1411 t_ms=532650644
+15:17:42.783 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:17:44.178 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=438 plan_ms=1411 real_ms=1396 hecho=432
+15:17:44.178 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:17:44.299 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=2 zona=DER celdas=28 filas=? cols=? ms_giro=2429 cuadros_tras_giro=19 accion=lateral_no_bloquea
+15:17:44.478 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:17:44.478 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=IZQ celdas=23 filas=? cols=? ms_giro=2609 cuadros_tras_giro=21 accion=centro_cuenta
+15:17:44.479 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=57 plan_ms=417 t_ms=532652340
+15:17:44.479 28175 28175 I NAV     : comando=RIGHT estado=REINCORPORANDO
+15:17:44.544 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=IZQ celdas=26 filas=? cols=? ms_giro=66 cuadros_tras_giro=21 accion=ignorada_girando
+15:17:44.911 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=vuelta pedido=57 hecho=58 plan_ms=417 real_ms=433 um_grado=(0,0) mm=(5,-83) carro_mm=(42,71) rumbo=304>2 aviso=espejo_estimado
+15:17:44.911 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=57 plan_ms=417 real_ms=433 hecho=58
+15:17:44.911 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:17:44.975 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=IZQ celdas=48 filas=? cols=? ms_giro=497 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:17:45.041 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=CEN celdas=68 filas=? cols=? ms_giro=563 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:17:45.095 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=IZQ celdas=64 filas=? cols=? ms_giro=617 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:17:45.224 28175 28175 I REINC_DIAG: REINC_DIAG fin pose_despues=(814,393,2) desvio_mm=14 siguiente_punto=5
+15:17:45.767 28175 30859 I VIDEO_STATS: fps=11.7 hueco_max_ms=268 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=45 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:47.396 28175 28175 I NAV     : cancelado: PARO (ruta)
+15:17:49.267 28175 28175 I SESION_VIDEO: sale usuario=8 usuarios=1 estado=2
+15:17:49.268 28175 28175 I SESION_VIDEO: sale usuario=3 usuarios=0 estado=2
+15:17:49.268 28175 28175 I SESION_CARRO: sale usuario=3
+15:17:49.343 28175 28175 I SESION_CARRO: entra usuario=4 accion=0
+15:17:49.344 28175 28175 I PANTALLA: abierta=RUTAS ok
+15:17:50.768 28175 30859 I VIDEO_STATS: fps=11.9 hueco_max_ms=94 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=46 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-32 fps_envio=0.0 edad_max_ms=0]
+15:17:50.918 28175 28175 I SESION_VIDEO: cerrando el video
+15:17:58.661 28175 28175 I SESION_CARRO: sale usuario=4
+15:17:58.704 28175 28175 I SESION_CARRO: entra usuario=3 accion=0
+15:17:58.705 28175 28175 I SESION_VIDEO: entra usuario=3 accion=1 usuarios=1 estado=1
+15:17:58.705 28175 28175 I SESION_VIDEO: abriendo el video (http://192.168.4.2/stream, modo jpeg)
+15:17:58.707 28175 28175 I VIDEO   : red_video=WIFI_DEL_CARRO (conexiones vinculadas a esa red) red_activa_del_telefono=WiFi
+15:17:58.708 28175 28175 I SESION_VIDEO: entra usuario=8 accion=0 usuarios=2 estado=1
+15:17:58.708 28175 28175 I PANTALLA: abierta=EJECUTAR_RUTA ok
+15:17:58.738 28175 31051 I VIDEO_STATS: camara: reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0
+15:17:58.794 28175 31051 I VIDEO   : tamaño HQVGA pedido a la cámara del carro: respuesta 200
+15:17:58.827 28175 31051 I VIDEO   : modo de video jpeg pedido a la cámara: respuesta 200
+15:17:58.913 28175 31051 I VIDEO   : llegó el primer cuadro del carro (3786 bytes)
+15:17:58.919 28175 28175 I SESION_VIDEO: video estado=OK sesion=2
+15:18:03.708 28175 31052 I VIDEO_STATS: fps=12.7 hueco_max_ms=103 huecos_mayores_500ms=0 cuadros_10s=61 hueco_actual_ms=2 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:07.955 28175 28175 I NAV     : ruta iniciada (8 puntos)
+15:18:07.977 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:07.977 28175 28175 I TURN_DIAG: TURN_DIAG aviso=derecha_estimada_como_espejo_de_la_izquierda: no tiene medida propia, midela en Calibracion
+15:18:08.501 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=800 y_mm=1400
+15:18:08.501 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532676363
+15:18:08.502 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:18:08.567 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=30 filas=? cols=? ms_giro=66 cuadros_tras_giro=2 accion=ignorada_girando
+15:18:08.709 28175 31052 I VIDEO_STATS: fps=12.0 hueco_max_ms=103 huecos_mayores_500ms=0 cuadros_10s=118 hueco_actual_ms=66 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:09.255 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=93 x_mm=922 y_mm=1372
+15:18:09.255 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=93 plan_ms=724 real_ms=754 um_grado=(0,0) mm=(122,-28) carro_mm=(28,122) rumbo=0>93 aviso=espejo_estimado
+15:18:09.255 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=754 hecho=93
+15:18:09.255 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:09.880 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=93 x_mm=922 y_mm=1372
+15:18:09.880 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=122 lateral_vuelta_mm=36 tramo_mm=242 margen_mm=400
+15:18:09.880 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=242 plan_ms=761 t_ms=532677742
+15:18:09.880 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:18:10.658 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=93 x_mm=1165 y_mm=1384
+15:18:10.658 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=242 plan_ms=761 real_ms=778 hecho=243
+15:18:10.659 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:10.948 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=93 x_mm=1165 y_mm=1384
+15:18:10.948 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532678810
+15:18:10.949 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:18:11.377 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:18:11.378 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=1 zona=IZQ celdas=15 filas=? cols=? ms_giro=429 cuadros_tras_giro=16 accion=ignorada_girando
+15:18:11.506 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:11.888 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=1 x_mm=1200 y_mm=1266
+15:18:11.888 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=92 plan_ms=918 real_ms=940 um_grado=(820,-486) mm=(35,-118) carro_mm=(28,-119) rumbo=93>1
+15:18:11.888 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=940 hecho=92
+15:18:11.888 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:12.204 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=1 x_mm=1200 y_mm=1266
+15:18:12.204 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=516 pose=(1200,1266,1) salida=(800,1400) cercania_salida=3
+15:18:12.204 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=516 plan_ms=1671 t_ms=532680066
+15:18:12.204 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:18:12.320 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=15 filas=? cols=? ms_giro=1371 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:18:12.387 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=17 filas=? cols=? ms_giro=1439 cuadros_tras_giro=2 accion=lateral_no_bloquea
+15:18:12.951 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=24 filas=? cols=? ms_giro=2003 cuadros_tras_giro=9 accion=lateral_no_bloquea
+15:18:13.516 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=24 filas=? cols=? ms_giro=2568 cuadros_tras_giro=16 accion=lateral_no_bloquea
+15:18:13.710 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=249 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=8 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:13.914 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=516 plan_ms=1671 real_ms=1710 hecho=532
+15:18:13.914 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:18:14.030 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=IZQ celdas=12 filas=? cols=? ms_giro=3082 cuadros_tras_giro=22 accion=lado_cuenta
+15:18:14.230 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1208,734,1) salida=(800,1400,0) desvio_mm=408 solo_rumbo=0 objetivo=(800,400) dist_mm=396 giro1=-59 giro2=58 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=650
+15:18:14.230 28175 28175 I REINC_DIAG: REINC_DIAG pivote giro1_pose=(1135,691,302) previo=(798,483) final=(800,400,0) correcciones=0
+15:18:14.230 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=59 plan_ms=602 t_ms=532682091
+15:18:14.230 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:18:14.527 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=IZQ celdas=23 filas=? cols=? ms_giro=298 cuadros_tras_giro=25 accion=ignorada_girando
+15:18:14.698 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:18:14.698 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=CEN celdas=23 filas=? cols=? ms_giro=469 cuadros_tras_giro=25 accion=ignorada_girando
+15:18:14.814 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=59 hecho=57 plan_ms=602 real_ms=585 um_grado=(820,-486) mm=(-70,-43) carro_mm=(41,-70) rumbo=1>304
+15:18:14.814 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=59 plan_ms=602 real_ms=585 hecho=57
+15:18:14.814 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:18:14.879 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=CEN celdas=16 filas=? cols=? ms_giro=650 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:14.943 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:14.943 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=27 filas=? cols=? ms_giro=714 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:15.127 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=396 plan_ms=1281 t_ms=532682989
+15:18:15.127 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:18:16.448 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=396 plan_ms=1281 real_ms=1321 hecho=409
+15:18:16.448 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:18:16.788 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=58 plan_ms=426 t_ms=532684649
+15:18:16.788 28175 28175 I NAV     : comando=RIGHT estado=REINCORPORANDO
+15:18:17.205 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=vuelta pedido=58 hecho=56 plan_ms=426 real_ms=418 um_grado=(0,0) mm=(3,-80) carro_mm=(42,67) rumbo=304>0 aviso=espejo_estimado
+15:18:17.205 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=58 plan_ms=426 real_ms=418 hecho=56
+15:18:17.205 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:18:17.403 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=29 filas=? cols=? ms_giro=616 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:17.534 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:18:17.534 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=CEN celdas=17 filas=? cols=? ms_giro=747 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:18:17.534 28175 28175 I REINC_DIAG: REINC_DIAG fin pose_despues=(801,382,0) desvio_mm=1 siguiente_punto=5
+15:18:18.117 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=801 y_mm=382
+15:18:18.117 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532685979
+15:18:18.117 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:18:18.183 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=24 filas=? cols=? ms_giro=66 cuadros_tras_giro=1 accion=ignorada_girando
+15:18:18.563 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=14 filas=? cols=? ms_giro=446 cuadros_tras_giro=1 accion=ignorada_girando
+15:18:18.679 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:18.710 28175 31052 I VIDEO_STATS: fps=11.4 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=114 hueco_actual_ms=79 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:18.876 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=93 x_mm=923 y_mm=354
+15:18:18.876 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=93 plan_ms=724 real_ms=758 um_grado=(0,0) mm=(122,-28) carro_mm=(28,122) rumbo=0>93 aviso=espejo_estimado
+15:18:18.876 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=758 hecho=93
+15:18:18.876 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:19.543 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=93 x_mm=923 y_mm=354
+15:18:19.543 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=122 lateral_vuelta_mm=36 tramo_mm=242 margen_mm=400
+15:18:19.543 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=242 plan_ms=761 t_ms=532687404
+15:18:19.543 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:18:20.290 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=93 x_mm=1157 y_mm=365
+15:18:20.291 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=242 plan_ms=761 real_ms=748 hecho=234
+15:18:20.291 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:20.606 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=93 x_mm=1157 y_mm=365
+15:18:20.606 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532688468
+15:18:20.607 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:18:21.537 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=2 x_mm=1192 y_mm=248
+15:18:21.537 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=91 plan_ms=918 real_ms=931 um_grado=(820,-486) mm=(35,-117) carro_mm=(28,-118) rumbo=93>2
+15:18:21.537 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=931 hecho=91
+15:18:21.537 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:21.668 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=IZQ celdas=10 filas=? cols=? ms_giro=1062 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:21.723 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:18:21.723 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=CEN celdas=12 filas=? cols=? ms_giro=1116 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:21.838 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=2 x_mm=1192 y_mm=248
+15:18:21.838 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=198 pose=(1192,248,2) salida=(801,382) cercania_salida=3
+15:18:21.838 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=198 plan_ms=631 t_ms=532689700
+15:18:21.838 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:18:21.903 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=CEN celdas=14 filas=? cols=? ms_giro=1297 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:18:21.968 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=CEN celdas=15 filas=? cols=? ms_giro=1362 cuadros_tras_giro=2 accion=centro_cuenta
+15:18:22.168 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=CEN celdas=13 accion=BLOQUEA_se_detiene
+15:18:22.168 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=198 plan_ms=631 real_ms=329 hecho=105
+15:18:22.168 28175 28175 I NAV     : comando=STOP estado=DETENIDO_OBSTACULO
+15:18:22.667 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=2 x_mm=1195 y_mm=143
+15:18:22.667 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532690529
+15:18:22.667 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:18:22.719 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=15 filas=? cols=? ms_giro=52 cuadros_tras_giro=4 accion=ignorada_girando
+15:18:23.018 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:23.019 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=DER celdas=13 filas=? cols=? ms_giro=351 cuadros_tras_giro=4 accion=ignorada_girando
+15:18:23.562 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=275 x_mm=1083 y_mm=107
+15:18:23.562 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=87 plan_ms=918 real_ms=895 um_grado=(820,-486) mm=(-112,-36) carro_mm=(32,-113) rumbo=2>275
+15:18:23.562 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=895 hecho=87
+15:18:23.562 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:23.713 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=11 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:24.246 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=275 x_mm=1083 y_mm=107
+15:18:24.246 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=-1 lateral_giro_mm=113 lateral_vuelta_mm=24 tramo_mm=263 margen_mm=400
+15:18:24.246 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=263 plan_ms=826 t_ms=532692107
+15:18:24.246 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:18:25.091 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=275 x_mm=820 y_mm=85
+15:18:25.091 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=263 plan_ms=826 real_ms=846 hecho=263
+15:18:25.091 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:25.406 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=275 x_mm=820 y_mm=85
+15:18:25.406 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532693268
+15:18:25.406 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:18:26.131 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=4 x_mm=800 y_mm=-34
+15:18:26.131 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=89 plan_ms=724 real_ms=725 um_grado=(0,0) mm=(-20,-119) carro_mm=(30,116) rumbo=275>4 aviso=espejo_estimado
+15:18:26.131 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=725 hecho=89
+15:18:26.131 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:18:26.421 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=0 pose=(800,-34,4) salida=(1195,143) cercania_salida=3
+15:18:26.721 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(800,-34,4) salida=(1195,143,2) desvio_mm=34 solo_rumbo=1 objetivo=(800,-34) dist_mm=0 giro1=-4 giro2=0 rumbo_linea=0 esquivadas=3 pasar_primero=0 fin_obstaculo=1350
+15:18:26.721 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=4 plan_ms=41 t_ms=532694583
+15:18:26.721 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:18:26.784 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=1 zona=DER celdas=20 filas=? cols=? ms_giro=63 cuadros_tras_giro=4 accion=ignorada_girando
+15:18:26.784 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=4 hecho=6 plan_ms=41 real_ms=63 um_grado=(820,-486) mm=(-4,-8) carro_mm=(7,-4) rumbo=4>358
+15:18:26.784 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=4 plan_ms=41 real_ms=63 hecho=6
+15:18:26.784 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:18:26.917 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=1 zona=DER celdas=19 filas=? cols=? ms_giro=196 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:18:27.118 28175 28175 I REINC_DIAG: REINC_DIAG fin pose_despues=(796,-42,358) desvio_mm=42 siguiente_punto=6
+15:18:27.183 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=180 plan_ms=1561 t_ms=532695045
+15:18:27.183 28175 28175 I NAV     : comando=RIGHT estado=SIGUIENDO
+15:18:28.098 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:18:28.360 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:18:28.713 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=228 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=14 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:28.727 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=ruta pedido=180 hecho=178 plan_ms=1561 real_ms=1544 um_grado=(0,0) mm=(149,85) carro_mm=(-85,149) rumbo=0>178 aviso=espejo_estimado
+15:18:28.727 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=180 plan_ms=1561 real_ms=1544 hecho=178
+15:18:28.727 28175 28175 I NAV     : comando=STOP estado=SIGUIENDO
+15:18:29.058 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=631 t_ms=532696920
+15:18:29.058 28175 28175 I NAV     : comando=FORWARD estado=SIGUIENDO
+15:18:29.708 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=631 real_ms=650 hecho=199
+15:18:29.708 28175 28175 I NAV     : comando=STOP estado=SIGUIENDO
+15:18:30.021 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=135 plan_ms=1142 t_ms=532697883
+15:18:30.021 28175 28175 I NAV     : comando=RIGHT estado=SIGUIENDO
+15:18:31.167 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=ruta pedido=135 hecho=135 plan_ms=1142 real_ms=1146 um_grado=(0,0) mm=(-157,-23) carro_mm=(-23,157) rumbo=180>315 aviso=espejo_estimado
+15:18:31.167 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=135 plan_ms=1142 real_ms=1146 hecho=135
+15:18:31.167 28175 28175 I NAV     : comando=STOP estado=SIGUIENDO
+15:18:31.482 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=280 plan_ms=891 t_ms=532699344
+15:18:31.482 28175 28175 I NAV     : comando=FORWARD estado=SIGUIENDO
+15:18:32.365 28175 28175 I NAV     : camara centro_hay=1 cercania=2 codigo=0
+15:18:32.365 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=280 plan_ms=891 real_ms=883 hecho=275
+15:18:32.365 28175 28175 I NAV     : comando=STOP estado=TERMINADO
+15:18:32.365 28175 28175 I NAV     : fin: TERMINADO
+15:18:33.714 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=228 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=15 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:38.714 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=336 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=8 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:43.715 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=336 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=15 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:48.716 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=93 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=17 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:53.717 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=18 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:18:58.718 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=251 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=17 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:03.718 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=109 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=21 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:08.719 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=109 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=21 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:13.719 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=23 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:18.720 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=21 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:23.720 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=95 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=24 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:28.721 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=333 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=22 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:33.721 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=333 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=26 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:38.722 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=243 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=27 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:43.722 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=243 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=29 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:48.723 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=334 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=27 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:53.724 28175 31052 I VIDEO_STATS: fps=11.6 hueco_max_ms=334 huecos_mayores_500ms=0 cuadros_10s=116 hueco_actual_ms=25 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:19:58.725 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=297 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=28 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:03.726 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=89 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=29 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:08.726 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=94 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:13.727 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=94 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:18.727 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=93 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=31 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:21.681 28175 28175 I NAV     : ruta iniciada (8 puntos)
+15:20:21.687 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:21.687 28175 28175 I TURN_DIAG: TURN_DIAG aviso=derecha_estimada_como_espejo_de_la_izquierda: no tiene medida propia, midela en Calibracion
+15:20:22.234 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=800 y_mm=1400
+15:20:22.235 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532810096
+15:20:22.235 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:20:22.302 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=55 filas=? cols=? ms_giro=67 cuadros_tras_giro=2 accion=ignorada_girando
+15:20:22.934 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=87 x_mm=914 y_mm=1368
+15:20:22.935 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=87 plan_ms=724 real_ms=700 um_grado=(0,0) mm=(114,-32) carro_mm=(32,114) rumbo=0>87 aviso=espejo_estimado
+15:20:22.935 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=700 hecho=87
+15:20:22.935 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:23.680 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=87 x_mm=914 y_mm=1368
+15:20:23.680 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=114 lateral_vuelta_mm=24 tramo_mm=262 margen_mm=400
+15:20:23.680 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=262 plan_ms=826 t_ms=532811541
+15:20:23.680 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:20:23.728 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=34 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:24.508 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=87 x_mm=1173 y_mm=1355
+15:20:24.508 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=262 plan_ms=826 real_ms=829 hecho=259
+15:20:24.508 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:24.807 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=87 x_mm=1173 y_mm=1355
+15:20:24.807 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532812669
+15:20:24.808 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:20:25.040 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:20:25.041 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=1 zona=IZQ celdas=11 filas=? cols=? ms_giro=233 cuadros_tras_giro=19 accion=ignorada_girando
+15:20:25.358 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:25.737 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=356 x_mm=1196 y_mm=1235
+15:20:25.737 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=91 plan_ms=918 real_ms=929 um_grado=(820,-486) mm=(23,-120) carro_mm=(29,-118) rumbo=87>356
+15:20:25.737 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=929 hecho=91
+15:20:25.737 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:25.973 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=IZQ celdas=9 filas=? cols=? ms_giro=1166 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:26.036 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=356 x_mm=1196 y_mm=1235
+15:20:26.037 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=485 pose=(1196,1235,356) salida=(800,1400) cercania_salida=3
+15:20:26.037 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=485 plan_ms=1573 t_ms=532813898
+15:20:26.037 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:20:26.094 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=19 filas=? cols=? ms_giro=1286 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:20:26.152 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=19 filas=? cols=? ms_giro=1345 cuadros_tras_giro=2 accion=lateral_no_bloquea
+15:20:26.705 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=20 filas=? cols=? ms_giro=1898 cuadros_tras_giro=9 accion=lateral_no_bloquea
+15:20:27.597 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=485 plan_ms=1573 real_ms=1561 hecho=485
+15:20:27.597 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:20:27.914 28175 28175 I REINC_DIAG: REINC_DIAG plan pose_antes=(1163,751,356) salida=(800,1400,0) desvio_mm=363 solo_rumbo=0 objetivo=(800,400) dist_mm=391 giro1=-48 giro2=52 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=650
+15:20:27.915 28175 28175 I REINC_DIAG: REINC_DIAG pivote giro1_pose=(1103,715,308) previo=(794,475) final=(800,400,0) correcciones=0
+15:20:27.915 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=48 plan_ms=490 t_ms=532815776
+15:20:27.915 28175 28175 I NAV     : comando=LEFT estado=REINCORPORANDO
+15:20:28.244 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=IZQ celdas=36 filas=? cols=? ms_giro=330 cuadros_tras_giro=24 accion=ignorada_girando
+15:20:28.431 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:20:28.431 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=vuelta pedido=48 hecho=50 plan_ms=490 real_ms=517 um_grado=(820,-486) mm=(-63,-37) carro_mm=(41,-60) rumbo=356>306
+15:20:28.431 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=48 plan_ms=490 real_ms=517 hecho=50
+15:20:28.431 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:20:28.493 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=CEN celdas=47 filas=? cols=? ms_giro=579 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:28.677 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:28.677 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=48 filas=? cols=? ms_giro=763 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:28.729 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=35 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:28.742 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=391 plan_ms=1248 t_ms=532816604
+15:20:28.742 28175 28175 I NAV     : comando=FORWARD estado=REINCORPORANDO
+15:20:30.006 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=391 plan_ms=1248 real_ms=1263 hecho=392
+15:20:30.006 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:20:30.307 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=52 plan_ms=370 t_ms=532818169
+15:20:30.307 28175 28175 I NAV     : comando=RIGHT estado=REINCORPORANDO
+15:20:30.685 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_GIRO cerc=3 zona=DER celdas=8 filas=? cols=? ms_giro=378 cuadros_tras_giro=19 accion=ignorada_girando
+15:20:30.685 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=vuelta pedido=52 hecho=52 plan_ms=370 real_ms=378 um_grado=(0,0) mm=(4,-76) carro_mm=(41,63) rumbo=306>358 aviso=espejo_estimado
+15:20:30.685 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=52 plan_ms=370 real_ms=378 hecho=52
+15:20:30.685 28175 28175 I NAV     : comando=STOP estado=REINCORPORANDO
+15:20:30.736 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=DER celdas=41 filas=? cols=? ms_giro=429 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:30.920 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:20:30.920 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VUELTA_PAUSA cerc=3 zona=CEN celdas=37 filas=? cols=? ms_giro=613 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:31.050 28175 28175 I REINC_DIAG: REINC_DIAG fin pose_despues=(787,407,358) desvio_mm=13 siguiente_punto=5
+15:20:31.665 28175 28175 I NAV     : esquivar fase=GIRAR reintentos=0 rumbo=0 x_mm=787 y_mm=407
+15:20:31.665 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=724 t_ms=532819527
+15:20:31.665 28175 28175 I NAV     : comando=RIGHT estado=ESQUIVANDO
+15:20:31.733 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=13 filas=? cols=? ms_giro=68 cuadros_tras_giro=1 accion=ignorada_girando
+15:20:32.039 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:32.412 28175 28175 I NAV     : esquivar fase=MIRAR reintentos=0 rumbo=92 x_mm=907 y_mm=378
+15:20:32.412 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=esquive pedido=90 hecho=92 plan_ms=724 real_ms=747 um_grado=(0,0) mm=(120,-29) carro_mm=(29,120) rumbo=0>92 aviso=espejo_estimado
+15:20:32.412 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=724 real_ms=747 hecho=92
+15:20:32.412 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:33.080 28175 28175 I NAV     : esquivar fase=AVANZAR_DE_LADO reintentos=0 rumbo=92 x_mm=907 y_mm=378
+15:20:33.080 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG tramo lado=1 lateral_giro_mm=120 lateral_vuelta_mm=34 tramo_mm=246 margen_mm=400
+15:20:33.080 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=246 plan_ms=793 t_ms=532820941
+15:20:33.080 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:20:33.730 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=103 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=25 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:33.743 28175 28175 I NAV     : camara centro_hay=1 cercania=1 codigo=0
+15:20:33.743 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=AVANZAR cerc=1 zona=CEN celdas=2 filas=? cols=? ms_giro=2078 cuadros_tras_giro=13 accion=lejos_no_bloquea
+15:20:33.873 28175 28175 I NAV     : esquivar fase=? reintentos=0 rumbo=92 x_mm=1155 y_mm=386
+15:20:33.873 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=246 plan_ms=793 real_ms=794 hecho=248
+15:20:33.873 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:33.942 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:34.188 28175 28175 I NAV     : esquivar fase=VOLVER reintentos=0 rumbo=92 x_mm=1155 y_mm=386
+15:20:34.188 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=918 t_ms=532822050
+15:20:34.188 28175 28175 I NAV     : comando=LEFT estado=ESQUIVANDO
+15:20:34.886 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=VOLVER cerc=3 zona=IZQ celdas=42 filas=? cols=? ms_giro=698 cuadros_tras_giro=18 accion=ignorada_girando
+15:20:34.938 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:20:35.138 28175 28175 I NAV     : esquivar fase=PAUSA_PASAR reintentos=0 rumbo=359 x_mm=1187 y_mm=266
+15:20:35.138 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=93 plan_ms=918 real_ms=950 um_grado=(820,-486) mm=(32,-120) carro_mm=(27,-121) rumbo=92>359
+15:20:35.138 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=918 real_ms=950 hecho=93
+15:20:35.138 28175 28175 I NAV     : comando=STOP estado=ESQUIVANDO
+15:20:35.202 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PAUSA_PASAR cerc=3 zona=IZQ celdas=134 filas=? cols=? ms_giro=1014 cuadros_tras_giro=0 accion=ignorada_espera_estable
+15:20:35.450 28175 28175 I NAV     : esquivar fase=PARALELO reintentos=0 rumbo=359 x_mm=1187 y_mm=266
+15:20:35.451 28175 28175 I REINC_DIAG: REINC_DIAG pasar paralelo_mm=216 pose=(1187,266,359) salida=(787,407) cercania_salida=3
+15:20:35.451 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=216 plan_ms=696 t_ms=532823312
+15:20:35.451 28175 28175 I NAV     : comando=FORWARD estado=ESQUIVANDO
+15:20:35.517 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=143 filas=? cols=? ms_giro=1328 cuadros_tras_giro=1 accion=ignorada_espera_estable
+15:20:35.583 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=IZQ celdas=140 filas=? cols=? ms_giro=1395 cuadros_tras_giro=2 accion=centro_cuenta
+15:20:35.783 28175 28175 I ESQUIVE_DIAG: ESQUIVE_DIAG fase=PARALELO cerc=3 zona=CEN celdas=151 accion=BLOQUEA_se_detiene
+15:20:35.783 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=216 plan_ms=696 real_ms=332 hecho=108
+15:20:35.783 28175 28175 I NAV     : comando=STOP estado=DETENIDO_OBSTACULO
+15:20:38.730 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=316 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=37 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:39.818 28175 28175 I AYUDA_DIAG: AYUDA_DIAG pide ayuda motivo=1 pose=(1186,158,359) esquivadas=2 ayudas=1
+15:20:41.993 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=ayuda pedido=0 plan_ms=0 t_ms=532829855
+15:20:41.993 28175 28175 I NAV     : comando=LEFT estado=AYUDA
+15:20:42.373 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=ayuda pedido=0 hecho=37 plan_ms=0 real_ms=380 um_grado=(820,-486) mm=(-42,-35) carro_mm=(35,-41) rumbo=359>322
+15:20:42.373 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=ayuda pedido=0 plan_ms=0 real_ms=380 hecho=37
+15:20:42.373 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:42.622 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:42.726 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=FORWARD origen=ayuda pedido=0 plan_ms=0 t_ms=532830588
+15:20:42.727 28175 28175 I NAV     : comando=FORWARD estado=AYUDA
+15:20:43.172 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=FORWARD origen=ayuda pedido=0 plan_ms=0 real_ms=446 hecho=141
+15:20:43.172 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:43.406 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 t_ms=532831268
+15:20:43.406 28175 28175 I NAV     : comando=RIGHT estado=AYUDA
+15:20:43.719 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=ayuda pedido=0 hecho=45 plan_ms=0 real_ms=313 um_grado=(0,0) mm=(17,-63) carro_mm=(39,52) rumbo=322>7 aviso=espejo_estimado
+15:20:43.719 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 real_ms=313 hecho=45
+15:20:43.719 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:43.731 28175 31052 I VIDEO_STATS: fps=11.5 hueco_max_ms=316 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=38 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:43.951 28175 28175 I NAV     : camara centro_hay=1 cercania=3 codigo=0
+15:20:43.951 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 t_ms=532831812
+15:20:43.951 28175 28175 I NAV     : comando=RIGHT estado=AYUDA
+15:20:44.066 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=ayuda pedido=0 hecho=24 plan_ms=0 real_ms=116 um_grado=(0,0) mm=(27,-23) carro_mm=(26,24) rumbo=7>31 aviso=espejo_estimado
+15:20:44.066 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 real_ms=116 hecho=24
+15:20:44.066 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:44.250 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 t_ms=532832112
+15:20:44.250 28175 28175 I NAV     : comando=RIGHT estado=AYUDA
+15:20:44.365 28175 28175 I TURN_DIAG: TURN_DIAG lado=DER origen=ayuda pedido=0 hecho=24 plan_ms=0 real_ms=115 um_grado=(0,0) mm=(35,-10) carro_mm=(26,24) rumbo=31>55 aviso=espejo_estimado
+15:20:44.365 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=RIGHT origen=ayuda pedido=0 plan_ms=0 real_ms=115 hecho=24
+15:20:44.365 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:44.468 28175 28175 I NAV     : camara centro_hay=0 cercania=0 codigo=0
+15:20:44.930 28175 28175 I RUTA_DIAG: RUTA_DIAG envia cmd=LEFT origen=ayuda pedido=0 plan_ms=0 t_ms=532832792
+15:20:44.930 28175 28175 I NAV     : comando=LEFT estado=AYUDA
+15:20:45.046 28175 28175 I TURN_DIAG: TURN_DIAG lado=IZQ origen=ayuda pedido=0 hecho=11 plan_ms=0 real_ms=116 um_grado=(820,-486) mm=(5,-16) carro_mm=(13,-10) rumbo=55>44
+15:20:45.046 28175 28175 I RUTA_DIAG: RUTA_DIAG fin cmd=LEFT origen=ayuda pedido=0 plan_ms=0 real_ms=116 hecho=11
+15:20:45.046 28175 28175 I NAV     : comando=STOP estado=AYUDA
+15:20:45.515 28175 28175 I AYUDA_DIAG: AYUDA_DIAG continua pose=(1141,-100,44)
+15:20:45.861 28175 28175 I REINC_DIAG: REINC_DIAG fin ya_paso_el_final pose=(1141,-100,44): la ruta se da por terminada
+15:20:45.861 28175 28175 I NAV     : fin: TERMINADO
+15:20:48.731 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=227 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=38 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:53.732 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=295 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=35 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:20:58.733 28175 31052 I VIDEO_STATS: fps=11.5 hueco_max_ms=295 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=42 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:03.734 28175 31052 I VIDEO_STATS: fps=11.5 hueco_max_ms=331 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=42 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:08.734 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=91 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=44 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:13.735 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=113 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=43 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:18.736 28175 31052 I VIDEO_STATS: fps=11.8 hueco_max_ms=113 huecos_mayores_500ms=0 cuadros_10s=118 hueco_actual_ms=110 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:23.737 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=237 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=44 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:28.738 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=97 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=45 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:33.739 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=239 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=49 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:38.739 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=239 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=40 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:43.741 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=99 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=50 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:48.741 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=245 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=50 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:53.742 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=245 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=52 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:21:58.743 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=93 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=56 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:03.744 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=90 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=56 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:08.744 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=93 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=58 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:13.746 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=102 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=57 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:18.747 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=102 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=57 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:23.749 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=96 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=60 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:28.750 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=109 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=61 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:33.751 28175 31052 I VIDEO_STATS: fps=11.4 hueco_max_ms=434 huecos_mayores_500ms=0 cuadros_10s=114 hueco_actual_ms=20 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:38.751 28175 31052 I VIDEO_STATS: fps=11.4 hueco_max_ms=434 huecos_mayores_500ms=0 cuadros_10s=114 hueco_actual_ms=64 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:43.752 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=66 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:48.754 28175 31052 I VIDEO_STATS: fps=11.5 hueco_max_ms=244 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=68 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:53.755 28175 31052 I VIDEO_STATS: fps=11.5 hueco_max_ms=243 huecos_mayores_500ms=0 cuadros_10s=115 hueco_actual_ms=69 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:22:58.755 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=242 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=71 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:03.756 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=90 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=73 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:08.758 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=91 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=72 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:13.759 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=93 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=72 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:18.759 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=94 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=75 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:23.760 28175 31052 I VIDEO_STATS: fps=11.9 hueco_max_ms=94 huecos_mayores_500ms=0 cuadros_10s=119 hueco_actual_ms=76 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:28.761 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=247 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=77 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+15:23:33.762 28175 31052 I VIDEO_STATS: fps=11.7 hueco_max_ms=247 huecos_mayores_500ms=0 cuadros_10s=117 hueco_actual_ms=81 red=WiFi del carro camara[reconexiones=0 rssi_min_10s=-41 fps_envio=0.0 edad_max_ms=0]
+#
+# ===== PARTE 2: deteccion de obstaculos justo antes y al empezar la primera corrida (15:15:46 a 15:15:56): VISION celdas/deteccion y OBJ_ANY =====
+15:15:46.024 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=0.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.024 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.074 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=0.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.074 28175 30863 I VISION  : celdas| IZQ(celdas=31,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.142 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=74.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.142 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.225 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=55.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.299 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.299 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.380 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=51.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.460 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=51.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.460 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.546 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=70.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.546 28175 30863 I VISION  : celdas| IZQ(celdas=31,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.622 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=50.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.622 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:46.704 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.788 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.864 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:46.946 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.052 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.063 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=30) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=3) | piso=206,166,141 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=80,77,99,149,163,169,170,165
+15:15:47.112 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.112 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:47.186 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.186 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:47.266 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.266 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:47.350 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.350 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:47.438 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=59.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.438 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:47.509 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.591 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.675 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.751 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.836 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.911 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.991 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:47.992 28175 30863 I VISION  : celdas| IZQ(celdas=31,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.074 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.074 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.076 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=30) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=2) | piso=206,166,141 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=80,77,100,150,164,170,171,167
+15:15:48.156 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=54.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.156 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.237 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.237 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.315 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=55.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.394 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=68.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.394 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.481 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=54.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.481 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.559 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=54.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.640 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.640 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.720 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=58.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.720 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.799 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.880 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=49.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.880 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:48.964 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=49.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:48.964 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.040 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.123 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.123 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.124 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=29) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=3) | piso=206,166,141 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=80,77,100,150,164,169,170,165
+15:15:49.200 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.200 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.289 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=51.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.370 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=51.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.370 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.451 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=83.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.451 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.537 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=50.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.537 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.614 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=70.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.615 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.688 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=70.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.782 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.782 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:49.852 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=70.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:49.948 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.018 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.018 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.101 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.101 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.189 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.190 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.191 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=29) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=0) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=0 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=80,77,100,150,164,170,170,166
+15:15:50.267 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.267 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.349 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=53.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.416 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=53.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.511 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.511 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.584 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.584 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.663 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.663 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.743 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=82.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.743 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.831 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=66.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.831 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.898 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=66.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:50.898 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:50.989 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=78.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.059 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=78.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.137 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.137 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.219 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=69.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.219 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.220 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=30) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=0) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=81,77,100,150,164,169,170,165
+15:15:51.298 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=50.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.298 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.379 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=50.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.379 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.460 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=59.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.460 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.543 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.543 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.619 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.619 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=1,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.712 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=67.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.712 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.790 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=67.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.790 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.871 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=49.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.871 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:51.954 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.5 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:51.954 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.039 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=59.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.039 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.110 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=59.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.110 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=0,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.185 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=76.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.185 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.288 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.288 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=1,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.291 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=29) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=1) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=0 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=79,76,98,148,162,168,169,163
+15:15:52.356 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.356 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=1,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.445 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.445 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.520 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.521 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=1,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.605 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.605 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.685 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.685 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:52.753 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.0 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.837 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.8 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:52.936 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=60.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.013 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.103 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=52.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.174 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=52.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.249 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=66.1 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.330 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=53.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.333 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=29) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=2) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=78,76,98,148,161,167,167,160
+15:15:53.411 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=53.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.491 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=74.3 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.572 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.572 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:53.651 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.651 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:53.720 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=48.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.720 28175 30863 I VISION  : celdas| IZQ(celdas=30,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:53.808 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=48.7 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.808 28175 30863 I VISION  : celdas| IZQ(celdas=29,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:53.888 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=87.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:53.964 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=58.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.044 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=68.2 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.128 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=52.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.209 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=52.9 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.209 28175 30863 I VISION  : celdas| IZQ(celdas=28,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:54.287 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=68.4 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.287 28175 30863 I VISION  : celdas| IZQ(celdas=27,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:54.373 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.6 color=1/3,0/0,0/0 decidio=detector severidad=3 desmentidos=0 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.373 28175 30863 I VISION  : celdas| IZQ(celdas=25,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=2,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:54.377 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=3,celdas=25) CEN(hay=0,cerc=0,celdas=0) DER(hay=0,cerc=0,celdas=2) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=1 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=78,75,97,144,146,146,144,136
+15:15:54.442 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=76.5 color=1/3,0/0,1/1 decidio=detector severidad=3 desmentidos=1 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.443 28175 30863 I VISION  : celdas| IZQ(celdas=25,hay=1,cerc=3) CEN(celdas=0,hay=0,cerc=0) DER(celdas=17,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.528 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.1 color=1/3,1/1,1/1 decidio=detector severidad=3 desmentidos=2 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.528 28175 30863 I VISION  : celdas| IZQ(celdas=31,hay=1,cerc=3) CEN(celdas=21,hay=1,cerc=1) DER(celdas=26,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.608 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=63.1 color=1/3,1/1,1/1 decidio=detector severidad=3 desmentidos=2 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.608 28175 30863 I VISION  : celdas| IZQ(celdas=45,hay=1,cerc=3) CEN(celdas=33,hay=1,cerc=1) DER(celdas=27,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.693 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=83.5 color=1/3,1/1,1/1 decidio=detector severidad=3 desmentidos=2 u0.01=f1,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.693 28175 30863 I VISION  : celdas| IZQ(celdas=46,hay=1,cerc=3) CEN(celdas=33,hay=1,cerc=1) DER(celdas=29,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.770 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=66.6 color=1/3,1/1,1/1 decidio=detector severidad=3 desmentidos=2 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.770 28175 30863 I VISION  : celdas| IZQ(celdas=54,hay=1,cerc=3) CEN(celdas=38,hay=1,cerc=1) DER(celdas=29,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.856 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=86.9 color=1/3,1/1,1/1 decidio=detector severidad=3 desmentidos=2 u0.01=f2,p0,z-1,c0 u0.05=f2,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.856 28175 30863 I VISION  : celdas| IZQ(celdas=52,hay=1,cerc=3) CEN(celdas=38,hay=1,cerc=1) DER(celdas=24,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:54.928 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.9 color=1/1,1/1,1/1 decidio=ambos severidad=1 desmentidos=0 u0.01=f3,p2,z1,c1 u0.05=f3,p2,z1,c1 u0.10=f1,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:54.928 28175 30863 I VISION  : celdas| IZQ(celdas=44,hay=1,cerc=1) CEN(celdas=36,hay=1,cerc=1) DER(celdas=9,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.010 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=64.9 color=1/1,1/1,0/0 decidio=ambos severidad=1 desmentidos=0 u0.01=f3,p2,z1,c1 u0.05=f3,p2,z1,c1 u0.10=f1,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.010 28175 30863 I VISION  : celdas| IZQ(celdas=48,hay=1,cerc=1) CEN(celdas=27,hay=1,cerc=1) DER(celdas=3,hay=0,cerc=0) min_celdas=7 umbral=40
+15:15:55.098 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=59.0 color=1/1,1/1,1/1 decidio=nadie severidad=0 desmentidos=3 u0.01=f1,p0,z-1,c0 u0.05=f1,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.098 28175 30863 I VISION  : celdas| IZQ(celdas=43,hay=1,cerc=1) CEN(celdas=11,hay=1,cerc=1) DER(celdas=7,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.176 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=66.4 color=1/1,0/0,1/1 decidio=nadie severidad=0 desmentidos=2 u0.01=f0,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.176 28175 30863 I VISION  : celdas| IZQ(celdas=36,hay=1,cerc=1) CEN(celdas=4,hay=0,cerc=0) DER(celdas=19,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.249 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.9 color=1/1,1/1,1/1 decidio=nadie severidad=0 desmentidos=3 u0.01=f1,p0,z-1,c0 u0.05=f0,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.249 28175 30863 I VISION  : celdas| IZQ(celdas=15,hay=1,cerc=1) CEN(celdas=10,hay=1,cerc=1) DER(celdas=41,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.331 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=65.1 color=1/1,1/1,1/1 decidio=nadie severidad=0 desmentidos=3 u0.01=f1,p0,z-1,c0 u0.05=f1,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.331 28175 30863 I VISION  : celdas| IZQ(celdas=11,hay=1,cerc=1) CEN(celdas=31,hay=1,cerc=1) DER(celdas=50,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.421 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=57.9 color=1/1,1/1,1/1 decidio=nadie severidad=0 desmentidos=3 u0.01=f1,p1,z2,c1 u0.05=f1,p1,z2,c1 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.421 28175 30863 I VISION  : celdas| IZQ(celdas=23,hay=1,cerc=1) CEN(celdas=52,hay=1,cerc=1) DER(celdas=40,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.423 28175 30863 I VISION  : deteccion| IZQ(hay=1,cerc=1,celdas=23) CEN(hay=1,cerc=1,celdas=52) DER(hay=1,cerc=1,celdas=40) | piso=207,166,142 grupos=2 franja(col=4,fila=22,25x2) tapada=0 reaprendido=0 aprendio=0 fila_min=10 filas=24 cols=32 | perfil_centro_verde_8bandas_arriba_a_abajo=118,94,38,31,59,136,147,146
+15:15:55.491 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=57.9 color=1/1,1/1,1/1 decidio=nadie severidad=0 desmentidos=3 u0.01=f1,p1,z2,c1 u0.05=f1,p1,z2,c1 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.491 28175 30863 I VISION  : celdas| IZQ(celdas=60,hay=1,cerc=1) CEN(celdas=51,hay=1,cerc=1) DER(celdas=35,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.571 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=62.4 color=1/2,1/1,1/1 decidio=detector severidad=2 desmentidos=2 u0.01=f5,p0,z-1,c0 u0.05=f5,p0,z-1,c0 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.571 28175 30863 I VISION  : celdas| IZQ(celdas=71,hay=1,cerc=2) CEN(celdas=36,hay=1,cerc=1) DER(celdas=37,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.652 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.1 color=1/2,1/1,1/1 decidio=detector severidad=2 desmentidos=2 u0.01=f3,p2,z0,c1 u0.05=f1,p1,z0,c1 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.652 28175 30863 I VISION  : celdas| IZQ(celdas=64,hay=1,cerc=2) CEN(celdas=31,hay=1,cerc=1) DER(celdas=35,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.732 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=61.1 color=1/2,1/1,1/1 decidio=detector severidad=2 desmentidos=2 u0.01=f3,p2,z0,c1 u0.05=f1,p1,z0,c1 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.732 28175 30863 I VISION  : celdas| IZQ(celdas=63,hay=1,cerc=2) CEN(celdas=33,hay=1,cerc=1) DER(celdas=36,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.816 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=76.6 color=1/2,1/1,1/1 decidio=detector severidad=2 desmentidos=2 u0.01=f6,p3,z0,c3 u0.05=f2,p0,z-1,c0 u0.10=f2,p0,z-1,c0 u0.15=f1,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.816 28175 30863 I VISION  : celdas| IZQ(celdas=63,hay=1,cerc=2) CEN(celdas=32,hay=1,cerc=1) DER(celdas=37,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.892 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=67.1 color=1/2,1/1,1/1 decidio=ambos severidad=2 desmentidos=2 u0.01=f6,p4,z0,c3 u0.05=f2,p2,z0,c2 u0.10=f0,p0,z-1,c0 u0.15=f0,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.892 28175 30863 I VISION  : celdas| IZQ(celdas=62,hay=1,cerc=2) CEN(celdas=34,hay=1,cerc=1) DER(celdas=38,hay=1,cerc=1) min_celdas=7 umbral=40
+15:15:55.984 28175 30863 D OBJ_ANY : OBJ_ANY ms_modelo=75.3 color=1/2,1/1,1/1 decidio=ambos severidad=2 desmentidos=2 u0.01=f5,p4,z0,c2 u0.05=f4,p4,z0,c2 u0.10=f1,p0,z-1,c0 u0.15=f1,p0,z-1,c0 u0.20=f0,p0,z-1,c0 u0.30=f0,p0,z-1,c0
+15:15:55.984 28175 30863 I VISION  : celdas| IZQ(celdas=64,hay=1,cerc=2) CEN(celdas=34,hay=1,cerc=1) DER(celdas=38,hay=1,cerc=1) min_celdas=7 umbral=40
