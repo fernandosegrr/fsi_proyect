@@ -25,8 +25,10 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include "navegador.h"
 #include "calibracion.h"
+#include "mascara_vision.h"
 
 #define MM_POR_CELDA   (CELDA_CM * 10)
 #define LIMITE_CONTADOR 1000
@@ -523,6 +525,9 @@ static ComandoNav comando_de_reinc(const Navegador *nav)
  * suma al tiempo ya ejecutado de ese paso. Así se cuenta el tiempo REAL, no el planeado. */
 static void contar_tiempo_ejecutado(Navegador *nav, int dt)
 {
+    if (nav->sondeo_fase == 1 && nav->cmd_actual == NAV_CMD_FORWARD) {
+        nav->ms_sondeo += dt;   /* el sondeo del arranque avanza NAV_SONDEO_CM cm */
+    }
     if (nav->estado == NAV_SIGUIENDO && nav->indice_paso < nav->n_pasos &&
         nav->cmd_actual == comando_de_paso(&nav->pasos[nav->indice_paso])) {
         nav->ms_paso += dt;
@@ -910,6 +915,73 @@ static int planificar(Navegador *nav)
     return NAV_OK;
 }
 
+/* ── Registro OBS_DIAG y frenos anti-locura (J9) ──────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Una línea OBS_DIAG en cada decisión de obstáculo y al arrancar: la máscara de 10 x 10 (hexadecimal) de lo que se ve en cada zona, la cercanía y las celdas de cada zona, y si la franja
+ * de referencia está tapada (y en qué % de los últimos cuadros). Solo números. `ignorado` dice qué zonas se ignoran como «sospechoso fijo» (izquierda, centro, derecha). */
+static void diag_obs(Navegador *nav, const char *evento)
+{
+    diag_escribir(nav, "OBS_DIAG evento=%s mascara_izq=%s mascara_cen=%s mascara_der=%s cercania=(%d,%d,%d) celdas=(%d,%d,%d) franja_tapada=%d franja_pct=%d ignorado=%d%d%d iguales=%d",
+                  evento, nav->obs_hex[ZONA_IZQUIERDA], nav->obs_hex[ZONA_CENTRO], nav->obs_hex[ZONA_DERECHA],
+                  nav->zona_cercania[ZONA_IZQUIERDA], nav->zona_cercania[ZONA_CENTRO], nav->zona_cercania[ZONA_DERECHA],
+                  nav->zona_celdas[ZONA_IZQUIERDA], nav->zona_celdas[ZONA_CENTRO], nav->zona_celdas[ZONA_DERECHA],
+                  nav->obs_franja_tapada, nav->obs_franja_pct, nav->fijo_ignorar[ZONA_IZQUIERDA], nav->fijo_ignorar[ZONA_CENTRO], nav->fijo_ignorar[ZONA_DERECHA], nav->arranque_iguales);
+}
+
+/* Freno anti-locura: para y pide AYUDA (o ERROR si no se pidió) con la causa. */
+static void frenar_por_locura(Navegador *nav, int causa, const char *que)
+{
+    diag_escribir(nav, "AYUDA_DIAG freno_anti_locura causa=%d %s pose=(%d,%d,%d) recorrido_mm=%ld ruta_mm=%ld indice=%d esquivadas=%d", causa, que, nav->x_mm, nav->y_mm, nav->rumbo_grados,
+                  nav->recorrido_mm, nav->ruta_largo_mm, nav->indice_objetivo, nav->esquivadas);
+    ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, causa);
+}
+
+/* El mayor giro (grados) de los pasos planeados que NO está en la ruta: pasa del límite NAV_LOCURA_GIRO_MAX (o del mayor giro que pide la propia ruta). 0 si no hay. */
+static int giro_fuera_de_ruta(const Navegador *nav)
+{
+    int i, limite = (nav->max_giro_ruta > NAV_LOCURA_GIRO_MAX) ? nav->max_giro_ruta : NAV_LOCURA_GIRO_MAX;
+
+    for (i = 0; i < nav->n_pasos; i++) {
+        if (nav->pasos[i].tipo == PASO_GIRAR) {
+            int g = (nav->pasos[i].valor < 0) ? -nav->pasos[i].valor : nav->pasos[i].valor;
+
+            if (g > limite) {
+                return g;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Cada tick: ¿el carro se está volviendo loco? Índice de la ruta que retrocede, distancia recorrida de más de 2.5 veces la de la ruta o pose a más de 1 m de la ruta. (Los giros planeados de
+ * más de 150 grados se revisan donde se planean: la vuelta a la línea y la ruta que se retoma después; y las esquivadas de más de NAV_MAX_ESQUIVADAS, donde ya se contaban.) */
+static void revisar_frenos(Navegador *nav)
+{
+    long limite, s, desvio;
+    int tramo;
+
+    if (nav->estado != NAV_SIGUIENDO && nav->estado != NAV_DETENIDO_OBSTACULO && nav->estado != NAV_ESQUIVANDO && nav->estado != NAV_REINCORPORANDO) {
+        return;
+    }
+    if (nav->indice_objetivo > nav->indice_max) {
+        nav->indice_max = nav->indice_objetivo;
+    } else if (nav->indice_objetivo < nav->indice_max) {
+        frenar_por_locura(nav, NAV_CAUSA_INDICE, "indice_retrocede");
+        return;
+    }
+    limite = ((nav->ruta_largo_mm > NAV_LOCURA_RECORRIDO_MIN_MM) ? nav->ruta_largo_mm : NAV_LOCURA_RECORRIDO_MIN_MM) * NAV_LOCURA_RECORRIDO_X10 / 10;
+    if (nav->recorrido_mm > limite) {
+        frenar_por_locura(nav, NAV_CAUSA_RECORRIDO, "recorrido_de_mas");
+        return;
+    }
+    if (nav->n_puntos >= 2) {
+        ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
+        if (desvio > NAV_LOCURA_DESVIO_MM) {
+            frenar_por_locura(nav, NAV_CAUSA_LEJOS, "lejos_de_la_ruta");
+        }
+    }
+}
+
 /* ── Configuración ─────────────────────────────────────────────────────── */
 
 void navegador_iniciar(Navegador *nav)
@@ -953,6 +1025,7 @@ void navegador_iniciar(Navegador *nav)
     nav->t_bloqueo_ms = 0;
     nav->t_libre_ms = 0;
     nav->bloqueo_inmediato = 0;
+    nav->bloqueo_cerc3 = 0;
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_celdas[z] = 0;
         nav->zona_frena[z] = 0;
@@ -995,6 +1068,28 @@ void navegador_iniciar(Navegador *nav)
     nav->reinc_rumbo_importa = 1;
     nav->tramo_mm = NAV_TRAMO_ESQUIVAR_CM * 10;
     nav->sin_red_seguridad = 0;
+    nav->sin_arreglo_indice = 0;
+    nav->reinc_rumbo_tol = NAV_REINC_GIRO_MIN_GRADOS - 1;
+    nav->arranque_ok = 1;
+    nav->arranque_iguales = nav->arranque_firma = 0;
+    nav->arranque_t0_ms = 0;
+    nav->bloqueo_cerc3 = 0;
+    nav->sondeo_hecho = 1;
+    nav->sondeo_fase = nav->sondeo_ms = nav->ms_sondeo = nav->sondeo_zonas = nav->sondeo_ref = nav->sondeo_n = 0;
+    nav->sondeo_suma = 0;
+    nav->sondeo_listo_ms = 0;
+    for (z = 0; z < OBS_ZONAS; z++) {
+        nav->fijo_ignorar[z] = 0;
+        nav->fijo_celdas[z] = 0;
+        memset(nav->obs_hex[z], '0', MASC_HEX_LARGO);
+        nav->obs_hex[z][MASC_HEX_LARGO] = '\0';
+    }
+    nav->indice_max = 0;
+    nav->recorrido_mm = 0;
+    nav->prev_x_mm = nav->prev_y_mm = 0;
+    nav->ruta_largo_mm = 0;
+    nav->max_giro_ruta = 0;
+    nav->obs_franja_tapada = nav->obs_franja_pct = 0;
     nav->arco_adelante_mm = nav->arco_libre_mm = 0;
     nav->reinc_fase = NAV_RF_PLAN;
     nav->reinc_t_fase_ms = 0;
@@ -1066,6 +1161,7 @@ int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
     nav->volver_a_reinc = 0;
     nav->frames_bloqueado = 0;
     nav->bloqueo_inmediato = 0;
+    nav->bloqueo_cerc3 = 0;
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
     nav->cmd_actual = NAV_CMD_STOP;
@@ -1097,11 +1193,45 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->seg_ms = 0;
     nav->frames_bloqueado = 0;
     nav->bloqueo_inmediato = 0;
+    nav->bloqueo_cerc3 = 0;
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
     nav->cerc_detenido_max = 0;
     nav->fin_obstaculo_mm = -1;
     nav->reinc_pasar_primero = 0;
+    {   /* Por ruta: el arranque espera cuadros iguales, el sondeo se puede hacer una vez y los frenos anti-locura parten de cero. */
+        int k, previo = nav->rumbo_grados, z;
+
+        nav->arranque_ok = 0;
+        nav->arranque_iguales = 0;
+        nav->arranque_firma = 0;
+        nav->arranque_t0_ms = ahora_ms;
+        nav->bloqueo_cerc3 = 0;
+        nav->sondeo_hecho = 0;
+        nav->sondeo_fase = 0;
+        for (z = 0; z < OBS_ZONAS; z++) {
+            nav->fijo_ignorar[z] = 0;
+            nav->fijo_celdas[z] = 0;
+        }
+        nav->indice_max = nav->indice_objetivo;
+        nav->recorrido_mm = 0;
+        nav->prev_x_mm = nav->x_mm;
+        nav->prev_y_mm = nav->y_mm;
+        nav->ruta_largo_mm = (nav->n_puntos >= 2) ? distancia_hasta_tramo(nav, nav->n_puntos - 1) : 0;
+        nav->max_giro_ruta = 0;
+        for (k = 0; k + 1 < nav->n_puntos; k++) {
+            int rumbo = rumbo_del_tramo(nav, k);
+            int g = giro_minimo(previo, rumbo);
+
+            if (g < 0) {
+                g = -g;
+            }
+            if (g > nav->max_giro_ruta) {
+                nav->max_giro_ruta = g;
+            }
+            previo = rumbo;
+        }
+    }
     if (cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) || cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_DERECHA)) {
         diag_escribir(nav, "TURN_DIAG aviso=%s_estimada_como_espejo_de_la_%s: no tiene medida propia, midela en Calibracion",
                       cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) ? "izquierda" : "derecha", cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) ? "derecha" : "izquierda");
@@ -1132,9 +1262,9 @@ void navegador_cancelar(Navegador *nav)
 
 /* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3) en cualquier
  * zona, o a media distancia (2) en la zona central. */
-static int cuadro_es_inmediato(int zona, int cercania)
+static int cuadro_es_inmediato(int zona, int cercania, int celdas)
 {
-    return cercania >= 3 || (cercania == 2 && zona == ZONA_CENTRO);
+    return (cercania >= 3 && celdas >= NAV_CERC3_AREA_INMEDIATA) || (cercania == 2 && zona == ZONA_CENTRO);
 }
 
 /* Guarda lo que se vio en el último cuadro y lleva la cuenta de la RACHA actual: cuántos cuadros
@@ -1142,14 +1272,21 @@ static int cuadro_es_inmediato(int zona, int cercania)
  * no cambia nada: ver bloqueo_confirmado() y libre_confirmado(). */
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
-    int z, bloqueado = 0, inmediato = 0, causa_normal = 0;
+    int z, bloqueado = 0, inmediato = 0, cerc3_chico = 0, causa_normal = 0, firma = 0;
 
     for (z = 0; z < OBS_ZONAS; z++) {
-        nav->zona_hay[z] = obs->zona[z].hay_obstaculo;
-        nav->zona_cercania[z] = obs->zona[z].cercania;
+        int hay = obs->zona[z].hay_obstaculo;
+
+        /* «Sospechoso fijo» (sondeo del arranque): mientras sus celdas no crezcan, esa zona se ignora en esta corrida. */
+        if (hay && nav->fijo_ignorar[z] && obs->zona[z].celdas <= nav->fijo_celdas[z] * NAV_SONDEO_IGNORAR_PCT / 100 + NAV_SONDEO_IGNORAR_MAS) {
+            hay = 0;
+        }
+        nav->zona_hay[z] = hay;
+        nav->zona_cercania[z] = hay ? obs->zona[z].cercania : 0;
         nav->zona_celdas[z] = obs->zona[z].celdas;
+        firma |= (hay ? (obs->zona[z].cercania & 3) : 0) << (2 * z);
         /* Corredor (corredor.h): un obstáculo FUERA del corredor se sigue viendo (zona_hay, para elegir lado) pero no frena. */
-        nav->zona_frena[z] = obs->zona[z].hay_obstaculo && !obs->zona[z].fuera_corredor;
+        nav->zona_frena[z] = hay && !obs->zona[z].fuera_corredor;
         nav->zona_en_corredor[z] = nav->zona_frena[z] && obs->zona[z].cercania_corredor > 0;   /* el corredor (activo) dice que está en el camino del carro */
         nav->zona_cerc_frena[z] = !nav->zona_frena[z] ? 0 :
             ((obs->zona[z].cercania_corredor > 0) ? obs->zona[z].cercania_corredor : obs->zona[z].cercania);
@@ -1160,8 +1297,10 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         if (nav->zona_frena[z] && nav->zona_cerc_frena[z] >= NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* un obstáculo cerca en cualquier zona (dentro del corredor, si está activo) bloquea */
             causa_normal = 1;
-            if (cuadro_es_inmediato(z, nav->zona_cerc_frena[z])) {
+            if (cuadro_es_inmediato(z, nav->zona_cerc_frena[z], nav->zona_celdas[z])) {
                 inmediato = 1;
+            } else if (nav->zona_cerc_frena[z] >= 3) {
+                cerc3_chico = 1;                 /* cercanía 3 con pocas celdas: frena con 2 cuadros seguidos */
             }
         }
     }
@@ -1169,7 +1308,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         if (nav->frames_bloqueado == 0) {      /* empieza una racha con obstáculo */
             nav->t_bloqueo_ms = ahora_ms;
             nav->bloqueo_inmediato = 0;
+            nav->bloqueo_cerc3 = 0;
             nav->solo_lejos_centro = 1;
+        }
+        if (cerc3_chico) {
+            nav->bloqueo_cerc3 = 1;
         }
         if (causa_normal) {
             nav->solo_lejos_centro = 0;          /* la racha ya incluye un obstáculo de los de siempre: tiempos de siempre */
@@ -1186,7 +1329,38 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->frames_libre++;
         nav->frames_bloqueado = 0;
         nav->bloqueo_inmediato = 0;
+        nav->bloqueo_cerc3 = 0;
     }
+    /* Arranque: cuántos cuadros seguidos son iguales (la misma cercanía con obstáculo en cada zona). */
+    if (!nav->arranque_ok) {
+        if (nav->arranque_iguales > 0 && firma == nav->arranque_firma) {
+            nav->arranque_iguales++;
+        } else {
+            nav->arranque_firma = firma;
+            nav->arranque_iguales = 1;
+        }
+    }
+    /* Sondeo: después de avanzar y asentarse, se suman las celdas de las zonas del obstáculo para compararlas con las de antes. */
+    if (nav->sondeo_fase == 2 && ahora_ms - nav->sondeo_listo_ms < 0x80000000u) {
+        int celdas_sondeo = 0;
+
+        for (z = 0; z < OBS_ZONAS; z++) {
+            if (nav->sondeo_zonas & (1 << z)) {
+                celdas_sondeo += obs->zona[z].celdas;
+            }
+        }
+        nav->sondeo_suma += celdas_sondeo;
+        nav->sondeo_n++;
+    }
+    /* Para el registro OBS_DIAG: la máscara de cada zona y la franja de referencia de lo último que se vio. */
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (masc_zona_a_hex(obs, z, nav->obs_hex[z], (int)sizeof nav->obs_hex[z]) != MASC_OK) {
+            memset(nav->obs_hex[z], '0', MASC_HEX_LARGO);
+            nav->obs_hex[z][MASC_HEX_LARGO] = '\0';
+        }
+    }
+    nav->obs_franja_tapada = (obs->franja_contaminada || obs->franja_ignorada) ? 1 : 0;
+    nav->obs_franja_pct = obs->franja_tapada_pct;
     /* Filas y columnas de las celdas de obstáculo de cada zona (solo se calculan durante la esquivada, para el registro ESQUIVE_DIAG). */
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_fila_min[z] = nav->zona_fila_max[z] = nav->zona_col_min[z] = nav->zona_col_max[z] = -1;
@@ -1239,6 +1413,9 @@ static int bloqueo_confirmado(const Navegador *nav, uint32_t ahora_ms)
     }
     if (nav->bloqueo_inmediato) {
         return 1;
+    }
+    if (nav->bloqueo_cerc3 && nav->frames_bloqueado >= 2) {
+        return 1;                            /* cercanía 3 con pocas celdas: 2 cuadros seguidos */
     }
     return nav->frames_bloqueado >= 2 &&
            (ahora_ms - nav->t_bloqueo_ms) >= (uint32_t)(nav->solo_lejos_centro ? NAV_MS_CONFIRMAR_CENTRO_LEJOS : MS_CONFIRMAR_LEJOS);
@@ -1428,6 +1605,7 @@ static void entrar_detenido(Navegador *nav, uint32_t ahora_ms)
 
     nav->estado = NAV_DETENIDO_OBSTACULO;
     nav->t_detenido_ms = ahora_ms;
+    diag_obs(nav, "detiene");
     nav->frames_recibidos = 0;
     nav->frames_libre = 0;
     nav->cerc_detenido_max = 0;
@@ -1438,10 +1616,113 @@ static void entrar_detenido(Navegador *nav, uint32_t ahora_ms)
     }
 }
 
+/* ── Arranque y sondeo del obstáculo fijo (J9) ────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* ¿Hay que sondear? El obstáculo ya estaba en los cuadros del arranque, el carro no se ha movido ni esquivado, el centro está libre y la cercanía es chica (o el obstáculo está solo en los lados,
+ * donde avanzar 4 cm no lo acerca al centro): avanzar un poco y ver si las celdas crecen. Un obstáculo real crece al acercarse; un artefacto de la imagen no. */
+static int sondeo_aplica(const Navegador *nav)
+{
+    int z, hay = 0, lateral_solo = 1, cerc_max = 0;
+
+    if (nav->sondeo_hecho || nav->esquivadas != 0 || nav->recorrido_mm > NAV_SONDEO_QUIETO_MM || nav->arranque_firma == 0 || nav->zona_hay[ZONA_CENTRO]) {
+        return 0;
+    }
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (nav->zona_frena[z]) {
+            hay = 1;
+            if (nav->zona_cerc_frena[z] > cerc_max) {
+                cerc_max = nav->zona_cerc_frena[z];
+            }
+            if (z == ZONA_CENTRO) {
+                lateral_solo = 0;
+            }
+        }
+    }
+    return hay && (cerc_max <= NAV_SONDEO_CERC_MAX || lateral_solo);
+}
+
+static void iniciar_sondeo(Navegador *nav, uint32_t ahora_ms)
+{
+    int z;
+
+    nav->sondeo_hecho = 1;
+    nav->sondeo_fase = 1;
+    nav->sondeo_ms = cal_cm_a_ms(&nav->cal, NAV_SONDEO_CM);
+    nav->ms_sondeo = 0;
+    nav->sondeo_zonas = 0;
+    nav->sondeo_ref = 0;
+    nav->sondeo_suma = 0;
+    nav->sondeo_n = 0;
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (nav->zona_frena[z]) {
+            nav->sondeo_zonas |= 1 << z;
+            nav->sondeo_ref += nav->zona_celdas[z];
+        }
+    }
+    (void)ahora_ms;
+    diag_obs(nav, "sondeo_inicio");
+}
+
+/* El sondeo en marcha: avanza NAV_SONDEO_CM cm, se asienta, mira unos cuadros y decide. */
+static ComandoNav tick_sondeo(Navegador *nav, uint32_t ahora_ms)
+{
+    if (nav->sondeo_fase == 1) {
+        if (nav->zona_frena[ZONA_CENTRO] && bloqueo_confirmado(nav, ahora_ms)) {   /* algo apareció en el centro mientras avanzaba: es real */
+            nav->sondeo_fase = 0;
+            diag_obs(nav, "sondeo_centro");
+            entrar_detenido(nav, ahora_ms);
+            return NAV_CMD_STOP;
+        }
+        if (nav->ms_sondeo + NAV_TICK_MS / 2 >= nav->sondeo_ms) {
+            nav->sondeo_fase = 2;
+            nav->sondeo_listo_ms = ahora_ms + (uint32_t)(NAV_PAUSA_ASENTAR_MS + nav->latencia_visual_ms);
+            return NAV_CMD_STOP;
+        }
+        return NAV_CMD_FORWARD;
+    }
+    /* Fase 2: quieto; los cuadros que llegan después de asentarse se suman (registrar_cuadro). */
+    if ((uint32_t)(ahora_ms - nav->sondeo_listo_ms) >= 0x80000000u || ahora_ms - nav->sondeo_listo_ms < (uint32_t)NAV_SONDEO_MIRAR_MS) {
+        return NAV_CMD_STOP;
+    }
+    {
+        int antes = nav->sondeo_ref, despues = (nav->sondeo_n > 0) ? (int)(nav->sondeo_suma / nav->sondeo_n) : -1;
+        int crece = antes * NAV_SONDEO_CRECE_PCT / 100;
+        int z;
+
+        if (crece < NAV_SONDEO_CRECE_MIN) {
+            crece = NAV_SONDEO_CRECE_MIN;
+        }
+        nav->sondeo_fase = 0;
+        nav->frames_bloqueado = 0;
+        nav->frames_libre = 0;
+        nav->bloqueo_inmediato = 0;
+        nav->bloqueo_cerc3 = 0;
+        if (despues < 0 || despues >= antes + crece) {   /* sin cuadros para comparar, o crecieron: es real (en la duda, se frena) */
+            diag_escribir(nav, "OBS_DIAG sondeo=real celdas_antes=%d celdas_despues=%d zonas=%d", antes, despues, nav->sondeo_zonas);
+            diag_obs(nav, "sondeo_real");
+            entrar_detenido(nav, ahora_ms);
+            return NAV_CMD_STOP;
+        }
+        for (z = 0; z < OBS_ZONAS; z++) {
+            if (nav->sondeo_zonas & (1 << z)) {
+                nav->fijo_ignorar[z] = 1;
+                nav->fijo_celdas[z] = (nav->zona_celdas[z] > antes) ? nav->zona_celdas[z] : antes;
+            }
+        }
+        diag_escribir(nav, "OBS_DIAG sondeo=sospechoso_fijo celdas_antes=%d celdas_despues=%d zonas=%d: se ignora en esta corrida y no se reaprende el piso con el", antes, despues, nav->sondeo_zonas);
+        diag_obs(nav, "sondeo_fijo");
+        return NAV_CMD_STOP;
+    }
+}
+
 static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
 {
     ComandoNav comando = NAV_CMD_STOP;
     int vueltas = 0;
+
+    if (nav->sondeo_fase != 0) {
+        return tick_sondeo(nav, ahora_ms);
+    }
 
     for (;;) {
         vueltas++;
@@ -1486,8 +1767,23 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
     }
 
     if (comando == NAV_CMD_FORWARD && bloqueo_confirmado(nav, ahora_ms)) {
+        /* ARRANQUE: al arrancar no se decide (detener, sondear o esquivar) con el primer cuadro: hacen falta NAV_ARRANQUE_CUADROS cuadros seguidos iguales o que pase NAV_ARRANQUE_MAX_MS. */
+        if (!nav->arranque_ok) {
+            if (nav->arranque_iguales < NAV_ARRANQUE_CUADROS && (uint32_t)(ahora_ms - nav->arranque_t0_ms) < (uint32_t)NAV_ARRANQUE_MAX_MS) {
+                return NAV_CMD_STOP;
+            }
+            nav->arranque_ok = 1;
+            diag_obs(nav, "arranque");
+        }
+        if (sondeo_aplica(nav)) {
+            iniciar_sondeo(nav, ahora_ms);   /* ¿obstáculo real o artefacto fijo? avanza un poco y lo compara */
+            return NAV_CMD_FORWARD;
+        }
         entrar_detenido(nav, ahora_ms);
         return NAV_CMD_STOP;
+    }
+    if (comando != NAV_CMD_STOP) {
+        nav->arranque_ok = 1;   /* el carro ya arrancó sin obstáculo: el arranque pasó */
     }
     return comando;
 }
@@ -1508,6 +1804,7 @@ static void entrar_reincorporando(Navegador *nav, uint32_t ahora_ms)
     nav->estado = NAV_REINCORPORANDO;
     nav->frames_bloqueado = 0;   /* hacen falta cuadros nuevos para volver a detenerse */
     nav->bloqueo_inmediato = 0;
+    nav->bloqueo_cerc3 = 0;
     nav->frames_libre = 0;
     nav->centro_frames = 0;
     nav->reinc_correcciones = 0;   /* una vuelta nueva empieza con las correcciones en cero */
@@ -1830,6 +2127,7 @@ static int reinc_calcular(Navegador *nav)
 
     nav->reinc_pasar_primero = 0;
     nav->reinc_rumbo_importa = 1;
+    nav->reinc_rumbo_tol = NAV_REINC_GIRO_MIN_GRADOS - 1;
     giro_solo = giro_util(giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final));
     if (desvio_pos >= NAV_REINC_DESVIO_MIN_MM && nav->fin_obstaculo_mm >= 0 && nav->fin_obstaculo_mm - s_pos >= NAV_PARALELO_MIN_MM) {
         /* Todavía no pasó el obstáculo (pasa tras «toma el control» si el usuario lo dejó al lado o detrás): volver en diagonal 30 cm adelante lo llevaría contra el
@@ -1877,8 +2175,8 @@ static int reinc_calcular(Navegador *nav)
                 if (!hay_plan && s_obj >= distancia_hasta_tramo(nav, nav->n_puntos - 1)) {
                     /* El punto es el final de la ruta y no se puede llegar con el rumbo de la línea (el carro ya está muy cerca del final): ahí el rumbo con el que se llega no importa. */
                     hay_plan = planear_hasta_punto(nav, &p0, tx, ty, &plan);
-                    nav->reinc_rumbo_importa = 0;   /* se llega al final de la ruta sin giro final: el rumbo ya no importa */
                     intento = NAV_PLAN_INTENTOS;
+                    nav->reinc_rumbo_importa = 0;   /* PENDIENTE (J9, punto 5): el giro final de hasta NAV_RUMBO_FINAL_TOL grados desplaza el centro hasta 22 cm; mientras tanto el rumbo no se corrige al final de la ruta */
                 }
                 plan_fallido = !hay_plan;
             }
@@ -1896,8 +2194,8 @@ static int reinc_calcular(Navegador *nav)
             nav->reinc_plan_y_mm[0] = plan.p1.y_mm;
             nav->reinc_plan_x_mm[1] = plan.q.x_mm;
             nav->reinc_plan_y_mm[1] = plan.q.y_mm;
-            nav->reinc_plan_x_mm[2] = (int)tx;
-            nav->reinc_plan_y_mm[2] = (int)ty;
+            nav->reinc_plan_x_mm[2] = plan.e.x_mm;
+            nav->reinc_plan_y_mm[2] = plan.e.y_mm;
         } else if (usar_plan && plan_fallido) {
             diag_escribir(nav, "REINC_DIAG sin_solucion pose_antes=(%d,%d,%d) desvio_mm=%d rumbo_linea=%d: ningun punto de la linea se alcanza con los giros de pivote",
                           nav->x_mm, nav->y_mm, nav->rumbo_grados, nav->reinc_desvio_mm, nav->reinc_rumbo_final);
@@ -2017,7 +2315,9 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
     if (!nav->reinc_solo_rumbo) {
         nav->indice_objetivo = nav->reinc_indice_obj;
     }
-    reinc_saltar_puntos_pasados(nav);
+    if (!nav->sin_arreglo_indice) {
+        reinc_saltar_puntos_pasados(nav);
+    }
     ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
     diag_escribir(nav, "REINC_DIAG fin pose_despues=(%d,%d,%d) desvio_mm=%d siguiente_punto=%d", nav->x_mm, nav->y_mm, nav->rumbo_grados, (int)desvio, nav->indice_objetivo);
     if (nav->indice_objetivo >= nav->n_puntos) {
@@ -2027,6 +2327,18 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
     if (planificar(nav) != NAV_OK) {
         ir_a_error(nav, NAV_MOTIVO_PLAN);
         return NAV_CMD_STOP;
+    }
+    {
+        int giro_loco = giro_fuera_de_ruta(nav);
+
+        if (giro_loco > 0) {   /* la ruta que se retoma pide un giro enorme que la propia ruta no tiene: no se ejecuta */
+            char que[48];
+
+            snprintf(que, sizeof que, "giro_de_%d_grados_fuera_de_la_ruta", giro_loco);
+            nav->n_pasos = 0;
+            frenar_por_locura(nav, NAV_CAUSA_GIRO_LOCO, que);
+            return NAV_CMD_STOP;
+        }
     }
     nav->estado = NAV_SIGUIENDO;
     return NAV_CMD_STOP;
@@ -2113,6 +2425,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->volver_a_reinc = 0;
         nav->frames_bloqueado = 0;
         nav->bloqueo_inmediato = 0;
+        nav->bloqueo_cerc3 = 0;
         entrar_reincorporando(nav, ahora_ms);
         return NAV_CMD_STOP;
     }
@@ -2123,6 +2436,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->ms_paso += (int)((long)nav->cal.frenado_mm * nav->cal.ms_por_cm_x10 / 100) - nav->cal.arranque_ms;
         nav->frames_bloqueado = 0;
         nav->bloqueo_inmediato = 0;
+        nav->bloqueo_cerc3 = 0;
         return tick_siguiendo(nav, ahora_ms);
     }
     if (espera >= NAV_PAUSA_MS && nav->frames_recibidos >= 1) {
@@ -2153,6 +2467,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
                 ir_a_error(nav, NAV_MOTIVO_MAX_ESQUIVADAS);
                 return NAV_CMD_STOP;
             }
+            diag_obs(nav, "esquiva");
             nav->esquivadas++;
             nav->volver_a_reinc = 0;
             nav->salida_x_mm = nav->x_mm;          /* de aquí sale de la línea: a este punto se mide después el regreso */
@@ -2349,6 +2664,10 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
             ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_VUELTA);   /* sin solución: pide ayuda (o ERROR si no se pidió) en vez de ejecutar un plan inválido */
             return NAV_CMD_STOP;
         }
+        if (valor_absoluto_int(nav->reinc_giro1) > NAV_LOCURA_GIRO_MAX || valor_absoluto_int(nav->reinc_giro2) > NAV_LOCURA_GIRO_MAX) {
+            frenar_por_locura(nav, NAV_CAUSA_GIRO_LOCO, "giro_de_la_vuelta_fuera_de_la_ruta");   /* un giro así no es de una vuelta a la línea: no se da */
+            return NAV_CMD_STOP;
+        }
         siguiente = reinc_siguiente_movimiento(nav, NAV_RF_PLAN);
         if (siguiente < 0) {
             return reinc_terminar(nav, ahora_ms);
@@ -2410,7 +2729,7 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
         }
         siguiente = reinc_siguiente_movimiento(nav, fase - 1);
         if (siguiente < 0 && nav->reinc_rumbo_importa && !nav->sin_red_seguridad && nav->reinc_correcciones < NAV_PLAN_CORRECCIONES &&
-            valor_absoluto_int(giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final)) >= NAV_REINC_GIRO_MIN_GRADOS) {
+            valor_absoluto_int(giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final)) > nav->reinc_rumbo_tol) {
             /* Terminó la vuelta pero el rumbo quedó a NAV_REINC_GIRO_MIN_GRADOS o más del de la línea (los giros por tiempo salen de a 5 grados): un rumbo chueco se paga después
              * en todo el resto de la ruta (4 grados son 33 cm en 5 m), así que se corrige con otro plan. Si ya se agotaron las correcciones se sigue como está. */
             reinc_replanear(nav, ahora_ms);
@@ -2493,6 +2812,7 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
     nav->reintentos = 0;
     nav->error_causa = NAV_CAUSA_NINGUNA;
     nav->desde_ayuda = 1;
+    nav->indice_max = nav->indice_objetivo;   /* tras tomar el control el carro pudo quedar en otro lugar: el índice parte de aquí */
     diag_escribir(nav, "AYUDA_DIAG continua pose=(%d,%d,%d)", nav->x_mm, nav->y_mm, nav->rumbo_grados);
     entrar_reincorporando(nav, ahora_ms);   /* quieto 300 ms y calcula la vuelta a la línea con la pose estimada */
     return NAV_OK;
@@ -2531,6 +2851,14 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     nav->seg_ms += (int)dt;           /* el comando anterior estuvo activo estos dt ms */
     calcular_pose(nav);
     contar_tiempo_ejecutado(nav, (int)dt);
+    {   /* distancia que ha recorrido el centro (para el freno anti-locura de «recorrió demasiado») */
+        long ddx = (long)nav->x_mm - nav->prev_x_mm, ddy = (long)nav->y_mm - nav->prev_y_mm;
+
+        nav->recorrido_mm += raiz_entera(ddx * ddx + ddy * ddy);
+        nav->prev_x_mm = nav->x_mm;
+        nav->prev_y_mm = nav->y_mm;
+    }
+    revisar_frenos(nav);
 
     /* Con cámara, nada se mueve hasta el primer cuadro de la ruta; si no llega a tiempo, ERROR sin video (antes recorría la ruta entera a ciegas). */
     if (nav->requiere_camara && !nav->usa_camara && nav->estado != NAV_ESPERANDO && nav->estado != NAV_TERMINADO && nav->estado != NAV_ERROR) {
@@ -2620,6 +2948,19 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         break;
     case NAV_CAUSA_VUELTA:
         n = snprintf(texto, (size_t)capacidad, "no hay camino para volver a la línea con los giros de pivote del carro");
+        break;
+    case NAV_CAUSA_GIRO_LOCO:
+        n = snprintf(texto, (size_t)capacidad, "se planeó un giro de más de %d grados que la ruta no tiene: se paró en vez de darlo", NAV_LOCURA_GIRO_MAX);
+        break;
+    case NAV_CAUSA_INDICE:
+        n = snprintf(texto, (size_t)capacidad, "el siguiente punto de la ruta retrocedió: se paró para no recorrerla hacia atrás");
+        break;
+    case NAV_CAUSA_RECORRIDO:
+        n = snprintf(texto, (size_t)capacidad, "recorrió más de %d.%d veces la distancia de la ruta (%ld cm contra %ld cm de la ruta)", NAV_LOCURA_RECORRIDO_X10 / 10, NAV_LOCURA_RECORRIDO_X10 % 10,
+                     nav->recorrido_mm / 10, nav->ruta_largo_mm / 10);
+        break;
+    case NAV_CAUSA_LEJOS:
+        n = snprintf(texto, (size_t)capacidad, "la posición estimada quedó a más de %d cm de la ruta", NAV_LOCURA_DESVIO_MM / 10);
         break;
     default:
         break;

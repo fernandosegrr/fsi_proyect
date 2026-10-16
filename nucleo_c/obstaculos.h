@@ -135,6 +135,20 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define OBS_MOTIVO_PISO_OSCURO    16   /* el piso de la zona de avance es oscuro (brillo medio bajo BRILLO_OSCURO / 3 por canal) */
 #define OBS_MOTIVO_TODO_NO_PISO   32   /* casi todo lo de la zona de avance se ve "no piso" */
 
+/* ── Máscara de artefactos de la imagen (J9, «Calibrar visión», ver mascara_vision.h) ──────────────────────────────────────────────────────
+ * Un artefacto fijo (viñeteo, una parte del carro, algo que siempre está en la vista) se marca como «no piso» en TODOS los cuadros y en todos los
+ * lugares. La máscara es de 10 x 10 celdas gruesas que cubren toda la imagen (una celda gruesa tapa varias celdas del detector): las celdas
+ * enmascaradas se tratan como piso y no cuentan en ninguna zona. */
+#define OBS_MASC_FILAS      10
+#define OBS_MASC_COLUMNAS   10
+
+/* La franja de referencia se considera «tapada» en un cuadro si no sirvió para aprender el piso. Se lleva la cuenta de los últimos OBS_FRANJA_VENTANA
+ * cuadros: si en más de OBS_FRANJA_TAPADA_MAX_PCT % estuvo tapada (y ya hay al menos OBS_FRANJA_MIN_CUADROS), el detector deja de reaprender o agregar
+ * colores con la franja y sigue con el último modelo del piso. */
+#define OBS_FRANJA_VENTANA          20
+#define OBS_FRANJA_MIN_CUADROS      10
+#define OBS_FRANJA_TAPADA_MAX_PCT   30
+
 /* ── Piso con varios colores y aprendizaje ─────────────────────────────── */
 
 #define OBS_MAX_GRUPOS        4    /* máximo de grupos de color del piso (K) */
@@ -156,6 +170,8 @@ typedef struct {
     int sin_piso_activo;                     /* 1 si lleva un tiempo con todo "no piso" */
     unsigned int sin_piso_desde_ms;          /* hora en que empezó ese tiempo */
     int reaprendidos;                        /* cuántas veces se reaprendió el piso (cambio de piso) */
+    unsigned int franja_hist;                /* un bit por cuadro (el último en el bit 0): 1 = la franja de referencia estaba tapada */
+    int franja_hist_n;                       /* cuántos cuadros hay en franja_hist (hasta OBS_FRANJA_VENTANA) */
 } ModeloPiso;
 
 /* ── Resultado ─────────────────────────────────────────────────────────── */
@@ -187,6 +203,8 @@ typedef struct {
     int grupos;                      /* cuántos grupos de color del piso se usaron */
     int grupo_color[OBS_MAX_GRUPOS][3];   /* el color de cada grupo (los primeros `grupos`) */
     int franja_contaminada;          /* 1 si la franja no sirvió pero se usó el modelo ya aprendido */
+    int franja_tapada_pct;           /* % de los últimos OBS_FRANJA_VENTANA cuadros con la franja tapada (0 si hay menos de OBS_FRANJA_MIN_CUADROS) */
+    int franja_ignorada;             /* 1 si en este cuadro la franja NO se usó para agregar colores ni reaprender porque lleva más de OBS_FRANJA_TAPADA_MAX_PCT % tapada */
     int piso_reaprendido;            /* 1 si en ESTE cuadro se reaprendió el piso (cambio de piso): avisar */
     int aprendio;                    /* 1 si en este cuadro se actualizó el modelo con celdas de piso */
     int celdas_borde;                /* cuántas celdas se marcaron SOLO por la señal de bordes */
@@ -217,6 +235,8 @@ typedef struct {
     int usar_bordes;            /* 1 = señal extra de bordes entre celdas vecinas (objetos casi del color del piso) */
     int mejoras_piso;           /* 1 (por defecto) = brillo oscuro, grupos con apoyo mínimo y reajuste de brillo; 0 = el detector de antes (para comparar) */
     int piso_fijo;              /* 1 = durante una ruta: no se reaprende el piso ni se agregan colores nuevos (el brillo sí se reajusta) */
+    int mascara_activa;         /* 1 = se ignoran las celdas gruesas de `mascara` (artefactos de la imagen; ver «Calibrar visión») */
+    unsigned char mascara[OBS_MASC_FILAS][OBS_MASC_COLUMNAS];   /* 1 = celda gruesa enmascarada; la celda gruesa de una celda (f, c) es [f * 10 / filas][c * 10 / columnas] */
 } ConfigObstaculos;
 
 /* Códigos de retorno de obstaculos_analizar. */

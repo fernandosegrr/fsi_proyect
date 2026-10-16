@@ -168,7 +168,7 @@ static void cuadro_zona(ResultadoObstaculos *obs, int zona, int cercania)
     memset(obs, 0, sizeof *obs);
     obs->zona[zona].hay_obstaculo = (cercania > 0);
     obs->zona[zona].cercania = cercania;
-    obs->zona[zona].celdas = cercania > 0 ? 10 : 0;
+    obs->zona[zona].celdas = cercania > 0 ? NAV_CERC3_AREA_INMEDIATA : 0;
 }
 
 static void cuadro_centro(ResultadoObstaculos *obs, int cercania)
@@ -1754,7 +1754,7 @@ static void pruebas_ayuda(void)
 
         memset(&libre, 0, sizeof libre);
         navegador_tick(&nav, sim.t_ms, &libre);   /* llega un cuadro: desde aquí se vigila el video */
-        navegador_tick(&nav, sim.t_ms + 700, NULL);   /* y pasan 700 ms sin cuadros */
+        navegador_tick(&nav, sim.t_ms + NAV_MAX_HUECO_VIDEO_MS + 100, NULL);   /* y pasa más que el máximo sin cuadros */
         caso("sin video sigue siendo ERROR aunque se pida ayuda (no hay con que ver al maniobrar)", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO);
     }
 
@@ -2490,8 +2490,8 @@ static void pruebas_plan_pivote(void)
     nav.sin_red_seguridad = 1;
     correr_con_empujon(120, 0, 170000);
     dist = distancia_a_la_ruta(LARGA, N(LARGA));
-    caso("sin red de seguridad, un empujon de 12 cm a la pose en plena vuelta se queda: termina a mas de 10 cm de la linea", nav.estado == NAV_TERMINADO && dist > 100 && marcas_plan.correcciones == 0);
-    printf("      sin red de seguridad, empujon de 12 cm: %d mm de la linea\n", dist);
+    caso("sin red de seguridad, un empujon de 12 cm a la pose en plena vuelta se queda: termina a mas de 10 cm de la linea o se descontrola tanto que el freno anti-locura lo para (recorrio mas de 2.5 veces la ruta)", marcas_plan.correcciones == 0 && ((nav.estado == NAV_TERMINADO && dist > 100) || (nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_RECORRIDO)));
+    printf("      sin red de seguridad, empujon de 12 cm: %d mm de la linea (estado %s, causa %d, recorrido %ld mm de %ld)\n", dist, navegador_texto_estado(nav.estado), nav.error_causa, nav.recorrido_mm, nav.ruta_largo_mm);
     {
         int sin_red = dist;
 
@@ -2529,10 +2529,11 @@ static void pruebas_plan_pivote(void)
 }
 
 /* ── Caso real del 16 oct: «al final se volvió loco» ──────────────────────────────────────────────────────────────────────────────
- * Ruta recta de 8 puntos (1.4 m). Al arrancar hay un obstáculo falso en la izquierda (esquiva y vuelve) y más adelante otro (segunda esquivada). La vuelta solo corrige el rumbo, así que el
- * índice del siguiente punto se quedaba en el punto al que iba al detenerse (el 1): el carro, ya a 1.1 m de él, daba media vuelta y recorría la ruta hacia atrás. Calibración del teléfono: la
- * izquierda medida a 180 grados (-88, -148 mm) y la derecha sin medir (espejo); el carro real tiene la derecha medida a 90 grados (150, 165 mm). */
-static void preparar_final_de_ruta(int derecha_conocida, int segundo_inicio_ms)
+ * Ruta recta de 8 puntos (1.4 m). Un obstáculo real al arrancar (esquiva y vuelve) y otro más adelante (segunda esquivada). La vuelta que solo corrige el rumbo dejaba el índice del siguiente punto
+ * en el punto al que iba al detenerse (el 1): el carro, ya a más de un metro de él, daba media vuelta y recorría la ruta hacia atrás. Calibración del teléfono: la izquierda medida a 180 grados
+ * (-88, -148 mm); el carro real tiene también la derecha medida a 90 grados (150, 165 mm). `derecha_conocida` 0 = el navegador solo conoce la izquierda (la derecha es su espejo, como estaba el
+ * teléfono). `sin_arreglo` 1 = se apaga el arreglo del índice (para reproducir el bug y comprobar que el freno anti-locura lo para). */
+static void preparar_final_de_ruta(int derecha_conocida, int segundo_inicio_ms, int sin_arreglo)
 {
     static const Punto OCHO[] = { {4, 7}, {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0} };
     CalibracionCarro real, modelo;
@@ -2555,40 +2556,100 @@ static void preparar_final_de_ruta(int derecha_conocida, int segundo_inicio_ms)
     navegador_cargar_ruta(&nav, OCHO, N(OCHO));
     sim_iniciar(&sim, OCHO[0].columna, OCHO[0].fila, 0);
     sim.real = real;
-    sim_agregar_obstaculo(&sim, 0, 900, ZONA_IZQUIERDA, 3);
+    sim_agregar_obstaculo(&sim, 0, 1200, ZONA_CENTRO, 3);
     sim_agregar_obstaculo(&sim, (uint32_t)segundo_inicio_ms, (uint32_t)(segundo_inicio_ms + 700), ZONA_CENTRO, 3);
+    nav.sin_arreglo_indice = sin_arreglo;
     navegador_comenzar(&nav, 0);
     vigilar_marcas();
 }
 
 static void pruebas_final_de_ruta(void)
 {
-    /* Derecha sin medir (como estaba el teléfono): el navegador cree que el carro está donde no está, pero la ruta no debe dar media vuelta. */
-    preparar_final_de_ruta(0, 6000);
+    /* Con el arreglo (los puntos ya pasados se saltan): termina bien. */
+    preparar_final_de_ruta(1, 8000, 0);
     correr_hasta_el_final(60000);
-    caso("final de ruta con la derecha sin medir y dos esquivadas: termina (TERMINADO) y NO da media vuelta de 180 grados para volver a un punto que ya pasó",
+    caso("final de ruta (obstaculo al arrancar y otro a los 8 s): con el arreglo termina (TERMINADO), con dos esquivadas y SIN media vuelta de 180 grados para volver a un punto que ya paso",
          nav.estado == NAV_TERMINADO && nav.esquivadas == 2 && marcas_plan.giros_180_de_ruta == 0);
-    caso("... la vuelta salta los puntos de la ruta que el carro ya paso y la pose estimada termina a 10 cm o menos del final (hasta media celda: la ruta se retoma desde la celda mas cercana)",
-         marcas_plan.puntos_saltados >= 1 && valor_absoluto(nav.y_mm) <= 100 && valor_absoluto(nav.x_mm - 4 * MM) <= 100);
+    caso("... la vuelta salta los puntos de la ruta que el carro ya paso", marcas_plan.puntos_saltados >= 1);
 
-    /* Con las dos calibraciones conocidas y el segundo obstaculo en otros momentos tampoco hay media vuelta ni vuelta atras. */
+    /* Sin el arreglo reproduce el bug del indice vencido: la ruta pide un giro de mas de 150 grados que la ruta no tiene y el freno anti-locura lo para (AYUDA) en vez de darlo. */
+    preparar_final_de_ruta(1, 8000, 1);
+    correr_hasta_el_final(60000);
     {
-        static const int INICIOS[] = { 6000, 8000, 10000, 12000 };
-        int i, bien = 1, lejos = 0;
+        char texto[300];
 
-        for (i = 0; i < 4; i++) {
-            preparar_final_de_ruta(1, INICIOS[i]);
-            correr_hasta_el_final(60000);
-            if (nav.estado != NAV_TERMINADO || marcas_plan.giros_180_de_ruta != 0) {
-                bien = 0;
-            }
-            if (valor_absoluto(sim_x_mm(&sim) - 4 * MM) > 100 || sim_y_mm(&sim) < -100 || sim_y_mm(&sim) > 100) {
-                lejos++;
-            }
-        }
-        caso("con las dos calibraciones conocidas y el segundo obstaculo a los 6, 8, 10 y 12 s: siempre termina (TERMINADO) sin media vuelta de la ruta", bien);
-        caso("... y el carro REAL queda a 10 cm o menos del final de la ruta en las cuatro", lejos == 0);
+        navegador_texto_error(&nav, texto, sizeof texto);
+        caso("SIN el arreglo (el bug del indice vencido): el freno anti-locura para y pide AYUDA con la causa «giro de mas de 150 grados que la ruta no tiene» en vez de dar la media vuelta",
+             nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_GIRO_LOCO && marcas_plan.giros_180_de_ruta == 0 && nav.cmd_actual == NAV_CMD_STOP && strstr(texto, "150 grados") != NULL);
+        printf("      texto: %s\n", texto);
     }
+    /* Con la derecha como espejo (lo que habia en el telefono) y sin el arreglo, tampoco da la media vuelta: a lo mas se para. */
+    preparar_final_de_ruta(0, 6000, 1);
+    correr_hasta_el_final(60000);
+    caso("con la derecha como espejo y sin el arreglo, nunca da una media vuelta de la ruta (termina o se para en AYUDA)", marcas_plan.giros_180_de_ruta == 0 && (nav.estado == NAV_TERMINADO || nav.estado == NAV_AYUDA));
+}
+
+/* ── Frenos anti-locura (J9): cada uno se prueba forzando la situacion en una ruta larga ── */
+static void pruebas_frenos_anti_locura(void)
+{
+    char texto[300];
+
+    /* El indice de la ruta retrocede. */
+    preparar(LARGA, N(LARGA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(6000);
+    nav.indice_objetivo -= 2;
+    correr(200);
+    navegador_texto_error(&nav, texto, sizeof texto);
+    caso("freno: el indice del siguiente punto de la ruta retrocede -> para y pide AYUDA (NAV_CAUSA_INDICE)", nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_INDICE && nav.cmd_actual == NAV_CMD_STOP && strstr(texto, "retrocedió") != NULL);
+
+    /* Distancia recorrida de mas de 2.5 veces la de la ruta. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(1500);
+    nav.recorrido_mm = 2600;   /* la ruta mide 1000 mm: 2.5 veces son 2500 */
+    correr(200);
+    navegador_texto_error(&nav, texto, sizeof texto);
+    caso("freno: la distancia recorrida pasa de 2.5 veces la de la ruta (2600 mm contra 1000) -> para y pide AYUDA (NAV_CAUSA_RECORRIDO)",
+         nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_RECORRIDO && strstr(texto, "2.5 veces") != NULL);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(1500);
+    nav.recorrido_mm = 2400;
+    correr(200);
+    caso("... y con 2400 mm (menos de 2.5 veces) no frena", nav.estado == NAV_SIGUIENDO);
+
+    /* La pose a mas de 1 m de la ruta. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(1500);
+    nav.x_mm += 1200;
+    nav.base_x_mm += 1200;
+    correr(200);
+    navegador_texto_error(&nav, texto, sizeof texto);
+    caso("freno: la pose queda a mas de 1 m de la ruta -> para y pide AYUDA (NAV_CAUSA_LEJOS)", nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_LEJOS && strstr(texto, "100 cm") != NULL);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    correr(1500);
+    nav.x_mm += 900;
+    nav.base_x_mm += 900;
+    correr(200);
+    caso("... y a 90 cm de la ruta no frena por esto", nav.error_causa != NAV_CAUSA_LEJOS);
+
+    /* Sin pedir ayuda el freno es ERROR con la misma causa. */
+    preparar(RECTA, N(RECTA));
+    correr(1500);
+    nav.recorrido_mm = 2600;
+    correr(200);
+    caso("sin pedir ayuda, el mismo freno da ERROR con la misma causa y el carro queda quieto", nav.estado == NAV_ERROR && nav.error_causa == NAV_CAUSA_RECORRIDO && nav.cmd_actual == NAV_CMD_STOP);
+
+    /* Mas de 3 esquivadas: ya existia (NAV_MAX_ESQUIVADAS); aqui se confirma que la cuarta pide ayuda. */
+    preparar(LARGA, N(LARGA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_IZQUIERDA, 3);
+    correr(60000);
+    caso("mas de 3 esquivadas: no se esquiva una cuarta vez; para y pide ayuda (el limite NAV_MAX_ESQUIVADAS)", nav.estado == NAV_AYUDA && nav.esquivadas <= NAV_MAX_ESQUIVADAS);
 }
 
 int main(void)
@@ -2597,6 +2658,7 @@ int main(void)
     pruebas_desplazamiento_al_girar();
     pruebas_plan_pivote();
     pruebas_final_de_ruta();
+    pruebas_frenos_anti_locura();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

@@ -68,7 +68,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_GIRO_MAX_PCT          150
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
-#define NAV_MAX_HUECO_VIDEO_MS    500    /* si la cámara de obstáculos pasa más de esto sin mandar un cuadro: STOP y ERROR (no reanuda sola) */
+#define NAV_MAX_HUECO_VIDEO_MS    700    /* si la cámara de obstáculos pasa más de esto sin mandar un cuadro: STOP y ERROR (no reanuda sola). Eran 500: en la prueba real del 16 oct un hueco de 503 ms (con 11 a 12 cuadros por segundo y huecos normales de 250 a 330 ms) detuvo la ruta */
 #define NAV_PRIMER_CUADRO_MAX_MS 1500    /* con requiere_camara: tiempo máximo (quieto) para que llegue el primer cuadro de la ruta */
 #define NAV_PAUSA_ASENTAR_MS      300    /* STOP entre avanzar y girar (y al revés): el carro termina de moverse y el giro/avance siguiente
                                           * arranca desde cero, como en la calibración. Sin esto, el giro dependía de la inercia del avance. */
@@ -151,13 +151,39 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_ESQ_MARGEN_LATERAL_MM (NAV_TRAMO_ESQUIVAR_CM * 10)   /* distancia lateral del centro a la línea al pasar el obstáculo (la de siempre: el tramo de lado de 40 cm) */
 #define NAV_ESQ_TRAMO_MIN_MM      100    /* el tramo de lado nunca es más corto que esto */
 
+/* ARRANQUE, SONDEO Y FRENOS ANTI-LOCURA (J9, ver docs/navegador.md). El obstáculo fantasma de la prueba real (zona izquierda con 25 a 57 celdas en cercanía 3 desde el primer cuadro, con el piso despejado)
+ * hacía frenar y esquivar sin motivo; y un índice de la ruta vencido hizo dar media vuelta al final. Por eso:
+ *   - al arrancar NO se decide con el primer cuadro: hacen falta NAV_ARRANQUE_CUADROS cuadros seguidos iguales (o NAV_ARRANQUE_MAX_MS ms);
+ *   - si el obstáculo ya estaba en esos cuadros, el carro no se ha movido y el centro está libre (cercanía NAV_SONDEO_CERC_MAX o menos, o solo en los lados), avanza NAV_SONDEO_CM cm y compara: si las celdas
+ *     no crecen (NAV_SONDEO_CRECE_PCT %, al menos NAV_SONDEO_CRECE_MIN) es un «sospechoso fijo»: se ignora en esa corrida; si crecen es real y se esquiva como siempre;
+ *   - la cercanía 3 frena con 2 cuadros seguidos, o con 1 si el área es de NAV_CERC3_AREA_INMEDIATA celdas o más;
+ *   - frenos: un giro planeado de más de NAV_LOCURA_GIRO_MAX grados que no está en la ruta, el índice de la ruta que retrocede, una distancia recorrida de más de NAV_LOCURA_RECORRIDO_X10 / 10 veces la de la
+ *     ruta, la pose a más de NAV_LOCURA_DESVIO_MM de la ruta, o más de NAV_MAX_ESQUIVADAS esquivadas: para y pide AYUDA;
+ *   - el final de la ruta no deja el carro girado más de NAV_RUMBO_FINAL_TOL grados del último tramo. */
+#define NAV_ARRANQUE_CUADROS        4    /* cuadros seguidos iguales antes de decidir al arrancar */
+#define NAV_ARRANQUE_MAX_MS      1500    /* ...o este tiempo, lo que ocurra primero */
+#define NAV_CERC3_AREA_INMEDIATA   60    /* con cercanía 3 y al menos tantas celdas, un solo cuadro frena; con menos hacen falta 2 cuadros seguidos */
+#define NAV_SONDEO_CM               4    /* cuánto avanza el sondeo */
+#define NAV_SONDEO_CERC_MAX         2    /* el sondeo se hace si el obstáculo es de esta cercanía o menos (o está solo en los lados, con el centro libre) */
+#define NAV_SONDEO_QUIETO_MM       30    /* «el carro no se ha movido»: ha recorrido menos de esto */
+#define NAV_SONDEO_CRECE_PCT       15    /* las celdas crecieron si pasaron de las de antes + este % (y al menos NAV_SONDEO_CRECE_MIN celdas) */
+#define NAV_SONDEO_CRECE_MIN        3
+#define NAV_SONDEO_IGNORAR_PCT    130    /* un sospechoso fijo se ignora mientras sus celdas no pasen de este % de las que tenía (+ NAV_SONDEO_IGNORAR_MAS) */
+#define NAV_SONDEO_IGNORAR_MAS      3
+#define NAV_SONDEO_MIRAR_MS       250    /* cuánto se miran los cuadros después de asentarse, antes de comparar */
+#define NAV_LOCURA_GIRO_MAX       150    /* un giro planeado de más de estos grados que no está en la ruta frena */
+#define NAV_LOCURA_RECORRIDO_X10   25    /* distancia recorrida máxima: 2.5 veces la de la ruta... */
+#define NAV_LOCURA_RECORRIDO_MIN_MM 600  /* ...tomando la ruta como de al menos 60 cm (con una ruta de 20 cm una sola esquivada ya pasa 2.5 veces) */
+#define NAV_LOCURA_DESVIO_MM     1000    /* la pose a más de esto (1 m) de la ruta frena */
+#define NAV_RUMBO_FINAL_TOL        20    /* al terminar la ruta el rumbo queda a lo más a esto del último tramo */
+
 /* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG y RUTA_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
  * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada).
  *  - RUTA_DIAG: una línea al ENVIAR cada comando de movimiento (FORWARD, REVERSE, LEFT o RIGHT) con lo pedido y la duración planeada, y otra al TERMINARLO con la duración real y lo
  *    hecho (estimado). Sirve para separar «el programa mandó mal el comando» de «el comando fue correcto y el carro no lo hizo» (contacto eléctrico, ver docs/bitacora.md).
  *  - TURN_DIAG: una línea al terminar cada GIRO con los grados pedidos y hechos y el desplazamiento del centro que se aplicó (ver cal_desplazamiento_giro). */
 #define NAV_DIAG_LINEAS            16
-#define NAV_DIAG_LARGO            240
+#define NAV_DIAG_LARGO            340
 #define NAV_MAX_GIROS              16   /* cuántos giros recuerda el navegador de la ruta en curso (para la pantalla de resultado) */
 #define NAV_DIAG_REPETIR_MS       500   /* una línea ESQUIVE_DIAG igual a la anterior se repite como máximo cada tanto */
 
@@ -203,6 +229,10 @@ typedef enum {
 #define NAV_CAUSA_ARCO                   6   /* el giro de salida mueve el centro más hacia adelante de lo que hay libre hasta el obstáculo (en los dos lados) */
 #define NAV_CAUSA_CORRECCIONES           7   /* se agotaron las correcciones de la vuelta a la línea y el carro seguía lejos del punto planeado */
 #define NAV_CAUSA_VUELTA                 8   /* la vuelta a la línea no tiene solución con los giros de pivote (el punto de la línea queda detrás o el plan no converge) */
+#define NAV_CAUSA_GIRO_LOCO              9   /* freno anti-locura: un giro planeado de más de NAV_LOCURA_GIRO_MAX grados que no está en la ruta */
+#define NAV_CAUSA_INDICE                10   /* freno anti-locura: el índice del siguiente punto de la ruta retrocedió */
+#define NAV_CAUSA_RECORRIDO             11   /* freno anti-locura: recorrió más de 2.5 veces la distancia de la ruta */
+#define NAV_CAUSA_LEJOS                 12   /* freno anti-locura: la pose quedó a más de 1 m de la ruta */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -351,6 +381,33 @@ typedef struct {
     int      reinc_rumbo_importa;    /* 1 = al terminar la vuelta el rumbo debe ser el de la línea (0 cuando el punto es el final de la ruta y se llega sin giro final) */
     int      tramo_mm;               /* lo que avanza de lado esta esquivada (planeado al terminar de mirar, con el desplazamiento de los giros) */
     int      sin_red_seguridad;      /* 1 = la red de seguridad de la vuelta está apagada (solo para comparar en las pruebas; por defecto 0 = activa) */
+    int      sin_arreglo_indice;     /* 1 = NO se saltan los puntos de la ruta ya pasados al terminar la vuelta (solo para reproducir en las pruebas el bug del índice vencido; por defecto 0) */
+    int      reinc_rumbo_tol;        /* el rumbo al terminar la vuelta se corrige si queda a más de esto de la línea (3 por defecto; NAV_RUMBO_FINAL_TOL al final de la ruta) */
+
+    /* Arranque, sondeo del obstáculo fijo y frenos anti-locura (J9). */
+    int      arranque_ok;            /* 1 cuando ya se decidió el arranque (4 cuadros iguales o se acabó el tiempo) */
+    int      arranque_iguales;       /* cuadros seguidos con la misma firma de zonas */
+    int      arranque_firma;         /* firma de zonas de esos cuadros: 2 bits (cercanía con obstáculo) por zona; 0 = sin obstáculo */
+    uint32_t arranque_t0_ms;         /* hora en que empezó la ruta */
+    int      bloqueo_cerc3;          /* 1 si la racha tiene cercanía 3 con pocas celdas (necesita 2 cuadros seguidos) */
+    int      sondeo_hecho;           /* 1 si ya se hizo (o se descartó) el sondeo de esta ruta: solo se hace uno */
+    int      sondeo_fase;            /* 0 = ninguno, 1 = avanzando NAV_SONDEO_CM cm, 2 = mirando si las celdas crecen */
+    int      sondeo_ms;              /* cuánto debe avanzar el sondeo */
+    int      ms_sondeo;              /* cuánto lleva avanzado */
+    int      sondeo_zonas;           /* bits de las zonas que tenían el obstáculo */
+    int      sondeo_ref;             /* celdas de esas zonas antes de avanzar */
+    long     sondeo_suma;            /* suma de las celdas vistas después (para el promedio) */
+    int      sondeo_n;
+    uint32_t sondeo_listo_ms;        /* desde esta hora cuentan los cuadros de después del sondeo */
+    int      fijo_ignorar[OBS_ZONAS];   /* 1 = esa zona tiene un «sospechoso fijo»: se ignora mientras sus celdas no crezcan */
+    int      fijo_celdas[OBS_ZONAS];
+    int      indice_max;             /* el mayor índice de punto de la ruta visto (si el índice baja de aquí, frena) */
+    long     recorrido_mm;           /* distancia total que el centro ha recorrido en esta ruta (estimada) */
+    int      prev_x_mm, prev_y_mm;
+    long     ruta_largo_mm;          /* largo de la ruta */
+    int      max_giro_ruta;          /* el mayor giro que pide la propia ruta (grados) */
+    char     obs_hex[OBS_ZONAS][26]; /* de lo último que se vio: la máscara de 10 x 10 en hexadecimal de cada zona (OBS_DIAG) */
+    int      obs_franja_tapada, obs_franja_pct;
     int      arco_adelante_mm, arco_libre_mm;   /* para el texto de NAV_CAUSA_ARCO: cuánto mueve el giro de salida el centro hacia adelante y cuánto había libre */
 
     /* Registro del comando de movimiento en curso (RUTA_DIAG) y de los giros de la ruta. */

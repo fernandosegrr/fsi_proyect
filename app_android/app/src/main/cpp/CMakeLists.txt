@@ -26,6 +26,7 @@ add_library(carro_nativo SHARED
     puente.c
     ${NUCLEO_C}/trayectoria.c
     ${NUCLEO_C}/obstaculos.c
+    ${NUCLEO_C}/mascara_vision.c
     ${NUCLEO_C}/navegador.c
     ${NUCLEO_C}/calibracion.c
     ${NUCLEO_C}/fusion.c

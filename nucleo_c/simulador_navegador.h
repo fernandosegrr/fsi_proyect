@@ -28,7 +28,7 @@ typedef struct {
     uint32_t t_fin_ms;
     int zona;        /* ZONA_IZQUIERDA, ZONA_CENTRO o ZONA_DERECHA */
     int cercania;    /* 1 a 3 */
-    int celdas;      /* cuántas celdas de obstáculo ve el detector en esa zona (por defecto 10) */
+    int celdas;      /* cuántas celdas de obstáculo ve el detector en esa zona (por defecto NAV_CERC3_AREA_INMEDIATA = 60: un solo cuadro en cercanía 3 frena) */
 } EventoObstaculo;
 
 /* Un cambio de comando en la bitácora. */

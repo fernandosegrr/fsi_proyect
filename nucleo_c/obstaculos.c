@@ -24,6 +24,7 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 #include "obstaculos.h"
 
 #define MAX_CELDAS (OBS_MAX_FILAS * OBS_MAX_COLUMNAS)
@@ -447,6 +448,8 @@ void obstaculos_modelo_iniciar(ModeloPiso *modelo)
     modelo->sin_piso_activo = 0;
     modelo->sin_piso_desde_ms = 0;
     modelo->reaprendidos = 0;
+    modelo->franja_hist = 0;
+    modelo->franja_hist_n = 0;
 }
 
 /* Deja en el modelo exactamente los grupos dados (aprende desde cero). */
@@ -454,9 +457,13 @@ static void modelo_desde_grupos(ModeloPiso *modelo, const GruposPiso *grupos)
 {
     int g, c;
     int reaprendidos = modelo->reaprendidos;
+    unsigned int franja_hist = modelo->franja_hist;
+    int franja_hist_n = modelo->franja_hist_n;
 
     obstaculos_modelo_iniciar(modelo);
     modelo->reaprendidos = reaprendidos;
+    modelo->franja_hist = franja_hist;          /* la historia de la franja no se borra al reaprender el piso */
+    modelo->franja_hist_n = franja_hist_n;
     modelo->valido = 1;
     modelo->grupos = grupos->grupos;
     for (g = 0; g < grupos->grupos; g++) {
@@ -699,6 +706,23 @@ static int marcar_candidatas(MapaColores celdas, const Rejilla *rejilla, const G
     return solo_bordes;
 }
 
+/* Máscara de artefactos (J9): las celdas cuya celda gruesa de 10 x 10 está enmascarada se tratan como piso. */
+static void aplicar_mascara(const ConfigObstaculos *config, const Rejilla *rejilla, MapaCeldas candidatas)
+{
+    int fila, columna;
+
+    if (!config->mascara_activa) {
+        return;
+    }
+    for (fila = 0; fila < rejilla->filas; fila++) {
+        for (columna = 0; columna < rejilla->columnas; columna++) {
+            if (config->mascara[fila * OBS_MASC_FILAS / rejilla->filas][columna * OBS_MASC_COLUMNAS / rejilla->columnas]) {
+                candidatas[fila][columna] = 0;
+            }
+        }
+    }
+}
+
 /* Cuenta las vecinas (8 alrededor) marcadas. */
 static int contar_vecinas(MapaCeldas candidatas, const Rejilla *rejilla, int fila, int columna)
 {
@@ -888,6 +912,8 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
         }
     }
     resultado->franja_contaminada = 0;
+    resultado->franja_tapada_pct = 0;
+    resultado->franja_ignorada = 0;
     resultado->piso_reaprendido = 0;
     resultado->aprendio = 0;
     resultado->celdas_borde = 0;
@@ -919,6 +945,8 @@ void obstaculos_config_defecto(ConfigObstaculos *config)
     config->usar_bordes = 0;
     config->mejoras_piso = 1;
     config->piso_fijo = 0;
+    config->mascara_activa = 0;
+    memset(config->mascara, 0, sizeof config->mascara);
 }
 
 /* La configuración es válida si los umbrales y las proporciones están en rango. */
@@ -935,7 +963,8 @@ static int config_es_valida(const ConfigObstaculos *config)
            config->aprendizaje_mil >= 0 && config->aprendizaje_mil <= 1000 &&
            (config->usar_bordes == 0 || config->usar_bordes == 1) &&
            (config->mejoras_piso == 0 || config->mejoras_piso == 1) &&
-           (config->piso_fijo == 0 || config->piso_fijo == 1);
+           (config->piso_fijo == 0 || config->piso_fijo == 1) &&
+           (config->mascara_activa == 0 || config->mascara_activa == 1);
 }
 
 /* ── Reajuste de brillo (cambio de exposición de la cámara) ────────────────
@@ -1083,6 +1112,21 @@ static int analizar_celdas_modelo(const ConfigObstaculos *config, ModeloPiso *mo
     /* El modelo se trabaja en una copia: si hay un error no cambia. */
     trabajo = *modelo;
     franja_ok = (grupos_de_la_franja(celdas, &rejilla, config->grupos_piso, config->mejoras_piso ? OBS_APOYO_MIN_PCT : 0, &franja) == OBS_OK);
+    {   /* Historia de la franja: si lleva mucho tapada ya no se confía en ella para reaprender (J9: la franja tapada 40 a 60 % de los cuadros en la prueba real). */
+        int n, k, tapadas = 0;
+
+        trabajo.franja_hist = (trabajo.franja_hist << 1) | (franja_ok ? 0u : 1u);
+        trabajo.franja_hist_n = (trabajo.franja_hist_n < OBS_FRANJA_VENTANA) ? trabajo.franja_hist_n + 1 : OBS_FRANJA_VENTANA;
+        n = trabajo.franja_hist_n;
+        for (k = 0; k < n; k++) {
+            tapadas += (int)((trabajo.franja_hist >> k) & 1u);
+        }
+        resultado->franja_tapada_pct = (n >= OBS_FRANJA_MIN_CUADROS) ? tapadas * 100 / n : 0;
+        if (franja_ok && trabajo.valido && resultado->franja_tapada_pct > OBS_FRANJA_TAPADA_MAX_PCT) {
+            franja_ok = 0;                    /* se sigue con el último modelo del piso en vez de reaprender con la franja */
+            resultado->franja_ignorada = 1;
+        }
+    }
     if (!trabajo.valido) {
         if (!franja_ok) {
             return OBS_ERR_REFERENCIA;   /* nada que recordar y la franja no sirve */
@@ -1117,6 +1161,7 @@ static int analizar_celdas_modelo(const ConfigObstaculos *config, ModeloPiso *mo
     modelo_a_grupos(&trabajo, &piso);
     piso.mejoras = config->mejoras_piso;
     resultado->celdas_borde = marcar_candidatas(celdas, &rejilla, &piso, config->umbral_color, config->usar_bordes, candidatas);
+    aplicar_mascara(config, &rejilla, candidatas);
     confirmar_celdas(candidatas, &rejilla, resultado->no_piso);
     resumir_zonas(resultado->no_piso, &rejilla, config->min_celdas, fila_minima, resultado);
     hay_obstaculo = resultado->zona[0].hay_obstaculo || resultado->zona[1].hay_obstaculo || resultado->zona[2].hay_obstaculo;

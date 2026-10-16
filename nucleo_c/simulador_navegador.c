@@ -91,7 +91,7 @@ int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_f
 
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania)
 {
-    return sim_agregar_obstaculo_celdas(sim, t_ini_ms, t_fin_ms, zona, cercania, 10);
+    return sim_agregar_obstaculo_celdas(sim, t_ini_ms, t_fin_ms, zona, cercania, NAV_CERC3_AREA_INMEDIATA);   /* área grande por defecto: con cercanía 3 un solo cuadro frena (la regla de J9); para probar la de 2 cuadros se da un área chica con sim_agregar_obstaculo_celdas */
 }
 
 /* Rumbo en grados enteros, de 0 a 359. */

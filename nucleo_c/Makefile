@@ -4,7 +4,7 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta
+all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -24,8 +24,8 @@ pruebas_fusion: pruebas_fusion.c fusion.c fusion.h obstaculos.c obstaculos.h
 pruebas_movimiento: pruebas_movimiento.c movimiento_visual.c movimiento_visual.h
 	$(CC) $(CFLAGS) -o $@ pruebas_movimiento.c movimiento_visual.c
 
-pruebas_navegador: pruebas_navegador.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c trayectoria.h obstaculos.h calibracion.c calibracion.h
-	$(CC) $(CFLAGS) -o $@ pruebas_navegador.c simulador_navegador.c navegador.c trayectoria.c calibracion.c
+pruebas_navegador: pruebas_navegador.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c trayectoria.h obstaculos.c obstaculos.h mascara_vision.c mascara_vision.h calibracion.c calibracion.h
+	$(CC) $(CFLAGS) -o $@ pruebas_navegador.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
 
 pruebas_video_stats: pruebas_video_stats.c video_stats.c video_stats.h
 	$(CC) $(CFLAGS) -o $@ pruebas_video_stats.c video_stats.c
@@ -57,8 +57,11 @@ pruebas_latencia_video: pruebas_latencia_video.c latencia_video.c latencia_video
 pruebas_ruta_editor: pruebas_ruta_editor.c ruta_editor.c ruta_editor.h trayectoria.c trayectoria.h calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_ruta_editor.c ruta_editor.c trayectoria.c calibracion.c
 
-pruebas_sim_ruta: pruebas_sim_ruta.c sim_ruta.c sim_ruta.h ruta_editor.c ruta_editor.h simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c calibracion.c
-	$(CC) $(CFLAGS) -o $@ pruebas_sim_ruta.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c calibracion.c
+pruebas_sim_ruta: pruebas_sim_ruta.c sim_ruta.c sim_ruta.h ruta_editor.c ruta_editor.h simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c mascara_vision.h calibracion.c
+	$(CC) $(CFLAGS) -o $@ pruebas_sim_ruta.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
+
+pruebas_mascara: pruebas_mascara.c mascara_vision.c mascara_vision.h obstaculos.c obstaculos.h
+	$(CC) $(CFLAGS) -o $@ pruebas_mascara.c mascara_vision.c obstaculos.c
 
 test: all
 	./pruebas_calibracion
@@ -78,6 +81,7 @@ test: all
 	./pruebas_sesion_compartida
 	./pruebas_latencia_video
 	./pruebas_ruta_editor
+	./pruebas_mascara
 	./pruebas_sim_ruta
 
 clean:
