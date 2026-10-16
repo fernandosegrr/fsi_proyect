@@ -169,6 +169,7 @@
                 </LinearLayout>
 
                 <TextView
+                    android:id="@+id/aj_etiqueta_lado"
                     style="@style/Seccion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -247,6 +248,116 @@
                         android:layout_height="@dimen/toque_minimo"
                         android:layout_marginTop="@dimen/e1"
                         android:text="@string/cal_op_corto" />
+                </LinearLayout>
+
+                <!-- Recta: hacia dónde se desvió y cuántos cm (aparece cuando termina la prueba) -->
+                <LinearLayout
+                    android:id="@+id/aj_bloque_recta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/Seccion"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/cal_aj_dir" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aj_dir_izq"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginEnd="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/cal_aj_dir_izq" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aj_dir_recto"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginStart="@dimen/e0"
+                            android:layout_marginEnd="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/cal_aj_dir_recto" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aj_dir_der"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginStart="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/cal_aj_dir_der" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Seccion"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/cal_aj_cm" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aj_menos"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="@dimen/toque_manejo"
+                            android:layout_height="@dimen/toque_manejo"
+                            android:contentDescription="@string/cal_aj_menos"
+                            android:text="−"
+                            android:textSize="24sp" />
+
+                        <TextView
+                            android:id="@+id/aj_cm"
+                            style="@style/Texto.Grande"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/aj_mas"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="@dimen/toque_manejo"
+                            android:layout_height="@dimen/toque_manejo"
+                            android:contentDescription="@string/cal_aj_mas"
+                            android:text="+"
+                            android:textSize="24sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/aj_ejes_layout"
+                        style="@style/Campo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2"
+                        android:hint="@string/cal_aj_ejes">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/aj_ejes"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionDone"
+                            android:inputType="numberDecimal"
+                            android:maxLines="1"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton

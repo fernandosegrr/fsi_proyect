@@ -2565,6 +2565,15 @@ Java_com_fsi_carro_SimRutaNativa_simular(JNIEnv *env, jobject objeto, jintArray 
     return arreglo;
 }
 
+/* El equilibrio de los dos lados del carro virtual (ver sr_poner_balance en nucleo_c/sim_ruta.h). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_SimRutaNativa_ponerBalance(JNIEnv *env, jobject objeto, jint desbalance_mil, jint balance_mil)
+{
+    (void)env;
+    (void)objeto;
+    sr_poner_balance((int)desbalance_mil, (int)balance_mil);
+}
+
 /* Las muestras de la última simulación: [t_ms, x_mm, y_mm, rumbo, comando, estado] por cada una. */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_SimRutaNativa_muestras(JNIEnv *env, jobject objeto)

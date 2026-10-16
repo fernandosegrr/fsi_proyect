@@ -19,6 +19,7 @@
  * hw_keepalive y hw_registrar (declaradas en carro.h).
  */
 
+#include <stdio.h>
 #include <string.h>
 #include "carro.h"
 #include "config.h"
@@ -33,19 +34,28 @@ static int      keepalive_alto      = 0;   /* 1 mientras el pulso está en alto 
 static int      pleno_modo          = 0;   /* 1 = avanzando y 2 = retrocediendo con el arranque a plena potencia; 0 = no */
 static uint32_t pleno_hasta_ms      = 0;   /* hora en que termina el arranque a plena potencia */
 static int      perfil_actual       = PERFIL_AUTO;   /* PERFIL_MANUAL o PERFIL_AUTO; siempre arranca en AUTO */
+static int      escalon_modo        = 0;   /* arranque escalonado: 1 = avanzando y 2 = retrocediendo con el 2.º motor todavía sin arrancar; 0 = no */
+static uint32_t escalon_hasta_ms    = 0;   /* hora en que arranca el 2.º motor */
+static int      balance_mil[2]      = { PERFIL_MANUAL_BALANCE_DEFECTO, PERFIL_AUTO_BALANCE_DEFECTO };   /* factor del lado izquierdo de cada perfil, en milésimas (índice = perfil) */
+static char     respuesta_balance[LARGO_MAX_COMANDO];   /* el texto de la respuesta a un mensaje de balance */
 
 /* Lo propio de cada perfil de velocidad (ver config.h). Índice = PERFIL_MANUAL o PERFIL_AUTO. */
 typedef struct {
-    int      velocidad_izq;      /* potencia del lado izquierdo al avanzar/retroceder después del arranque */
-    int      velocidad_der;      /* ídem del lado derecho */
+    int      velocidad_der;      /* potencia del lado derecho al avanzar/retroceder después del arranque: es el TOPE del perfil (el izquierdo nunca pasa de aquí) */
     uint32_t arranque_pleno_ms;  /* cuánto dura el arranque a plena potencia */
     const char *nombre;
 } PerfilVelocidad;
 
 static const PerfilVelocidad PERFILES[2] = {
-    { PERFIL_MANUAL_VELOCIDAD_IZQ, PERFIL_MANUAL_VELOCIDAD_DER, PERFIL_MANUAL_ARRANQUE_PLENO_MS, "MANUAL" },
-    { PERFIL_AUTO_VELOCIDAD_IZQ,   PERFIL_AUTO_VELOCIDAD_DER,   PERFIL_AUTO_ARRANQUE_PLENO_MS,   "AUTO" }
+    { PERFIL_MANUAL_VELOCIDAD_DER, PERFIL_MANUAL_ARRANQUE_PLENO_MS, "MANUAL" },
+    { PERFIL_AUTO_VELOCIDAD_DER,   PERFIL_AUTO_ARRANQUE_PLENO_MS,   "AUTO" }
 };
+
+/* Potencia del lado izquierdo del perfil: el tope por el factor de balance (redondeado). Como el factor es de 1000 o menos, nunca pasa del tope. */
+static int velocidad_izquierda(int perfil)
+{
+    return (PERFILES[perfil].velocidad_der * balance_mil[perfil] + 500) / 1000;
+}
 
 /* ── Motores ───────────────────────────────────────────────────────────── */
 
@@ -64,7 +74,14 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
  * derecho por su pin A (cableado probado en hardware; ver config.h). */
 static void avanzar(void)
 {
-    poner_motores(0, VELOCIDAD, VELOCIDAD, 0);   /* plena potencia al arrancar; luego el ajuste por lado (carro_vigilar_comunicacion) */
+    if (ARRANQUE_ESCALONADO_MS > 0u) {
+        poner_motores(0, VELOCIDAD, 0, 0);       /* escalonado: primero solo el motor izquierdo; el derecho entra después (carro_vigilar_comunicacion) */
+        escalon_modo = 1;
+        escalon_hasta_ms = hw_millis() + ARRANQUE_ESCALONADO_MS;
+    } else {
+        poner_motores(0, VELOCIDAD, VELOCIDAD, 0);   /* plena potencia al arrancar; luego el ajuste por lado (carro_vigilar_comunicacion) */
+        escalon_modo = 0;
+    }
     pleno_modo = 1;
     pleno_hasta_ms = hw_millis() + PERFILES[perfil_actual].arranque_pleno_ms;
 }
@@ -72,7 +89,14 @@ static void avanzar(void)
 /* Ambos motores hacia atrás (los pines contrarios a avanzar). */
 static void retroceder(void)
 {
-    poner_motores(VELOCIDAD, 0, 0, VELOCIDAD);
+    if (ARRANQUE_ESCALONADO_MS > 0u) {
+        poner_motores(VELOCIDAD, 0, 0, 0);       /* escalonado: primero el motor izquierdo */
+        escalon_modo = 2;
+        escalon_hasta_ms = hw_millis() + ARRANQUE_ESCALONADO_MS;
+    } else {
+        poner_motores(VELOCIDAD, 0, 0, VELOCIDAD);
+        escalon_modo = 0;
+    }
     pleno_modo = 2;
     pleno_hasta_ms = hw_millis() + PERFILES[perfil_actual].arranque_pleno_ms;
 }
@@ -83,6 +107,7 @@ static void girar_izquierda(void)
 {
     poner_motores(0, 0, VELOCIDAD_GIRO, 0);
     pleno_modo = 0;
+    escalon_modo = 0;
 }
 
 /* Pivote a la derecha: solo el motor izquierdo empuja; el derecho queda
@@ -91,6 +116,7 @@ static void girar_derecha(void)
 {
     poner_motores(0, VELOCIDAD_GIRO, 0, 0);
     pleno_modo = 0;
+    escalon_modo = 0;
 }
 
 /* ── Comandos ──────────────────────────────────────────────────────────── */
@@ -128,10 +154,44 @@ static void cambiar_perfil(int nuevo)
     hw_registrar(nuevo == PERFIL_MANUAL ? "Perfil: MANUAL (velocidad maxima)" : "Perfil: AUTO (velocidad limitada)");
 }
 
+/* ── Mensajes de balance ───────────────────────────────────────────────── */
+
+/* Si el texto es "BAL_AUTO:..." o "BAL_MANUAL:..." devuelve 1 y deja en *perfil el perfil y en *valor el número; *valido dice si el número sirve (solo cifras, 3 o 4, entre
+ * BALANCE_MIN_MIL y BALANCE_MAX_MIL). Cualquier otro texto devuelve 0. */
+static int leer_mensaje_balance(const char *texto, int *perfil, int *valor, int *valido)
+{
+    const char *numero;
+    int cifras = 0, acumulado = 0;
+
+    if (strncmp(texto, "BAL_AUTO:", 9) == 0) {
+        *perfil = PERFIL_AUTO;
+        numero = texto + 9;
+    } else if (strncmp(texto, "BAL_MANUAL:", 11) == 0) {
+        *perfil = PERFIL_MANUAL;
+        numero = texto + 11;
+    } else {
+        return 0;
+    }
+    while (numero[cifras] >= '0' && numero[cifras] <= '9' && cifras < 6) {
+        acumulado = acumulado * 10 + (numero[cifras] - '0');
+        cifras++;
+    }
+    *valor = acumulado;
+    *valido = (numero[cifras] == '\0') && numero[0] != '0' && (cifras == 3 || cifras == 4) && acumulado >= BALANCE_MIN_MIL && acumulado <= BALANCE_MAX_MIL;
+    return 1;
+}
+
+int carro_balance(int perfil)
+{
+    return (perfil == PERFIL_MANUAL || perfil == PERFIL_AUTO) ? balance_mil[perfil] : 0;
+}
+
 /* Interpreta el texto y actúa. No toca el reloj del watchdog (eso lo hace
  * carro_recibir_comando). */
 static void ejecutar_comando(const char *texto)
 {
+    int perfil_balance, valor_balance, balance_valido;
+
     /* Los cambios de perfil no son un movimiento: no se guardan como comando actual (así un FORWARD que ya estaba activo no se ignora). */
     if (strcmp(texto, "MODO_MANUAL") == 0) {
         cambiar_perfil(PERFIL_MANUAL);
@@ -139,6 +199,18 @@ static void ejecutar_comando(const char *texto)
     }
     if (strcmp(texto, "MODO_AUTO") == 0) {
         cambiar_perfil(PERFIL_AUTO);
+        return;
+    }
+    /* Los mensajes de balance tampoco son un movimiento: se aplican al siguiente arranque y no se guardan como comando actual. */
+    if (leer_mensaje_balance(texto, &perfil_balance, &valor_balance, &balance_valido)) {
+        if (balance_valido) {
+            balance_mil[perfil_balance] = valor_balance;
+            hw_balance_guardar(perfil_balance, valor_balance);
+            hw_registrar(perfil_balance == PERFIL_AUTO ? "Balance AUTO cambiado" : "Balance MANUAL cambiado");
+        }
+        return;
+    }
+    if (strcmp(texto, "BAL?") == 0) {
         return;
     }
     if (es_comando_repetido(texto)) {
@@ -175,6 +247,16 @@ void carro_iniciar(void)
     poner_motores(0, 0, 0, 0);
     pleno_modo = 0;
     perfil_actual = PERFIL_AUTO;   /* al arrancar siempre AUTO: la app pide MODO_MANUAL cuando lo necesita */
+    escalon_modo = 0;
+    balance_mil[PERFIL_MANUAL] = PERFIL_MANUAL_BALANCE_DEFECTO;   /* el balance guardado en la memoria no volátil, si es válido; si no, el de siempre */
+    balance_mil[PERFIL_AUTO] = PERFIL_AUTO_BALANCE_DEFECTO;
+    for (int p = 0; p < 2; p++) {
+        int guardado = hw_balance_leer(p);
+
+        if (guardado >= BALANCE_MIN_MIL && guardado <= BALANCE_MAX_MIL) {
+            balance_mil[p] = guardado;
+        }
+    }
     guardar_comando_actual("STOP");
     ultimo_comando_ms   = 0;
     ultimo_keepalive_ms = 0;
@@ -206,6 +288,21 @@ const char *carro_respuesta(const char *texto)
     if (strcmp(texto, "MODO_AUTO") == 0) {
         return "ACK_AUTO";
     }
+    {
+        int perfil, valor, valido;
+
+        if (leer_mensaje_balance(texto, &perfil, &valor, &valido)) {
+            if (!valido) {
+                return "NAK_BAL";
+            }
+            snprintf(respuesta_balance, sizeof respuesta_balance, "ACK_BAL_%s:%d", PERFILES[perfil].nombre, valor);
+            return respuesta_balance;
+        }
+    }
+    if (strcmp(texto, "BAL?") == 0) {
+        snprintf(respuesta_balance, sizeof respuesta_balance, "BAL:%d:%d", balance_mil[PERFIL_AUTO], balance_mil[PERFIL_MANUAL]);
+        return respuesta_balance;
+    }
     return NULL;
 }
 
@@ -225,6 +322,7 @@ void carro_detener(void)
 {
     poner_motores(0, 0, 0, 0);
     pleno_modo = 0;
+    escalon_modo = 0;
     guardar_comando_actual("STOP");
 }
 
@@ -234,12 +332,25 @@ void carro_vigilar_comunicacion(void)
 {
     uint32_t ahora = hw_millis();
 
-    /* Terminó el arranque a plena potencia: se aplica el ajuste por lado (VELOCIDAD_IZQ / VELOCIDAD_DER). */
+    /* Arranque escalonado: ya pasó el tiempo del primer motor, entra el segundo (a plena potencia si todavía dura el arranque a plena potencia; si no, con el ajuste por lado). */
+    if (escalon_modo != 0 && (int32_t)(ahora - escalon_hasta_ms) >= 0) {
+        int izq = (pleno_modo != 0) ? VELOCIDAD : velocidad_izquierda(perfil_actual);
+        int der = (pleno_modo != 0) ? VELOCIDAD : PERFILES[perfil_actual].velocidad_der;
+
+        if (escalon_modo == 1) {
+            poner_motores(0, izq, der, 0);
+        } else {
+            poner_motores(izq, 0, 0, der);
+        }
+        escalon_modo = 0;
+    }
+
+    /* Terminó el arranque a plena potencia: se aplica el ajuste por lado (el tope del perfil a la derecha y el tope por el balance a la izquierda). */
     if (pleno_modo != 0 && (int32_t)(ahora - pleno_hasta_ms) >= 0) {
         if (pleno_modo == 1) {
-            poner_motores(0, PERFILES[perfil_actual].velocidad_izq, PERFILES[perfil_actual].velocidad_der, 0);
+            poner_motores(0, velocidad_izquierda(perfil_actual), PERFILES[perfil_actual].velocidad_der, 0);
         } else {
-            poner_motores(PERFILES[perfil_actual].velocidad_izq, 0, 0, PERFILES[perfil_actual].velocidad_der);
+            poner_motores(velocidad_izquierda(perfil_actual), 0, 0, PERFILES[perfil_actual].velocidad_der);
         }
         pleno_modo = 0;
     }

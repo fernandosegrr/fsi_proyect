@@ -88,13 +88,30 @@
 #define PERFIL_MANUAL                    0   /* índices de los perfiles */
 #define PERFIL_AUTO                      1
 
-#define PERFIL_MANUAL_VELOCIDAD_IZQ    252   /* validado a 255: 252 el izquierdo, 255 el derecho */
-#define PERFIL_MANUAL_VELOCIDAD_DER    255
+/* EQUILIBRIO DE LOS LADOS (BALANCE). Cada perfil tiene un tope (VELOCIDAD_DER, el lado derecho) y un FACTOR del lado izquierdo en milésimas: la potencia izquierda es
+ * tope x factor / 1000 (redondeada). El factor nunca sube la potencia por encima del tope: solo REDUCE el lado que empuja más (el izquierdo, que es el más rápido en este carro). Va
+ * de BALANCE_MIN_MIL a BALANCE_MAX_MIL (1000 = los dos lados iguales). Los DEFECTO de abajo son los de siempre (252/255 y 207/210); la app los cambia con BAL_AUTO:NNN y BAL_MANUAL:NNN
+ * (ver carro.h) después de la prueba de recta, y el valor queda guardado en la memoria no volátil del carro (hw_balance_guardar). Con la prueba de recta de la app salen valores
+ * cerca de 900 (el izquierdo ~10 % más rápido que el derecho). PERFIL_x_VELOCIDAD_IZQ es la potencia izquierda con el factor por defecto (la usan las pruebas). */
+#define BALANCE_MIN_MIL               800
+#define BALANCE_MAX_MIL              1000
+
+#define PERFIL_MANUAL_VELOCIDAD_DER    255   /* el tope del perfil */
+#define PERFIL_MANUAL_BALANCE_DEFECTO  988   /* validado a 255: 252 el izquierdo, 255 el derecho */
+#define PERFIL_MANUAL_VELOCIDAD_IZQ    ((PERFIL_MANUAL_VELOCIDAD_DER * PERFIL_MANUAL_BALANCE_DEFECTO + 500) / 1000)   /* 252 */
 #define PERFIL_MANUAL_ARRANQUE_PLENO_MS 250u
 
-#define PERFIL_AUTO_VELOCIDAD_IZQ      207   /* 210 * 252 / 255 (mismo cociente izquierdo/derecho que el validado a 255) */
 #define PERFIL_AUTO_VELOCIDAD_DER      210
+#define PERFIL_AUTO_BALANCE_DEFECTO    986   /* 210 * 252 / 255 (mismo cociente izquierdo/derecho que el validado a 255) */
+#define PERFIL_AUTO_VELOCIDAD_IZQ      ((PERFIL_AUTO_VELOCIDAD_DER * PERFIL_AUTO_BALANCE_DEFECTO + 500) / 1000)   /* 207 */
 #define PERFIL_AUTO_ARRANQUE_PLENO_MS  250u
+
+/* ARRANQUE ESCALONADO (opcional, apagado por defecto = 0): si es mayor que 0, al arrancar avanzando o retrocediendo primero entra el motor IZQUIERDO y el DERECHO entra esta cantidad de
+ * ms después, para repartir el pico de corriente del arranque (los dos motores a plena potencia a la vez piden mucha corriente de golpe). Un valor típico sería 30 a 60 ms. Los pivotes no
+ * se afectan (usan un solo motor). Se puede probar sin tocar este archivo compilando con -DARRANQUE_ESCALONADO_MS=40 (ver pruebas_firmware/Makefile). */
+#ifndef ARRANQUE_ESCALONADO_MS
+#define ARRANQUE_ESCALONADO_MS 0u
+#endif
 
 /* ── Tiempos (milisegundos) ───────────────────────────────────────────────
  * Si se cambia TIEMPO_WATCHDOG_MS hay que revisar el heartbeat de pagina.h

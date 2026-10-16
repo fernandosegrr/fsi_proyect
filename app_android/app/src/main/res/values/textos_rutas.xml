@@ -53,6 +53,7 @@
     <string name="sim_texto_no_llego">No llegó al final. Se detuvo a los %1$s, a %2$d cm del último punto.</string>
     <string name="sim_error_ruta">La ruta no se puede simular: revisa que cada punto esté pegado al anterior.</string>
     <string name="sim_dispersion">%1$d de %2$d llegaron. Los finales se abren hasta %3$d cm; el error medio es de %4$d cm y el máximo de %5$d cm.</string>
+    <string name="sim_aviso_recta">La recta no está calibrada: el carro virtual se tuerce a la derecha como el real. Calíbrala en Más → Calibración → Ajuste fino.</string>
     <string name="sim_motivo_1">Los dos lados estaban bloqueados.</string>
     <string name="sim_motivo_2">Ya esquivó las 3 veces permitidas y el obstáculo seguía enfrente.</string>
     <string name="sim_motivo_3">Apareció otro obstáculo muy cerca mientras esquivaba.</string>

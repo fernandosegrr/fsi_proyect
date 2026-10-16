@@ -33,6 +33,12 @@ uint32_t hw_millis(void)              { return reloj_ms; }
 void hw_keepalive(int nivel)          { nivel_keepalive = nivel; }
 void hw_registrar(const char *texto)  { (void)texto; mensajes_serie++; }
 
+/* Memoria no volátil falsa: el balance guardado de cada perfil (0 = nada guardado) y cuántas veces se guardó. */
+static int      nvs_balance[2];
+static int      nvs_guardados;
+int  hw_balance_leer(int perfil)                  { return nvs_balance[perfil]; }
+void hw_balance_guardar(int perfil, int milesimas) { nvs_balance[perfil] = milesimas; nvs_guardados++; }
+
 static void reiniciar_mundo(uint32_t reloj_inicial)
 {
     memset(pwm, 0, sizeof pwm);
@@ -40,6 +46,8 @@ static void reiniciar_mundo(uint32_t reloj_inicial)
     nivel_keepalive = 0;
     mensajes_serie  = 0;
     reloj_ms        = reloj_inicial;
+    memset(nvs_balance, 0, sizeof nvs_balance);   /* un carro recién salido de fábrica: sin balance guardado */
+    nvs_guardados   = 0;
     carro_iniciar();
     escrituras_pwm  = 0;   /* no contar las escrituras de carro_iniciar */
 }
@@ -375,6 +383,157 @@ static void prueba_perfiles(void)
     caso("el arranque a plena potencia es de 250 ms en los dos perfiles", PERFIL_MANUAL_ARRANQUE_PLENO_MS == 250u && PERFIL_AUTO_ARRANQUE_PLENO_MS == 250u);
 }
 
+/* ── Balance (equilibrio de los lados al ir recto) ─────────────────────── */
+
+static int es_respuesta(const char *texto, const char *esperada)
+{
+    const char *r = carro_respuesta(texto);
+
+    return r != NULL && strcmp(r, esperada) == 0;
+}
+
+static void prueba_balance(void)
+{
+    /* Los valores de siempre son los por defecto. */
+    reiniciar_mundo(0);
+    caso("balance por defecto: AUTO 986 y MANUAL 988 (los de siempre: 207/210 y 252/255)", carro_balance(PERFIL_AUTO) == 986 && carro_balance(PERFIL_MANUAL) == 988 &&
+         PERFIL_AUTO_VELOCIDAD_IZQ == 207 && PERFIL_MANUAL_VELOCIDAD_IZQ == 252);
+    caso("carro_balance con un perfil que no existe da 0", carro_balance(7) == 0 && carro_balance(-1) == 0);
+
+    /* Cambiar el balance de AUTO: se contesta, se guarda y se aplica al siguiente arranque. */
+    reiniciar_mundo(0);
+    caso("BAL_AUTO:900 se contesta ACK_BAL_AUTO:900", es_respuesta("BAL_AUTO:900", "ACK_BAL_AUTO:900"));
+    carro_recibir_comando("BAL_AUTO:900");
+    caso("... el balance de AUTO queda en 900, el de MANUAL no cambia y se guardó una vez en la memoria", carro_balance(PERFIL_AUTO) == 900 && carro_balance(PERFIL_MANUAL) == 988 &&
+         nvs_balance[PERFIL_AUTO] == 900 && nvs_balance[PERFIL_MANUAL] == 0 && nvs_guardados == 1);
+    caso("... no mueve los motores ni escribe PWM", escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("AUTO con balance 900: el lado izquierdo baja a 189 (210 x 0.900) y el derecho se queda en el tope de 210", pines_son(0, 189, 210, 0));
+    carro_recibir_comando("STOP");
+    carro_recibir_comando("REVERSE");
+    reloj_ms += PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("... y al retroceder igual: izquierdo 189, derecho 210", pines_son(189, 0, 0, 210));
+    carro_recibir_comando("STOP");
+
+    /* El balance de MANUAL es aparte. */
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("BAL_MANUAL:950");
+    caso("BAL_MANUAL:950 se contesta ACK_BAL_MANUAL:950 y queda guardado aparte", es_respuesta("BAL_MANUAL:950", "ACK_BAL_MANUAL:950") && carro_balance(PERFIL_MANUAL) == 950 &&
+         carro_balance(PERFIL_AUTO) == 900 && nvs_balance[PERFIL_MANUAL] == 950);
+    carro_recibir_comando("FORWARD");
+    reloj_ms += PERFIL_MANUAL_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("MANUAL con balance 950: el izquierdo baja a 242 (255 x 0.950) y el derecho se queda en 255", pines_son(0, 242, 255, 0));
+    carro_recibir_comando("STOP");
+
+    /* Los extremos y el tope: nunca por encima del tope del perfil. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("BAL_AUTO:1000");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("balance 1000: los dos lados iguales, 210 y 210 (nunca por encima del tope del perfil)", pines_son(0, 210, 210, 0));
+    reiniciar_mundo(0);
+    carro_recibir_comando("BAL_AUTO:800");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("balance 800 (el mas bajo): el izquierdo baja a 168 y el derecho sigue en 210", pines_son(0, 168, 210, 0));
+    {
+        int perfil, ok = 1;
+
+        for (perfil = 0; perfil < 2; perfil++) {
+            int mil;
+
+            for (mil = BALANCE_MIN_MIL; mil <= BALANCE_MAX_MIL; mil++) {
+                int tope = (perfil == PERFIL_AUTO) ? PERFIL_AUTO_VELOCIDAD_DER : PERFIL_MANUAL_VELOCIDAD_DER;
+                int izq = (tope * mil + 500) / 1000;
+
+                if (izq > tope || izq < tope * 800 / 1000 - 1) {
+                    ok = 0;
+                }
+            }
+        }
+        caso("con cualquier balance de 800 a 1000 el lado izquierdo nunca pasa del tope y nunca baja de 80 % del tope", ok);
+    }
+
+    /* Valores no válidos: NAK_BAL y nada cambia. */
+    reiniciar_mundo(0);
+    caso("fuera de rango (799, 1001, 0, 99, 5000) se contesta NAK_BAL", es_respuesta("BAL_AUTO:799", "NAK_BAL") && es_respuesta("BAL_AUTO:1001", "NAK_BAL") &&
+         es_respuesta("BAL_AUTO:0", "NAK_BAL") && es_respuesta("BAL_MANUAL:99", "NAK_BAL") && es_respuesta("BAL_MANUAL:5000", "NAK_BAL"));
+    caso("sin numero, con letras, con espacios, con signo o con decimales se contesta NAK_BAL", es_respuesta("BAL_AUTO:", "NAK_BAL") && es_respuesta("BAL_AUTO:abc", "NAK_BAL") &&
+         es_respuesta("BAL_AUTO:9x0", "NAK_BAL") && es_respuesta("BAL_AUTO: 900", "NAK_BAL") && es_respuesta("BAL_AUTO:-900", "NAK_BAL") && es_respuesta("BAL_AUTO:900.5", "NAK_BAL") &&
+         es_respuesta("BAL_AUTO:0900", "NAK_BAL") && es_respuesta("BAL_AUTO:900 ", "NAK_BAL"));
+    carro_recibir_comando("BAL_AUTO:799");
+    carro_recibir_comando("BAL_AUTO:abc");
+    carro_recibir_comando("BAL_MANUAL:1001");
+    carro_recibir_comando("BAL_AUTO:");
+    carro_recibir_comando("BAL_AUTO:99999999999");
+    caso("... y el balance no cambia ni se guarda nada", carro_balance(PERFIL_AUTO) == 986 && carro_balance(PERFIL_MANUAL) == 988 && nvs_guardados == 0);
+    caso("textos parecidos que no son mensajes de balance no se contestan (BAL_AUTO sin dos puntos, bal_auto:900, BAL_X:900, BAL)", carro_respuesta("BAL_AUTO") == NULL &&
+         carro_respuesta("bal_auto:900") == NULL && carro_respuesta("BAL_X:900") == NULL && carro_respuesta("BAL") == NULL && carro_respuesta("BAL?x") == NULL);
+
+    /* BAL? */
+    reiniciar_mundo(0);
+    carro_recibir_comando("BAL_AUTO:910");
+    carro_recibir_comando("BAL_MANUAL:960");
+    caso("BAL? se contesta BAL:910:960 (AUTO y luego MANUAL)", es_respuesta("BAL?", "BAL:910:960"));
+    reiniciar_mundo(0);
+    caso("BAL? sin cambios contesta los valores por defecto BAL:986:988", es_respuesta("BAL?", "BAL:986:988"));
+
+    /* Los mensajes de balance no son un movimiento. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 400; vuelta_loop();
+    {
+        int antes = escrituras_pwm;
+
+        carro_recibir_comando("BAL_AUTO:900");
+        caso("BAL_AUTO con el carro en marcha no frena ni toca los motores (se aplica al siguiente arranque)", escrituras_pwm == antes && pines_son(0, 207, 210, 0) && carro_perfil() == PERFIL_AUTO);
+        carro_recibir_comando("FORWARD");
+        caso("... y no cambia el comando actual (FORWARD repetido se sigue ignorando)", escrituras_pwm == antes);
+        carro_recibir_comando("BAL?");
+        caso("BAL? tampoco toca nada", escrituras_pwm == antes);
+    }
+    reloj_ms = 1400; vuelta_loop();
+    caso("... renuevan el reloj del watchdog como cualquier comando real (1000 ms despues del BAL_AUTO sigue en marcha)", pines_son(0, 207, 210, 0));
+    reloj_ms = 1401; vuelta_loop();
+    caso("... y frena 1001 ms despues", pines_son(0, 0, 0, 0));
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("BAL_AUTO:900");
+    caso("BAL_AUTO no cambia el perfil", carro_perfil() == PERFIL_MANUAL);
+
+    /* Persistencia: al arrancar se lee lo guardado; lo inválido se ignora. */
+    reiniciar_mundo(0);
+    nvs_balance[PERFIL_AUTO] = 905;
+    nvs_balance[PERFIL_MANUAL] = 970;
+    carro_iniciar();
+    caso("al arrancar lee el balance guardado (905 y 970)", carro_balance(PERFIL_AUTO) == 905 && carro_balance(PERFIL_MANUAL) == 970);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("... y lo usa al avanzar (210 x 0.905 = 190)", pines_son(0, 190, 210, 0));
+    nvs_balance[PERFIL_AUTO] = 500;
+    nvs_balance[PERFIL_MANUAL] = 1500;
+    carro_iniciar();
+    caso("un valor guardado fuera de rango (500 o 1500) se ignora y queda el por defecto", carro_balance(PERFIL_AUTO) == 986 && carro_balance(PERFIL_MANUAL) == 988);
+    nvs_balance[PERFIL_AUTO] = 0;
+    nvs_balance[PERFIL_MANUAL] = 800;
+    carro_iniciar();
+    caso("0 = nada guardado: AUTO por defecto; 800 si es valido en MANUAL", carro_balance(PERFIL_AUTO) == 986 && carro_balance(PERFIL_MANUAL) == 800);
+    reiniciar_mundo(0);
+    carro_recibir_comando("BAL_AUTO:880");
+    carro_iniciar();   /* un reinicio en frio: la memoria falsa conserva lo guardado */
+    caso("lo que se guardo con BAL_AUTO:880 sobrevive a un reinicio (carro_iniciar lo vuelve a leer)", carro_balance(PERFIL_AUTO) == 880);
+
+    /* El watchdog y el watchdog de conexion no tocan el balance. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("BAL_AUTO:900");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 1001; vuelta_loop();
+    carro_detener();
+    carro_poner_perfil_auto();
+    caso("el watchdog, carro_detener y carro_poner_perfil_auto no cambian el balance", carro_balance(PERFIL_AUTO) == 900);
+}
+
 static void prueba_desconocido(void)
 {
     /* Igual que el original: no mueve motores, pero renueva el watchdog y
@@ -612,9 +771,80 @@ static void prueba_diferencial(uint32_t reloj_inicial, const char *nombre)
     }
 }
 
-/* ── Programa principal ────────────────────────────────────────────────── */
+/* ── Arranque escalonado (se compila con -DARRANQUE_ESCALONADO_MS=40: ver el Makefile) ─────────────── */
 
-int main(void)
+#if ARRANQUE_ESCALONADO_MS > 0
+static void prueba_escalonado(void)
+{
+    const uint32_t e = ARRANQUE_ESCALONADO_MS;
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    caso("escalonado: al avanzar entra primero SOLO el motor izquierdo (pin B) a 255", pines_son(0, 255, 0, 0));
+    reloj_ms = e - 1; vuelta_loop();
+    caso("escalonado: un ms antes del tiempo el derecho todavia no entra", pines_son(0, 255, 0, 0));
+    reloj_ms = e; vuelta_loop();
+    caso("escalonado: al cumplirse el tiempo entra el derecho (pin A) tambien a 255", pines_son(0, 255, 255, 0));
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("escalonado: al terminar el arranque a plena potencia se aplica el ajuste por lado de siempre (207 y 210)", pines_son(0, 207, 210, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("REVERSE");
+    caso("escalonado: al retroceder entra primero SOLO el motor izquierdo (pin A) a 255", pines_son(255, 0, 0, 0));
+    reloj_ms = e; vuelta_loop();
+    caso("escalonado: y luego el derecho (pin B)", pines_son(255, 0, 0, 255));
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("escalonado: retroceso con el ajuste por lado despues del arranque", pines_son(207, 0, 0, 210));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 10;
+    carro_recibir_comando("STOP");
+    reloj_ms = 1000; vuelta_loop();
+    caso("escalonado: STOP antes de que entre el segundo motor lo deja todo parado (no entra despues)", pines_son(0, 0, 0, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 10;
+    carro_recibir_comando("LEFT");
+    reloj_ms = 1000; vuelta_loop();
+    caso("escalonado: girar antes de que entre el segundo motor cancela el escalon (el pivote queda a 255 solo con el derecho)", pines_son(0, 0, 255, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = e; vuelta_loop();
+    carro_recibir_comando("LEFT");
+    caso("escalonado: los pivotes no se escalonan (LEFT usa solo el motor derecho a 255)", pines_son(0, 0, 255, 0));
+    carro_recibir_comando("RIGHT");
+    caso("escalonado: RIGHT usa solo el izquierdo a 255", pines_son(0, 255, 0, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("BAL_MANUAL:900");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = e; vuelta_loop();
+    reloj_ms = PERFIL_MANUAL_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("escalonado con balance: MANUAL 900 llega a 230 (255 x 0.900) a la izquierda y 255 a la derecha", pines_son(0, 230, 255, 0));
+
+    /* Si el escalon dura mas que el arranque a plena potencia, el segundo motor entra ya con el ajuste por lado. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS; vuelta_loop();
+    caso("escalonado: si el programa tarda en volver al loop (pasan el escalon y el arranque a plena potencia de golpe) queda con el ajuste por lado", pines_son(0, 207, 210, 0));
+
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = 100; carro_recibir_comando("FORWARD");   /* heartbeat */
+    reloj_ms = 400; vuelta_loop();
+    caso("escalonado: el watchdog y el heartbeat funcionan igual (a los 400 ms sigue en marcha con el ajuste por lado)", pines_son(0, 207, 210, 0));
+    reloj_ms = 1101; vuelta_loop();
+    caso("escalonado: 1001 ms despues del ultimo comando frena", pines_son(0, 0, 0, 0));
+}
+#endif
+
+/* Todas las pruebas de siempre (con el arranque escalonado apagado). Fuera del main para que, al compilar la prueba escalonada, no sobren funciones sin usar. */
+int pruebas_normales(void);
+int pruebas_normales(void)
 {
     printf("== Parte 1: casos puntuales ==\n");
     prueba_movimientos();
@@ -625,6 +855,7 @@ int main(void)
     prueba_respuesta_ping();
     prueba_arranque_pleno();
     prueba_perfiles();
+    prueba_balance();
     prueba_desconocido();
     prueba_keepalive();
     prueba_desbordamiento();
@@ -632,6 +863,20 @@ int main(void)
     printf("== Parte 2: comparación con el código original ==\n");
     prueba_diferencial(0, "reloj desde 0");
     prueba_diferencial(0xFFFFF000u, "reloj cruzando el desbordamiento");
+    return 0;
+}
+
+/* ── Programa principal ────────────────────────────────────────────────── */
+
+int main(void)
+{
+#if ARRANQUE_ESCALONADO_MS > 0
+    printf("== Arranque escalonado (%u ms) ==\n", (unsigned)ARRANQUE_ESCALONADO_MS);
+    prueba_escalonado();
+#else
+    pruebas_normales();
+    caso("con el arranque escalonado apagado (0 ms, el valor por defecto) los dos motores arrancan juntos", ARRANQUE_ESCALONADO_MS == 0u);
+#endif
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

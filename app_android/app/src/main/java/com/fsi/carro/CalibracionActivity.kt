@@ -3,7 +3,7 @@
  * distancias y giros en tiempos reales (el carro no tiene encoders ni IMU).
  *
  * GUÍA DE LECTURA
- *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN → GIRO_90. UNA prueba por pantalla.
+ *  1. Pasos (enum Paso): INTRO → REACCION → ARRANQUE → AVANCE → GIRO_IZQ → GIRO_DER → RETROCESO → GIRO_VISUAL → RESUMEN → GIRO_90 → RECTA. UNA prueba por pantalla.
  *       - REACCION: mide tu tiempo de reacción (toca cuando el botón se pone verde).
  *       - ARRANQUE: manda FORWARD y tú tocas "YA SE MOVIÓ" cuando ves moverse las ruedas; el
  *         arranque es ese tiempo menos tu reacción. 5 repeticiones, se descartan los datos raros.
@@ -22,6 +22,10 @@
  *         90° y tú dices cómo giró («se pasó mucho / un poco / justo / se quedó corto») o escribes los grados. Con eso se corrige un FACTOR del giro por lado (izquierda y derecha) y
  *         por perfil (AUTO y MANUAL), que se guarda en CalibracionGuardada y lo usan las rutas y el simulador. Se repite hasta que quede justo. «Restaurar valor por defecto»
  *         lo vuelve a 1000. Con pilas nuevas hay que repetirlo (docs/calibracion.md).
+ *       - RECTA (AJUSTE FINO): con el carro sobre una línea de cinta toca «Avanzar 2 s»; dices hacia dónde se desvió (izquierda, derecha o recto) y cuántos cm (de 1 en 1). La
+ *         geometría (en C: cal_balance_nuevo) da el BALANCE nuevo del lado izquierdo (800 a 1000), que se guarda en el teléfono y se manda al carro (BAL_AUTO / BAL_MANUAL,
+ *         con ACK; el carro lo guarda en su memoria). Se repite hasta 1 cm o menos de desvío, máximo 4 intentos. El ancho entre las ruedas es configurable (12 cm).
+ *         Ver docs/perfiles_velocidad.md.
  *  2. Toda la cuenta (promedios, atípicos, rectas, frenado) está en C y probada en PC
  *     (nucleo_c/calibracion.c). Aquí solo hay pantalla y temporizadores.
  *  3. LA PANTALLA (diseño nuevo, docs/diseno.md): «Paso X de 9» con una barra de avance, el título, una ilustración dibujada por código
@@ -73,9 +77,11 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         const val REACCION_POR_DEFECTO_MS = 180             // si no se midió la reacción
         const val ESPERA_MAXIMA_ARRANQUE_MS = 3000L         // si no tocas en este tiempo, se detiene el carro
         private const val LADO_ATRAS = 2                    // en ajustarGrupo: 0 = avance, -1 / 1 = giros, 2 = retroceso
+        const val TIEMPO_RECTA_MS = 2000                    // la prueba de recta avanza 2 s
+        const val MS_POR_CM_MANUAL_X10 = 263                // 26.3 ms por cm en el perfil MANUAL (255), medido el 13 oct (docs/calibracion.md)
     }
 
-    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90 }
+    private enum class Paso { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90, RECTA }
 
     private val principal = Handler(Looper.getMainLooper())   // las pruebas con tiempo (se cancelan todas con pararTodo)
     private val reloj = Handler(Looper.getMainLooper())       // solo refresca el chip y el aviso de conexión (no se cancela con pararTodo)
@@ -113,6 +119,16 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var bloqueGiro: View
     private lateinit var botonesOpcionGiro: List<MaterialButton>   // mucho, un poco, justo, corto (en el orden de CalibracionNativa.GIRO_*)
     private lateinit var botonRestaurar: MaterialButton
+    private lateinit var etiquetaLado: View
+    private lateinit var filaLado: View
+    private lateinit var bloqueRecta: View
+    private lateinit var botonDirIzq: MaterialButton
+    private lateinit var botonDirRecto: MaterialButton
+    private lateinit var botonDirDer: MaterialButton
+    private lateinit var botonMenos: MaterialButton
+    private lateinit var botonMas: MaterialButton
+    private lateinit var textoCm: TextView
+    private lateinit var campoEjes: EditText
 
     private var paso = Paso.INTRO
     private var soloGiroVisual = false   // se saltó directo al paso 8 (giro con la cámara): el resumen parte de la calibración guardada, no de los valores por defecto
@@ -120,6 +136,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private var perfilAjuste = ControlLogica.Perfil.AUTO       // el perfil con el que se prueba y al que se le guarda el factor (ajuste fino)
     private var ladoAjuste = CalibracionNativa.LADO_DERECHA    // el lado del giro de 90° que se prueba
     private var resumenAjuste = ""                              // lo que pasó con el último ajuste (se muestra en la tarjeta de datos)
+    private var direccionDesvio = 0                             // recta: hacia dónde se desvió: -1 izquierda, 0 recto, +1 derecha
+    private var desvioCm = 1                                    // recta: cuántos cm
+    private var intentosRecta = 0                               // recta: cuántas correcciones se han aplicado (máximo CalibracionNativa.RECTA_MAX_ITERACIONES)
+    private var rectaLista = false                              // recta: ya terminó con 1 cm o menos de desvío
 
     // Datos anotados.
     private val reacciones = ArrayList<Int>()
@@ -195,6 +215,16 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         bloqueGiro = findViewById(R.id.aj_bloque_giro)
         botonesOpcionGiro = listOf(R.id.aj_op_mucho, R.id.aj_op_poco, R.id.aj_op_justo, R.id.aj_op_corto).map { findViewById<MaterialButton>(it) }
         botonRestaurar = findViewById(R.id.aj_restaurar)
+        etiquetaLado = findViewById(R.id.aj_etiqueta_lado)
+        filaLado = findViewById(R.id.aj_fila_lado)
+        bloqueRecta = findViewById(R.id.aj_bloque_recta)
+        botonDirIzq = findViewById(R.id.aj_dir_izq)
+        botonDirRecto = findViewById(R.id.aj_dir_recto)
+        botonDirDer = findViewById(R.id.aj_dir_der)
+        botonMenos = findViewById(R.id.aj_menos)
+        botonMas = findViewById(R.id.aj_mas)
+        textoCm = findViewById(R.id.aj_cm)
+        campoEjes = findViewById(R.id.aj_ejes)
         findViewById<TextView>(R.id.barra_titulo).setText(R.string.cal_titulo)
         findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
         // Para pruebas con adb: la dirección del carro (el servidor falso) se guarda en Ajustes, como hace MainActivity con ws_url.
@@ -229,6 +259,22 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             botonesOpcionGiro[opcion].setOnClickListener { aplicarGradosGiro(CalibracionNativa.gradosDeOpcionGiro(opcion)) }
         }
         botonRestaurar.setOnClickListener { restaurarAjuste() }
+        botonDirIzq.setOnClickListener { elegirDireccionDesvio(CalibracionNativa.LADO_IZQUIERDA) }
+        botonDirRecto.setOnClickListener { elegirDireccionDesvio(0) }
+        botonDirDer.setOnClickListener { elegirDireccionDesvio(CalibracionNativa.LADO_DERECHA) }
+        botonMenos.setOnClickListener { cambiarDesvioCm(-1) }
+        botonMas.setOnClickListener { cambiarDesvioCm(1) }
+        campoEjes.setText(String.format(Locale.US, "%.1f", guardada.anchoEjesMm / 10.0).removeSuffix(".0"))
+        campoEjes.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(texto: CharSequence?, inicio: Int, cuenta: Int, despues: Int) {}
+            override fun onTextChanged(texto: CharSequence?, inicio: Int, antes: Int, cuenta: Int) {}
+            override fun afterTextChanged(texto: Editable?) {
+                val cm = texto.toString().trim().replace(',', '.').toDoubleOrNull()
+                if (cm != null && cm >= 5.0 && cm <= 40.0) {
+                    guardada.anchoEjesMm = Math.round(cm * 10).toInt()   // se guarda al escribir un valor razonable (5 a 40 cm)
+                }
+            }
+        })
         campoResultado.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(texto: CharSequence?, inicio: Int, cuenta: Int, despues: Int) {}
             override fun onTextChanged(texto: CharSequence?, inicio: Int, antes: Int, cuenta: Int) {
@@ -291,7 +337,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun conectado() = logica.conexion == ControlLogica.Conexion.CONECTADO
 
     /** El perfil que debe tener el carro en el paso actual: AUTO siempre, salvo en el ajuste fino, donde es el que se eligió. */
-    private fun perfilEsperado() = if (paso == Paso.GIRO_90) perfilAjuste else ControlLogica.Perfil.AUTO
+    private fun perfilEsperado() = if (paso == Paso.GIRO_90 || paso == Paso.RECTA) perfilAjuste else ControlLogica.Perfil.AUTO
 
     /** Conectado Y con el perfil esperado confirmado por el carro: sin eso las pruebas medirían otra velocidad (firmware viejo o perfil equivocado). */
     private fun listoParaProbar() = conectado() && logica.perfilConfirmado == perfilEsperado()
@@ -378,6 +424,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         paso = pasos[nuevo]
         esperandoDato = false
         resumenAjuste = ""
+        if (paso == Paso.RECTA) {
+            intentosRecta = 0
+            rectaLista = false
+        }
         campoResultado.setText("")
         logica.pedirPerfil(perfilEsperado())   // al entrar o salir del ajuste fino el carro cambia de perfil si hace falta
         mostrarPaso()
@@ -400,6 +450,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.GIRO_VISUAL -> true   // es opcional
         Paso.RESUMEN -> true
         Paso.GIRO_90 -> true
+        Paso.RECTA -> true
     }
 
     /** La lista de listas del paso actual (avance o giro) o null. */
@@ -440,6 +491,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.GIRO_VISUAL -> IlustracionCalibracion.Escena.GIRO_VISUAL
         Paso.RESUMEN -> IlustracionCalibracion.Escena.RESUMEN
         Paso.GIRO_90 -> IlustracionCalibracion.Escena.GIRO_90
+        Paso.RECTA -> IlustracionCalibracion.Escena.RECTA
     }
 
     /** Pone la pista del campo de resultado solo si cambió (cambiarla en cada cuadro de la prueba visual haría parpadear el campo). */
@@ -463,6 +515,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonAjuste.visibility = View.GONE
         panelAjuste.visibility = View.GONE
         bloqueGiro.visibility = View.GONE
+        bloqueRecta.visibility = View.GONE
+        etiquetaLado.visibility = View.VISIBLE
+        filaLado.visibility = View.VISIBLE
 
         textoPaso.text = getString(R.string.cal_paso, paso.ordinal + 1, Paso.values().size)
         if (progreso.max != Paso.values().size) {
@@ -580,6 +635,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 botonBorrarCal.visibility = View.VISIBLE
             }
             Paso.GIRO_90 -> mostrarGiro90()
+            Paso.RECTA -> mostrarRecta()
         }
         // Cuando aparece el campo del resultado, la pantalla baja hasta el botón «Guardar este resultado» (solo esa primera vez).
         if (esperandoDato && !datoMostrado) {
@@ -649,6 +705,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 listoParaProbar() && !corriendo && !esperandoDato && cuantas(datosDelPaso()!!) < totalPruebas()
             Paso.GIRO_VISUAL -> listoParaProbar() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
             Paso.GIRO_90 -> listoParaProbar() && !corriendo && !esperandoDato && guardada.estaCompleta()
+            Paso.RECTA -> listoParaProbar() && !corriendo && !esperandoDato && guardada.estaCompleta() && !rectaLista && intentosRecta < CalibracionNativa.RECTA_MAX_ITERACIONES
             else -> false
         }
         habilitar(botonProbar, probarActivo)
@@ -660,12 +717,13 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             else -> false
         })
         habilitar(botonAtras, !ocupado && paso != Paso.INTRO)
-        habilitar(botonSiguiente, !ocupado && paso != Paso.GIRO_90 && pasoCompleto() && !esperandoDato)
-        botonSiguiente.visibility = if (paso == Paso.GIRO_90) View.GONE else View.VISIBLE
+        habilitar(botonSiguiente, !ocupado && paso != Paso.RECTA && pasoCompleto() && !esperandoDato)
+        botonSiguiente.visibility = if (paso == Paso.RECTA) View.GONE else View.VISIBLE
         botonSiguiente.setText(when (paso) {
             Paso.INTRO -> R.string.cal_b_empezar
             Paso.GIRO_VISUAL -> R.string.cal_b_ver_resumen
             Paso.RESUMEN -> R.string.cal_b_ajuste_fino
+            Paso.GIRO_90 -> R.string.cal_b_siguiente_recta
             else -> R.string.cal_siguiente
         })
 
@@ -673,7 +731,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val destacado: MaterialButton? = when {
             ocupado -> null
             paso == Paso.RESUMEN -> botonUsar
-            esperandoDato -> if (paso == Paso.GIRO_90) null else botonGuardar   // en el ajuste fino las opciones de «¿cómo giró?» son las que se tocan
+            esperandoDato -> if (paso == Paso.GIRO_90) null else botonGuardar   // en el giro de 90° las opciones de «¿cómo giró?» son las que se tocan
             paso != Paso.INTRO && probarActivo -> botonProbar
             else -> botonSiguiente
         }
@@ -695,6 +753,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.AVANCE, Paso.GIRO_IZQ, Paso.GIRO_DER, Paso.RETROCESO -> empezarPruebaDeTiempo()
             Paso.GIRO_VISUAL -> empezarGiroVisual()
             Paso.GIRO_90 -> empezarGiro90()
+            Paso.RECTA -> empezarRecta()
             else -> {}
         }
     }
@@ -844,6 +903,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         perfilAjuste = perfil
         logica.pedirPerfil(perfilEsperado())
         resumenAjuste = ""
+        intentosRecta = 0      // la recta se calibra por perfil: el conteo de intentos empieza otra vez
+        rectaLista = false
         mostrarPaso()
     }
 
@@ -951,6 +1012,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         if (corriendo) {
             return
         }
+        if (paso == Paso.RECTA) {
+            restaurarRecta()
+            return
+        }
         guardada.restaurarFactoresGiro(perfilAjuste)
         guardada.aplicarAlNavegador()
         resumenAjuste = "Se restauró el valor por defecto del giro en el perfil ${perfilAjuste.texto}."
@@ -959,11 +1024,181 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         mostrarPaso()
     }
 
+    // ── Ajuste fino: recta (balance de los lados) ─────────────────────────
+
+    private fun elegirDireccionDesvio(direccion: Int) {
+        if (!esperandoDato) {
+            return
+        }
+        direccionDesvio = direccion
+        mostrarPaso()
+    }
+
+    private fun cambiarDesvioCm(delta: Int) {
+        if (!esperandoDato) {
+            return
+        }
+        desvioCm = (desvioCm + delta).coerceIn(0, 40)
+        mostrarPaso()
+    }
+
+    private fun nombreDireccion(d: Int) = when {
+        d < 0 -> "a la izquierda"
+        d > 0 -> "a la derecha"
+        else -> "recto"
+    }
+
+    private fun mostrarRecta() {
+        textoTitulo.setText(R.string.cal_t_recta)
+        textoInstruccion.setText(R.string.cal_i_recta)
+        textoNota.text = getString(R.string.cal_n_recta) + "\n" + getString(R.string.cal_aj_pilas)
+        textoNota.visibility = View.VISIBLE
+        panelAjuste.visibility = View.VISIBLE
+        etiquetaLado.visibility = View.GONE
+        filaLado.visibility = View.GONE
+        marcarSeleccion(botonPerfilAuto, perfilAjuste == ControlLogica.Perfil.AUTO)
+        marcarSeleccion(botonPerfilManual, perfilAjuste == ControlLogica.Perfil.MANUAL)
+        botonProbar.visibility = View.VISIBLE
+        botonProbar.text = when {
+            rectaLista -> getString(R.string.cal_b_recta_lista)
+            intentosRecta >= CalibracionNativa.RECTA_MAX_ITERACIONES -> getString(R.string.cal_b_recta_maximo)
+            else -> getString(R.string.cal_b_probar_recta, intentosRecta + 1, CalibracionNativa.RECTA_MAX_ITERACIONES)
+        }
+        if (esperandoDato) {
+            bloqueRecta.visibility = View.VISIBLE
+            marcarSeleccion(botonDirIzq, direccionDesvio < 0)
+            marcarSeleccion(botonDirRecto, direccionDesvio == 0)
+            marcarSeleccion(botonDirDer, direccionDesvio > 0)
+            textoCm.text = String.format(Locale.US, "%d cm", desvioCm)
+            botonGuardar.visibility = View.VISIBLE
+            botonGuardar.setText(R.string.cal_b_aplicar_desvio)
+        } else {
+            botonGuardar.setText(R.string.cal_guardar)
+        }
+        textoDatos.text = textoAjusteRecta()
+    }
+
+    private fun textoAjusteRecta(): String {
+        if (!guardada.estaCompleta()) {
+            return getString(R.string.cal_aj_sin_cal)
+        }
+        val sb = StringBuilder()
+        sb.append(String.format(Locale.US, "Balance del lado izquierdo (%s): %d de 1000 (por defecto %d)\n", perfilAjuste.texto, guardada.balance(perfilAjuste),
+            if (perfilAjuste == ControlLogica.Perfil.AUTO) CalibracionNativa.BALANCE_DEFECTO_AUTO else CalibracionNativa.BALANCE_DEFECTO_MANUAL))
+        sb.append(String.format(Locale.US, "Intentos: %d de %d. El carro lo guarda en su memoria.\n", intentosRecta, CalibracionNativa.RECTA_MAX_ITERACIONES))
+        if (resumenAjuste.isNotEmpty()) {
+            sb.append("\n").append(resumenAjuste)
+        }
+        return sb.toString()
+    }
+
+    /** Lo que recorre el carro en los 2 s de la prueba, en mm: con la calibración en AUTO (más el frenado); en MANUAL, con la velocidad medida de ese perfil (26.3 ms por cm). */
+    private fun recorridoDeLaPruebaMm(): Int {
+        if (perfilAjuste == ControlLogica.Perfil.AUTO) {
+            val cal = guardada.leer()
+            val sinArranque = (TIEMPO_RECTA_MS - cal[CalibracionNativa.CAL_ARRANQUE_MS]).coerceAtLeast(0)
+            return sinArranque * 100 / cal[CalibracionNativa.CAL_MS_POR_CM_X10] + cal[CalibracionNativa.CAL_FRENADO_MM]
+        }
+        return TIEMPO_RECTA_MS * 100 / MS_POR_CM_MANUAL_X10
+    }
+
+    /** Antes de avanzar se le manda al carro el balance que la app tiene para ese perfil (con ACK): así lo que se prueba es lo que se ve en pantalla. */
+    private fun empezarRecta() {
+        if (!conectado() || corriendo) {
+            return
+        }
+        corriendo = true
+        resumenAjuste = ""
+        mostrarPaso()
+        val balance = guardada.balance(perfilAjuste)
+        logica.enviarBalance(perfilAjuste, balance, 1000L) { confirmado ->
+            if (!corriendo) {
+                return@enviarBalance   // se tocó PARO (o se salió de la pantalla) mientras se esperaba el ACK: no se mueve el carro
+            }
+            if (!confirmado) {
+                corriendo = false
+                resumenAjuste = "El carro no confirmó el balance. ¿Está cargado el firmware nuevo en el carro? Revisa la conexión y vuelve a tocar «Avanzar»."
+                Log.w(CalibracionGuardada.ETIQUETA, "recta: el carro no confirmó BAL_${perfilAjuste.name}:$balance")
+                mostrarPaso()
+                return@enviarBalance
+            }
+            Log.i(CalibracionGuardada.ETIQUETA, "recta: FORWARD durante $TIEMPO_RECTA_MS ms (perfil ${perfilAjuste.name}, balance $balance)")
+            logica.presionar("FORWARD")
+            principal.postDelayed({
+                logica.parar()
+                corriendo = false
+                esperandoDato = true
+                direccionDesvio = 0
+                desvioCm = 1
+                mostrarPaso()
+            }, TIEMPO_RECTA_MS.toLong())
+        }
+    }
+
+    /** Con lo que el usuario vio (hacia dónde y cuántos cm) calcula el balance nuevo, lo guarda y se lo manda al carro. Con 1 cm o menos (o «recto») la recta ya quedó bien. */
+    private fun aplicarDesvioRecta() {
+        if (!esperandoDato) {
+            return
+        }
+        val antes = guardada.balance(perfilAjuste)
+        val desvioMm = direccionDesvio * desvioCm * 10
+        esperandoDato = false
+        if (direccionDesvio == 0 || desvioCm * 10 <= CalibracionNativa.RECTA_OK_MM) {
+            rectaLista = true
+            guardada.guardarBalance(perfilAjuste, antes)
+            guardada.guardarBalanceCalibrado(perfilAjuste, antes)
+            resumenAjuste = "Listo: se desvió ${if (direccionDesvio == 0) "nada" else "1 cm o menos"}. El balance $antes queda guardado en el carro y en el teléfono."
+            Log.i(CalibracionGuardada.ETIQUETA, "recta lista: perfil=${perfilAjuste.name} balance=$antes en ${intentosRecta + 1} prueba(s)")
+            mostrarPaso()
+            return
+        }
+        val (codigo, nuevo) = CalibracionNativa.balanceNuevo(antes, desvioMm, recorridoDeLaPruebaMm(), guardada.anchoEjesMm).let { Pair(it[0], it[1]) }
+        if (codigo != CalibracionNativa.OK) {
+            resumenAjuste = "Esos números no tienen sentido (¿el desvío es mayor que la mitad de lo que avanzó?). Repite la prueba."
+            mostrarPaso()
+            return
+        }
+        intentosRecta++
+        guardada.guardarBalance(perfilAjuste, nuevo)
+        resumenAjuste = "Se desvió $desvioCm cm ${nombreDireccion(direccionDesvio)}: el balance pasó de $antes a $nuevo." +
+            (if (intentosRecta >= CalibracionNativa.RECTA_MAX_ITERACIONES) " Se hicieron los ${CalibracionNativa.RECTA_MAX_ITERACIONES} intentos: queda este balance. Si sigue desviándose, revisa las ruedas o restaura el valor por defecto."
+            else " Vuelve a probar con «Avanzar 2 s».")
+        Log.i(CalibracionGuardada.ETIQUETA, "recta: perfil=${perfilAjuste.name} desvio=${desvioMm} mm balance $antes -> $nuevo (intento $intentosRecta)")
+        logica.enviarBalance(perfilAjuste, nuevo, 1000L) { confirmado ->
+            if (!confirmado) {
+                resumenAjuste += " OJO: el carro no confirmó el nuevo balance; se le enviará al volver a conectar."
+                mostrarPaso()
+            }
+        }
+        mostrarPaso()
+    }
+
+    /** «Restaurar valor por defecto» de la recta: el balance del perfil vuelve al del firmware (y se le manda al carro). */
+    private fun restaurarRecta() {
+        guardada.restaurarBalance(perfilAjuste)
+        intentosRecta = 0
+        rectaLista = false
+        esperandoDato = false
+        val defecto = guardada.balance(perfilAjuste)
+        resumenAjuste = "Se restauró el balance por defecto ($defecto) en el perfil ${perfilAjuste.texto}."
+        logica.enviarBalance(perfilAjuste, defecto, 1000L) { confirmado ->
+            if (!confirmado) {
+                resumenAjuste += " OJO: el carro no confirmó el cambio."
+                mostrarPaso()
+            }
+        }
+        mostrarPaso()
+    }
+
     // ── Datos ─────────────────────────────────────────────────────────────
 
     private fun guardarDato() {
         if (paso == Paso.GIRO_VISUAL) {
             guardarGiroVisual()
+            return
+        }
+        if (paso == Paso.RECTA) {
+            aplicarDesvioRecta()
             return
         }
         if (paso == Paso.GIRO_90) {

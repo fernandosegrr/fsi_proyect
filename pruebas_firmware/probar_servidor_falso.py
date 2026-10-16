@@ -71,6 +71,27 @@ async def hablar():
         await ws.send("STOP")
         await asyncio.sleep(0.3)
 
+        # Balance de los lados: ACK, NAK, BAL? y que se conserva aunque el cliente se desconecte.
+        await ws.send("BAL?")
+        caso("BAL? se contesta con los valores por defecto BAL:986:988", await asyncio.wait_for(ws.recv(), 2) == "BAL:986:988")
+        await ws.send("BAL_AUTO:900")
+        caso("BAL_AUTO:900 se contesta ACK_BAL_AUTO:900", await asyncio.wait_for(ws.recv(), 2) == "ACK_BAL_AUTO:900")
+        await ws.send("BAL_MANUAL:1000")
+        caso("BAL_MANUAL:1000 se contesta ACK_BAL_MANUAL:1000", await asyncio.wait_for(ws.recv(), 2) == "ACK_BAL_MANUAL:1000")
+        for malo in ("BAL_AUTO:799", "BAL_AUTO:1001", "BAL_AUTO:", "BAL_AUTO:abc", "BAL_MANUAL:0900", "BAL_AUTO:-900", "BAL_AUTO: 900"):
+            await ws.send(malo)
+            caso("%s se contesta NAK_BAL" % malo, await asyncio.wait_for(ws.recv(), 2) == "NAK_BAL")
+        await ws.send("BAL?")
+        caso("BAL? despues de los cambios: BAL:900:1000 (los NAK no cambiaron nada)", await asyncio.wait_for(ws.recv(), 2) == "BAL:900:1000")
+
+    async with connect(URL) as ws:
+        await ws.send("BAL?")
+        caso("el balance se conserva al reconectar (como la memoria no volatil del carro)", await asyncio.wait_for(ws.recv(), 2) == "BAL:900:1000")
+        await ws.send("BAL_AUTO:986")
+        await asyncio.wait_for(ws.recv(), 2)
+        await ws.send("BAL_MANUAL:988")
+        await asyncio.wait_for(ws.recv(), 2)
+
 
 async def principal():
     servidor = subprocess.Popen([sys.executable, "-u", "servidor_falso.py", "--puerto", str(PUERTO)],

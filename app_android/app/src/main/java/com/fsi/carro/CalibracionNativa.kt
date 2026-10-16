@@ -87,6 +87,9 @@ object CalibracionNativa {
     const val BALANCE_MIN = 800
     const val BALANCE_MAX = 1000
     const val EJES_MM_DEFECTO = 120
+    const val BALANCE_DEFECTO_AUTO = 986      // lo mismo que PERFIL_AUTO_BALANCE_DEFECTO del firmware (207/210)
+    const val BALANCE_DEFECTO_MANUAL = 988    // PERFIL_MANUAL_BALANCE_DEFECTO (252/255)
+    const val DESBALANCE_TIPICO_MIL = 1120    // cuánto más rápido empuja el lado izquierdo en el carro medido (prueba real: ~6 cm a la derecha en 38 cm): lo usa el simulador si no se calibró la recta
     const val RECTA_OK_MM = 10
     const val RECTA_MAX_ITERACIONES = 4
 

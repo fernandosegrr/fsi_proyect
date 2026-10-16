@@ -221,6 +221,8 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
             avisarAyuda(getString(R.string.rutas_ejecutar_sin_ruta))
             return
         }
+        val guardada = CalibracionGuardada(requireContext())
+        SimRutaNativa.ponerBalance(guardada.desbalanceParaSimular(), guardada.balance(ControlLogica.Perfil.AUTO))   // el mismo balance de los lados que usa el carro (AUTO)
         val r = SimRutaNativa.simular(calibracionParaSimular(), cuadricula.obstaculosComoArreglo(), ruido, semilla)
         tarjetaSim.visibility = View.VISIBLE
         if (r[SimRutaNativa.S_CODIGO] != 0) {
@@ -275,6 +277,9 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
                 avisos.add("• " + SimRutaNativa.textoAdvertencia(bit))
             }
         }
+        if (CalibracionGuardada(ctx).balanceCalibrado(ControlLogica.Perfil.AUTO) == 0) {
+            avisos.add("• " + getString(R.string.sim_aviso_recta))   // sin calibrar la recta el carro virtual se tuerce como el real medido
+        }
         simComandos.text = avisos.joinToString("\n")
         Haptica.corta(ctx)
     }
@@ -292,6 +297,8 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
 
     /** Repite la ruta 8 veces con un giro hasta 20° errado: muestra dónde termina cada una. */
     private fun dispersar() {
+        val guardada = CalibracionGuardada(requireContext())
+        SimRutaNativa.ponerBalance(guardada.desbalanceParaSimular(), guardada.balance(ControlLogica.Perfil.AUTO))
         val d = SimRutaNativa.dispersion(calibracionParaSimular(), cuadricula.obstaculosComoArreglo(), 20, 8)
         if (d[SimRutaNativa.D_CODIGO] != 0) {
             simTexto.setText(R.string.sim_error_ruta)

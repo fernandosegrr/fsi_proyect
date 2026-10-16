@@ -124,6 +124,11 @@ ms_por_cm_atras_x10=420
 horizontal de la cámara (600 = 60.0 grados); `ms_por_cm_atras_x10` son los ms por cm hacia atrás (vale solo con el bit 32; si no, se usa `ms_por_cm_x10`). Los textos guardados
 sin esas líneas se siguen leyendo.
 
+## Ajuste fino: recta (equilibrio de los lados)
+
+El segundo paso del ajuste fino («Siguiente: la recta») corrige que el carro se tuerza al avanzar: se hace sobre una línea de cinta, «Avanzar 2 s», se dice hacia dónde se desvió y cuántos cm, y la app calcula y manda al carro el **balance**
+del lado izquierdo (800 a 1000), por perfil. Explicación, protocolo, geometría y pruebas en `docs/perfiles_velocidad.md`. Igual que con el giro, se hace con las pilas de la demo («Recalibra con las pilas que usarás en la demo»).
+
 El factor de giro **no** está en `calibracion.txt` (ese archivo solo trae lo medido); vive en las preferencias de la app.
 
 ## Si no se calibró

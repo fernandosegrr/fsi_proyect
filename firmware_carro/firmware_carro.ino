@@ -19,6 +19,7 @@
 #include <ESPAsyncWebServer.h>
 #include "pagina.h"
 #include <esp_task_wdt.h>
+#include <Preferences.h>   /* memoria no volátil (NVS) del ESP32: ahí se guarda el balance de cada perfil */
 
 #include "config.h"
 #include "carro.h"
@@ -45,6 +46,32 @@ extern "C" void hw_keepalive(int nivel)
 extern "C" void hw_registrar(const char *texto)
 {
   Serial.println(texto);
+}
+
+/* Balance de cada perfil (equilibrio de los lados al ir recto): se guarda en la memoria no volátil para que sobreviva a apagar el carro. */
+static Preferences memoria;
+
+static const char *clave_balance(int perfil)
+{
+  return (perfil == PERFIL_MANUAL) ? "balManual" : "balAuto";
+}
+
+extern "C" int hw_balance_leer(int perfil)
+{
+  int valor = 0;
+  if (memoria.begin("carro", true)) {   /* solo lectura */
+    valor = memoria.getInt(clave_balance(perfil), 0);
+    memoria.end();
+  }
+  return valor;
+}
+
+extern "C" void hw_balance_guardar(int perfil, int milesimas)
+{
+  if (memoria.begin("carro", false)) {
+    memoria.putInt(clave_balance(perfil), milesimas);
+    memoria.end();
+  }
 }
 
 /* ── Inicialización de hardware ────────────────────────────────────────── */

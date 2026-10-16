@@ -11,6 +11,8 @@ GUIA DE LECTURA
     en 1000 ms, imprime "WATCHDOG: motores detenidos". PING NO renueva el reloj (igual que en el carro).
  4b. PERFILES de velocidad como el firmware: MODO_MANUAL se contesta con ACK_MANUAL y MODO_AUTO con ACK_AUTO. Si el carro se mueve y el perfil
     cambia, primero se detiene (imprime "STOP por cambio de perfil"). Al conectarse un cliente y tras el watchdog el perfil vuelve a AUTO.
+ 4c. BALANCE de los lados (equilibrio al ir recto), como el firmware: BAL_AUTO:NNN y BAL_MANUAL:NNN (800 a 1000) se contestan ACK_BAL_AUTO:NNN / ACK_BAL_MANUAL:NNN y se guardan (el
+    servidor los conserva aunque el cliente se desconecte, como la memoria no volatil del carro); fuera de rango o mal escritos se contestan NAK_BAL; BAL? se contesta BAL:AAA:MMM.
  5. Un solo cliente a la vez: si se conecta otro, se cierra el anterior (como el carro).
  6. Cada mensaje se imprime con la hora y los ms desde el mensaje anterior.
 
@@ -23,12 +25,16 @@ import argparse
 import asyncio
 import datetime
 import http
+import re
 import time
 
 from websockets.asyncio.server import serve
 
 COMANDOS_VALIDOS = {"FORWARD", "REVERSE", "LEFT", "RIGHT", "STOP", "EBRAKE", "PING", "MODO_MANUAL", "MODO_AUTO"}
 COMANDOS_MOVIMIENTO = {"FORWARD", "REVERSE", "LEFT", "RIGHT"}
+BALANCE_MIN = 800          # igual que BALANCE_MIN_MIL y BALANCE_MAX_MIL de config.h
+BALANCE_MAX = 1000
+PATRON_BALANCE = re.compile(r"^BAL_(AUTO|MANUAL):([1-9][0-9]{2,3})$")   # solo cifras, 3 o 4, sin cero a la izquierda
 RUTA = "/ws"
 WATCHDOG_S = 1.0          # igual que TIEMPO_WATCHDOG_MS del firmware (1000 ms)
 REVISION_WATCHDOG_S = 0.02
@@ -40,6 +46,7 @@ estado = {
     "ultimo_comando_real": 0.0,  # reloj del ultimo comando que NO es PING
     "ultimo_mensaje": None,      # para los ms desde el mensaje anterior
     "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
+    "balance": {"AUTO": 986, "MANUAL": 988},   # factor del lado izquierdo de cada perfil (milesimas); como la memoria no volatil del carro, no se pierde al desconectar
 }
 
 
@@ -68,6 +75,21 @@ async def procesar(conexion, mensaje):
         return
 
     intervalo = ms_desde_anterior()
+    if mensaje == "BAL?" or mensaje.startswith(("BAL_AUTO:", "BAL_MANUAL:")):
+        imprimir("%s  %s" % (intervalo, mensaje))
+        if mensaje == "BAL?":
+            await conexion.send("BAL:%d:%d" % (estado["balance"]["AUTO"], estado["balance"]["MANUAL"]))
+            return
+        estado["ultimo_comando_real"] = time.monotonic()      # como cualquier comando real, renueva el watchdog (pero no mueve nada ni cambia el perfil)
+        coincide = PATRON_BALANCE.match(mensaje)
+        if coincide and BALANCE_MIN <= int(coincide.group(2)) <= BALANCE_MAX:
+            estado["balance"][coincide.group(1)] = int(coincide.group(2))
+            imprimir("             Balance %s: %s" % (coincide.group(1), coincide.group(2)))
+            await conexion.send("ACK_BAL_%s:%s" % (coincide.group(1), coincide.group(2)))
+        else:
+            imprimir("             Balance no valido (NAK_BAL)")
+            await conexion.send("NAK_BAL")
+        return
     if mensaje not in COMANDOS_VALIDOS:
         # El firmware real guarda el desconocido y renueva el watchdog (pendiente, ver
         # docs/pendientes_firmware.md); aqui se ignora como pidio la prueba.

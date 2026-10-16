@@ -13,6 +13,9 @@
  *  5. AJUSTE FINO DEL GIRO: además de la calibración hay un FACTOR de corrección del giro por lado (izquierda y derecha) y por perfil (AUTO y MANUAL), en milésimas
  *     (1000 = sin corrección), que sale de la prueba «Giro de 90°». leer() devuelve la calibración tal como se midió; leerAjustada() le aplica el factor y es la que usan el
  *     navegador, la simulación y la prueba del propio giro. Al guardar una calibración con los giros recién medidos los factores vuelven a 1000.
+ *  6. AJUSTE FINO DE LA RECTA: el BALANCE es el factor (milésimas, 800 a 1000) con que el firmware reduce la potencia del lado izquierdo, por perfil. El teléfono guarda el que salió
+ *     de la prueba «Recta» (balance()) y se lo manda al carro al conectar (balancesParaEnviar); el carro lo guarda también en su memoria. balanceCalibrado() es el valor con el que la
+ *     prueba terminó con 1 cm o menos de desvío (0 = nunca se calibró): el simulador lo usa para saber cuánto empuja de más el lado izquierdo.
  */
 package com.fsi.carro
 
@@ -73,6 +76,55 @@ class CalibracionGuardada(contexto: Context) {
         val (codigo, ajustada) = CalibracionNativa.desempaquetar(CalibracionNativa.conFactorGiro(
             medida, factorGiro(perfil, CalibracionNativa.LADO_IZQUIERDA), factorGiro(perfil, CalibracionNativa.LADO_DERECHA)))
         return if (codigo == CalibracionNativa.OK) ajustada else medida
+    }
+
+    // ── Ajuste fino de la recta (balance de los lados) ──
+
+    private fun claveBalance(perfil: ControlLogica.Perfil) = "balance_${perfil.name.lowercase()}"
+    private fun claveBalanceCalibrado(perfil: ControlLogica.Perfil) = "balance_calibrado_${perfil.name.lowercase()}"
+
+    private fun balanceDefecto(perfil: ControlLogica.Perfil) =
+        if (perfil == ControlLogica.Perfil.AUTO) CalibracionNativa.BALANCE_DEFECTO_AUTO else CalibracionNativa.BALANCE_DEFECTO_MANUAL
+
+    /** El balance del lado izquierdo de ese perfil, en milésimas (800 a 1000). Si nunca se cambió, el por defecto del firmware. */
+    fun balance(perfil: ControlLogica.Perfil): Int =
+        preferencias.getInt(claveBalance(perfil), 0).takeIf { it in CalibracionNativa.BALANCE_MIN..CalibracionNativa.BALANCE_MAX } ?: balanceDefecto(perfil)
+
+    /** true si el balance de ese perfil se cambió alguna vez (si no, no hace falta mandárselo al carro). */
+    fun hayBalanceGuardado(perfil: ControlLogica.Perfil): Boolean = preferencias.getInt(claveBalance(perfil), 0) > 0
+
+    fun guardarBalance(perfil: ControlLogica.Perfil, milesimas: Int) {
+        preferencias.edit().putInt(claveBalance(perfil), milesimas).apply()
+        Log.i(ETIQUETA, "balance ${perfil.name} = $milesimas")
+    }
+
+    /** El balance con el que la prueba de recta terminó bien (0 = nunca se calibró). */
+    fun balanceCalibrado(perfil: ControlLogica.Perfil): Int = preferencias.getInt(claveBalanceCalibrado(perfil), 0)
+
+    fun guardarBalanceCalibrado(perfil: ControlLogica.Perfil, milesimas: Int) {
+        preferencias.edit().putInt(claveBalanceCalibrado(perfil), milesimas).apply()
+    }
+
+    /** Vuelve al balance por defecto del firmware y olvida que se había calibrado. */
+    fun restaurarBalance(perfil: ControlLogica.Perfil) {
+        preferencias.edit().remove(claveBalance(perfil)).remove(claveBalanceCalibrado(perfil)).apply()
+        Log.i(ETIQUETA, "balance ${perfil.name} restaurado al valor por defecto (${balanceDefecto(perfil)})")
+    }
+
+    /** Los balances que hay que mandarle al carro al conectar: [AUTO, MANUAL]; 0 = ese no se ha cambiado, no se manda. */
+    fun balancesParaEnviar(): IntArray = intArrayOf(
+        if (hayBalanceGuardado(ControlLogica.Perfil.AUTO)) balance(ControlLogica.Perfil.AUTO) else 0,
+        if (hayBalanceGuardado(ControlLogica.Perfil.MANUAL)) balance(ControlLogica.Perfil.MANUAL) else 0)
+
+    /** El ancho entre las ruedas de un lado y las del otro, en mm (12 cm por defecto): lo usa la geometría de la prueba de recta. */
+    var anchoEjesMm: Int
+        get() = preferencias.getInt("ancho_ejes_mm", CalibracionNativa.EJES_MM_DEFECTO)
+        set(valor) = preferencias.edit().putInt("ancho_ejes_mm", valor).apply()
+
+    /** Para el simulador: cuánto más rápido empuja el lado izquierdo, en milésimas (1000 = igual). Si se calibró la recta es lo que hace falta para que el balance calibrado deje el carro recto; si no, el valor típico medido. */
+    fun desbalanceParaSimular(): Int {
+        val calibrado = balanceCalibrado(ControlLogica.Perfil.AUTO)
+        return if (calibrado > 0) (1000000 / calibrado) else CalibracionNativa.DESBALANCE_TIPICO_MIL
     }
 
     /** El campo de visión horizontal de la cámara guardado, en grados por 10 (600 si no se calibró). */

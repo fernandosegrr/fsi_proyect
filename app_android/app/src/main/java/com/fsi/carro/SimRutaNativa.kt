@@ -50,6 +50,9 @@ object SimRutaNativa {
     const val D_PASO = 5
 
     external fun simular(calibracion: IntArray?, obstaculos: IntArray, ruido: Int, semilla: Int): IntArray
+    /** El equilibrio de los lados del carro virtual para las simulaciones que vengan: cuánto más rápido empuja el izquierdo y el balance con que se reduce (milésimas; 1000 y 1000 = sin desvío). */
+    external fun ponerBalance(desbalanceMil: Int, balanceMil: Int)
+
     external fun muestras(): IntArray
     external fun cambios(): IntArray
     external fun dispersion(calibracion: IntArray?, obstaculos: IntArray, ruido: Int, corridas: Int): IntArray

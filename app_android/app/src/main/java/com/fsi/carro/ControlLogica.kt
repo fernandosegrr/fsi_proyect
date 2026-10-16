@@ -16,6 +16,9 @@
  *     (repetirlo en el mismo perfil no frena nada; si el carro volvió a AUTO por el watchdog, así se repone). El carro contesta ACK_MANUAL o
  *     ACK_AUTO: perfilConfirmado. confirmarPerfil() lo pide y espera el ACK (las rutas no arrancan sin él). Un carro con el firmware viejo
  *     no contesta: perfilConfirmado queda en null y las rutas se niegan a arrancar.
+ *  4c. BALANCE DE LOS LADOS (recta): el carro guarda en su memoria un factor del lado izquierdo por perfil. Al abrir la conexión esta clase manda los que la app tiene
+ *     guardados (proveedorBalances) y enviarBalance() manda uno y espera su ACK_BAL_AUTO:NNN / ACK_BAL_MANUAL:NNN (o NAK_BAL). Un carro con el firmware viejo no
+ *     contesta: el aviso sale en false. Ver docs/perfiles_velocidad.md.
  *  5. La latencia es el tiempo entre enviar PING y recibir PONG. El carro real todavía no
  *     contesta PONG (solo el servidor falso), así que con el carro real se verá "—".
  *  Todo ocurre en el hilo principal (los avisos del Enlace ya llegan ahí).
@@ -62,6 +65,12 @@ class ControlLogica(
     /** El comando que se está repitiendo ahora (null = ninguno). */
     val comandoEnMarcha: String? get() = comandoActivo
 
+    /** Quién dice qué balances (milésimas) hay que mandarle al carro al abrir la conexión: [AUTO, MANUAL]; un 0 = no mandar ese. Lo pone SesionCarro con lo guardado en el teléfono. */
+    var proveedorBalances: (() -> IntArray)? = null
+
+    /** El último balance que el carro CONFIRMÓ por perfil: [AUTO, MANUAL] (0 = ninguno en esta conexión). */
+    val balanceConfirmado = IntArray(2)
+
     /** Si no es null, se llama con cada medida de PONG (ms): la usa el registro MANUAL_VIDEO y la prueba de latencia con y sin video. */
     var alPong: ((Long) -> Unit)? = null
 
@@ -86,6 +95,9 @@ class ControlLogica(
     private var confirmacionPerfil: Perfil? = null            // perfil cuyo ACK se está esperando (confirmarPerfil)
     private var alConfirmarPerfil: ((Boolean) -> Unit)? = null
     private val tareaTiempoPerfil = Runnable { terminarConfirmacion(false) }
+    private var balanceEsperado: Pair<Perfil, Int>? = null    // el balance cuyo ACK se está esperando (enviarBalance)
+    private var alConfirmarBalance: ((Boolean) -> Unit)? = null
+    private val tareaTiempoBalance = Runnable { terminarBalance(false) }
 
     // ── Temporizadores ────────────────────────────────────────────────────
 
@@ -233,6 +245,30 @@ class ControlLogica(
         aviso?.invoke(exito)
     }
 
+    /**
+     * Le manda al carro el balance (factor del lado izquierdo, 800 a 1000) de un perfil y espera su ACK hasta `esperaMs` ms: avisa true si el carro lo confirmó con ese
+     * mismo valor y false si no (sin conexión, NAK_BAL, firmware viejo que no contesta o se acabó el tiempo).
+     */
+    fun enviarBalance(perfil: Perfil, milesimas: Int, esperaMs: Long, alTerminar: (Boolean) -> Unit) {
+        terminarBalance(false)
+        if (conexion != Conexion.CONECTADO) {
+            alTerminar(false)
+            return
+        }
+        balanceEsperado = Pair(perfil, milesimas)
+        alConfirmarBalance = alTerminar
+        manejador.postDelayed(tareaTiempoBalance, esperaMs)
+        enviar("BAL_${perfil.name}:$milesimas")
+    }
+
+    private fun terminarBalance(exito: Boolean) {
+        manejador.removeCallbacks(tareaTiempoBalance)
+        val aviso = alConfirmarBalance
+        balanceEsperado = null
+        alConfirmarBalance = null
+        aviso?.invoke(exito)
+    }
+
     /** Dejar de repetir el comando y enviar STOP. */
     fun parar() {
         comandoActivo = null
@@ -254,6 +290,16 @@ class ControlLogica(
         pingsDesdePerfil = 0
         cambiarEstado(Conexion.CONECTADO)
         enviar(perfilDeseado.comando)    // el perfil que se quiere, antes que cualquier otro comando
+        balanceConfirmado[0] = 0
+        balanceConfirmado[1] = 0
+        proveedorBalances?.invoke()?.let { b ->   // el balance de los lados que la app tiene guardado (el carro también lo guarda; esto lo deja igual en los dos)
+            if (b.size >= 2 && b[0] > 0) {
+                enviar("BAL_AUTO:${b[0]}")
+            }
+            if (b.size >= 2 && b[1] > 0) {
+                enviar("BAL_MANUAL:${b[1]}")
+            }
+        }
         manejador.removeCallbacks(tareaPing)
         manejador.post(tareaPing)   // primer PING ya, luego cada 800 ms
     }
@@ -267,6 +313,20 @@ class ControlLogica(
                 terminarConfirmacion(true)
             }
             alCambiar()
+        }
+        if (texto.startsWith("ACK_BAL_AUTO:") || texto.startsWith("ACK_BAL_MANUAL:")) {
+            val perfil = if (texto.startsWith("ACK_BAL_AUTO:")) Perfil.AUTO else Perfil.MANUAL
+            val valor = texto.substringAfter(':').toIntOrNull() ?: 0
+            balanceConfirmado[if (perfil == Perfil.AUTO) 0 else 1] = valor
+            Log.i(EnlaceOkHttp.ETIQUETA, "balance confirmado por el carro: ${perfil.name} $valor")
+            if (balanceEsperado == Pair(perfil, valor)) {
+                terminarBalance(true)
+            }
+            alCambiar()
+        }
+        if (texto == "NAK_BAL") {
+            Log.w(EnlaceOkHttp.ETIQUETA, "el carro rechazó el balance (NAK_BAL)")
+            terminarBalance(false)
         }
         if (texto == "PONG") {
             pongsRecibidos++
@@ -293,6 +353,7 @@ class ControlLogica(
         latenciaMs = null
         perfilConfirmado = null
         terminarConfirmacion(false)
+        terminarBalance(false)
         if (activo) {
             Log.i(EnlaceOkHttp.ETIQUETA, "conexión perdida: se reintenta en ${REINTENTO_MS / 1000} s")
             cambiarEstado(Conexion.RECONECTANDO)

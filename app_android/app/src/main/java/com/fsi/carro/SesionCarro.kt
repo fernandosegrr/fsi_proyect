@@ -45,6 +45,8 @@ object SesionCarro {
         }
         contexto = ctx.applicationContext
         logica = ControlLogica(EnlaceOkHttp()) { avisar() }
+        val guardada = CalibracionGuardada(ctx.applicationContext)
+        logica.proveedorBalances = { guardada.balancesParaEnviar() }   // el balance de los lados guardado en el teléfono se le manda al carro al conectar
         semi = ModoSemiautonomo(logica) { avisar() }
         iniciada = true
     }
