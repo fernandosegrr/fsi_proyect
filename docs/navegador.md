@@ -65,11 +65,13 @@ se había apartado se perdían; además la posición estimada solo se movía en 
 1. **Pose estimada** (x, y, rumbo) por tiempos de la calibración, actualizada con cada avance, giro, retroceso y frenado, también durante el esquive. La posición
    avanza ahora con el seno y el coseno del rumbo exacto (antes se redondeaba a 45°).
 2. **Pasar el obstáculo.** Al terminar de apartarse y enderezarse (`VOLVER`), el carro sigue **paralelo** a la línea (`NAV_FASE_PARALELO`) hasta haber pasado el
-   obstáculo: desde el punto de salida, la distancia hasta la cara del obstáculo (según la cercanía con la que frenó: 300, 500 u 800 mm, los límites de las bandas
+   obstáculo: desde el punto de salida, la distancia hasta la cara del obstáculo (según la MAYOR cercanía vista desde que frenó: 300, 500 u 800 mm, los límites de las bandas
    del detector) más `NAV_OBSTACULO_PROFUNDO_MM` (250: una caja de ~20 a 25 cm) más `NAV_PASO_MARGEN_MM` (100). Sin este tramo el carro volvía a la línea justo
-   al lado del obstáculo y el camino de vuelta lo cruzaba o quedaba otra vez de frente (ver «Simulador»). Nunca llega a menos de 5 cm del final de la ruta.
+   al lado del obstáculo y el camino de vuelta lo cruzaba o quedaba otra vez de frente (ver «Simulador»). Nunca pasa del final del tramo recto en el que está
+   (en una esquina o en «Ida y vuelta» se queda en el vértice) ni llega a menos de 5 cm del final de la ruta.
 3. **Punto de la línea.** Es el punto de la línea de la ruta (la línea quebrada de todos los puntos, así que vale también en una curva) a `NAV_REINC_ADELANTE_CM` = **30 cm**
-   por delante de ese punto de salida. Si ya está a menos de 8 cm de la línea (`NAV_REINC_DESVIO_MIN_MM`) **solo corrige el rumbo** y sigue.
+   por delante de donde el carro ESTÁ al empezar a volver (o sea, de donde ya pasó el obstáculo; no del punto donde salió de la línea, porque entonces el camino de
+   vuelta cruzaba el obstáculo). Si ya está a menos de 8 cm de la línea (`NAV_REINC_DESVIO_MIN_MM`) **solo corrige el rumbo** y sigue.
 4. **Giro mínimo hacia el punto** (de -179° a 180°), **avanza la distancia estimada** y al llegar **gira al rumbo original de la línea** en ese punto. Un giro de menos de
    4° no se hace (el error de la estimación es mayor). **Nunca avanza recto sin reorientarse**, y hay `NAV_PAUSA_ASENTAR_MS` = 300 ms de STOP entre cada movimiento (y al
    empezar, para que la pose incluya el frenado). Perfil AUTO, igual que siempre.
@@ -96,9 +98,10 @@ Las hipótesis eran: (1) el mismo obstáculo sigue visible en el borde mientras 
 abortaba). Sin el log de esa prueba no se puede saber cuál fue, así que se corrigieron las tres y se agregó el registro para confirmarlo:
 
 - **Durante un giro** de la maniobra (apartarse, enderezarse o los giros de la vuelta) las detecciones se **ignoran**; después del giro también, hasta que hayan llegado
-  `NAV_ESQ_CUADROS_ESTABLES` = 2 cuadros o pasado `NAV_ESQ_MS_ESTABLE` = 150 ms (lo que ocurra primero).
+  `NAV_ESQ_CUADROS_ESTABLES` = 2 cuadros o pasado `NAV_ESQ_MS_ESTABLE` = 150 ms (lo que ocurra primero), contados desde que pasó el retraso de la cámara
+  (`latencia_visual_ms`, ~300 ms con el video del carro): los cuadros de antes todavía muestran el giro.
 - Después solo **bloquea** un obstáculo de la zona **central** con cercanía **2 o 3 confirmada** (`MS_CONFIRMAR_LEJOS` = 150 ms seguidos y al menos 2 cuadros). Uno lateral o lejano
-  se anota pero no aborta; ni siquiera con cercanía 3 hace falta (ya no basta un cuadro suelto).
+  se anota pero no aborta, ni siquiera con cercanía 3, salvo mientras vuelve en diagonal a la línea con el corredor activo (ver «Correcciones de la auditoría»).
 - Cuando sí bloquea mientras avanza de lado: **reintento** de siempre (retrocede 15 cm, gira 45° y luego 90° más del mismo lado). Solo falla al agotar `NAV_MAX_REINTENTOS` = 2.
 - Mientras pasa en paralelo o vuelve a la línea y el centro se bloquea: se detiene y esquiva otra vez (o retoma la vuelta si el frente se libera).
 - **El mensaje de error dice la causa concreta** (`navegador_texto_error`): «se agotaron los 2 reintentos, el obstáculo seguía en el centro», «ya esquivó 3 veces y el obstáculo
@@ -128,6 +131,38 @@ unas 30), como la ve el detector de verdad (`MIN_CELDAS` = 7).
 
 **Cuando no llega, la pantalla dice por qué** (`sr_texto_causa`): «El obstáculo bloqueó el camino y se agotaron los 2 reintentos», «…se agotaron las 3 esquivadas», «No había por
 dónde esquivar: los dos lados estaban ocupados», «No encontró cómo volver a la ruta» o «La simulación se cortó por tardar demasiado».
+
+## Correcciones de la auditoría (15 oct, con los logs de la prueba real)
+
+Los logs del teléfono (`adb logcat`, corridas de 21:45 a 22:05) confirmaron varios hallazgos; todo tiene prueba en `pruebas_auditoria` (`pruebas_navegador.c`).
+
+- **Cercanía de salida = la MAYOR desde que se detuvo** (`cerc_detenido_max`). Antes se leía del último cuadro y, si ese venía vacío, quedaba en 1 (800 mm de
+  «cara»): el log real dice `cercania_salida=1` con `paralelo_mm=878` en una caja a menos de 50 cm.
+- **El paralelo no pasa del final del tramo RECTO** (`calcular_fin_obstaculo`). En «Ida y vuelta» seguía de frente hasta 55 cm fuera de la ruta; ahora se queda
+  en el vértice donde la ruta cambia de rumbo (o 5 cm antes del final si esa recta es la última).
+- **Pausa de 300 ms entre AVANZAR y VOLVER, y entre AVANZAR y RETROCEDER** (`NAV_FASE_PAUSA_VOLVER`, `NAV_FASE_PAUSA_RETROCEDER`). Antes pasaba de FORWARD
+  al giro de vuelta sin STOP, justo lo que en el carro real hacía variar el giro 30 a 60°.
+- **Al enderezarse gira SIEMPRE hacia el lado contrario**, también tras dos reintentos (225°). Antes seguía hacia el mismo lado 135°: una vuelta entera en un
+  solo sentido, donde el error de la calibración del giro se suma en vez de cancelarse.
+- **Tras «toma el control», si el carro quedó al lado o detrás del obstáculo, primero lo pasa en paralelo** (`reinc_pasar_primero`, log
+  `pasar_primero=1` y `REINC_DIAG paso_el_obstaculo`) y después vuelve a la línea. Antes volvía en diagonal 30 cm por delante de donde estaba, o sea contra el
+  obstáculo: en la prueba real pidió ayuda 5 veces seguidas (`VUELTA_AVANZAR ... BLOQUEA_se_detiene` a los 50 ms de arrancar) hasta el ERROR de los 3 minutos.
+- **Con cámara no se mueve hasta el primer cuadro** (`navegador_poner_requiere_camara`, la app lo enciende con cámara): si no llega en
+  `NAV_PRIMER_CUADRO_MAX_MS` = 1.5 s, ERROR sin video. Antes, sin ningún cuadro, la vigilancia de video nunca se armaba y recorría la ruta entera a ciegas.
+- **Los cuadros que todavía muestran el giro se ignoran** (`latencia_visual_ms` después del giro; antes la ventana era de 150 ms con ~300 ms de retraso).
+- **Volviendo en diagonal a la línea, un LADO con cercanía 3 que el corredor ubica en el camino detiene** (la esquina de lo que acaba de pasar). Sin corredor
+  (apagado por defecto) los lados no cuentan: la cámara no distingue «al lado del camino» de «en el camino» y frenaba cada vuelta junto a la caja (el
+  simulador lo mostró). Encender el corredor es lo que cierra ese hueco.
+- **No se cambió:** el paralelo de una segunda esquiva que empieza en diagonal (sale sobre esa diagonal) y el watchdog del firmware (cualquier mensaje lo
+  renueva «como el original», lo exigen las pruebas de equivalencia).
+
+### La «L» y la calibración del teléfono
+
+La calibración guardada en el teléfono (`shared_prefs/calibracion.xml`) tenía `frenado_grados_izq_x10=389` y `frenado_grados_der_x10=0`: según ella, el carro
+sigue girando 39° a la izquierda después del STOP y nada a la derecha. Con eso un giro de 45° a la izquierda se ordena por **82 ms** (en el log: LEFT de 65 ms
+en un reintento) y la pose estimada suma 39° que probablemente no ocurrieron. Un rumbo estimado mal por decenas de grados, sumado al paralelo largo y a la
+vuelta sin pausa, es la explicación más probable de la «L». `cal_ajustar_giro` ahora rechaza un frenado de giro de más de 20°
+(`FRENADO_GRADOS_AJUSTE_MAX_X10`): **hay que repetir la calibración del giro izquierdo**.
 
 ## «Toma el control» (pedir ayuda en vez de rendirse)
 

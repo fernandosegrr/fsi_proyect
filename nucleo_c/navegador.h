@@ -69,6 +69,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 
 #define NAV_PAUSA_MS              500    /* pausa con el carro detenido antes de decidir qué hacer */
 #define NAV_MAX_HUECO_VIDEO_MS    500    /* si la cámara de obstáculos pasa más de esto sin mandar un cuadro: STOP y ERROR (no reanuda sola) */
+#define NAV_PRIMER_CUADRO_MAX_MS 1500    /* con requiere_camara: tiempo máximo (quieto) para que llegue el primer cuadro de la ruta */
 #define NAV_PAUSA_ASENTAR_MS      300    /* STOP entre avanzar y girar (y al revés): el carro termina de moverse y el giro/avance siguiente
                                           * arranca desde cero, como en la calibración. Sin esto, el giro dependía de la inercia del avance. */
 #define NAV_TIMEOUT_ESQUIVAR_MS  4000    /* si en este tiempo no se puede esquivar: ERROR */
@@ -105,14 +106,17 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
                                           * no vuelve hacia atrás al punto final (pasa, por ejemplo, cuando el obstáculo estaba justo en el destino y se rodeó con «toma el control») */
 
 /* DETECCION DURANTE LA ESQUIVADA (ver docs/navegador.md, "Falso obstáculo al esquivar"). Mientras el carro gira, la cámara barre la escena: lo que se ve en esos cuadros
- * (el mismo obstáculo en el borde, patas o sombras lejanas, juntas de loseta) no cuenta. Después del giro se ignoran los cuadros hasta que hayan llegado
- * NAV_ESQ_CUADROS_ESTABLES cuadros o pasado NAV_ESQ_MS_ESTABLE ms (lo que ocurra primero). Y solo bloquea un obstáculo en la zona CENTRAL con cercanía de al menos
- * NAV_ESQ_CERCANIA_BLOQUEA, visto MS_CONFIRMAR_LEJOS ms seguidos (y en 2 cuadros): uno lateral o lejano no aborta la esquivada. */
+ * (el mismo obstáculo en el borde, patas o sombras lejanas, juntas de loseta) no cuenta. Después del giro se ignoran los cuadros que todavía muestran el giro
+ * (los que llegan antes de latencia_visual_ms) y luego hasta que hayan llegado NAV_ESQ_CUADROS_ESTABLES cuadros o pasado NAV_ESQ_MS_ESTABLE ms (lo que ocurra
+ * primero). Bloquea un obstáculo en la zona CENTRAL con cercanía de al menos NAV_ESQ_CERCANIA_BLOQUEA y, solo mientras vuelve en diagonal a la línea y con el
+ * corredor activo, también uno de un LADO con cercanía NAV_ESQ_CERCANIA_LADO que el corredor ubica en el camino (la esquina de lo que acaba de pasar), visto MS_CONFIRMAR_LEJOS ms seguidos (y en 2 cuadros). Al avanzar de lado o
+ * en paralelo uno lateral no aborta (es el obstáculo que se está pasando). */
 #define NAV_AYUDA_MAX_MS        180000   /* si nadie toma el control ni continúa en este tiempo (3 min): ERROR con el motivo de siempre */
 
 #define NAV_ESQ_CUADROS_ESTABLES    2
 #define NAV_ESQ_MS_ESTABLE        150
 #define NAV_ESQ_CERCANIA_BLOQUEA    2
+#define NAV_ESQ_CERCANIA_LADO       3
 
 /* PASAR EL OBSTACULO ANTES DE VOLVER. Después de apartarse y enderezarse (VOLVER), el carro sigue PARALELO a la línea, a la distancia lateral a la que quedó, hasta
  * haber pasado el obstáculo, y solo entonces vuelve a la línea (con el punto de NAV_REINC_ADELANTE_CM cm de arriba). Si volviera a la línea justo al lado del obstáculo, el camino
@@ -183,6 +187,8 @@ typedef enum {
 #define NAV_FASE_ASENTAR      5   /* STOP NAV_PAUSA_ASENTAR_MS antes de girar otra vez */
 #define NAV_FASE_PAUSA_PASAR  6   /* STOP NAV_PAUSA_ASENTAR_MS después de enderezarse; al terminar calcula cuánto debe avanzar en paralelo */
 #define NAV_FASE_PARALELO     7   /* FORWARD paralelo a la línea hasta pasar el obstáculo (nav->paralelo_mm) */
+#define NAV_FASE_PAUSA_VOLVER 8   /* STOP NAV_PAUSA_ASENTAR_MS entre AVANZAR y VOLVER (sin ella el giro hereda la inercia del avance) */
+#define NAV_FASE_PAUSA_RETROCEDER 9   /* STOP NAV_PAUSA_ASENTAR_MS antes de RETROCEDER cuando venía avanzando (no pasa de FORWARD a REVERSE de golpe) */
 
 /* Fases de REINCORPORANDO (campo `reinc_fase`): PLAN (STOP, calcula) → GIRO1 → PAUSA → AVANZAR → PAUSA → GIRO2 → PAUSA → SIGUIENDO. Las fases de giro que no hacen
  * falta (ángulo casi cero) se saltan. */
@@ -222,6 +228,7 @@ typedef struct {
     uint32_t       t_detenido_ms;        /* hora en que se detuvo por obstáculo */
     int            asentando;            /* 1 mientras espera detenido entre dos movimientos distintos */
     int            usa_camara;           /* 1 desde que llegó el primer cuadro de obstáculos en esta ruta (con la fuente de botones no hay huecos que vigilar) */
+    int            requiere_camara;      /* 1 = la ruta usa la cámara: no se mueve hasta el primer cuadro y, si no llega en NAV_PRIMER_CUADRO_MAX_MS, ERROR sin video */
     uint32_t       t_ultimo_cuadro_ms;   /* hora del último cuadro de obstáculos recibido */
     uint32_t       asentar_hasta_ms;     /* hora en que termina esa espera */
 
@@ -241,6 +248,7 @@ typedef struct {
     int zona_cercania[OBS_ZONAS];
     int zona_frena[OBS_ZONAS];       /* hay obstáculo en la zona Y está dentro del corredor (sin corredor = zona_hay): esto es lo que frena */
     int zona_cerc_frena[OBS_ZONAS];  /* cercanía con la que frena (la del corredor si hay; si no, la de siempre); 0 si no frena */
+    int zona_en_corredor[OBS_ZONAS]; /* 1 si el corredor (activo) dice que el obstáculo de la zona está en el camino del carro; sin corredor siempre 0 */
     int frames_bloqueado;        /* cuadros seguidos con obstáculo al frente */
     int frames_libre;            /* cuadros seguidos con el frente libre */
     int frames_recibidos;        /* cuadros desde la última detención */
@@ -282,6 +290,8 @@ typedef struct {
     /* Dónde salió de la línea (pose estimada al empezar la esquivada). */
     int salida_x_mm, salida_y_mm, salida_rumbo;
     int salida_cercania;         /* cercanía (1 a 3) con la que frenó: dice a qué distancia estaba el obstáculo */
+    int cerc_detenido_max;       /* la mayor cercanía (dentro del corredor) vista desde que se detuvo por obstáculo hasta decidir: el último cuadro puede venir vacío */
+    int fin_obstaculo_mm;        /* hasta dónde (distancia a lo largo de la ruta) se supone que llega el último obstáculo que lo detuvo; -1 = ninguno */
     int paralelo_mm;             /* cuánto debe avanzar en paralelo a la línea para pasar el obstáculo (se calcula al terminar de enderezarse) */
 
     /* Reincorporación a la línea (REINCORPORANDO). Se calcula una vez, en la fase PLAN, y se ejecuta por fases (NAV_RF_*). */
@@ -296,6 +306,7 @@ typedef struct {
     int      reinc_desvio_mm;        /* a cuánto estaba de la línea al empezar a volver */
     int      reinc_antes_x_mm, reinc_antes_y_mm, reinc_antes_rumbo;   /* pose estimada al empezar a volver */
     int      volver_a_reinc;         /* 1 si lo que detuvo al carro ocurrió mientras avanzaba hacia la línea: al liberarse el frente vuelve a calcular la vuelta */
+    int      reinc_pasar_primero;    /* 1 = esta vuelta solo endereza y avanza en paralelo hasta pasar el obstáculo; al terminar calcula la vuelta de verdad */
 
     /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG): ver navegador_diag_siguiente. */
     char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
@@ -349,6 +360,10 @@ void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int
 
 /* 1 si el retroceso de los reintentos usa una calibración medida de verdad (CAL_MEDIDO_ATRAS); 0 si usa los ms por cm del avance (sin medir). */
 int navegador_retroceso_calibrado(const Navegador *nav);
+
+/* 1 = la ruta usa la cámara de obstáculos (la app la tiene abierta): el carro no se mueve hasta el primer cuadro y, si no llega en NAV_PRIMER_CUADRO_MAX_MS,
+ * ERROR sin video (antes recorría la ruta entera a ciegas). 0 = sin cámara (fuente de botones y pruebas). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
+int navegador_poner_requiere_camara(Navegador *nav, int activo);
 
 /* Activa (1) o desactiva (0) pedir ayuda en vez de dar ERROR cuando no puede esquivar (ver arriba, punto 7). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
 int navegador_poner_pedir_ayuda(Navegador *nav, int activo);

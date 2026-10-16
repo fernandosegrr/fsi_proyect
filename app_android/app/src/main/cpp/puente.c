@@ -1309,6 +1309,7 @@ static int corredor_fuera_global[3] = { 0, 0, 0 };   /* 1 = la zona tiene un obs
 static int corredor_cercania_global[3] = { 0, 0, 0 };   /* cercanía de lo que está DENTRO del corredor en cada zona (0 = usar la de siempre) */
 static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
+static int requiere_camara_global = 0;   /* 1 = la ruta usa la cámara de obstáculos: el carro no se mueve hasta el primer cuadro (ver navegador_poner_requiere_camara) */
 static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
@@ -1707,6 +1708,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_frenar_lejos_centro(&navegador_global, frenar_lejos_centro_global);
     navegador_poner_latencia_visual(&navegador_global, latencia_visual_global);   /* el retraso de la cámara */
     navegador_poner_pedir_ayuda(&navegador_global, pedir_ayuda_global);
+    navegador_poner_requiere_camara(&navegador_global, requiere_camara_global);
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -1849,6 +1851,19 @@ Java_com_fsi_carro_NavegadorNativa_estado(JNIEnv *env, jobject objeto)
         (*env)->SetIntArrayRegion(env, arreglo, 0, ENTEROS_ESTADO_NAVEGADOR, salida);
     }
     return arreglo;
+}
+
+/* 1 = las rutas siguientes usan la cámara de obstáculos: el carro no se mueve hasta el primer cuadro y, si no llega en 1.5 s, ERROR sin video. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_requiereCamara(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    requiere_camara_global = (int)activo;
+    return navegador_poner_requiere_camara(obtener_navegador(), (int)activo);
 }
 
 /* Activa (1) o desactiva (0) «pedir ayuda» (modo «toma el control») para las rutas siguientes. */

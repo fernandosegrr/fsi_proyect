@@ -188,6 +188,7 @@ class ModoSemiautonomo(
         NavegadorNativa.ponerLatenciaVisual(fuente?.latenciaVisualMs ?: 0)   // el video del carro llega ~320 ms tarde
         // Con el video del carro (retraso + 38 cm/s) el STOP llega ~17 cm tarde: se frena también con un obstáculo lejano al centro.
         NavegadorNativa.frenarLejosCentro(if (fuente?.esVideoCarro == true) 1 else 0)
+        NavegadorNativa.requiereCamara(if (fuente != null) 1 else 0)   // con cámara no se mueve hasta su primer cuadro (antes, sin cuadros, recorría la ruta a ciegas)
         NavegadorNativa.pedirAyuda(if (modoPruebaObstaculo) 0 else 1)   // si no puede esquivar, pide que tomes el control en vez de rendirse (la prueba de obstáculo no)
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
         if (codigoRuta != 0) {

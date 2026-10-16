@@ -1870,6 +1870,186 @@ static void pruebas_falso_obstaculo(void)
     caso("fuera del esquive: un obstaculo cercano de frente sigue frenando en el primer cuadro (1500 ms)", sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1500);
 }
 
+
+/* ── Auditoría del 2026-10-15 (ver docs/navegador.md, "Correcciones de la auditoría") ─────────────────────── */
+
+static const Punto IDA_VUELTA[] = { {2, 10}, {2, 9}, {2, 8}, {2, 7}, {2, 8}, {2, 9}, {2, 10} };   /* 60 cm de ida y 60 de vuelta */
+
+/* Un cuadro con `cercania` en una zona (0 = vacío). `corredor` = cercanía que da el corredor (0 = sin corredor). */
+static void cuadro_aud(ResultadoObstaculos *o, int zona, int cercania, int corredor)
+{
+    memset(o, 0, sizeof *o);
+    if (cercania > 0) {
+        o->zona[zona].hay_obstaculo = 1;
+        o->zona[zona].cercania = cercania;
+        o->zona[zona].celdas = 10;
+        o->zona[zona].cercania_corredor = corredor;
+    }
+}
+
+static void preparar_aud(const Punto *ruta, int n)
+{
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, ruta, n);
+    navegador_comenzar(&nav, 0);
+    n_lineas_diag = 0;
+}
+
+/* En AYUDA: mantiene `comando` durante `ms` (con cuadros vacíos) y devuelve la hora final. */
+static uint32_t ayuda_mantener(uint32_t t, ComandoNav comando, int ms)
+{
+    ResultadoObstaculos o;
+    uint32_t fin = t + (uint32_t)ms;
+
+    navegador_ayuda_comando(&nav, comando);
+    for (; t < fin; t += 50) {
+        cuadro_aud(&o, ZONA_CENTRO, 0, 0);
+        navegador_tick(&nav, t, &o);
+    }
+    return t;
+}
+
+static void pruebas_auditoria(void)
+{
+    ResultadoObstaculos o;
+    uint32_t t;
+    ComandoNav c, previo;
+    int saltos, forward, ymin, vuelta_ok, vio_volver, en_detenido, con_corredor;
+
+    /* 1. Con cámara: sin el primer cuadro no se mueve y termina en ERROR sin video (antes recorría la ruta entera a ciegas). */
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, LARGA, N(LARGA));
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_comenzar(&nav, 0);
+    forward = 0;
+    for (t = 50; t <= 3000 && nav.estado != NAV_ERROR; t += 50) {
+        if (navegador_tick(&nav, t, NULL) != NAV_CMD_STOP) {
+            forward++;
+        }
+    }
+    caso("auditoria: con camara y sin ningun cuadro el carro no se mueve y da ERROR sin video en 1.5 s", forward == 0 && nav.estado == NAV_ERROR &&
+         nav.motivo_error == NAV_MOTIVO_SIN_VIDEO && t <= NAV_PRIMER_CUADRO_MAX_MS + 100);
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, LARGA, N(LARGA));
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_comenzar(&nav, 0);
+    cuadro_aud(&o, ZONA_CENTRO, 0, 0);
+    c = navegador_tick(&nav, 50, &o);
+    caso("auditoria: ... con el primer cuadro arranca normal", c == NAV_CMD_FORWARD && nav.estado == NAV_SIGUIENDO);
+    caso("auditoria: requiere_camara rechaza valores raros", navegador_poner_requiere_camara(&nav, 2) == NAV_ERR_ARGUMENTO &&
+         navegador_poner_requiere_camara(NULL, 1) == NAV_ERR_ARGUMENTO);
+
+    /* 2. Entre AVANZAR y VOLVER, y entre AVANZAR y RETROCEDER, hay STOP (sin la pausa el giro variaba 30 a 60 grados). */
+    preparar_aud(LARGA, N(LARGA));
+    previo = NAV_CMD_STOP;
+    saltos = 0;
+    for (t = 50; t < 150000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR; t += 50) {
+        int bloquear = (t >= 1000 && t < 1400) ||
+                       (nav.estado == NAV_ESQUIVANDO && nav.fase == NAV_FASE_AVANZAR && nav.reintentos == 0 && nav.esquivadas == 1 && nav.ms_fase > 300);
+
+        cuadro_aud(&o, ZONA_CENTRO, bloquear ? 3 : 0, 0);
+        c = navegador_tick(&nav, t, &o);
+        if (previo == NAV_CMD_FORWARD && (c == NAV_CMD_LEFT || c == NAV_CMD_RIGHT || c == NAV_CMD_REVERSE)) {
+            saltos++;
+        }
+        previo = c;
+    }
+    caso("auditoria: nunca pasa de FORWARD a un giro o a REVERSE sin un STOP en medio (con un reintento desde AVANZAR)", saltos == 0 && nav.estado == NAV_TERMINADO);
+
+    /* 3. La cercanía con la que frenó es la MAYOR desde que se detuvo, aunque el último cuadro antes de decidir venga vacío. */
+    preparar_aud(LARGA, N(LARGA));
+    for (t = 50; t < 3000 && nav.estado != NAV_ESQUIVANDO; t += 50) {
+        cuadro_aud(&o, ZONA_CENTRO, (t >= 1000 && t < 1450) ? 3 : 0, 0);
+        navegador_tick(&nav, t, &o);
+    }
+    caso("auditoria: un cuadro vacio justo al decidir no baja la cercania de salida a 1 (sigue en 3)", nav.estado == NAV_ESQUIVANDO && nav.salida_cercania == 3);
+
+    /* 4. En «Ida y vuelta» el paralelo no sigue de frente más allá de la vuelta de la ruta. */
+    preparar_aud(IDA_VUELTA, N(IDA_VUELTA));
+    ymin = 100000;
+    for (t = 50; t < 60000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR; t += 50) {
+        cuadro_aud(&o, ZONA_CENTRO, (t >= 300 && t < 900) ? 2 : 0, 0);
+        navegador_tick(&nav, t, &o);
+        if (nav.y_mm < ymin) {
+            ymin = nav.y_mm;
+        }
+    }
+    caso("auditoria: ida y vuelta con obstaculo al inicio: el paralelo no pasa del punto mas lejano de la ruta (antes 55 cm fuera)",
+         ymin >= 7 * MM - 60 && nav.estado == NAV_TERMINADO);
+
+    /* 5. Con dos reintentos (225 grados) la vuelta es hacia el lado CONTRARIO (los errores del giro se cancelan en vez de sumarse). */
+    preparar_aud(LARGA, N(LARGA));
+    vuelta_ok = 1;
+    vio_volver = 0;
+    for (t = 50; t < 150000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR; t += 50) {
+        int bloquear = (t >= 1000 && t < 1400) || (nav.estado == NAV_ESQUIVANDO && nav.fase == NAV_FASE_MIRAR && nav.reintentos < 2 && nav.esquivadas == 1);
+
+        cuadro_aud(&o, ZONA_CENTRO, bloquear ? 3 : 0, 0);
+        c = navegador_tick(&nav, t, &o);
+        if (nav.estado == NAV_ESQUIVANDO && nav.fase == NAV_FASE_VOLVER && (c == NAV_CMD_LEFT || c == NAV_CMD_RIGHT)) {
+            vio_volver = 1;
+            if (nav.angulo_total != 225 || c != ((nav.lado < 0) ? NAV_CMD_RIGHT : NAV_CMD_LEFT)) {
+                vuelta_ok = 0;
+            }
+        }
+    }
+    caso("auditoria: tras dos reintentos (225 grados) se endereza girando hacia el lado contrario", vio_volver && vuelta_ok);
+
+    /* 6. Tras «toma el control», si el usuario dejó el carro al lado del obstáculo (sin pasarlo), primero avanza en paralelo hasta pasarlo y luego vuelve. */
+    preparar_aud(LARGA, N(LARGA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    for (t = 50; t < 20000 && nav.estado != NAV_AYUDA; t += 50) {
+        memset(&o, 0, sizeof o);
+        if (t >= 1000) {
+            cuadro_aud(&o, ZONA_CENTRO, 3, 0);
+            o.zona[ZONA_IZQUIERDA] = o.zona[ZONA_CENTRO];
+            o.zona[ZONA_DERECHA] = o.zona[ZONA_CENTRO];
+        }
+        navegador_tick(&nav, t, &o);
+    }
+    caso("auditoria: los dos lados ocupados con ayuda activa: pide ayuda", nav.estado == NAV_AYUDA);
+    t = ayuda_mantener(t, NAV_CMD_RIGHT, cal_grados_a_ms(&nav.cal, 90));
+    t = ayuda_mantener(t, NAV_CMD_STOP, 400);
+    t = ayuda_mantener(t, NAV_CMD_FORWARD, cal_cm_a_ms(&nav.cal, 40));
+    t = ayuda_mantener(t, NAV_CMD_STOP, 400);
+    t = ayuda_mantener(t, NAV_CMD_LEFT, cal_grados_a_ms(&nav.cal, -90));
+    t = ayuda_mantener(t, NAV_CMD_STOP, 400);
+    n_lineas_diag = 0;
+    navegador_ayuda_continuar(&nav, t);
+    for (; t < 120000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && nav.estado != NAV_AYUDA; t += 50) {
+        cuadro_aud(&o, ZONA_CENTRO, 0, 0);
+        navegador_tick(&nav, t, &o);
+        leer_diag();
+    }
+    caso("auditoria: tras la ayuda, al lado del obstaculo sin pasarlo: primero pasa en paralelo (pasar_primero=1) y luego vuelve y termina",
+         hay_diag("pasar_primero=1") && hay_diag("REINC_DIAG paso_el_obstaculo") && nav.estado == NAV_TERMINADO);
+
+    /* 7. Volviendo en diagonal a la línea: un lado muy cerca que el corredor ubica en el camino detiene; sin corredor no (no distingue al lado de en el camino). */
+    for (con_corredor = 0; con_corredor <= 1; con_corredor++) {
+        preparar_aud(LARGA, N(LARGA));
+        en_detenido = 0;
+        for (t = 50; t < 150000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR; t += 50) {
+            if (t >= 1000 && t < 1400) {
+                cuadro_aud(&o, ZONA_CENTRO, 3, 0);
+            } else if (nav.estado == NAV_REINCORPORANDO && nav.reinc_fase == NAV_RF_AVANZAR && nav.esquivadas == 1) {
+                cuadro_aud(&o, ZONA_DERECHA, 3, con_corredor ? 3 : 0);
+            } else {
+                cuadro_aud(&o, ZONA_CENTRO, 0, 0);
+            }
+            navegador_tick(&nav, t, &o);
+            if (nav.esquivadas == 1 && nav.estado == NAV_DETENIDO_OBSTACULO && nav.volver_a_reinc) {
+                en_detenido = 1;
+                break;
+            }
+        }
+        if (con_corredor) {
+            caso("auditoria: volviendo a la linea, un lado con cercania 3 dentro del corredor detiene el carro", en_detenido);
+        } else {
+            caso("auditoria: ... sin corredor ese lado no detiene (es el obstaculo que acaba de pasar)", !en_detenido && nav.estado == NAV_TERMINADO);
+        }
+    }
+}
+
 int main(void)
 {
     pruebas_sin_obstaculos();
@@ -1889,6 +2069,7 @@ int main(void)
     pruebas_reincorporacion();
     pruebas_falso_obstaculo();
     pruebas_ayuda();
+    pruebas_auditoria();
     pruebas_corredor_en_navegador();
     pruebas_textos();
 

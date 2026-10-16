@@ -190,3 +190,10 @@ Notas:
   pide un giro izquierdo de 90° de solo ~610 ms, y si el frenado real es ~0 el carro se quedará corto. **Conviene repetir el giro a la
   izquierda** (paso 4 de la calibración) antes de confiar en las rutas con giros.
 - Cm hasta frenar con estos valores: ver `docs/latencia.md` (8.5 cm con el obstáculo cerca, a 210).
+
+## Frenado de giro imposible (15 oct)
+
+`cal_ajustar_giro` rechaza (CAL_ERR_RANGO) un ajuste cuyo frenado de giro pase de 20° (`FRENADO_GRADOS_AJUSTE_MAX_X10`). El teléfono tenía guardado
+`frenado_grados_izq_x10=389` y `frenado_grados_der_x10=0` con el mismo carro: no es inercia, es un ajuste malo, y hacía que un giro de 45° a la izquierda se
+ordenara por 82 ms mientras la pose estimada sumaba 39° que no ocurrían. Una calibración ya guardada con ese valor sigue siendo válida al cargarse
+(`cal_es_valida` no cambió); hay que repetir la medición del giro izquierdo.

@@ -95,6 +95,9 @@ object NavegadorNativa {
     /** Estado para mostrar en pantalla (ver los índices E_*). */
     external fun estado(): IntArray
 
+    /** 1 = las rutas que se carguen después usan la cámara de obstáculos: el carro no se mueve hasta el primer cuadro (si no llega en 1.5 s, ERROR sin video). */
+    external fun requiereCamara(activo: Int): Int
+
     /** Activa (1) o desactiva (0) pedir ayuda en vez de dar ERROR cuando no puede esquivar. Se aplica a las rutas que se carguen después. */
     external fun pedirAyuda(activo: Int): Int
 

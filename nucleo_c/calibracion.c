@@ -26,6 +26,8 @@
 #define MS_GRADO_X10_MAX       2000
 #define FRENADO_MM_MAX          500
 #define FRENADO_GRADOS_X10_MAX 1800
+#define FRENADO_GRADOS_AJUSTE_MAX_X10 200   /* al MEDIR un giro: más de 20 grados de giro tras el STOP no es inercia, es un ajuste malo (se midió 38.9 a la izquierda y 0 a la derecha
+                                             * con el mismo carro: un giro de 45 se ordenaba por 82 ms y la pose estimada sumaba 39 grados que no ocurrieron). Se rechaza: hay que repetir la medición */
 #define FOV_X10_MIN             200
 #define FOV_X10_MAX            1500
 #define FOV_X10_DEFECTO         600
@@ -281,7 +283,7 @@ int cal_ajustar_giro(CalibracionCarro *cal, int lado, int n, const int *ms, cons
     if (codigo != CAL_OK) {
         return codigo;
     }
-    if (!en_rango(pendiente, MS_GRADO_X10_MIN, MS_GRADO_X10_MAX) || !en_rango(frenado, 0, FRENADO_GRADOS_X10_MAX)) {
+    if (!en_rango(pendiente, MS_GRADO_X10_MIN, MS_GRADO_X10_MAX) || !en_rango(frenado, 0, FRENADO_GRADOS_AJUSTE_MAX_X10)) {
         return CAL_ERR_RANGO;
     }
     if (lado == CAL_LADO_IZQUIERDA) {

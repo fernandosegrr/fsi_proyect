@@ -38,6 +38,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         private const val ESPERA_VIDEO_MS = 6000L     // cuánto se espera al primer cuadro del video antes de decir que no hay video
         private const val ESPERA_PISO_MS = 6000L      // cuánto se espera a que termine de aprender el piso
         private const val PERFIL_ESPERA_MS = 1000L    // cuánto se espera el ACK del perfil AUTO
+        private const val CONFIRMAR_MAX_MS = 60000L   // «Confirmar y salir» caduca: pasado esto se vuelve a comprobar todo (el piso, el video y el perfil pudieron cambiar)
 
         fun nueva(nombre: String, celdas: IntArray): EjecutarRutaFragment = EjecutarRutaFragment().also {
             it.arguments = Bundle().apply {
@@ -311,8 +312,11 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     /** El botón grande: «Iniciar ruta» (comprueba todo) y, cuando está listo, «Confirmar y salir» (cuenta 3, 2, 1 y sale). */
     private fun iniciar() {
         if (fase == Fase.CONFIRMAR) {
-            confirmarSalida()
-            return
+            if (SystemClock.elapsedRealtime() - faseDesdeMs <= CONFIRMAR_MAX_MS) {
+                confirmarSalida()
+                return
+            }
+            fase = Fase.OCIOSA   // pasó mucho tiempo desde la comprobación: se repite entera antes de salir
         }
         if (fase != Fase.OCIOSA) {
             return
@@ -361,6 +365,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_variado), getString(R.string.ejecutar_piso_variado_hacer)))
         } else {
             fase = Fase.CONFIRMAR
+            faseDesdeMs = SystemClock.elapsedRealtime()   // desde aquí cuenta CONFIRMAR_MAX_MS
             Haptica.corta(requireContext())
             actualizar()
         }
