@@ -1419,6 +1419,19 @@ static int hay_diag(const char *trozo)
     return 0;
 }
 
+/* Cuántas líneas de diagnóstico leídas contienen `trozo`. */
+static int cuenta_diag(const char *trozo)
+{
+    int i, cuenta = 0;
+
+    for (i = 0; i < n_lineas_diag; i++) {
+        if (strstr(lineas_diag[i], trozo) != NULL) {
+            cuenta++;
+        }
+    }
+    return cuenta;
+}
+
 /* Revisa que el carro estimado y el real coincidan al terminar (el navegador no se perdió) y que el rumbo quede cerca de `rumbo`. */
 static int pose_estimada_coincide(int rumbo)
 {
@@ -2148,8 +2161,84 @@ static void pruebas_desplazamiento_al_girar(void)
     }
 }
 
+/* ── Casos: la ruta de 40 cm a la derecha con 1 giro (J5): ¿el programa manda bien el giro? ───────────────────────────────────
+ * En la prueba real esta ruta giró bien 2 de 3 veces; en una avanzó recto. Probablemente es un contacto eléctrico intermitente (hardware). Aquí se comprueba la parte de SOFTWARE: que el primer
+ * comando sea el giro de 90° con el tiempo esperado, antes de cualquier avance, y que RUTA_DIAG lo deje anotado (comando enviado, duración planeada y real). */
+
+static void pruebas_ruta_derecha_40cm(void)
+{
+    static const Punto DERECHA_40[] = { {2, 8}, {3, 8}, {4, 8} };   /* 40 cm a la derecha: gira 90 y avanza 40 cm */
+    CalibracionCarro cal;
+    char texto[300];
+    int pasos_antes_del_giro = 0, i;
+
+    /* ── Con la calibración de ejemplo (10 ms por grado, 50 ms por cm): el giro de 90 dura 900 ms y el avance de 40 cm 2000 ms ── */
+    preparar(DERECHA_40, N(DERECHA_40));
+    n_lineas_diag = 0;
+    while (nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && sim.t_ms < 20000) {
+        correr(NAV_TICK_MS);
+        leer_diag();
+    }
+    for (i = 0; i < n_lineas_diag; i++) printf("      DBG %s\n", lineas_diag[i]);
+    caso("ruta de 40 cm a la derecha: termina (TERMINADO) sin error", nav.estado == NAV_TERMINADO);
+    caso("... el PRIMER comando es RIGHT, en el primer tick (t = 0)", sim.n_cambios >= 1 && sim.cambios[0].comando == NAV_CMD_RIGHT && sim.cambios[0].t_ms == 0);
+    caso("... el giro de 90 dura lo esperado: el siguiente cambio es STOP a los 900 ms (10 ms por grado x 90)", sim.n_cambios >= 2 && sim.cambios[1].comando == NAV_CMD_STOP && sim.cambios[1].t_ms == 900);
+    caso("... despues una pausa de 300 ms y FORWARD", sim.n_cambios >= 3 && sim.cambios[2].comando == NAV_CMD_FORWARD && sim.cambios[2].t_ms == 1200);
+    for (i = 0; i < sim.n_cambios; i++) {
+        if (sim.cambios[i].comando == NAV_CMD_FORWARD) {
+            break;
+        }
+        if (sim.cambios[i].comando == NAV_CMD_RIGHT) {
+            pasos_antes_del_giro++;
+        }
+    }
+    caso("... el programa nunca manda avanzar antes de girar, y manda UN solo giro en toda la ruta (ningun LEFT)", pasos_antes_del_giro == 1 && sim_contar_cambios_a(&sim, NAV_CMD_RIGHT) == 1 && sim_contar_cambios_a(&sim, NAV_CMD_LEFT) == 0);
+    caso("... el carro simulado queda mirando a la derecha y a 40 cm del punto de partida (+-6 cm)", valor_absoluto(sim_rumbo_grados(&sim) - 90) <= 2 && valor_absoluto(sim_x_mm(&sim) - (4 * MM)) <= 60);
+    caso("RUTA_DIAG anota el giro enviado: RIGHT, origen ruta, pedido 90 grados, 900 ms planeados",
+         hay_diag("RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=90 plan_ms=900"));
+    caso("... y cuando termina: 900 ms reales y 90 grados hechos",
+         hay_diag("RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=900 hecho=90"));
+    caso("... y despues el avance de 40 cm en dos tramos de una celda (200 mm, 1000 ms planeados cada uno), cada uno con su inicio y su fin",
+         cuenta_diag("RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=1000") == 2 && cuenta_diag("RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=1000 real_ms=1000 hecho=200") == 2);
+    caso("... y la pantalla de resultado: Giro pedido 90, giro hecho ~90",
+         navegador_cuantos_giros(&nav) == 1 && navegador_texto_giros(&nav, texto, sizeof texto) > 0 && strstr(texto, "Giro derecha: pedido 90°, hecho ~90°") != NULL);
+
+    /* ── Con una calibración medida (la del carro real, 14 oct: giro a la derecha 8.2 ms por grado): el giro de 90 dura 738 ms ── */
+    cal_defecto(&cal);
+    cal.ms_por_grado_der_x10 = 82;
+    cal.ms_por_cm_x10 = 517;
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &cal);
+    navegador_cargar_ruta(&nav, DERECHA_40, N(DERECHA_40));
+    sim_iniciar(&sim, DERECHA_40[0].columna, DERECHA_40[0].fila, 0);
+    sim.real = cal;
+    navegador_comenzar(&nav, 0);
+    n_lineas_diag = 0;
+    while (nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && sim.t_ms < 20000) {
+        correr(NAV_TICK_MS);
+        leer_diag();
+    }
+    caso("con 8.2 ms por grado: el primer comando sigue siendo RIGHT y el giro de 90 dura 738 ms (el STOP llega en el tick de 750 ms)",
+         sim.n_cambios >= 2 && sim.cambios[0].comando == NAV_CMD_RIGHT && sim.cambios[0].t_ms == 0 && sim.cambios[1].comando == NAV_CMD_STOP && sim.cambios[1].t_ms == 750);
+    caso("... RUTA_DIAG anota 738 ms planeados para el giro", hay_diag("RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=90 plan_ms=738"));
+    caso("... y el carro simulado gira 90 grados justos (+-3)", valor_absoluto(sim_rumbo_grados(&sim) - 90) <= 3);
+    caso("... nunca se manda FORWARD antes del primer giro", sim.n_cambios >= 1 && sim.cambios[0].comando != NAV_CMD_FORWARD);
+
+    /* ── Cancelada a mitad del giro: RUTA_DIAG deja el giro con menos tiempo real que el planeado ── */
+    preparar(DERECHA_40, N(DERECHA_40));
+    n_lineas_diag = 0;
+    correr(300);
+    leer_diag();
+    navegador_cancelar(&nav);
+    leer_diag();
+    for (i = 0; i < n_lineas_diag; i++) printf("      DBG2 %s\n", lineas_diag[i]);
+    caso("si se cancela a mitad del giro, RUTA_DIAG fin anota menos tiempo real (250 ms, 25 grados) que el planeado (900 ms, 90 grados)",
+         hay_diag("RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=250 hecho=25"));
+}
+
 int main(void)
 {
+    pruebas_ruta_derecha_40cm();
     pruebas_desplazamiento_al_girar();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();

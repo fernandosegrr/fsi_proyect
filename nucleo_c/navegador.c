@@ -637,8 +637,8 @@ static void registrar_fin_comando(Navegador *nav)
     int dx = nav->x_mm - nav->base_x_mm, dy = nav->y_mm - nav->base_y_mm;
     int hecho;
 
-    if (cmd == NAV_CMD_STOP) {
-        return;
+    if (cmd == NAV_CMD_STOP || nav->cmd_plan_ms < 0) {
+        return;   /* un STOP no se anota; y un registro ya cerrado (cmd_plan_ms = -1) no se cierra dos veces */
     }
     if (cmd == NAV_CMD_LEFT || cmd == NAV_CMD_RIGHT) {
         int lado = (cmd == NAV_CMD_LEFT) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
@@ -865,6 +865,9 @@ static int planificar(Navegador *nav)
     const Punto *meta = &nav->ruta[nav->indice_objetivo];
     int orientacion, columna, fila, n, indice_error;
 
+    if (nav->cmd_actual != NAV_CMD_STOP) {
+        registrar_fin_comando(nav);   /* el comando sigue (avanzar al siguiente punto sin parar), pero se cierra el registro del tramo que terminó */
+    }
     fijar_pose(nav);
     orientacion = indice_direccion(nav->rumbo_grados);
     nav->rumbo_grados = orientacion * 45;
@@ -896,6 +899,13 @@ static int planificar(Navegador *nav)
         return NAV_ERR_RUTA;
     }
     ajustar_tramos_continuos(nav, camino, n);
+    if (nav->cmd_actual != NAV_CMD_STOP) {
+        if (nav->n_pasos > 0 && nav->cmd_actual == comando_de_paso(&nav->pasos[0])) {
+            registrar_inicio_comando(nav, nav->cmd_actual);   /* el comando sigue: empieza el registro del tramo nuevo */
+        } else {
+            nav->cmd_plan_ms = -1;                            /* el comando se va a soltar: su registro ya se cerró arriba */
+        }
+    }
     return NAV_OK;
 }
 

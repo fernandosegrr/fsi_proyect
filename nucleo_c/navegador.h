@@ -400,7 +400,7 @@ int navegador_ayuda_comando(Navegador *nav, ComandoNav comando);
 int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
 
 /* Saca la siguiente línea de diagnóstico que el navegador escribió y la copia a `texto` (capacidad `capacidad`, termina en '\0'). Devuelve 1 si había una
- * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG o ESQUIVE_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick
+ * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG o RUTA_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick
  * y las manda al log; si no se leen, las más viejas se pierden. */
 int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad);
 
