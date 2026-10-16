@@ -176,6 +176,45 @@ Idea del usuario (al estilo de los coches que piden que tomes el volante): cuand
 - **Si ya pasaste del final:** si al tocar «Continuar la ruta» el carro ya está más allá del punto final de la ruta (3 a 40 cm después, a menos de 60 cm de lado), la ruta se da por **terminada** y no regresa hacia atrás (`NAV_REINC_PASADO_*`). Esto salió de la prueba real: el obstáculo (un bolso) estaba justo en el destino de la recta de 1 m; al rodearlo a mano el carro quedó 6 cm más allá del punto final y, al continuar, giraba a la izquierda para volver a ese punto (que quedaba detrás y a un lado, y de frente al bolso). Para probar el esquive es mejor una ruta más larga que el obstáculo (por ejemplo 2 m con el obstáculo a la mitad).
 - **Límite:** la posición estimada tras maniobrar a mano depende de que mantengas apretados los botones (el tiempo es lo que cuenta); si empujas el carro con la mano, no lo sabe.
 
+## Desplazamiento del centro al girar (J4, 16 oct)
+
+El carro no gira sobre un punto fijo (ruedas mecanum, giro con un solo lado): en un giro de ~200° el chasis se desplaza varios cm. El navegador suponía giro en el sitio y cada giro metía error de **posición**
+(no de ángulo). Ahora, por lado y por perfil, la calibración trae `desp_adelante_*_um` y `desp_derecha_*_um` (µm por grado, en el marco del carro a mitad del giro; ver `docs/calibracion.md`). Por defecto 0 =
+comportamiento de antes.
+
+**Dónde se aplica** (`nucleo_c/navegador.c`):
+
+- `calcular_pose`: durante un giro de θ grados (los que da `grados_girados`: con la cámara si es confiable, si no por tiempo) suma `θ × desplazamiento` a la posición, rotado al rumbo medio (rumbo inicial + θ/2 hacia
+  el lado del giro), con `cal_desplazamiento_giro`. Se calcula desde el TOTAL del comando en cada tick, no sumando pedacitos (no acumula redondeo).
+- `sumar_frenado`: los grados que el carro sigue girando al soltar el comando también mueven el centro (con el rumbo de ese momento).
+- Todos los giros pasan por ahí: los de la ruta, los de apartarse y enderezarse al esquivar, los de los reintentos (después de **retroceder**) y los dos de la vuelta a la línea, así que el modelo vale para todos. El retroceso en
+  línea recta no gira y no cambia.
+- `simulador_navegador.c` mueve el carro REAL simulado con los mismos valores (`sim->real`): en cada pedacito de giro mueve lo que falta para completar `grados girados × desplazamiento` en el marco de mitad de ese giro.
+  Si el navegador tiene el modelo y el simulador también, la pose estimada coincide con la real (±3 mm); si el navegador no lo tiene, se equivoca como el navegador de antes.
+
+**Registro `TURN_DIAG`** (una línea al terminar cada giro; la app la copia al log con esa etiqueta; solo números):
+
+```
+TURN_DIAG lado=DER origen=ruta pedido=90 hecho=90 plan_ms=900 real_ms=900 um_grado=(1000,0) mm=(64,-64) carro_mm=(64,64) rumbo=0>90
+```
+
+`lado` IZQ o DER; `origen` ruta, esquive, vuelta o ayuda; `pedido`/`hecho` los grados pedidos y los estimados (con lo que sigue girando al frenar); `plan_ms`/`real_ms` la duración planeada y la real del comando; `um_grado` el
+desplazamiento por grado del modelo; **`mm` el desplazamiento aplicado a este giro en el mapa** (x a la derecha, y hacia abajo) y `carro_mm` el mismo en el marco del carro al empezar el giro (adelante, derecha — el que se mide con
+la cinta); `rumbo` de dónde a dónde. Con desplazamiento 0, `mm=(0,0)`. Para comparar con el carro real: mide con cinta lo que se movió el centro en un giro y compáralo con `carro_mm` de esa línea
+(`adb logcat -d -s TURN_DIAG:I`).
+
+**Es un promedio, no una constante.** El desplazamiento depende del piso (agarre), de las pilas y varía de un giro a otro (por eso la prueba pide 2 repeticiones por lado y rechaza si difieren más de 30 %). El modelo
+corrige el promedio, no cada giro: lo que queda de error es el que ya tenía el navegador (a menos de 8 cm de la línea solo corrige el rumbo, `NAV_REINC_DESVIO_MIN_MM`).
+
+**Pruebas** (`pruebas_navegador.c`, `pruebas_desplazamiento_al_girar`): (a) un giro de 90° a la derecha con 1 mm/° hacia adelante deja la pose estimada 64 mm a la derecha y 64 mm arriba (cuenta a mano 90 × 0.707), y el
+carro simulado en el mismo lugar; lo mismo a la izquierda con atrás y lateral; (b) esquive completo con obstáculo al centro y un desplazamiento de 0.4 / 0.7 mm por grado: **con el modelo el carro termina a 82 mm de la línea
+(estimada igual a la real, ±2 mm); con desplazamiento 0 en el navegador, a 124 mm** (el mismo carro, el navegador sin saber del desplazamiento); (c) los demás casos siguen pasando con 0. `TURN_DIAG` y `RUTA_DIAG` también están en
+esas pruebas.
+
+**Límite.** El modelo corrige la pose *estimada*. Lo que el navegador *planea* hacia adelante (giro1, avanzar, giro2 de la vuelta) sigue suponiendo giros en el sitio; el desplazamiento de esos giros se corrige en la
+estimación y se arrastra al siguiente plan, pero no se compensa de antemano (en el simulador, con 4 a 6 cm de desplazamiento por giro, la vuelta queda a unos 8 cm de la línea; falta medirlo con el carro real). Si hace falta, el siguiente paso sería pre-compensarlo en
+`reinc_calcular`.
+
 ## Parámetros a calibrar con el carro
 
 Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el navegador).

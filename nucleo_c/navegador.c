@@ -303,9 +303,20 @@ static int giro_terminado(const Navegador *nav, int grados, int tiempo_ms, int m
 /* Calcula la pose actual a partir de la pose al empezar el comando y del tiempo que lleva.
  * Se calcula desde el TOTAL de tiempo del comando (no sumando pedacitos) para no acumular
  * errores de redondeo. */
+/* Mueve la pose el desplazamiento del CENTRO durante un giro de `grados` hacia `lado` que empezó con el rumbo `rumbo_inicial` (ver cal_desplazamiento_giro): con ruedas mecanum
+ * el carro no gira sobre un punto fijo. Con la calibración sin desplazamiento (ceros) no hace nada. */
+static void sumar_desplazamiento_giro(Navegador *nav, int lado, int grados, int rumbo_inicial)
+{
+    int dx = 0, dy = 0;
+
+    cal_desplazamiento_giro(&nav->cal, lado, grados, rumbo_inicial, &dx, &dy, NULL, NULL);
+    nav->x_mm += dx;
+    nav->y_mm += dy;
+}
+
 static void calcular_pose(Navegador *nav)
 {
-    int distancia;
+    int distancia, grados;
 
     nav->x_mm = nav->base_x_mm;
     nav->y_mm = nav->base_y_mm;
@@ -323,10 +334,14 @@ static void calcular_pose(Navegador *nav)
         nav->y_mm = nav->base_y_mm + dir_y_mil(nav->base_rumbo_grados) * distancia / 1000;
         break;
     case NAV_CMD_LEFT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - grados_girados(nav, CAL_LADO_IZQUIERDA));
+        grados = grados_girados(nav, CAL_LADO_IZQUIERDA);
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - grados);
+        sumar_desplazamiento_giro(nav, CAL_LADO_IZQUIERDA, grados, nav->base_rumbo_grados);
         break;
     case NAV_CMD_RIGHT:
-        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + grados_girados(nav, CAL_LADO_DERECHA));
+        grados = grados_girados(nav, CAL_LADO_DERECHA);
+        nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + grados);
+        sumar_desplazamiento_giro(nav, CAL_LADO_DERECHA, grados, nav->base_rumbo_grados);
         break;
     default:
         break;
@@ -346,7 +361,7 @@ static void fijar_pose(Navegador *nav)
  * girando) el frenado medido. Se suma a la pose para que la posición estimada lo incluya. */
 static void sumar_frenado(Navegador *nav)
 {
-    int mm;
+    int mm, grados;
 
     switch (nav->cmd_actual) {
     case NAV_CMD_FORWARD:
@@ -359,25 +374,34 @@ static void sumar_frenado(Navegador *nav)
         nav->y_mm += dir_y_mil(nav->base_rumbo_grados) * mm / 1000;
         break;
     case NAV_CMD_LEFT:
-        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados - cal_frenado_grados(&nav->cal, CAL_LADO_IZQUIERDA));
+        grados = cal_frenado_grados(&nav->cal, CAL_LADO_IZQUIERDA);   /* lo que sigue girando al frenar... */
+        sumar_desplazamiento_giro(nav, CAL_LADO_IZQUIERDA, grados, nav->rumbo_grados);   /* ...y el centro también se sigue moviendo */
+        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados - grados);
         break;
     case NAV_CMD_RIGHT:
-        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados + cal_frenado_grados(&nav->cal, CAL_LADO_DERECHA));
+        grados = cal_frenado_grados(&nav->cal, CAL_LADO_DERECHA);
+        sumar_desplazamiento_giro(nav, CAL_LADO_DERECHA, grados, nav->rumbo_grados);
+        nav->rumbo_grados = normalizar_grados(nav->rumbo_grados + grados);
         break;
     default:
         break;
     }
 }
 
+static void registrar_fin_comando(Navegador *nav);                      /* se definen más abajo, junto a la cola de diagnóstico */
+static void registrar_inicio_comando(Navegador *nav, ComandoNav nuevo);
+
 /* Cambia el comando actual (si es distinto) cerrando el tramo anterior. */
 static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
 {
     if (nuevo != nav->cmd_actual) {
         sumar_frenado(nav);
+        registrar_fin_comando(nav);   /* antes de fijar_pose: necesita la pose de antes y de después del comando */
         fijar_pose(nav);
         nav->giro_visual_x10 = 0;        /* un comando nuevo empieza a medir desde cero */
         nav->visual_cubierto_ms = 0;
         nav->cmd_actual = nuevo;
+        registrar_inicio_comando(nav, nuevo);
     }
 }
 
@@ -542,6 +566,152 @@ int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad)
     texto[i] = '\0';
     nav->diag_leidas++;
     return 1;
+}
+
+/* ── Registro de los comandos de movimiento (RUTA_DIAG y TURN_DIAG) ─────── */
+
+static const char *nombre_origen(int estado)
+{
+    switch (estado) {
+    case NAV_SIGUIENDO:      return "ruta";
+    case NAV_ESQUIVANDO:     return "esquive";
+    case NAV_REINCORPORANDO: return "vuelta";
+    case NAV_AYUDA:          return "ayuda";
+    default:                 return "otro";
+    }
+}
+
+/* Qué pidió el programa y cuánto debe durar el comando `cmd` que empieza ahora, según lo que está haciendo el navegador: grados (giros) o mm (avance y retroceso), y ms.
+ * A mano (AYUDA) no se pidió nada: los dos quedan en 0. */
+static void plan_del_comando(const Navegador *nav, ComandoNav cmd, int *pedido, int *ms)
+{
+    *pedido = 0;
+    *ms = 0;
+    if (nav->estado == NAV_SIGUIENDO && nav->indice_paso < nav->n_pasos && cmd == comando_de_paso(&nav->pasos[nav->indice_paso])) {
+        const Paso *paso = &nav->pasos[nav->indice_paso];
+
+        *pedido = (paso->tipo == PASO_AVANZAR) ? paso->valor * 10 : ((paso->valor < 0) ? -paso->valor : paso->valor);
+        *ms = paso->tiempo_ms;
+    } else if (nav->estado == NAV_ESQUIVANDO && cmd == comando_de_fase(nav)) {
+        switch (nav->fase) {
+        case NAV_FASE_GIRAR:      *pedido = nav->angulo_giro; break;
+        case NAV_FASE_VOLVER:     *pedido = grados_de_vuelta(nav); break;
+        case NAV_FASE_AVANZAR:    *pedido = NAV_TRAMO_ESQUIVAR_CM * 10; break;
+        case NAV_FASE_RETROCEDER: *pedido = NAV_RETROCESO_CM * 10; break;
+        case NAV_FASE_PARALELO:   *pedido = nav->paralelo_mm; break;
+        default: break;
+        }
+        *ms = duracion_fase(nav, nav->fase);
+    } else if (nav->estado == NAV_REINCORPORANDO && cmd == comando_de_reinc(nav)) {
+        if (nav->reinc_fase == NAV_RF_AVANZAR) {
+            *pedido = nav->reinc_dist_mm;
+            *ms = cal_cm_a_ms(&nav->cal, (nav->reinc_dist_mm + 5) / 10);
+        } else {
+            int giro = (nav->reinc_fase == NAV_RF_GIRO1) ? nav->reinc_giro1 : nav->reinc_giro2;
+
+            *pedido = (giro < 0) ? -giro : giro;
+            *ms = cal_grados_a_ms(&nav->cal, giro);
+        }
+    }
+}
+
+/* Empieza un comando de movimiento: se anota qué se pidió y cuánto debe durar, y se escribe RUTA_DIAG envia. Los STOP no se anotan (son el fin de un movimiento). */
+static void registrar_inicio_comando(Navegador *nav, ComandoNav nuevo)
+{
+    nav->cmd_pedido = 0;
+    nav->cmd_plan_ms = 0;
+    nav->cmd_origen = (int)nav->estado;
+    if (nuevo == NAV_CMD_STOP) {
+        return;
+    }
+    plan_del_comando(nav, nuevo, &nav->cmd_pedido, &nav->cmd_plan_ms);
+    diag_escribir(nav, "RUTA_DIAG envia cmd=%s origen=%s pedido=%d plan_ms=%d t_ms=%lu", navegador_texto_comando(nuevo), nombre_origen(nav->cmd_origen),
+                  nav->cmd_pedido, nav->cmd_plan_ms, (unsigned long)nav->t_ultimo_ms);
+}
+
+/* Termina un comando de movimiento (la pose ya incluye el frenado): se escribe RUTA_DIAG fin con la duración real y lo hecho (estimado) y, si fue un giro, TURN_DIAG con el
+ * desplazamiento del centro que se aplicó, y el giro queda anotado para la pantalla de resultado. */
+static void registrar_fin_comando(Navegador *nav)
+{
+    ComandoNav cmd = nav->cmd_actual;
+    int dx = nav->x_mm - nav->base_x_mm, dy = nav->y_mm - nav->base_y_mm;
+    int hecho;
+
+    if (cmd == NAV_CMD_STOP) {
+        return;
+    }
+    if (cmd == NAV_CMD_LEFT || cmd == NAV_CMD_RIGHT) {
+        int lado = (cmd == NAV_CMD_LEFT) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
+        int um_adelante, um_derecha;
+        int h0 = nav->base_rumbo_grados;
+        NavGiro giro;
+
+        hecho = grados_girados(nav, lado) + cal_frenado_grados(&nav->cal, lado);
+        cal_leer_desplazamiento(&nav->cal, lado, &um_adelante, &um_derecha);
+        giro.lado = lado;
+        giro.origen = nav->cmd_origen;
+        giro.pedido_grados = nav->cmd_pedido;
+        giro.hecho_grados = hecho;
+        giro.plan_ms = nav->cmd_plan_ms;
+        giro.real_ms = nav->seg_ms;
+        giro.desp_adelante_mm = (dx * seno_mil(h0) - dy * seno_mil(h0 + 90)) / 1000;    /* el desplazamiento del mapa, en el marco del carro al empezar el giro */
+        giro.desp_derecha_mm = (dx * seno_mil(h0 + 90) + dy * seno_mil(h0)) / 1000;
+        diag_escribir(nav, "TURN_DIAG lado=%s origen=%s pedido=%d hecho=%d plan_ms=%d real_ms=%d um_grado=(%d,%d) mm=(%d,%d) carro_mm=(%d,%d) rumbo=%d>%d",
+                      (lado < 0) ? "IZQ" : "DER", nombre_origen(giro.origen), giro.pedido_grados, hecho, giro.plan_ms, giro.real_ms, um_adelante, um_derecha,
+                      dx, dy, giro.desp_adelante_mm, giro.desp_derecha_mm, h0, nav->rumbo_grados);
+        if (nav->n_giros < NAV_MAX_GIROS) {
+            nav->giros[nav->n_giros++] = giro;
+        } else {
+            nav->giros_perdidos++;
+        }
+    } else {
+        hecho = (int)raiz_entera((long)dx * dx + (long)dy * dy);   /* mm que se movió (con el frenado) */
+    }
+    diag_escribir(nav, "RUTA_DIAG fin cmd=%s origen=%s pedido=%d plan_ms=%d real_ms=%d hecho=%d", navegador_texto_comando(cmd), nombre_origen(nav->cmd_origen),
+                  nav->cmd_pedido, nav->cmd_plan_ms, nav->seg_ms, hecho);
+}
+
+int navegador_cuantos_giros(const Navegador *nav)
+{
+    return (nav == NULL) ? 0 : nav->n_giros;
+}
+
+int navegador_giro_datos(const Navegador *nav, int indice, NavGiro *giro)
+{
+    if (nav == NULL || giro == NULL || indice < 0 || indice >= nav->n_giros) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    *giro = nav->giros[indice];
+    return NAV_OK;
+}
+
+int navegador_texto_giros(const Navegador *nav, char *texto, int capacidad)
+{
+    int i, largo = 0;
+
+    if (nav == NULL || texto == NULL || capacidad < 2) {
+        return 0;
+    }
+    texto[0] = '\0';
+    for (i = 0; i < nav->n_giros && largo < capacidad - 1; i++) {
+        const NavGiro *g = &nav->giros[i];
+        int n;
+
+        if (g->origen == NAV_SIGUIENDO) {
+            n = snprintf(texto + largo, (size_t)(capacidad - largo), "%sGiro %s: pedido %d°, hecho ~%d°", (i > 0) ? "\n" : "", (g->lado < 0) ? "izquierda" : "derecha",
+                         g->pedido_grados, g->hecho_grados);
+        } else {
+            n = snprintf(texto + largo, (size_t)(capacidad - largo), "%sGiro %s (%s): pedido %d°, hecho ~%d°", (i > 0) ? "\n" : "", (g->lado < 0) ? "izquierda" : "derecha",
+                         nombre_origen(g->origen), g->pedido_grados, g->hecho_grados);
+        }
+        if (n < 0 || n >= capacidad - largo) {
+            largo = capacidad - 1;
+            break;
+        }
+        largo += n;
+    }
+    texto[largo] = '\0';
+    return largo;
 }
 
 /* ── La línea de la ruta (para volver a ella) ──────────────────────────── */
@@ -819,6 +989,11 @@ void navegador_iniciar(Navegador *nav)
     nav->reinc_desvio_mm = 0;
     nav->reinc_antes_x_mm = nav->reinc_antes_y_mm = nav->reinc_antes_rumbo = 0;
     nav->volver_a_reinc = 0;
+    nav->cmd_pedido = 0;
+    nav->cmd_plan_ms = 0;
+    nav->cmd_origen = NAV_ESPERANDO;
+    nav->n_giros = 0;
+    nav->giros_perdidos = 0;
     nav->diag_escritas = 0;
     nav->diag_leidas = 0;
     nav->diag_firma = -1;
@@ -876,6 +1051,8 @@ int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
     nav->frames_libre = 0;
     nav->frames_recibidos = 0;
     nav->cmd_actual = NAV_CMD_STOP;
+    nav->n_giros = 0;                  /* los giros de la ruta anterior ya no cuentan */
+    nav->giros_perdidos = 0;
     /* El carro se supone en el primer punto, mirando hacia ORIENTACION_INICIAL. */
     nav->x_mm = puntos[0].columna * MM_POR_CELDA;
     nav->y_mm = puntos[0].fila * MM_POR_CELDA;

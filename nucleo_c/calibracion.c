@@ -150,6 +150,10 @@ void cal_defecto(CalibracionCarro *cal)
     cal->frenado_grados_der_x10 = 0;
     cal->fov_grados_x10 = FOV_X10_DEFECTO;
     cal->ms_por_cm_atras_x10 = MS_POR_CM * 10;
+    cal->desp_adelante_izq_um = 0;   /* sin desplazamiento: el carro gira en su sitio, como antes */
+    cal->desp_derecha_izq_um = 0;
+    cal->desp_adelante_der_um = 0;
+    cal->desp_derecha_der_um = 0;
 }
 
 int cal_es_valida(const CalibracionCarro *cal)
@@ -166,7 +170,11 @@ int cal_es_valida(const CalibracionCarro *cal)
            en_rango(cal->frenado_grados_izq_x10, 0, FRENADO_GRADOS_X10_MAX) &&
            en_rango(cal->frenado_grados_der_x10, 0, FRENADO_GRADOS_X10_MAX) &&
            en_rango(cal->fov_grados_x10, FOV_X10_MIN, FOV_X10_MAX) &&
-           en_rango(cal->ms_por_cm_atras_x10, MS_CM_X10_MIN, MS_CM_X10_MAX);
+           en_rango(cal->ms_por_cm_atras_x10, MS_CM_X10_MIN, MS_CM_X10_MAX) &&
+           en_rango(cal->desp_adelante_izq_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
+           en_rango(cal->desp_derecha_izq_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
+           en_rango(cal->desp_adelante_der_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
+           en_rango(cal->desp_derecha_der_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX);
 }
 
 int cal_faltantes(const CalibracionCarro *cal)
@@ -699,4 +707,304 @@ int cal_balance_nuevo(int balance_mil, int desvio_mm, int recorrido_mm, int ejes
     }
     *nuevo_mil = (int)nuevo;
     return CAL_OK;
+}
+
+/* ── Calibración por partes ────────────────────────────────────────────── */
+
+int cal_ajustar_velocidad(CalibracionCarro *cal, int n, const int *ms, const int *mm)
+{
+    int pendiente, frenado, codigo;
+
+    if (cal == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    codigo = ajustar_recta(cal->arranque_ms, n, ms, mm, &pendiente, &frenado);   /* el frenado que sale aquí se descarta: se conserva el que ya había */
+    if (codigo != CAL_OK) {
+        return codigo;
+    }
+    if (!en_rango(pendiente, MS_CM_X10_MIN, MS_CM_X10_MAX)) {
+        return CAL_ERR_RANGO;
+    }
+    cal->ms_por_cm_x10 = pendiente;
+    cal->medidos |= CAL_MEDIDO_AVANCE;
+    return CAL_OK;
+}
+
+int cal_ajustar_frenado(CalibracionCarro *cal, int ms, int mm)
+{
+    long sobrante;
+
+    if (cal == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (ms <= cal->arranque_ms || mm < 0 || mm > 5000) {
+        return CAL_ERR_DATOS;
+    }
+    sobrante = (long)mm - cal_ms_a_mm(cal, ms);   /* lo que avanzó de más sobre lo que la velocidad guardada decía */
+    if (sobrante < -30) {
+        return CAL_ERR_DATOS;                     /* avanzó mucho MENOS de lo esperado: la velocidad guardada ya no vale */
+    }
+    if (sobrante < 0) {
+        sobrante = 0;
+    }
+    if (sobrante > FRENADO_MM_MAX) {
+        return CAL_ERR_RANGO;
+    }
+    cal->frenado_mm = (int)sobrante;
+    return CAL_OK;
+}
+
+int cal_ajustar_giro_fijo(CalibracionCarro *cal, int lado, int ms, int grados_x10)
+{
+    long girados_x10, pendiente, frenado_x10;
+
+    if (cal == NULL || (lado != CAL_LADO_IZQUIERDA && lado != CAL_LADO_DERECHA)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (ms <= cal->arranque_ms) {
+        return CAL_ERR_DATOS;
+    }
+    frenado_x10 = frenado_grados_x10(cal, lado);
+    if (frenado_x10 > FRENADO_GRADOS_AJUSTE_MAX_X10) {
+        frenado_x10 = 0;   /* un frenado de giro de más de 20 grados guardado antes (se midió 38.9 con un carro que giraba bien) no es inercia sino un ajuste malo: al volver a medir ese giro se descarta */
+    }
+    girados_x10 = (long)grados_x10 - frenado_x10;   /* lo que giró mientras los motores empujaban (sin el frenado) */
+    if (girados_x10 <= 0) {
+        return CAL_ERR_DATOS;
+    }
+    pendiente = dividir_redondeado(100L * (ms - cal->arranque_ms), girados_x10);   /* ms por grado por 10 */
+    if (pendiente < MS_GRADO_X10_MIN || pendiente > MS_GRADO_X10_MAX) {
+        return CAL_ERR_RANGO;
+    }
+    if (lado == CAL_LADO_IZQUIERDA) {
+        cal->ms_por_grado_izq_x10 = (int)pendiente;
+        cal->frenado_grados_izq_x10 = (int)frenado_x10;
+        cal->medidos |= CAL_MEDIDO_GIRO_IZQ;
+    } else {
+        cal->ms_por_grado_der_x10 = (int)pendiente;
+        cal->frenado_grados_der_x10 = (int)frenado_x10;
+        cal->medidos |= CAL_MEDIDO_GIRO_DER;
+    }
+    return CAL_OK;
+}
+
+int cal_validar_para_guardar(const CalibracionCarro *cal, int *lado_malo)
+{
+    if (lado_malo != NULL) {
+        *lado_malo = 0;
+    }
+    if (cal == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!cal_es_valida(cal)) {
+        return CAL_ERR_RANGO;
+    }
+    if (!en_rango(cal->ms_por_grado_izq_x10, CAL_MS_GRADO_GUARDAR_MIN_X10, CAL_MS_GRADO_GUARDAR_MAX_X10)) {
+        if (lado_malo != NULL) {
+            *lado_malo = CAL_LADO_IZQUIERDA;
+        }
+        return CAL_ERR_GIRO_FUERA;
+    }
+    if (!en_rango(cal->ms_por_grado_der_x10, CAL_MS_GRADO_GUARDAR_MIN_X10, CAL_MS_GRADO_GUARDAR_MAX_X10)) {
+        if (lado_malo != NULL) {
+            *lado_malo = CAL_LADO_DERECHA;
+        }
+        return CAL_ERR_GIRO_FUERA;
+    }
+    return CAL_OK;
+}
+
+/* ── Desplazamiento del centro al girar ────────────────────────────────── */
+
+/* Seno de 0 a 90 grados, de grado en grado, en milésimas (1000 = 1.0): con él se rota el vector sin usar math.h. */
+static const int SENO_MIL[91] = {
+       0,   17,   35,   52,   70,   87,  105,  122,  139,  156,  174,  191,  208,  225,  242,
+     259,  276,  292,  309,  326,  342,  358,  375,  391,  407,  423,  438,  454,  469,  485,
+     500,  515,  530,  545,  559,  574,  588,  602,  616,  629,  643,  656,  669,  682,  695,
+     707,  719,  731,  743,  755,  766,  777,  788,  799,  809,  819,  829,  839,  848,  857,
+     866,  875,  883,  891,  899,  906,  914,  921,  927,  934,  940,  946,  951,  956,  961,
+     966,  970,  974,  978,  982,  985,  988,  990,  993,  995,  996,  998,  999,  999, 1000,
+    1000
+};
+
+static int seno_mil(int grados)
+{
+    int g = ((grados % 360) + 360) % 360;
+
+    if (g <= 90) {
+        return SENO_MIL[g];
+    }
+    if (g <= 180) {
+        return SENO_MIL[180 - g];
+    }
+    if (g <= 270) {
+        return -SENO_MIL[g - 180];
+    }
+    return -SENO_MIL[360 - g];
+}
+
+static int coseno_mil(int grados)
+{
+    return seno_mil(grados + 90);
+}
+
+/* División entera redondeada al más cercano, también con numerador negativo (b > 0). */
+static long dividir_con_signo(long a, long b)
+{
+    return (a >= 0) ? (a + b / 2) / b : -((-a + b / 2) / b);
+}
+
+/* Raíz cuadrada entera (hacia abajo). */
+static long raiz_entera(long valor)
+{
+    long x = 0, paso = 1L << 30;
+
+    if (valor <= 0) {
+        return 0;
+    }
+    while (paso > valor) {
+        paso >>= 2;
+    }
+    while (paso != 0) {
+        if (valor >= x + paso) {
+            valor -= x + paso;
+            x = (x >> 1) + paso;
+        } else {
+            x >>= 1;
+        }
+        paso >>= 2;
+    }
+    return x;
+}
+
+static int lado_valido(int lado)
+{
+    return lado == CAL_LADO_IZQUIERDA || lado == CAL_LADO_DERECHA;
+}
+
+int cal_poner_desplazamiento(CalibracionCarro *cal, int lado, int adelante_um, int derecha_um)
+{
+    if (cal == NULL || !lado_valido(lado)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!en_rango(adelante_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) || !en_rango(derecha_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX)) {
+        return CAL_ERR_RANGO;
+    }
+    if (lado == CAL_LADO_IZQUIERDA) {
+        cal->desp_adelante_izq_um = adelante_um;
+        cal->desp_derecha_izq_um = derecha_um;
+    } else {
+        cal->desp_adelante_der_um = adelante_um;
+        cal->desp_derecha_der_um = derecha_um;
+    }
+    return CAL_OK;
+}
+
+void cal_leer_desplazamiento(const CalibracionCarro *cal, int lado, int *adelante_um, int *derecha_um)
+{
+    int a = 0, d = 0;
+
+    if (cal != NULL && lado == CAL_LADO_IZQUIERDA) {
+        a = cal->desp_adelante_izq_um;
+        d = cal->desp_derecha_izq_um;
+    } else if (cal != NULL && lado == CAL_LADO_DERECHA) {
+        a = cal->desp_adelante_der_um;
+        d = cal->desp_derecha_der_um;
+    }
+    if (adelante_um != NULL) {
+        *adelante_um = a;
+    }
+    if (derecha_um != NULL) {
+        *derecha_um = d;
+    }
+}
+
+int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int grados, int *adelante_um, int *derecha_um)
+{
+    int medio;
+    long f_um, d_um, por_adelante, por_derecha;
+
+    if (!lado_valido(lado) || adelante_um == NULL || derecha_um == NULL) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!en_rango(grados, 10, 360) || !en_rango(adelante_mm, -1000, 1000) || !en_rango(derecha_mm, -1000, 1000)) {
+        return CAL_ERR_DATOS;
+    }
+    /* El vector medido está en el marco de la posición inicial (adelante = f0, derecha = r0). En el marco del carro a mitad del giro (rumbo `medio`):
+     *   adelante = r0 x sen(medio) + f0 x cos(medio)      derecha = r0 x cos(medio) - f0 x sen(medio)
+     * (mm x milésimas / 1000 x 1000 = µm: por eso no hay que dividir). Después se reparte entre los grados girados. */
+    medio = lado * (grados / 2);
+    f_um = (long)derecha_mm * seno_mil(medio) + (long)adelante_mm * coseno_mil(medio);
+    d_um = (long)derecha_mm * coseno_mil(medio) - (long)adelante_mm * seno_mil(medio);
+    por_adelante = dividir_con_signo(f_um, grados);
+    por_derecha = dividir_con_signo(d_um, grados);
+    if (por_adelante < -CAL_DESP_UM_MAX || por_adelante > CAL_DESP_UM_MAX || por_derecha < -CAL_DESP_UM_MAX || por_derecha > CAL_DESP_UM_MAX) {
+        return CAL_ERR_RANGO;
+    }
+    *adelante_um = (int)por_adelante;
+    *derecha_um = (int)por_derecha;
+    return CAL_OK;
+}
+
+int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um)
+{
+    int i, j;
+
+    if (adelante_um == NULL || derecha_um == NULL || prom_adelante_um == NULL || prom_derecha_um == NULL || n < 2 || n > CAL_MAX_MUESTRAS) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    for (i = 0; i < n; i++) {
+        for (j = i + 1; j < n; j++) {
+            long df = (long)adelante_um[i] - adelante_um[j];
+            long dr = (long)derecha_um[i] - derecha_um[j];
+            long diferencia = raiz_entera(df * df + dr * dr);
+            long norma_i = raiz_entera((long)adelante_um[i] * adelante_um[i] + (long)derecha_um[i] * derecha_um[i]);
+            long norma_j = raiz_entera((long)adelante_um[j] * adelante_um[j] + (long)derecha_um[j] * derecha_um[j]);
+            long mayor = (norma_i > norma_j) ? norma_i : norma_j;
+            long limite = mayor * CAL_DESP_TOLERANCIA_PCT / 100;
+
+            if (limite < CAL_DESP_TOLERANCIA_UM) {
+                limite = CAL_DESP_TOLERANCIA_UM;
+            }
+            if (diferencia > limite) {
+                return CAL_ERR_DIFIEREN;
+            }
+        }
+    }
+    *prom_adelante_um = cal_promedio(adelante_um, n);
+    *prom_derecha_um = cal_promedio(derecha_um, n);
+    return CAL_OK;
+}
+
+void cal_desplazamiento_giro(const CalibracionCarro *cal, int lado, int grados, int rumbo_inicial,
+                             int *dx_mm, int *dy_mm, int *adelante_mm, int *derecha_mm)
+{
+    int adelante_um = 0, derecha_um = 0, medio;
+    long f_um, d_um, dx_um, dy_um, a_um, r_um;
+
+    cal_leer_desplazamiento(cal, lado, &adelante_um, &derecha_um);
+    if (grados < 0) {
+        grados = -grados;
+    }
+    medio = rumbo_inicial + (lado_valido(lado) ? lado * (grados / 2) : 0);
+    f_um = (long)adelante_um * grados;      /* µm que se movió hacia adelante y hacia la derecha, en el marco del carro a mitad del giro */
+    d_um = (long)derecha_um * grados;
+    /* Al mapa (x a la derecha, y hacia abajo; rumbo 0 = arriba): adelante = (sen, -cos), derecha = (cos, sen). */
+    dx_um = (f_um * seno_mil(medio) + d_um * coseno_mil(medio)) / 1000;
+    dy_um = (-f_um * coseno_mil(medio) + d_um * seno_mil(medio)) / 1000;
+    /* Y en el marco del carro AL EMPEZAR el giro (rumbo_inicial), que es el que se mide con la cinta. */
+    a_um = (dx_um * seno_mil(rumbo_inicial) - dy_um * coseno_mil(rumbo_inicial)) / 1000;
+    r_um = (dx_um * coseno_mil(rumbo_inicial) + dy_um * seno_mil(rumbo_inicial)) / 1000;
+    if (dx_mm != NULL) {
+        *dx_mm = (int)dividir_con_signo(dx_um, 1000);
+    }
+    if (dy_mm != NULL) {
+        *dy_mm = (int)dividir_con_signo(dy_um, 1000);
+    }
+    if (adelante_mm != NULL) {
+        *adelante_mm = (int)dividir_con_signo(a_um, 1000);
+    }
+    if (derecha_mm != NULL) {
+        *derecha_mm = (int)dividir_con_signo(r_um, 1000);
+    }
 }

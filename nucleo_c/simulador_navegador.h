@@ -70,6 +70,10 @@ typedef struct {
     int balance_mil;
     ComandoNav cmd_previo;   /* comando del tick anterior */
     int ms_en_comando;       /* cuánto lleva activo el comando actual */
+    /* Desplazamiento del centro al girar (sim->real.desp_*): lo que lleva el giro actual. */
+    long giro_h0_cgrados;    /* rumbo con el que empezó el comando de giro actual */
+    long giro_acum_cgrados;  /* cuánto lleva girado en este comando (valor absoluto, con lo que sigue girando al frenar) */
+    long desp_x_cmm, desp_y_cmm;   /* cuánto se ha movido ya el centro por ese giro */
 
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];

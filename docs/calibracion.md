@@ -95,6 +95,44 @@ factores vuelven a 1000 (los giros nuevos ya traen el efecto).
 **Cuándo hacerlo.** Hoy se cambiaron pilas y contactos, así que la calibración vieja puede estar desfasada. La recalibración real se hace al final, con las pilas de la demo (primero la calibración
 completa y después este ajuste, que tarda un minuto). Si cambian las pilas otra vez, repite el ajuste.
 
+## Desplazamiento del centro al girar (J4, 16 oct)
+
+**Qué pasó.** En la prueba real, con un giro de 1500 ms a la derecha (~200°) **todo el chasis se desplaza varios cm** y las ruedas traseras tampoco quedan fijas: con ruedas mecanum el carro no
+gira sobre un punto fijo (además aquí el giro se hace con un solo lado, ver `firmware_carro/carro.c`: LEFT usa solo el motor derecho y RIGHT solo el izquierdo, así que el carro pivota alrededor de
+las ruedas que quedan quietas y el centro describe un arco). El navegador estimaba la pose suponiendo giro en el sitio, así que **cada giro metía error de POSICIÓN** (no de ángulo). Un esquive tiene 3 o 4 giros.
+
+**El modelo** (`nucleo_c/calibracion.c`: `cal_desplazamiento_*`). Por **lado de giro** (izquierda y derecha) y por **perfil** (AUTO y MANUAL) hay dos números, en **micrómetros por grado girado** (µm/°):
+
+- `adelante` (negativo = atrás): cuánto se mueve el centro hacia donde apunta el carro;
+- `derecha` (negativo = izquierda): cuánto se mueve hacia su derecha.
+
+Están medidos **en el marco del carro a mitad del giro** (rumbo inicial + θ/2 hacia el lado del giro). Durante un giro de θ grados el navegador suma `θ × (adelante, derecha)` a la posición, rotado a ese
+rumbo medio. Por defecto los cuatro valen 0: el carro gira en su sitio, como antes. Es una **aproximación lineal**: el desplazamiento real no es exactamente proporcional al ángulo, así que el modelo
+vale mejor para giros parecidos al que se usó al medirlo (por eso la prueba usa por defecto el «Giro de 90° real», el comando que más usa el navegador). **El desplazamiento depende del piso (agarre de las
+ruedas), de las pilas y varía de un giro a otro**: es un promedio, no una constante física. Se vuelve a medir si cambia el piso o las pilas.
+
+Ejemplo hecho a mano (el mismo de `pruebas_calibracion.c`): giro de 90° a la derecha con 1 mm de desplazamiento hacia adelante por grado (1000 µm/°), carro mirando hacia arriba (rumbo 0). El rumbo medio
+es 45°; el centro se mueve 90 mm en esa dirección: 90 × 0.707 = **64 mm a la derecha y 64 mm hacia arriba**. En el marco del carro al empezar el giro: 64 mm adelante y 64 mm a la derecha.
+
+**La prueba guiada** (pantalla Calibración → «Desplazamiento al girar» → «Calibrar solo esto»; una prueba por pantalla):
+
+1. Marca el centro del carro con cinta en el piso (y alinea el carro con una junta de loseta, que sirve de guía para los ángulos).
+2. Elige el **perfil** (AUTO por defecto), el **lado** y el **giro de prueba**: «Giro de 90° real» (por defecto: el mismo comando que usa el navegador, con la calibración y el ajuste fino guardados), «Giro de 180°» o
+   «Duración libre» de 500 a 1500 ms.
+3. Toca «Girar»: el carro gira y se detiene. Mide cuánto se movió el **centro** (cinta nueva donde quedó) respecto de donde estaba, en el marco de la posición INICIAL del carro: **adelante o atrás** y **izquierda o
+   derecha** (con − y +, de 0.5 cm en 0.5 cm), y anota el **ángulo final** que giró (botones de 45° en 45°; las juntas de la loseta sirven de guía).
+4. «Guardar esta repetición». Son **2 repeticiones por lado**. La app calcula los mm por grado de cada una (en C: `cal_desplazamiento_de_medida`, que pasa la medida del marco inicial al marco de mitad de giro y la
+   reparte entre los grados), las **promedia** y **rechaza** las dos si difieren más de **30 %** (la distancia entre los dos vectores contra el mayor de los dos; con valores casi cero, menos de 60 µm/° de
+   diferencia —5 mm en un giro de 90°, menos que lo que se mide con cinta— no se rechaza). Si se rechazan, se borran y se repite.
+5. Al aceptarse, se **guarda por lado y perfil** (no hace falta hacer el otro lado). **«Restaurar valor por defecto»** vuelve los dos lados del perfil a 0.
+
+**Dónde se guarda.** No va en `calibracion.txt` (ese archivo trae lo medido del carro): igual que el factor del giro, vive en las preferencias de la app (`desp_adelante_auto_izq`, `desp_derecha_auto_izq`,
+`desp_adelante_auto_der`, `desp_derecha_auto_der` y las cuatro de `manual`), junto con con qué giro de prueba se midió cada lado. `CalibracionGuardada.leerAjustada()` los pone en la calibración que reciben el
+**navegador**, el **simulador** de la pantalla Rutas y las pruebas, igual que el factor del giro. La calibración viaja a C como 14 enteros (los 4 últimos son estos).
+
+**Qué NO hace.** No corrige el **ángulo** (eso es el giro de 90° y los ms por grado) ni cambia lo que el navegador *planea* (los giros y avances de la vuelta a la línea se siguen calculando como si cada giro fuera
+en el sitio; con el modelo la pose *estimada* es la correcta y el siguiente plan parte de ella). Ver `docs/navegador.md`, «Desplazamiento del centro al girar».
+
 ## Dónde se guarda
 
 En el teléfono, como **texto** (`clave=valor`, una por línea): SharedPreferences ("calibracion") y el archivo

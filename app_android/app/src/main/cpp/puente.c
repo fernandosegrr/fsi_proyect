@@ -1292,14 +1292,16 @@ Java_com_fsi_carro_FlujoNativa_configDefecto(JNIEnv *env, jobject objeto)
 
 /* ── Calibración del carro ─────────────────────────────────────────────── */
 
-/* La calibración se pasa a Kotlin como 10 enteros, en este orden (el mismo de CalibracionCarro):
+/* La calibración se pasa a Kotlin como 14 enteros, en este orden (el mismo de CalibracionCarro):
  *   [0] medidos  [1] arranque_ms  [2] ms_por_cm_x10  [3] frenado_mm
  *   [4] ms_por_grado_izq_x10  [5] ms_por_grado_der_x10
  *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10  [8] fov_grados_x10 (campo de visión de la cámara)
  *   [9] ms_por_cm_atras_x10 (ms por cm RETROCEDIENDO; vale solo si el bit CAL_MEDIDO_ATRAS está en `medidos`)
- * Las funciones que cambian la calibración devuelven 11 enteros: [0] = código (0 = bien) y [1..10] = la
+ *   [10] desp_adelante_izq_um  [11] desp_derecha_izq_um  [12] desp_adelante_der_um  [13] desp_derecha_der_um  (desplazamiento del centro al girar, µm por grado)
+ * Las funciones que cambian la calibración devuelven 15 enteros: [0] = código (0 = bien) y [1..14] = la
  * calibración resultante (sin cambios si hubo error). */
-#define ENTEROS_CALIBRACION 10
+#define ENTEROS_CALIBRACION 14
+#define ENTEROS_CALIBRACION_BASE 10   /* los 10 primeros: un arreglo más corto (sin el desplazamiento) todavía se acepta */
 
 /* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
 static CalibracionCarro calibracion_global;
@@ -1321,15 +1323,20 @@ static CalibracionCarro *obtener_calibracion(void)
     return &calibracion_global;
 }
 
-/* Lee 8 enteros de Kotlin. Devuelve 0 si el arreglo no sirve. */
+/* Lee los enteros de la calibración de Kotlin (10 o 14). Devuelve 0 si el arreglo no sirve. */
 static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *cal)
 {
-    jint datos[ENTEROS_CALIBRACION];
+    jint datos[ENTEROS_CALIBRACION] = { 0 };
+    jsize largo;
 
-    if (arreglo == NULL || (*env)->GetArrayLength(env, arreglo) < ENTEROS_CALIBRACION) {
+    if (arreglo == NULL) {
         return 0;
     }
-    (*env)->GetIntArrayRegion(env, arreglo, 0, ENTEROS_CALIBRACION, datos);
+    largo = (*env)->GetArrayLength(env, arreglo);
+    if (largo < ENTEROS_CALIBRACION_BASE) {
+        return 0;
+    }
+    (*env)->GetIntArrayRegion(env, arreglo, 0, (largo < ENTEROS_CALIBRACION) ? largo : ENTEROS_CALIBRACION, datos);   /* sin los 4 del desplazamiento quedan en 0 */
     cal->medidos = (int)datos[0];
     cal->arranque_ms = (int)datos[1];
     cal->ms_por_cm_x10 = (int)datos[2];
@@ -1340,10 +1347,14 @@ static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *ca
     cal->frenado_grados_der_x10 = (int)datos[7];
     cal->fov_grados_x10 = (int)datos[8];
     cal->ms_por_cm_atras_x10 = (int)datos[9];
+    cal->desp_adelante_izq_um = (int)datos[10];
+    cal->desp_derecha_izq_um = (int)datos[11];
+    cal->desp_adelante_der_um = (int)datos[12];
+    cal->desp_derecha_der_um = (int)datos[13];
     return 1;
 }
 
-/* Arma el arreglo de 10 enteros [código, calibración...]. */
+/* Arma el arreglo de 15 enteros [código, calibración...]. */
 static jintArray devolver_calibracion(JNIEnv *env, int codigo, const CalibracionCarro *cal)
 {
     jint salida[1 + ENTEROS_CALIBRACION];
@@ -1360,6 +1371,10 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
     salida[8] = cal->frenado_grados_der_x10;
     salida[9] = cal->fov_grados_x10;
     salida[10] = cal->ms_por_cm_atras_x10;
+    salida[11] = cal->desp_adelante_izq_um;
+    salida[12] = cal->desp_derecha_izq_um;
+    salida[13] = cal->desp_adelante_der_um;
+    salida[14] = cal->desp_derecha_der_um;
     arreglo = (*env)->NewIntArray(env, 1 + ENTEROS_CALIBRACION);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
@@ -1573,6 +1588,142 @@ Java_com_fsi_carro_CalibracionNativa_ajustarFov(JNIEnv *env, jobject objeto, jin
     }
     codigo = cal_ajustar_fov(&cal, (int)real_x10, (int)visual_x10);
     return devolver_calibracion(env, codigo, &cal);
+}
+
+/* ── Calibración por partes y desplazamiento al girar (ver calibracion.h) ── */
+
+/* Velocidad de avance: solo cambia los ms por cm (el frenado se conserva). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarVelocidad(JNIEnv *env, jobject objeto, jintArray calibracion, jintArray ms, jintArray mm)
+{
+    CalibracionCarro cal;
+    int lista_ms[CAL_MAX_PUNTOS], lista_mm[CAL_MAX_PUNTOS];
+    int n, codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    n = leer_dos_listas(env, ms, mm, lista_ms, lista_mm);
+    codigo = (n == 0) ? CAL_ERR_ARGUMENTO : cal_ajustar_velocidad(&cal, n, lista_ms, lista_mm);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Frenado de avance: se ordenaron `ms` de FORWARD y el carro avanzó `mm` en total. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarFrenado(JNIEnv *env, jobject objeto, jintArray calibracion, jint ms, jint mm)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_ajustar_frenado(&cal, (int)ms, (int)mm);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Giro de un lado (-1 izquierda, 1 derecha) con UN tiempo: se ordenaron `ms` y el carro giró `grados_x10`. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ajustarGiroFijo(JNIEnv *env, jobject objeto, jintArray calibracion, jint lado, jint ms, jint grados_x10)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_ajustar_giro_fijo(&cal, (int)lado, (int)ms, (int)grados_x10);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* ¿Se puede guardar esta calibración? Devuelve [código, lado malo] (el lado es -1, 1 o 0). */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_validarParaGuardar(JNIEnv *env, jobject objeto, jintArray calibracion)
+{
+    CalibracionCarro cal;
+    jint salida[2];
+    int lado_malo = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 2);
+
+    (void)objeto;
+    salida[0] = leer_calibracion(env, calibracion, &cal) ? cal_validar_para_guardar(&cal, &lado_malo) : CAL_ERR_ARGUMENTO;
+    salida[1] = lado_malo;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2, salida);
+    }
+    return arreglo;
+}
+
+/* Pone el desplazamiento del centro de un lado (µm por grado): devuelve [código, calibración...]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ponerDesplazamiento(JNIEnv *env, jobject objeto, jintArray calibracion, jint lado, jint adelante_um, jint derecha_um)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_poner_desplazamiento(&cal, (int)lado, (int)adelante_um, (int)derecha_um);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* De una medida (mm en el marco de la posición inicial y grados girados) a µm por grado: devuelve [código, adelante_um, derecha_um]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_desplazamientoDeMedida(JNIEnv *env, jobject objeto, jint lado, jint adelante_mm, jint derecha_mm, jint grados)
+{
+    jint salida[3];
+    int adelante = 0, derecha = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 3);
+
+    (void)objeto;
+    salida[0] = cal_desplazamiento_de_medida((int)lado, (int)adelante_mm, (int)derecha_mm, (int)grados, &adelante, &derecha);
+    salida[1] = adelante;
+    salida[2] = derecha;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 3, salida);
+    }
+    return arreglo;
+}
+
+/* Promedia las repeticiones (µm por grado) y rechaza si difieren más de 30 %: devuelve [código, adelante_um, derecha_um]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_desplazamientoPromediar(JNIEnv *env, jobject objeto, jintArray adelante_um, jintArray derecha_um)
+{
+    jint datos_a[CAL_MAX_MUESTRAS], datos_d[CAL_MAX_MUESTRAS];
+    int lista_a[CAL_MAX_MUESTRAS], lista_d[CAL_MAX_MUESTRAS];
+    jint salida[3] = { CAL_ERR_ARGUMENTO, 0, 0 };
+    int promedio_a = 0, promedio_d = 0, i;
+    jsize n = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 3);
+
+    (void)objeto;
+    if (adelante_um != NULL && derecha_um != NULL) {
+        n = (*env)->GetArrayLength(env, adelante_um);
+        if (n >= 2 && n <= CAL_MAX_MUESTRAS && (*env)->GetArrayLength(env, derecha_um) == n) {
+            (*env)->GetIntArrayRegion(env, adelante_um, 0, n, datos_a);
+            (*env)->GetIntArrayRegion(env, derecha_um, 0, n, datos_d);
+            for (i = 0; i < n; i++) {
+                lista_a[i] = (int)datos_a[i];
+                lista_d[i] = (int)datos_d[i];
+            }
+            salida[0] = cal_desplazamiento_promediar(lista_a, lista_d, (int)n, &promedio_a, &promedio_d);
+            salida[1] = promedio_a;
+            salida[2] = promedio_d;
+        }
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 3, salida);
+    }
+    return arreglo;
 }
 
 /* Qué falta medir (bits CAL_MEDIDO_*; 0 = todo). */
@@ -1897,7 +2048,7 @@ Java_com_fsi_carro_NavegadorNativa_ayudaContinuar(JNIEnv *env, jobject objeto, j
     return navegador_ayuda_continuar(obtener_navegador(), (uint32_t)ahora_ms);
 }
 
-/* La siguiente línea de diagnóstico del navegador (REINC_DIAG o ESQUIVE_DIAG), o "" si no hay ninguna nueva. La app la llama después de cada tick hasta que
+/* La siguiente línea de diagnóstico del navegador (REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG o RUTA_DIAG), o "" si no hay ninguna nueva. La app la llama después de cada tick hasta que
  * devuelve "" y copia cada línea al log. */
 JNIEXPORT jstring JNICALL
 Java_com_fsi_carro_NavegadorNativa_diagnostico(JNIEnv *env, jobject objeto)
@@ -1919,6 +2070,19 @@ Java_com_fsi_carro_NavegadorNativa_textoError(JNIEnv *env, jobject objeto)
 
     (void)objeto;
     if (navegador_texto_error(obtener_navegador(), texto, sizeof texto) == 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
+/* Los giros de la ruta en curso para la pantalla de resultado («Giro pedido / Giro hecho (estimado)»): una línea por giro, o "" si no hubo ninguno. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_NavegadorNativa_textoGiros(JNIEnv *env, jobject objeto)
+{
+    char texto[NAV_MAX_GIROS * 80];
+
+    (void)objeto;
+    if (navegador_texto_giros(obtener_navegador(), texto, sizeof texto) == 0) {
         texto[0] = '\0';
     }
     return (*env)->NewStringUTF(env, texto);

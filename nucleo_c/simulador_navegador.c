@@ -102,6 +102,34 @@ static int rumbo_entero(const Simulador *sim)
     return (int)((grados + 360) % 360);
 }
 
+/* Al girar `giro_cgrados` más (centésimas de grado, positivas) hacia `lado`, el centro del carro REAL también se mueve. Se usa el MISMO modelo que el navegador (los µm por grado de
+ * sim->real; ver cal_desplazamiento_giro): en todo el giro el centro se ha movido (grados girados) x (µm por grado), en el marco del carro a MITAD de ese giro. El simulador lleva
+ * la cuenta del giro desde que empezó el comando (giro_acum_cgrados, con el rumbo del que partió) y en cada pedacito mueve lo que falta para completar ese total; así, al terminar un
+ * giro de θ grados, el centro se movió justo lo que dice el modelo para θ. Se llama ANTES de sumar el pedacito al rumbo. */
+static void desplazar_al_girar(Simulador *sim, int lado, long giro_cgrados)
+{
+    int adelante_um, derecha_um, medio;
+    long f, d, x, y;   /* total de centésimas de mm (1 cmm = 10 µm) */
+
+    cal_leer_desplazamiento(&sim->real, lado, &adelante_um, &derecha_um);
+    if (giro_cgrados <= 0) {
+        return;
+    }
+    sim->giro_acum_cgrados += giro_cgrados;
+    if (adelante_um == 0 && derecha_um == 0) {
+        return;
+    }
+    medio = (int)((sim->giro_h0_cgrados + lado * (sim->giro_acum_cgrados / 2)) / 100);
+    f = (long)adelante_um * sim->giro_acum_cgrados / 1000;          /* µm/° x centésimas de ° / 1000 = centésimas de mm */
+    d = (long)derecha_um * sim->giro_acum_cgrados / 1000;
+    x = (f * seno(medio) + d * coseno(medio)) / 1000;
+    y = (-f * coseno(medio) + d * seno(medio)) / 1000;
+    sim->x_cmm += x - sim->desp_x_cmm;
+    sim->y_cmm += y - sim->desp_y_cmm;
+    sim->desp_x_cmm = x;
+    sim->desp_y_cmm = y;
+}
+
 /* Mueve el carro: el comando estuvo activo `dt` ms EFECTIVOS (ya sin el arranque). */
 static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
 {
@@ -131,6 +159,7 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
     case NAV_CMD_RIGHT:
         giro = (long)dt * 1000 / ((comando == NAV_CMD_LEFT) ? sim->real.ms_por_grado_izq_x10 : sim->real.ms_por_grado_der_x10)
                * sim->pct_giro / 100;
+        desplazar_al_girar(sim, (comando == NAV_CMD_RIGHT) ? CAL_LADO_DERECHA : CAL_LADO_IZQUIERDA, giro);
         sim->rumbo_cgrados += (comando == NAV_CMD_RIGHT) ? giro : -giro;
         sim->giro_desde_cuadro_cgrados += (comando == NAV_CMD_RIGHT) ? giro : -giro;   /* lo que vería la cámara */
         break;
@@ -177,10 +206,12 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
         sim->y_cmm -= coseno(rumbo) * distancia / 1000;
         break;
     case NAV_CMD_LEFT:
+        desplazar_al_girar(sim, CAL_LADO_IZQUIERDA, (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100);
         sim->rumbo_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
         sim->giro_desde_cuadro_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
         break;
     case NAV_CMD_RIGHT:
+        desplazar_al_girar(sim, CAL_LADO_DERECHA, (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100);
         sim->rumbo_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
         sim->giro_desde_cuadro_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
         break;
@@ -259,6 +290,10 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             deslizar_al_frenar(sim, sim->cmd_previo);
             sim->cmd_previo = comando;
             sim->ms_en_comando = 0;
+            sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* un comando nuevo: el giro (y su desplazamiento) se cuentan desde cero */
+            sim->giro_acum_cgrados = 0;
+            sim->desp_x_cmm = 0;
+            sim->desp_y_cmm = 0;
         }
         {
             int antes = sim->ms_en_comando;

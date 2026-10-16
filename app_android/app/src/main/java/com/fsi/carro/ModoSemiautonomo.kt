@@ -330,14 +330,16 @@ class ModoSemiautonomo(
         alCambiar()
     }
 
-    /** Copia al log las líneas de diagnóstico del navegador: REINC_DIAG (la vuelta a la línea) y ESQUIVE_DIAG (qué se vio y qué se hizo al esquivar). Solo números y palabras. */
+    /** Copia al log las líneas de diagnóstico del navegador. La etiqueta del log es la primera palabra de la línea: REINC_DIAG (la vuelta a la línea), ESQUIVE_DIAG (qué se vio y qué se hizo al esquivar),
+     *  AYUDA_DIAG (toma el control), TURN_DIAG (cada giro con el desplazamiento del centro que se aplicó) y RUTA_DIAG (cada comando de movimiento enviado, con su duración planeada y la real). Solo números y palabras. */
     private fun registrarDiagnostico() {
         while (true) {
             val linea = NavegadorNativa.diagnostico()
             if (linea.isEmpty()) {
                 break
             }
-            Log.i(if (linea.startsWith("REINC_DIAG")) "REINC_DIAG" else "ESQUIVE_DIAG", linea)
+            val etiqueta = linea.substringBefore(' ')
+            Log.i(if (etiqueta.endsWith("_DIAG")) etiqueta else "ESQUIVE_DIAG", linea)
         }
     }
 

@@ -728,8 +728,206 @@ static void pruebas_ajuste_fino(void)
     }
 }
 
+/* ── Calibración por partes ────────────────────────────────────────────── */
+
+static void pruebas_por_partes(void)
+{
+    CalibracionCarro cal, antes;
+    int lado_malo = 99;
+    /* Carro con arranque 150 ms y 40 ms/cm: mm(ms) = (ms - 150) / 4 + frenado */
+    static const int ms3[] = { 1000, 2000, 3000 };
+    static const int mm3[] = { 242, 492, 742 };       /* con 30 mm de frenado */
+    static const int ms_iguales[] = { 1000, 1000, 1000 };
+
+    /* ── Velocidad de avance: guarda los ms por cm y conserva el frenado ── */
+    cal_defecto(&cal);
+    cal_poner_arranque(&cal, 150);
+    cal.frenado_mm = 77;                              /* un frenado medido antes */
+    caso("velocidad de avance: guarda 40 ms/cm (400) y NO toca el frenado ni el arranque",
+         cal_ajustar_velocidad(&cal, 3, ms3, mm3) == CAL_OK && valor_absoluto(cal.ms_por_cm_x10 - 400) <= 4 && cal.frenado_mm == 77 && cal.arranque_ms == 150 &&
+         (cal.medidos & CAL_MEDIDO_AVANCE));
+    antes = cal;
+    caso("velocidad de avance: tiempos iguales = CAL_ERR_DATOS y no cambia nada",
+         cal_ajustar_velocidad(&cal, 3, ms_iguales, mm3) == CAL_ERR_DATOS && memcmp(&cal, &antes, sizeof cal) == 0);
+    caso("velocidad de avance: cal nula = CAL_ERR_ARGUMENTO", cal_ajustar_velocidad(NULL, 3, ms3, mm3) == CAL_ERR_ARGUMENTO);
+
+    /* ── Frenado de avance: un solo tiempo con la velocidad ya guardada ── */
+    cal_defecto(&cal);
+    cal_poner_arranque(&cal, 150);
+    cal.ms_por_cm_x10 = 400;
+    cal.frenado_mm = 0;
+    caso("frenado de avance: 2000 ms, avanzo 492 mm (se esperaban 462) = 30 mm de frenado",
+         cal_ajustar_frenado(&cal, 2000, 492) == CAL_OK && cal.frenado_mm == 30 && cal.ms_por_cm_x10 == 400 && cal.arranque_ms == 150);
+    caso("... con 455 mm (7 mm menos de lo esperado) el frenado queda en 0", cal_ajustar_frenado(&cal, 2000, 455) == CAL_OK && cal.frenado_mm == 0);
+    antes = cal;
+    caso("... con 400 mm (avanzo mucho menos: la velocidad guardada ya no vale) = CAL_ERR_DATOS y no cambia nada",
+         cal_ajustar_frenado(&cal, 2000, 400) == CAL_ERR_DATOS && memcmp(&cal, &antes, sizeof cal) == 0);
+    caso("... con 1200 mm (738 mm de frenado) = CAL_ERR_RANGO y no cambia nada", cal_ajustar_frenado(&cal, 2000, 1200) == CAL_ERR_RANGO && memcmp(&cal, &antes, sizeof cal) == 0);
+    caso("... un tiempo que no pasa del arranque = CAL_ERR_DATOS", cal_ajustar_frenado(&cal, 150, 100) == CAL_ERR_DATOS);
+    caso("... cal nula = CAL_ERR_ARGUMENTO", cal_ajustar_frenado(NULL, 2000, 492) == CAL_ERR_ARGUMENTO);
+
+    /* ── Giro con UN tiempo: ms por grado = (ms - arranque) / (grados - frenado) ── */
+    cal_defecto(&cal);
+    cal_poner_arranque(&cal, 150);
+    cal.frenado_grados_der_x10 = 200;                 /* 20 grados de frenado a la derecha */
+    caso("giro con un tiempo: 1050 ms y giro 110 grados con 20 de frenado = 10.0 ms por grado (100)",
+         cal_ajustar_giro_fijo(&cal, CAL_LADO_DERECHA, 1050, 1100) == CAL_OK && cal.ms_por_grado_der_x10 == 100 && (cal.medidos & CAL_MEDIDO_GIRO_DER) &&
+         !(cal.medidos & CAL_MEDIDO_GIRO_IZQ) && cal.ms_por_grado_izq_x10 == MS_POR_GRADO * 10 && cal.frenado_grados_der_x10 == 200);
+    caso("... y con esos valores un giro de 110 grados dura otra vez 1050 ms", cal_grados_a_ms(&cal, 110) == 1050);
+
+    /* Un frenado de giro imposible guardado antes (38.9 grados): al volver a medir ese giro se descarta y queda en 0. */
+    cal_defecto(&cal);
+    cal.frenado_grados_izq_x10 = 389;
+    caso("giro con un tiempo: un frenado guardado de 38.9 grados (imposible) se descarta al medir ese lado: 900 ms y 90 grados = 10 ms/grado y frenado 0",
+         cal_ajustar_giro_fijo(&cal, CAL_LADO_IZQUIERDA, 900, 900) == CAL_OK && cal.ms_por_grado_izq_x10 == 100 && cal.frenado_grados_izq_x10 == 0);
+    cal_defecto(&cal);
+    cal.frenado_grados_izq_x10 = 389;
+    antes = cal;
+    caso("... pero si el ajuste falla no se toca nada (tampoco ese frenado)", cal_ajustar_giro_fijo(&cal, CAL_LADO_IZQUIERDA, 2000, 10) == CAL_ERR_RANGO && memcmp(&cal, &antes, sizeof cal) == 0);
+
+    /* El procedimiento por defecto: «Giro de 90° real». Un carro cuyo giro es de 8 ms/grado, con 150 ms de arranque y sin frenado. */
+    cal_defecto(&cal);
+    cal_poner_arranque(&cal, 150);
+    {
+        int ms90 = cal_grados_a_ms(&cal, 90);                       /* con la calibración de ejemplo (10 ms/grado): 1050 ms */
+        int giro_real_x10 = (ms90 - 150) * 10 / 8;                  /* el carro real gira (1050 - 150) / 8 = 112.5 grados */
+
+        caso("giro de 90 reales: el comando de prueba dura 1050 ms con la calibracion de ejemplo", ms90 == 1050);
+        caso("... el carro gira 112.5 grados en vez de 90 y el ajuste da 8.0 ms por grado (80)",
+             giro_real_x10 == 1125 && cal_ajustar_giro_fijo(&cal, CAL_LADO_IZQUIERDA, ms90, giro_real_x10) == CAL_OK && cal.ms_por_grado_izq_x10 == 80);
+        caso("... y el siguiente giro de 90 grados dura 870 ms, que en el carro real son 90 grados justos",
+             cal_grados_a_ms(&cal, -90) == 870 && (870 - 150) * 10 / 8 == 900);
+    }
+    antes = cal;
+    caso("giro con un tiempo: tiempo menor que el arranque = CAL_ERR_DATOS", cal_ajustar_giro_fijo(&cal, CAL_LADO_DERECHA, 100, 900) == CAL_ERR_DATOS);
+    caso("... grados que no pasan del frenado = CAL_ERR_DATOS", (cal.frenado_grados_der_x10 = 150, cal_ajustar_giro_fijo(&cal, CAL_LADO_DERECHA, 1050, 100) == CAL_ERR_DATOS));
+    cal.frenado_grados_der_x10 = 0;
+    caso("... 1 grado en 2 segundos = CAL_ERR_RANGO y no cambia nada", cal_ajustar_giro_fijo(&cal, CAL_LADO_DERECHA, 2000, 10) == CAL_ERR_RANGO && cal.ms_por_grado_der_x10 == antes.ms_por_grado_der_x10);
+    caso("... lado inexistente = CAL_ERR_ARGUMENTO", cal_ajustar_giro_fijo(&cal, 0, 1050, 900) == CAL_ERR_ARGUMENTO && cal_ajustar_giro_fijo(NULL, 1, 1050, 900) == CAL_ERR_ARGUMENTO);
+
+    /* ── Al guardar: ms por grado entre 3 y 20 ── */
+    cal_defecto(&cal);
+    caso("guardar: la calibracion por defecto (10 ms/grado) se puede guardar", cal_validar_para_guardar(&cal, &lado_malo) == CAL_OK && lado_malo == 0);
+    cal.ms_por_grado_izq_x10 = 29;
+    caso("guardar: 2.9 ms/grado a la izquierda se rechaza (CAL_ERR_GIRO_FUERA) y dice cual lado", cal_validar_para_guardar(&cal, &lado_malo) == CAL_ERR_GIRO_FUERA && lado_malo == CAL_LADO_IZQUIERDA);
+    cal.ms_por_grado_izq_x10 = 30;
+    cal.ms_por_grado_der_x10 = 210;
+    caso("guardar: 3.0 ms/grado se acepta y 21 ms/grado a la derecha se rechaza", cal_validar_para_guardar(&cal, &lado_malo) == CAL_ERR_GIRO_FUERA && lado_malo == CAL_LADO_DERECHA);
+    cal.ms_por_grado_der_x10 = 200;
+    caso("guardar: 20.0 ms/grado se acepta", cal_validar_para_guardar(&cal, &lado_malo) == CAL_OK);
+    cal.ms_por_grado_izq_x10 = 10;                    /* 1 ms/grado: pasa cal_es_valida (que solo protege contra lo absurdo) pero no es para guardar */
+    caso("guardar: 1 ms/grado es 'valido' para leer pero no para guardar", cal_es_valida(&cal) && cal_validar_para_guardar(&cal, NULL) == CAL_ERR_GIRO_FUERA);
+    cal_defecto(&cal);
+    cal.arranque_ms = -1;
+    caso("guardar: una calibracion invalida de otra cosa = CAL_ERR_RANGO; nula = CAL_ERR_ARGUMENTO",
+         cal_validar_para_guardar(&cal, NULL) == CAL_ERR_RANGO && cal_validar_para_guardar(NULL, NULL) == CAL_ERR_ARGUMENTO);
+}
+
+/* ── Desplazamiento del centro al girar ────────────────────────────────── */
+
+static void pruebas_desplazamiento(void)
+{
+    CalibracionCarro cal, copia;
+    int dx = 99, dy = 99, adelante = 99, derecha = 99;
+    int ua, ud, pa, pd;
+    int a2[2], d2[2];
+    char texto[CAL_LARGO_TEXTO];
+
+    cal_defecto(&cal);
+    caso("por defecto no hay desplazamiento (los cuatro valores en 0)",
+         cal.desp_adelante_izq_um == 0 && cal.desp_derecha_izq_um == 0 && cal.desp_adelante_der_um == 0 && cal.desp_derecha_der_um == 0);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 200, 30, &dx, &dy, &adelante, &derecha);
+    caso("... y un giro de 200 grados no mueve el centro", dx == 0 && dy == 0 && adelante == 0 && derecha == 0);
+
+    caso("cal_poner_desplazamiento guarda cada lado por separado",
+         cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 1000, 0) == CAL_OK && cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, -300, 120) == CAL_OK &&
+         cal.desp_adelante_der_um == 1000 && cal.desp_derecha_der_um == 0 && cal.desp_adelante_izq_um == -300 && cal.desp_derecha_izq_um == 120);
+    cal_leer_desplazamiento(&cal, CAL_LADO_IZQUIERDA, &ua, &ud);
+    caso("cal_leer_desplazamiento devuelve lo guardado (y 0 con un lado inexistente)", ua == -300 && ud == 120);
+    copia = cal;
+    caso("fuera de +-2000 um por grado o con un lado inexistente: error y no cambia nada",
+         cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 2001, 0) == CAL_ERR_RANGO && cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, 0, -2001) == CAL_ERR_RANGO &&
+         cal_poner_desplazamiento(&cal, 0, 10, 10) == CAL_ERR_ARGUMENTO && cal_poner_desplazamiento(NULL, CAL_LADO_DERECHA, 10, 10) == CAL_ERR_ARGUMENTO &&
+         memcmp(&cal, &copia, sizeof cal) == 0);
+    caso("cal_es_valida rechaza un desplazamiento fuera de rango", (cal.desp_derecha_der_um = 3000, !cal_es_valida(&cal)));
+    cal.desp_derecha_der_um = 0;
+
+    /* ── (a) Un giro de 90 grados con desplazamiento definido: la pose coincide con la cuenta a mano ──
+     * Derecha, 1 mm por grado hacia adelante: el centro se mueve 90 mm en la direccion del rumbo medio (45 grados): 90 x 0.707 = 63.6 mm a la derecha y 63.6 mm hacia arriba. */
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &adelante, &derecha);
+    caso("giro de 90 a la derecha con 1 mm/grado adelante, rumbo 0: el centro va 64 mm a la derecha y 64 mm arriba (cuenta a mano: 90 x 0.707)", dx == 64 && dy == -64);
+    caso("... en el marco del carro al empezar: 64 mm adelante y 64 mm a la derecha", adelante == 64 && derecha == 64);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 90, 90, &dx, &dy, NULL, NULL);
+    caso("... con el carro mirando a la derecha (rumbo 90) el rumbo medio es 135: 64 a la derecha y 64 abajo", dx == 64 && dy == 64);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 90, 180, &dx, &dy, NULL, NULL);
+    caso("... con el carro mirando hacia abajo (rumbo 180, rumbo medio 225): 64 a la izquierda y 64 abajo", dx == -64 && dy == 64);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, -90, 0, &dx, &dy, NULL, NULL);
+    caso("... los grados se toman en valor absoluto", dx == 64 && dy == -64);
+    cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 0, 500);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &adelante, &derecha);
+    caso("0.5 mm/grado hacia la derecha en un giro de 90 (rumbo 0): 32 mm a la derecha y 32 mm abajo (la derecha del carro a 45 grados)", dx == 32 && dy == 32);
+    cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 90, 0, &dx, &dy, NULL, NULL);
+    caso("el lado izquierdo usa sus propios valores (-0.3 mm/grado adelante y 0.12 mm/grado a la derecha): 27 mm a la derecha y 11 mm abajo", dx == 27 && dy == 11);
+    cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, 1000, 0);
+    cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 90, 0, &dx, &dy, NULL, NULL);
+    caso("a la izquierda, 1 mm/grado adelante: el rumbo medio es -45: 64 mm a la izquierda y 64 mm arriba", dx == -64 && dy == -64);
+    cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, -500, 0);
+    cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 180, 0, &dx, &dy, &adelante, &derecha);
+    caso("a la izquierda, 0.5 mm/grado hacia ATRAS en 180 grados: el centro va 90 mm hacia atras con rumbo medio -90, o sea 90 mm a la derecha", dx == 90 && (dy >= -1 && dy <= 1));
+    caso("... que en el marco del carro al empezar son 90 mm a la derecha", adelante >= -1 && adelante <= 1 && derecha == 90);
+
+    /* ── De una medida a µm por grado, y de vuelta ── */
+    caso("medida: giro de 90 a la derecha, el centro avanzo 60 mm y se fue 20 mm a la izquierda",
+         cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 60, -20, 90, &ua, &ud) == CAL_OK);
+    cal_defecto(&cal);
+    cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, ua, ud);
+    cal_desplazamiento_giro(&cal, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &adelante, &derecha);
+    caso("... aplicado al mismo giro de 90 vuelve a dar 60 mm adelante y 20 mm a la izquierda (+-1 mm)",
+         valor_absoluto(adelante - 60) <= 1 && valor_absoluto(derecha + 20) <= 1 && valor_absoluto(dx + 20) <= 1 && valor_absoluto(dy + 60) <= 1);
+    cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, -45, 130, 200, &ua, &ud);
+    cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, ua, ud);
+    cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 200, 0, &dx, &dy, &adelante, &derecha);
+    caso("giro de 200 a la izquierda: 45 mm hacia atras y 130 mm a la derecha vuelven a salir (+-1 mm)", valor_absoluto(adelante + 45) <= 1 && valor_absoluto(derecha - 130) <= 1);
+    cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 200, 135, &dx, &dy, &adelante, &derecha);
+    caso("... y con otro rumbo inicial (135) el marco del carro al empezar sigue dando lo mismo", valor_absoluto(adelante + 45) <= 1 && valor_absoluto(derecha - 130) <= 1);
+    caso("medida: ceros dan cero", cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 0, 90, &ua, &ud) == CAL_OK && ua == 0 && ud == 0);
+    caso("medida: menos de 10 grados o mas de 360 = CAL_ERR_DATOS",
+         cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 10, 10, 5, &ua, &ud) == CAL_ERR_DATOS && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 10, 10, 400, &ua, &ud) == CAL_ERR_DATOS);
+    caso("medida: 5 metros = CAL_ERR_DATOS; 99 cm en 10 grados (99 mm por grado) = CAL_ERR_RANGO",
+         cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 5000, 0, 90, &ua, &ud) == CAL_ERR_DATOS && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 990, 0, 10, &ua, &ud) == CAL_ERR_RANGO);
+    caso("medida: lado inexistente o salidas nulas = CAL_ERR_ARGUMENTO",
+         cal_desplazamiento_de_medida(0, 1, 1, 90, &ua, &ud) == CAL_ERR_ARGUMENTO && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 1, 1, 90, NULL, &ud) == CAL_ERR_ARGUMENTO);
+
+    /* ── Dos repeticiones por lado: se promedian y se rechazan si difieren mas de 30 % ── */
+    a2[0] = 300; d2[0] = 0; a2[1] = 380; d2[1] = 0;
+    caso("dos repeticiones (300 y 380 um/grado, 21 % de diferencia): se promedian en 340", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == 340 && pd == 0);
+    a2[1] = 450;
+    pa = pd = -7;
+    caso("... 300 y 450 (33 % del mayor) se rechazan: CAL_ERR_DIFIEREN y las salidas no cambian", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_ERR_DIFIEREN && pa == -7 && pd == -7);
+    a2[0] = 300; d2[0] = 0; a2[1] = 300; d2[1] = 200;
+    caso("... 300 adelante contra 300 adelante y 200 a la derecha tambien difieren demasiado (el lateral cuenta)", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_ERR_DIFIEREN);
+    a2[0] = 10; d2[0] = 0; a2[1] = 40; d2[1] = 0;
+    caso("... con valores casi cero (10 y 40 um/grado, menos de lo que se puede medir con cinta) no se rechaza por el porcentaje: promedio 25",
+         cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == 25);
+    a2[0] = -250; d2[0] = 80; a2[1] = -290; d2[1] = 60;
+    caso("... con signos negativos tambien promedia (-270 y 70)", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == -270 && pd == 70);
+    caso("... una sola repeticion, listas nulas o salidas nulas = CAL_ERR_ARGUMENTO",
+         cal_desplazamiento_promediar(a2, d2, 1, &pa, &pd) == CAL_ERR_ARGUMENTO && cal_desplazamiento_promediar(NULL, d2, 2, &pa, &pd) == CAL_ERR_ARGUMENTO &&
+         cal_desplazamiento_promediar(a2, d2, 2, NULL, &pd) == CAL_ERR_ARGUMENTO);
+
+    /* ── Texto: el desplazamiento es por perfil y lo guarda la app aparte; el texto de la calibracion no lo lleva ── */
+    cal_defecto(&cal);
+    cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 300, -50);
+    caso("el texto de la calibracion no incluye el desplazamiento: al leerlo vuelve a 0 (la app lo guarda por perfil)",
+         cal_a_texto(&cal, texto, sizeof texto) > 0 && cal_de_texto(texto, &copia) == CAL_OK && copia.desp_adelante_der_um == 0 && copia.desp_derecha_der_um == 0);
+    caso("cal_con_factor_giro conserva el desplazamiento",
+         cal_con_factor_giro(&cal, 900, 900, &copia) == CAL_OK && copia.desp_adelante_der_um == 300 && copia.desp_derecha_der_um == -50);
+}
+
 int main(void)
 {
+    pruebas_por_partes();
+    pruebas_desplazamiento();
     pruebas_estadistica();
     pruebas_defecto();
     pruebas_ajuste();

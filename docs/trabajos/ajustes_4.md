@@ -1,0 +1,11 @@
+TRABAJO J4 - DESPLAZAMIENTO DEL CENTRO AL GIRAR. Reglas de siempre: original_backup/ intacto, sin secretos ni archivos de más de 15 MB, push sin --force, identidad noreply, no tocar Python/PATH/JAVA_HOME globales, no matar procesos por búsqueda amplia, no ver ni guardar imágenes reales de la cámara (solo números), pruebas del PC antes de cada commit, sin tocar el carro. Trabaja sin preguntar; resumen corto al final.
+
+Hallazgo real: el carro (ruedas mecanum) no gira sobre un punto fijo; en un giro de 1500 ms a la derecha (~200°) todo el chasis se desplaza varios cm, y las ruedas traseras tampoco quedan fijas. El navegador estima la pose suponiendo giro en el sitio, así que cada giro mete error de posición (no de ángulo). Un esquive tiene 3 o 4 giros.
+
+1. MODELO. En calibracion.c agrega, por lado de giro (izq/der) y por perfil, el desplazamiento del centro por grado girado, en el marco del carro: adelante/atrás en mm por grado y izquierda/derecha en mm por grado. Por defecto 0 (comportamiento actual). En calcular_pose, durante un giro de θ grados suma ese desplazamiento rotado al rumbo medio del giro (rumbo inicial + θ/2). Aplica lo mismo al retroceso y al simulador, que usa los mismos valores.
+
+2. PRUEBA GUIADA en Calibración, una prueba por pantalla: "Desplazamiento al girar". El usuario marca el centro del carro con cinta, elige el giro de prueba ("Giro de 90° real" por defecto, el comando que usa el navegador; también 180° o duración libre de 500 a 1500 ms), mide cuánto se movió el centro (adelante/atrás y izquierda/derecha, stepper de 0.5 cm) y el ángulo final (botones de 45°; las juntas de la loseta sirven de guía). Calcula mm/grado, pide 2 repeticiones por lado, promedia y rechaza si difieren más de 30 %. Botón "Restaurar valor por defecto". Guarda por lado y perfil.
+
+3. PRUEBAS EN C. (a) Giro de 90° con desplazamiento definido: la pose final coincide con el cálculo a mano. (b) Esquive completo: con el modelo la pose final queda a 10 cm o menos de la línea; con desplazamiento 0 el error es mayor. (c) Los casos actuales siguen pasando con valor 0.
+
+4. LOG TURN_DIAG: agrega el desplazamiento aplicado a cada giro. Documenta en docs/calibracion.md y docs/navegador.md, incluyendo que el desplazamiento depende del piso y varía entre giros.

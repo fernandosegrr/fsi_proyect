@@ -107,8 +107,11 @@ object NavegadorNativa {
     /** En AYUDA: el usuario terminó de maniobrar; el carro vuelve a la línea de la ruta y sigue. `ahoraMs` es el mismo reloj que usa tick(). */
     external fun ayudaContinuar(ahoraMs: Long): Int
 
-    /** La siguiente línea de diagnóstico del navegador (empieza con REINC_DIAG o ESQUIVE_DIAG), o "" si no hay una nueva. Llamar hasta que devuelva "". */
+    /** La siguiente línea de diagnóstico del navegador (empieza con REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG o RUTA_DIAG), o "" si no hay una nueva. Llamar hasta que devuelva "". */
     external fun diagnostico(): String
+
+    /** Los giros de la ruta en curso para la pantalla de resultado, una línea por giro («Giro derecha: pedido 90°, hecho ~88°»), o "" si no hubo ninguno. */
+    external fun textoGiros(): String
 
     /** La causa concreta del ERROR con los números ("se agotaron los 2 reintentos, el obstáculo seguía en el centro"), o "" si no hay error. */
     external fun textoError(): String

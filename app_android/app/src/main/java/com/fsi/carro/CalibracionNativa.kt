@@ -2,8 +2,8 @@
  * CalibracionNativa.kt — Declara las funciones en C de la calibración del carro (nucleo_c/calibracion.c).
  *
  * GUÍA DE LECTURA
- *  1. La calibración viaja como un IntArray de 10 enteros (índices CAL_* más abajo). Las funciones que
- *     la cambian devuelven 11 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
+ *  1. La calibración viaja como un IntArray de 14 enteros (índices CAL_* más abajo). Las funciones que
+ *     la cambian devuelven 15 enteros: [código, calibración...]; usa desempaquetar() para separarlos.
  *  2. Los decimales van multiplicados por 10 (sufijo _x10): 420 = 42.0 ms por cm.
  *  3. Cómo se mide (lo hace CalibracionActivity): arranque, avance (varios tiempos), giro a la
  *     izquierda y giro a la derecha. Ver docs/calibracion.md.
@@ -16,7 +16,7 @@ object CalibracionNativa {
         System.loadLibrary("carro_nativo")
     }
 
-    // Posiciones dentro de la calibración (10 enteros).
+    // Posiciones dentro de la calibración (14 enteros).
     const val CAL_MEDIDOS = 0
     const val CAL_ARRANQUE_MS = 1
     const val CAL_MS_POR_CM_X10 = 2
@@ -27,7 +27,13 @@ object CalibracionNativa {
     const val CAL_FRENADO_GRADOS_DER_X10 = 7
     const val CAL_FOV_GRADOS_X10 = 8    // campo de visión horizontal de la cámara, grados por 10 (600 = 60.0)
     const val CAL_MS_POR_CM_ATRAS_X10 = 9   // ms por cm RETROCEDIENDO por 10; vale solo si el bit MEDIDO_ATRAS está puesto (si no, se usa el del avance)
-    const val ENTEROS = 10
+    // Desplazamiento del centro al girar, en µm por grado girado y en el marco del carro a mitad del giro (ver docs/calibracion.md). Es POR PERFIL: lo guarda CalibracionGuardada aparte y se
+    // pone en la calibración con ponerDesplazamiento() justo antes de usarla.
+    const val CAL_DESP_ADELANTE_IZQ_UM = 10
+    const val CAL_DESP_DERECHA_IZQ_UM = 11
+    const val CAL_DESP_ADELANTE_DER_UM = 12
+    const val CAL_DESP_DERECHA_DER_UM = 13
+    const val ENTEROS = 14
 
     // Bits de "medidos" / "faltantes".
     const val MEDIDO_ARRANQUE = 1
@@ -47,8 +53,10 @@ object CalibracionNativa {
     const val ERR_DATOS = -2
     const val ERR_RANGO = -3
     const val ERR_TEXTO = -4
+    const val ERR_GIRO_FUERA = -5   // al guardar: los ms por grado de un giro quedan fuera de 3 a 20
+    const val ERR_DIFIEREN = -6     // las repeticiones de una prueba difieren demasiado entre sí
 
-    /** Calibración por defecto (la de ejemplo): [código, 10 enteros]. */
+    /** Calibración por defecto (la de ejemplo): [código, 14 enteros]. */
     external fun defecto(): IntArray
 
     /** Promedio de los valores sin los datos atípicos (los que se alejan mucho de la mediana). */
@@ -68,6 +76,31 @@ object CalibracionNativa {
 
     /** Calibra el campo de visión de la cámara con un giro medido: grados reales por 10 y grados que midió la cámara por 10: [código, calibración]. */
     external fun ajustarFov(calibracion: IntArray, realX10: Int, visualX10: Int): IntArray
+
+    // ── Calibración por partes (cada parte se mide sola; ver docs/calibracion.md) ──
+
+    /** Velocidad de avance con varios tiempos (ms) y lo que avanzó el carro (mm): [código, calibración]. Solo cambia los ms por cm; el frenado se conserva. */
+    external fun ajustarVelocidad(calibracion: IntArray, ms: IntArray, mm: IntArray): IntArray
+
+    /** Frenado de avance: se ordenaron `ms` de FORWARD y el carro avanzó `mm` en total (con la velocidad y el arranque ya guardados): [código, calibración]. */
+    external fun ajustarFrenado(calibracion: IntArray, ms: Int, mm: Int): IntArray
+
+    /** Giro de un lado con UN tiempo: se ordenaron `ms` y el carro giró `gradosX10` (grados por 10): [código, calibración]. Conserva el arranque y el frenado. */
+    external fun ajustarGiroFijo(calibracion: IntArray, lado: Int, ms: Int, gradosX10: Int): IntArray
+
+    /** ¿Se puede guardar esta calibración? [código, lado malo]: ERR_GIRO_FUERA si los ms por grado de un lado salen de 3 a 20 (el lado es LADO_IZQUIERDA o LADO_DERECHA). */
+    external fun validarParaGuardar(calibracion: IntArray): IntArray
+
+    // ── Desplazamiento del centro al girar ──
+
+    /** Pone el desplazamiento de un lado (µm por grado, adelante y derecha): [código, calibración]. */
+    external fun ponerDesplazamiento(calibracion: IntArray, lado: Int, adelanteUm: Int, derechaUm: Int): IntArray
+
+    /** De una medida a µm por grado: el centro se movió `adelanteMm` y `derechaMm` (en el marco de la posición inicial) en un giro de `grados`: [código, adelanteUm, derechaUm]. */
+    external fun desplazamientoDeMedida(lado: Int, adelanteMm: Int, derechaMm: Int, grados: Int): IntArray
+
+    /** Promedia las repeticiones (µm por grado) de un lado: [código, adelanteUm, derechaUm]. ERR_DIFIEREN si dos difieren más de 30 %. */
+    external fun desplazamientoPromediar(adelanteUm: IntArray, derechaUm: IntArray): IntArray
 
     /** Qué falta medir (bits MEDIDO_*; 0 = todo). */
     external fun faltantes(calibracion: IntArray): Int
@@ -111,7 +144,7 @@ object CalibracionNativa {
     /** Lee el texto de aTexto: [código, calibración]. */
     external fun deTexto(texto: String): IntArray
 
-    /** Separa el resultado [código, calibración...] en el código y la calibración de 10 enteros. */
+    /** Separa el resultado [código, calibración...] en el código y la calibración de 14 enteros. */
     fun desempaquetar(resultado: IntArray): Pair<Int, IntArray> =
         Pair(resultado[0], resultado.copyOfRange(1, 1 + ENTEROS))
 
@@ -121,6 +154,8 @@ object CalibracionNativa {
         ERR_DATOS -> "Los datos no tienen sentido (por ejemplo, avanzó menos con más tiempo). Repite la prueba."
         ERR_RANGO -> "El resultado sale de lo razonable. Revisa los números que anotaste."
         ERR_TEXTO -> "El texto no se puede leer."
+        ERR_GIRO_FUERA -> "Un giro sale de 3 a 20 ms por grado, casi seguro se anotó mal un dato. No se guardó nada: repite la prueba."
+        ERR_DIFIEREN -> "Las dos mediciones difieren más de 30 %. Repite la prueba."
         else -> "Datos no válidos (código $codigo)."
     }
 }

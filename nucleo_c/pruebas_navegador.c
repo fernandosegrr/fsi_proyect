@@ -2050,8 +2050,107 @@ static void pruebas_auditoria(void)
     }
 }
 
+/* ── Casos: desplazamiento del centro al girar (ruedas mecanum) ────────────────────────────────── */
+
+/* Pone el mismo desplazamiento en el carro REAL simulado y, si `modelo` es 1, también en lo que el navegador cree (la calibración del navegador); con `modelo` 0 el navegador
+ * supone que el carro gira en su sitio, como antes. Valores en µm por grado: (adelante, derecha) de cada lado. */
+static void preparar_con_desplazamiento(const Punto *ruta, int n, int modelo, int izq_adelante, int izq_derecha, int der_adelante, int der_derecha)
+{
+    CalibracionCarro real;
+
+    cal_defecto(&real);
+    cal_poner_desplazamiento(&real, CAL_LADO_IZQUIERDA, izq_adelante, izq_derecha);
+    cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, der_adelante, der_derecha);
+    navegador_iniciar(&nav);
+    if (modelo) {
+        navegador_poner_calibracion(&nav, &real);
+    }
+    navegador_cargar_ruta(&nav, ruta, n);
+    sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+    sim.real = real;
+    navegador_comenzar(&nav, 0);
+}
+
+static void pruebas_desplazamiento_al_girar(void)
+{
+    static const Punto A_LA_DERECHA[] = { {2, 8}, {3, 8} };   /* gira 90 a la derecha y avanza 20 cm */
+    int lleno = 0, errores_con = 0, errores_sin = 0, dist_con, dist_sin, estimada_con;
+
+    /* ── (a) Un giro de 90 con desplazamiento definido: la pose estimada coincide con la cuenta a mano ──
+     * 1 mm por grado hacia adelante a la derecha: el centro se mueve 90 mm en la direccion del rumbo medio (45 grados) = 64 mm a la derecha y 64 mm arriba (90 x 0.707). */
+    preparar_con_desplazamiento(A_LA_DERECHA, N(A_LA_DERECHA), 1, 0, 0, 1000, 0);
+    n_lineas_diag = 0;
+    while (nav.indice_paso < 1 && sim.t_ms < 3000) {
+        correr(NAV_TICK_MS);
+        leer_diag();
+    }
+    caso("giro de 90 a la derecha con 1 mm/grado adelante: la pose estimada termina 64 mm a la derecha y 64 mm arriba de donde empezo, mirando a la derecha",
+         nav.x_mm == 2 * MM + 64 && nav.y_mm == 8 * MM - 64 && nav.rumbo_grados == 90);
+    caso("... y el carro simulado (que se desplaza con los mismos valores) quedo en el mismo lugar (+-3 mm)",
+         valor_absoluto(sim_x_mm(&sim) - (2 * MM + 64)) <= 3 && valor_absoluto(sim_y_mm(&sim) - (8 * MM - 64)) <= 3 && valor_absoluto(sim_rumbo_grados(&sim) - 90) <= 1);
+    caso("... TURN_DIAG anota el lado, los grados pedidos y hechos, los um por grado aplicados y el desplazamiento (64, -64) en el mapa y (64, 64) en el marco del carro",
+         hay_diag("TURN_DIAG lado=DER origen=ruta pedido=90 hecho=90") && hay_diag("um_grado=(1000,0)") && hay_diag("mm=(64,-64)") && hay_diag("carro_mm=(64,64)"));
+    caso("... y RUTA_DIAG anota el giro enviado (RIGHT, 90 grados, 900 ms planeados) y su fin (900 ms reales)",
+         hay_diag("RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=90 plan_ms=900") && hay_diag("RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=900 hecho=90"));
+
+    /* Sin el modelo (valor 0, como siempre) el navegador cree que el carro giro en su sitio: la pose no se mueve de lado, pero el carro real si. */
+    preparar_con_desplazamiento(A_LA_DERECHA, N(A_LA_DERECHA), 0, 0, 0, 1000, 0);
+    while (nav.indice_paso < 1 && sim.t_ms < 3000) {
+        correr(NAV_TICK_MS);
+    }
+    caso("con desplazamiento 0 en el navegador la pose estimada no se mueve al girar (como antes) aunque el carro real si",
+         nav.x_mm == 2 * MM && nav.y_mm == 8 * MM && valor_absoluto(sim_x_mm(&sim) - (2 * MM + 64)) <= 3);
+
+    /* La izquierda usa sus propios valores: gira 90 a la izquierda con 1 mm/grado hacia atras y 0.5 mm/grado a la derecha. */
+    {
+        static const Punto A_LA_IZQUIERDA[] = { {2, 8}, {1, 8} };
+
+        preparar_con_desplazamiento(A_LA_IZQUIERDA, N(A_LA_IZQUIERDA), 1, -1000, 500, 0, 0);
+        while (nav.indice_paso < 1 && sim.t_ms < 3000) {
+            correr(NAV_TICK_MS);
+        }
+        /* Rumbo medio -45: adelante = (-0.707, -0.707) x (-90 mm) = (+63.6, +63.6); derecha = (0.707, -0.707) x 45 mm = (+31.8, -31.8). Total (95.4, 31.8). */
+        caso("giro de 90 a la izquierda con 1 mm/grado atras y 0.5 mm/grado a la derecha: 95 mm a la derecha y 32 mm abajo",
+             valor_absoluto(nav.x_mm - (2 * MM + 95)) <= 1 && valor_absoluto(nav.y_mm - (8 * MM + 32)) <= 1 && nav.rumbo_grados == 270 &&
+             valor_absoluto(sim_x_mm(&sim) - nav.x_mm) <= 3 && valor_absoluto(sim_y_mm(&sim) - nav.y_mm) <= 3);
+    }
+
+    /* ── (b) Un esquive completo: obstaculo al centro, el carro se aparta, pasa y vuelve a la linea (4 giros: apartarse, enderezarse y los dos de la vuelta) ──
+     * Con el carro de una sola rueda motriz por lado el centro se mueve sobre todo hacia adelante al girar: 0.4 y 0.7 mm por grado (unos 4 a 6 cm por giro de 90) mas un poco de lado.
+     * Lo que queda aun con el modelo (unos 8 cm) es la tolerancia del propio navegador: a menos de 8 cm de la linea solo corrige el rumbo y no se mueve de lado. */
+    preparar_con_desplazamiento(RECTA, N(RECTA), 1, 400, 80, 700, -120);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr(60000);
+    dist_con = distancia_a_la_ruta(RECTA, N(RECTA));
+    estimada_con = (valor_absoluto(nav.x_mm - sim_x_mm(&sim)) > valor_absoluto(nav.y_mm - sim_y_mm(&sim))) ? valor_absoluto(nav.x_mm - sim_x_mm(&sim)) : valor_absoluto(nav.y_mm - sim_y_mm(&sim));
+    errores_con = (nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
+    caso("esquive completo con el modelo: llega (TERMINADO, 1 esquivada) y la pose final queda a 10 cm o menos de la linea", errores_con && dist_con <= 100);
+    caso("... y la pose estimada coincide con la real (+-3 cm)", estimada_con <= 30);
+
+    preparar_con_desplazamiento(RECTA, N(RECTA), 0, 400, 80, 700, -120);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr(60000);
+    dist_sin = distancia_a_la_ruta(RECTA, N(RECTA));
+    errores_sin = (nav.estado == NAV_TERMINADO || nav.estado == NAV_ERROR);
+    caso("el mismo esquive con desplazamiento 0 en el navegador (no sabe que el carro se desplaza): el error respecto de la linea es mayor", errores_sin && dist_sin > dist_con);
+    lleno = dist_sin > 100;
+    caso("... y pasa de 10 cm (el modelo es lo que lo deja dentro)", lleno);
+    printf("      esquive con modelo: %d mm de la linea (estimada vs real %d mm); sin modelo: %d mm\n", dist_con, estimada_con, dist_sin);
+
+    /* ── Pantalla de resultado: «Giro pedido / Giro hecho» ── */
+    {
+        char texto[300];
+
+        preparar_con_desplazamiento(A_LA_DERECHA, N(A_LA_DERECHA), 1, 0, 0, 300, 0);
+        correr(5000);
+        caso("la ruta de 20 cm a la derecha recuerda UN giro: derecha, pedido 90, hecho 90",
+             navegador_cuantos_giros(&nav) == 1 && navegador_texto_giros(&nav, texto, sizeof texto) > 0 && strstr(texto, "derecha: pedido 90°, hecho ~90°") != NULL);
+    }
+}
+
 int main(void)
 {
+    pruebas_desplazamiento_al_girar();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

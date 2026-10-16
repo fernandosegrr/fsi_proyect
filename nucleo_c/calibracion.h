@@ -60,6 +60,13 @@ typedef struct {
     int frenado_grados_der_x10;     /* idem a la derecha */
     int fov_grados_x10;             /* campo de visión HORIZONTAL de la cámara, en grados por 10 (600 = 60.0), para medir el giro con la cámara */
     int ms_por_cm_atras_x10;        /* ms por cada cm RETROCEDIENDO, por 10. Solo vale si el bit CAL_MEDIDO_ATRAS está puesto; si no, se usa ms_por_cm_x10 */
+    /* DESPLAZAMIENTO DEL CENTRO AL GIRAR (ver el último bloque de este archivo). Con ruedas mecanum el carro no gira sobre un punto fijo: al girar, todo el chasis
+     * se mueve unos cm. Son micrómetros (milésimas de mm) que se mueve el centro POR CADA GRADO girado, medidos en el marco del carro a mitad del giro:
+     * «adelante» (negativo = atrás) y «derecha» (negativo = izquierda), para cada lado del giro. Por defecto 0 = el carro gira en su sitio. */
+    int desp_adelante_izq_um;
+    int desp_derecha_izq_um;
+    int desp_adelante_der_um;
+    int desp_derecha_der_um;
 } CalibracionCarro;
 
 /* Códigos de retorno. */
@@ -68,6 +75,8 @@ typedef struct {
 #define CAL_ERR_DATOS        -2   /* las pruebas no tienen sentido (el carro "avanzó menos con más tiempo", etc.) */
 #define CAL_ERR_RANGO        -3   /* el resultado sale de lo razonable (ver cal_es_valida) */
 #define CAL_ERR_TEXTO        -4   /* el texto exportado no se puede leer */
+#define CAL_ERR_GIRO_FUERA   -5   /* al guardar: los ms por grado de un giro quedan fuera de 3 a 20 (ver cal_validar_para_guardar) */
+#define CAL_ERR_DIFIEREN     -6   /* las repeticiones de una prueba difieren demasiado entre sí: hay que repetirla */
 
 /* Máximo de muestras que aceptan las funciones de estadística, y de puntos de un ajuste. */
 #define CAL_MAX_MUESTRAS     16
@@ -213,6 +222,71 @@ int cal_con_factor_giro(const CalibracionCarro *cal, int factor_izq_mil, int fac
  * CAL_OK (y el nuevo en *nuevo_mil), CAL_ERR_ARGUMENTO (punteros nulos, balance fuera de 800 a 1000 o ejes fuera de rango) o CAL_ERR_DATOS (recorrido no positivo o desvío mayor que el
  * recorrido). Con `desvio_mm` en cero o hasta CAL_RECTA_OK_MM en valor absoluto no cambia nada. */
 int cal_balance_nuevo(int balance_mil, int desvio_mm, int recorrido_mm, int ejes_mm, int *nuevo_mil);
+
+/* ── Calibración POR PARTES ────────────────────────────────────────────────
+ * Cada parte se puede medir sola, con su propia prueba, sin repetir las demás y sin tocar los otros valores:
+ *  - velocidad de avance (ms por cm): varios tiempos; el frenado y el arranque que ya había se conservan;
+ *  - frenado de avance: UN tiempo fijo, con la velocidad y el arranque ya guardados;
+ *  - giro de un lado: UN giro de prueba (el de 90° real, el de 180° o una duración libre) con el arranque y el frenado ya guardados.
+ * Los ms por grado dependen de la duración con que se midieron (el arranque pesa más en un giro corto), por eso la app guarda con qué giro de prueba se midió cada lado y avisa
+ * si se mezclan dos distintos. */
+
+/* Prueba de VELOCIDAD de avance: igual que cal_ajustar_avance (recta por mínimos cuadrados con n tiempos distintos) pero guarda SOLO los ms por cm; el frenado se conserva.
+ * Marca el bit AVANCE. Mismos códigos de error; si hay error no cambia nada. */
+int cal_ajustar_velocidad(CalibracionCarro *cal, int n, const int *ms, const int *mm);
+
+/* Prueba de FRENADO de avance: el carro avanzó `mm` en total tras ordenarle `ms` de FORWARD. El frenado es lo que sobra sobre lo que la velocidad guardada (y el arranque guardado)
+ * dicen que debía avanzar. CAL_ERR_DATOS si ms no es mayor que el arranque o si sobra menos de -30 mm (la velocidad guardada ya no vale: se calibra primero la velocidad);
+ * CAL_ERR_RANGO si el frenado pasa de 500 mm. Un sobrante negativo chico (de -30 a 0) se toma como 0. Si hay error no cambia nada. */
+int cal_ajustar_frenado(CalibracionCarro *cal, int ms, int mm);
+
+/* Prueba de GIRO con UN solo tiempo: se ordenó girar `ms` hacia `lado` y el carro giró `grados_x10` (por 10, ya promediados). Con el arranque y el frenado guardados de ese lado
+ * los ms por grado salen de  (ms - arranque) / (grados - frenado). Marca el bit del lado. CAL_ERR_DATOS si ms no es mayor que el arranque o si los grados no pasan del frenado;
+ * CAL_ERR_RANGO si queda fuera de lo razonable. Si hay error no cambia nada. */
+int cal_ajustar_giro_fijo(CalibracionCarro *cal, int lado, int ms, int grados_x10);
+
+/* Al GUARDAR una calibración los ms por grado de cada lado deben estar entre 3 y 20 ms por grado (un carro de este tamaño gira ~1 grado cada 7 a 10 ms; fuera de eso casi seguro
+ * se anotó mal un dato). Esos límites son más estrictos que cal_es_valida a propósito: aquella solo protege contra valores absurdos al LEER lo ya guardado.
+ * Devuelve CAL_OK, CAL_ERR_ARGUMENTO, CAL_ERR_RANGO (algún otro valor no es válido) o CAL_ERR_GIRO_FUERA. Con *lado_malo (si no es NULL) dice cuál lado falló: CAL_LADO_IZQUIERDA o
+ * CAL_LADO_DERECHA (0 si ninguno). */
+#define CAL_MS_GRADO_GUARDAR_MIN_X10   30
+#define CAL_MS_GRADO_GUARDAR_MAX_X10  200
+int cal_validar_para_guardar(const CalibracionCarro *cal, int *lado_malo);
+
+/* ── Desplazamiento del centro al girar ────────────────────────────────────
+ * El carro (ruedas mecanum) no gira sobre un punto fijo: en un giro de 1500 ms a la derecha (~200°) el chasis entero se desplaza varios cm. El navegador suponía giro en el sitio,
+ * así que cada giro metía error de POSICIÓN (no de ángulo); un esquive tiene 3 o 4 giros.
+ *
+ * MODELO. Por lado de giro hay un vector (adelante, derecha) en micrómetros por grado girado. Durante un giro de θ grados el centro se mueve θ x ese vector, expresado en el marco
+ * del carro a MITAD del giro (rumbo inicial + θ/2 hacia el lado del giro). Es una aproximación lineal (el desplazamiento real no es exactamente proporcional al ángulo): vale mejor
+ * para giros parecidos al que se usó para medirlo. Con 0 en los cuatro valores (por defecto) el carro gira en su sitio, como antes.
+ *
+ * MEDIDA. El usuario marca el centro del carro con cinta, lo hace girar y mide cuánto se movió el centro en el marco de la POSICIÓN INICIAL del carro (adelante/atrás y
+ * izquierda/derecha, en mm) y el ángulo que giró. cal_desplazamiento_de_medida lo pasa al marco de mitad de giro y lo divide entre los grados. */
+#define CAL_DESP_UM_MAX      2000   /* cada componente: de -2000 a 2000 µm por grado (2 mm por grado = 72 cm en un giro de 360°) */
+#define CAL_DESP_TOLERANCIA_PCT 30  /* dos repeticiones de la misma prueba no deben diferir más de este % (del mayor vector) */
+#define CAL_DESP_TOLERANCIA_UM  60  /* ...salvo que la diferencia sea chica en términos absolutos: 60 µm por grado son 5 mm en un giro de 90°, menos que lo que se puede medir con cinta (0.5 cm) */
+
+/* Pone el vector de un lado (`lado` = CAL_LADO_*). CAL_ERR_RANGO si algún componente pasa de ±CAL_DESP_UM_MAX; CAL_ERR_ARGUMENTO si el lado no existe. */
+int cal_poner_desplazamiento(CalibracionCarro *cal, int lado, int adelante_um, int derecha_um);
+
+/* Los dos componentes de un lado (µm por grado). Con cal nulo o lado inexistente da 0 y 0. */
+void cal_leer_desplazamiento(const CalibracionCarro *cal, int lado, int *adelante_um, int *derecha_um);
+
+/* De una medida a µm por grado: el carro giró `grados` (de 10 a 360, siempre positivos; el lado dice hacia dónde) y su centro se movió `adelante_mm` (negativo = atrás) y
+ * `derecha_mm` (negativo = izquierda) medidos en el marco de la posición INICIAL. CAL_ERR_DATOS si los grados o los mm salen de rango (mm: ±1000); CAL_ERR_RANGO si el resultado
+ * pasa de ±CAL_DESP_UM_MAX. */
+int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int grados, int *adelante_um, int *derecha_um);
+
+/* Promedia `n` repeticiones (de 2 a CAL_MAX_MUESTRAS) de un mismo lado, vector por vector. CAL_ERR_DIFIEREN si dos de ellas se alejan más de CAL_DESP_TOLERANCIA_PCT % del mayor de los dos
+ * vectores (y más de CAL_DESP_TOLERANCIA_UM en valor absoluto): hay que repetir la prueba. Si hay error no escribe nada en las salidas. */
+int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um);
+
+/* Cuánto se movió el centro durante un giro de `grados` (positivos, hacia `lado`) que empezó con el rumbo `rumbo_inicial` (grados, 0 = arriba, positivo a la derecha). Escribe, si
+ * no son NULL: el desplazamiento en el mapa (dx a la derecha, dy hacia abajo, mm) y el desplazamiento en el marco del carro al empezar el giro (adelante y derecha, mm).
+ * Con la calibración sin desplazamiento (ceros) todo es 0. */
+void cal_desplazamiento_giro(const CalibracionCarro *cal, int lado, int grados, int rumbo_inicial,
+                             int *dx_mm, int *dy_mm, int *adelante_mm, int *derecha_mm);
 
 /* ── Texto (para exportar a un archivo o copiar y pegar) ───────────────── */
 

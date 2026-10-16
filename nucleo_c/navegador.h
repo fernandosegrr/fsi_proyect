@@ -131,10 +131,14 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PARALELO_FIN_MM        50    /* el tramo paralelo termina al menos esto antes del final de la ruta */
 #define NAV_PARALELO_MIN_MM        50    /* un tramo paralelo más corto que esto no se hace */
 
-/* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
- * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada). */
-#define NAV_DIAG_LINEAS             8
-#define NAV_DIAG_LARGO            200
+/* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG y RUTA_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
+ * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada).
+ *  - RUTA_DIAG: una línea al ENVIAR cada comando de movimiento (FORWARD, REVERSE, LEFT o RIGHT) con lo pedido y la duración planeada, y otra al TERMINARLO con la duración real y lo
+ *    hecho (estimado). Sirve para separar «el programa mandó mal el comando» de «el comando fue correcto y el carro no lo hizo» (contacto eléctrico, ver docs/bitacora.md).
+ *  - TURN_DIAG: una línea al terminar cada GIRO con los grados pedidos y hechos y el desplazamiento del centro que se aplicó (ver cal_desplazamiento_giro). */
+#define NAV_DIAG_LINEAS            16
+#define NAV_DIAG_LARGO            240
+#define NAV_MAX_GIROS              16   /* cuántos giros recuerda el navegador de la ruta en curso (para la pantalla de resultado) */
 #define NAV_DIAG_REPETIR_MS       500   /* una línea ESQUIVE_DIAG igual a la anterior se repite como máximo cada tanto */
 
 /* ── Tipos ─────────────────────────────────────────────────────────────── */
@@ -205,6 +209,18 @@ typedef enum {
 #define NAV_ERR_ARGUMENTO     -1   /* puntero nulo o ruta vacía */
 #define NAV_ERR_RUTA          -2   /* la ruta no es válida (ver codigo_trayectoria) */
 #define NAV_ERR_ESTADO        -3   /* esa función no se puede usar en el estado actual */
+
+/* Lo que pasó en un giro (para la pantalla de resultado: «Giro pedido / Giro hecho (estimado)»). */
+typedef struct {
+    int lado;                  /* CAL_LADO_IZQUIERDA o CAL_LADO_DERECHA */
+    int origen;                /* EstadoNav en el que se hizo: SIGUIENDO (la ruta), ESQUIVANDO, REINCORPORANDO (vuelta a la línea) o AYUDA (a mano) */
+    int pedido_grados;         /* grados que pidió el programa (0 si fue a mano) */
+    int hecho_grados;          /* grados que el navegador estima que giró (con la cámara si era confiable, si no por tiempo; incluye lo que sigue girando al frenar) */
+    int plan_ms;               /* duración planeada del comando */
+    int real_ms;               /* duración real */
+    int desp_adelante_mm;      /* desplazamiento del centro durante el giro, en el marco del carro al empezar el giro */
+    int desp_derecha_mm;
+} NavGiro;
 
 typedef struct {
     /* Calibración del carro (arranque, ms por cm, frenado, ms por grado de cada lado). */
@@ -308,7 +324,15 @@ typedef struct {
     int      volver_a_reinc;         /* 1 si lo que detuvo al carro ocurrió mientras avanzaba hacia la línea: al liberarse el frente vuelve a calcular la vuelta */
     int      reinc_pasar_primero;    /* 1 = esta vuelta solo endereza y avanza en paralelo hasta pasar el obstáculo; al terminar calcula la vuelta de verdad */
 
-    /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG): ver navegador_diag_siguiente. */
+    /* Registro del comando de movimiento en curso (RUTA_DIAG) y de los giros de la ruta. */
+    int cmd_pedido;              /* lo que se pidió al empezar el comando: grados (giros) o mm (avance y retroceso); 0 = no se pidió nada (a mano) */
+    int cmd_plan_ms;             /* duración planeada */
+    int cmd_origen;              /* EstadoNav en el que empezó */
+    NavGiro giros[NAV_MAX_GIROS];
+    int     n_giros;             /* giros anotados (como máximo NAV_MAX_GIROS) */
+    int     giros_perdidos;      /* giros que ya no cupieron */
+
+    /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG, TURN_DIAG, RUTA_DIAG): ver navegador_diag_siguiente. */
     char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
     int  diag_escritas, diag_leidas;
     int  diag_firma;             /* resumen de la última línea ESQUIVE_DIAG (para no repetirla en cada cuadro) */
@@ -379,6 +403,14 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
  * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG o ESQUIVE_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick
  * y las manda al log; si no se leen, las más viejas se pierden. */
 int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad);
+
+/* Cuántos giros recuerda de la ruta en curso (de 0 a NAV_MAX_GIROS) y los datos del giro `indice` (0 = el primero). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
+int navegador_cuantos_giros(const Navegador *nav);
+int navegador_giro_datos(const Navegador *nav, int indice, NavGiro *giro);
+
+/* Texto para la pantalla de resultado: una línea por giro, «derecha: pedido 90°, hecho ~88°», lista para mostrar bajo el título «Giro pedido / Giro hecho (estimado)».
+ * Devuelve el largo escrito (0 si no hubo giros). */
+int navegador_texto_giros(const Navegador *nav, char *texto, int capacidad);
 
 /* Frase que dice la causa concreta del ERROR, con los números (por ejemplo "se agotaron los 2 reintentos, el obstáculo seguía en el centro"). Sirve para
  * mostrarla en pantalla. Devuelve el largo escrito, o 0 si no hay error. */
