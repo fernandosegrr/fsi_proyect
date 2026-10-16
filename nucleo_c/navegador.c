@@ -1723,6 +1723,14 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
     if (nav->sondeo_fase != 0) {
         return tick_sondeo(nav, ahora_ms);
     }
+    /* ARRANQUE: si el primer cuadro ya muestra un obstáculo no se decide con él: el carro espera NAV_ARRANQUE_CUADROS cuadros seguidos iguales (o NAV_ARRANQUE_MAX_MS). Con el frente libre arranca de una vez. */
+    if (!nav->arranque_ok && nav->usa_camara && nav->arranque_firma != 0) {
+        if (nav->arranque_iguales < NAV_ARRANQUE_CUADROS && (uint32_t)(ahora_ms - nav->arranque_t0_ms) < (uint32_t)NAV_ARRANQUE_MAX_MS) {
+            return NAV_CMD_STOP;
+        }
+        nav->arranque_ok = 1;
+        diag_obs(nav, "arranque");
+    }
 
     for (;;) {
         vueltas++;
@@ -2172,6 +2180,17 @@ static int reinc_calcular(Navegador *nav)
                     break;   /* ya está en el punto: solo corrige el rumbo */
                 }
                 hay_plan = planear_vuelta(nav, &p0, tx, ty, rumbo_del_tramo(nav, tramo_obj), &plan);
+                if (!hay_plan && s_obj >= distancia_hasta_tramo(nav, nav->n_puntos - 1)) {
+                    /* Al final de la ruta el rumbo puede quedar a NAV_RUMBO_FINAL_TOL grados del último tramo: se prueba con 15 grados de un lado y del otro antes de rendirse. */
+                    int lado_tol;
+
+                    for (lado_tol = -1; lado_tol <= 1 && !hay_plan; lado_tol += 2) {
+                        hay_plan = planear_vuelta(nav, &p0, tx, ty, normalizar_grados(rumbo_del_tramo(nav, tramo_obj) + lado_tol * (NAV_RUMBO_FINAL_TOL * 3 / 4)), &plan);
+                        if (hay_plan) {
+                            nav->reinc_rumbo_tol = NAV_RUMBO_FINAL_TOL;   /* se llega a 15 grados del último tramo y solo se corrige si el error pasa de 20 */
+                        }
+                    }
+                }
                 if (!hay_plan && s_obj >= distancia_hasta_tramo(nav, nav->n_puntos - 1)) {
                     /* El punto es el final de la ruta y no se puede llegar con el rumbo de la línea (el carro ya está muy cerca del final): ahí el rumbo con el que se llega no importa. */
                     hay_plan = planear_hasta_punto(nav, &p0, tx, ty, &plan);

@@ -248,7 +248,7 @@ static void pruebas_antirrebote(void)
     sim_agregar_obstaculo(&sim, 0, 99999, ZONA_IZQUIERDA, 1);
     sim_agregar_obstaculo(&sim, 0, 99999, ZONA_DERECHA, 1);
     correr(12000);
-    caso("frenar desde lejos activado: cercania 1 a los LADOS sigue sin detener", nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1);
+    caso("frenar desde lejos activado: cercania 1 a los LADOS sigue sin detener (el unico STOP de mas es la espera de 4 cuadros iguales al arrancar con algo a la vista)", nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_STOP) <= 2 && nav.esquivadas == 0);
     caso("navegador_poner_frenar_lejos_centro con argumentos malos: error", navegador_poner_frenar_lejos_centro(NULL, 1) == NAV_ERR_ARGUMENTO &&
          navegador_poner_frenar_lejos_centro(&nav, 2) == NAV_ERR_ARGUMENTO);
 
@@ -262,8 +262,8 @@ static void pruebas_antirrebote(void)
     sim_agregar_obstaculo(&sim, 0, 99999, ZONA_IZQUIERDA, 1);
     sim_agregar_obstaculo(&sim, 0, 99999, ZONA_DERECHA, 1);
     correr(12000);
-    caso("obstaculos lejanos a los lados (centro libre) no detienen", nav.estado == NAV_TERMINADO &&
-         sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 1 && nav.esquivadas == 0);
+    caso("obstaculos lejanos a los lados (centro libre) no detienen (el STOP de mas es la espera de 4 cuadros iguales al arrancar con algo a la vista)", nav.estado == NAV_TERMINADO &&
+         sim_contar_cambios_a(&sim, NAV_CMD_STOP) <= 2 && nav.esquivadas == 0);
 }
 
 /* El antirrebote cuenta MILISEGUNDOS: con cuadros cada 80 ms y cada 120 ms el retraso es casi el mismo. */
@@ -2652,6 +2652,172 @@ static void pruebas_frenos_anti_locura(void)
     caso("mas de 3 esquivadas: no se esquiva una cuarta vez; para y pide ayuda (el limite NAV_MAX_ESQUIVADAS)", nav.estado == NAV_AYUDA && nav.esquivadas <= NAV_MAX_ESQUIVADAS);
 }
 
+/* ── Casos: arranque, sondeo del obstáculo fijo y cercanía 3 (J9) ──────────────────────────────────────────────────────────────────────────────
+ * El obstáculo fantasma de la prueba real: la zona izquierda con celdas en cercanía 3 desde el primer cuadro, con el piso despejado. */
+
+typedef struct {
+    int fijo;           /* OBS_DIAG sondeo=sospechoso_fijo */
+    int real;           /* OBS_DIAG sondeo=real */
+    int inicio;         /* OBS_DIAG evento=sondeo_inicio */
+    int arranque;       /* OBS_DIAG evento=arranque */
+    int detiene;        /* OBS_DIAG evento=detiene */
+    int esquiva;        /* OBS_DIAG evento=esquiva */
+    int hex_valido;     /* OBS_DIAG con las tres máscaras de 25 cifras hexadecimales */
+} MarcasArranque;
+
+static MarcasArranque marcas_arr;
+
+static void vigilar_arranque(void)
+{
+    char linea[NAV_DIAG_LARGO];
+
+    while (navegador_diag_siguiente(&nav, linea, sizeof linea)) {
+        marcas_arr.fijo += (strstr(linea, "OBS_DIAG sondeo=sospechoso_fijo") != NULL);
+        marcas_arr.real += (strstr(linea, "OBS_DIAG sondeo=real") != NULL);
+        marcas_arr.inicio += (strstr(linea, "OBS_DIAG evento=sondeo_inicio") != NULL);
+        marcas_arr.arranque += (strstr(linea, "OBS_DIAG evento=arranque") != NULL);
+        marcas_arr.detiene += (strstr(linea, "OBS_DIAG evento=detiene") != NULL);
+        marcas_arr.esquiva += (strstr(linea, "OBS_DIAG evento=esquiva") != NULL);
+        if (strstr(linea, "OBS_DIAG evento=") != NULL) {
+            const char *i = strstr(linea, "mascara_izq="), *c = strstr(linea, "mascara_cen="), *d = strstr(linea, "mascara_der=");
+
+            if (i != NULL && c != NULL && d != NULL && strspn(i + 12, "0123456789abcdef") == 25 && strspn(c + 12, "0123456789abcdef") == 25 && strspn(d + 12, "0123456789abcdef") == 25 &&
+                strstr(linea, "franja_tapada=") != NULL && strstr(linea, "cercania=(") != NULL) {
+                marcas_arr.hex_valido++;
+            }
+        }
+    }
+}
+
+static void correr_arranque(uint32_t limite_ms)
+{
+    uint32_t t0 = sim.t_ms;
+
+    while (sim.t_ms - t0 < limite_ms && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && nav.estado != NAV_AYUDA) {
+        correr(NAV_TICK_MS);
+        vigilar_arranque();
+    }
+}
+
+static void preparar_arranque(void)
+{
+    memset(&marcas_arr, 0, sizeof marcas_arr);
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+}
+
+static void pruebas_arranque_y_sondeo(void)
+{
+    /* 1. Artefacto fijo: zona izquierda, cercanía 3, 40 celdas, siempre igual (no crece al acercarse). El carro avanza 4 cm, ve que no crece y lo ignora: llega sin esquivar. */
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 40);
+    correr_arranque(30000);
+    caso("obstaculo fantasma fijo a la izquierda (cercania 3, 40 celdas, desde el primer cuadro): el carro lo sondea, ve que no crece y llega SIN esquivar (TERMINADO, 0 esquivadas)",
+         nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && marcas_arr.inicio == 1 && marcas_arr.fijo == 1 && marcas_arr.real == 0);
+    caso("... no se movio hasta tener 4 cuadros iguales (200 ms) y el sondeo avanzo solo ~4 cm antes de seguir: el primer FORWARD sale a los 200 ms",
+         sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) >= 150 && sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) <= 300);
+    printf("      primer FORWARD a los %ld ms; arranque=%d inicio=%d fijo=%d hex_valido=%d\n", sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0), marcas_arr.arranque, marcas_arr.inicio, marcas_arr.fijo, marcas_arr.hex_valido);
+    caso("... y se loguea con OBS_DIAG: arranque, inicio del sondeo y sospechoso fijo, con las tres mascaras de 25 cifras hexadecimales, la cercania y la franja",
+         marcas_arr.arranque == 1 && marcas_arr.hex_valido >= 3);
+    caso("... y esa zona queda ignorada en esta corrida (fijo_ignorar) mientras sus celdas no crezcan", nav.fijo_ignorar[ZONA_IZQUIERDA] == 1 && nav.fijo_ignorar[ZONA_CENTRO] == 0);
+
+    /* 2. Obstáculo real al lado: crece al acercarse (6 celdas por cada 10 cm → 2.4 celdas en 4 cm de 40: no alcanza el 15 %...) por eso se da un crecimiento fuerte: 40 celdas más cada 10 cm. */
+    preparar_arranque();
+    sim_agregar_obstaculo_creciente(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 40, 100);
+    correr_arranque(30000);
+    caso("el mismo obstaculo pero REAL (las celdas crecen al avanzar 4 cm): el sondeo lo da por real, se detiene y esquiva (al menos 1 esquivada)",
+         marcas_arr.inicio == 1 && marcas_arr.real == 1 && marcas_arr.fijo == 0 && nav.esquivadas >= 1);
+
+    /* 3. Obstáculo en el centro: no se sondea (el centro no está libre): se detiene y esquiva como siempre. */
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 0, 3000, ZONA_CENTRO, 3, 40);
+    correr_arranque(30000);
+    caso("obstaculo al CENTRO desde el primer cuadro: no se sondea (el centro no esta libre), se detiene y esquiva", marcas_arr.inicio == 0 && marcas_arr.detiene >= 1 && nav.esquivadas >= 1);
+
+    /* 4. Un cuadro suelto de ruido al arrancar no decide. */
+    preparar_arranque();
+    sim_agregar_obstaculo(&sim, 0, 40, ZONA_CENTRO, 3);   /* solo el primer cuadro (t = 0) */
+    correr_arranque(30000);
+    caso("un solo cuadro con obstaculo al arrancar (ruido) NO decide: no se detiene ni esquiva y llega (TERMINADO, 0 esquivadas)", nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && marcas_arr.detiene == 0);
+    preparar_arranque();
+    sim_agregar_obstaculo(&sim, 0, 140, ZONA_CENTRO, 3);   /* los 3 primeros cuadros (0, 50 y 100 ms): todavia no son 4 */
+    correr_arranque(30000);
+    caso("3 cuadros seguidos con obstaculo al arrancar (menos de 4) tampoco deciden", nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && marcas_arr.detiene == 0);
+    preparar_arranque();
+    sim_agregar_obstaculo(&sim, 0, 1500, ZONA_CENTRO, 3);   /* 30 cuadros iguales: es real */
+    correr_arranque(30000);
+    caso("4 cuadros seguidos iguales con obstaculo cerca al centro al arrancar SI deciden: se detiene (evento arranque + detiene en el registro)", marcas_arr.arranque == 1 && marcas_arr.detiene >= 1 && nav.esquivadas >= 1);
+
+    /* 5. Cercanía 3: 2 cuadros seguidos, o 1 si el área es de 60 celdas o más. Ya en marcha (a los 1500 ms), con el centro. */
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 59);   /* 1 cuadro, 59 celdas */
+    correr_arranque(4000);
+    caso("cercania 3 con 59 celdas en UN solo cuadro: NO frena (hacen falta 2 cuadros seguidos)", marcas_arr.detiene == 0 && nav.esquivadas == 0);
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1600, ZONA_CENTRO, 3, 59);   /* 2 cuadros */
+    correr_arranque(4000);
+    caso("cercania 3 con 59 celdas en DOS cuadros seguidos: frena en el segundo (1550 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1550);
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 60);   /* 1 cuadro, 60 celdas */
+    correr_arranque(4000);
+    caso("cercania 3 con 60 celdas en UN solo cuadro: frena al instante (1500 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1500);
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_IZQUIERDA, 3, 30);
+    sim_agregar_obstaculo_celdas(&sim, 1650, 1700, ZONA_IZQUIERDA, 3, 30);   /* dos cuadros sueltos, separados: no son seguidos */
+    correr_arranque(8000);
+    caso("dos cuadros de cercania 3 con pocas celdas pero NO seguidos no frenan", marcas_arr.detiene == 0);
+
+    /* 6. Registro con la mascara de lo que se ve: un cuadro con celdas marcadas en la zona izquierda y la franja tapada. */
+    {
+        ResultadoObstaculos obs;
+        int f, c, t, visto = 0;
+        char linea[NAV_DIAG_LARGO];
+
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        memset(&obs, 0, sizeof obs);
+        obs.columnas = 32;
+        obs.filas = 24;
+        obs.fila_minima_usada = 10;
+        for (f = 19; f <= 23; f++) {
+            for (c = 13; c <= 18; c++) {
+                obs.no_piso[f][c] = 1;
+            }
+        }
+        obs.zona[ZONA_CENTRO].hay_obstaculo = 1;
+        obs.zona[ZONA_CENTRO].cercania = 3;
+        obs.zona[ZONA_CENTRO].celdas = 49;
+        obs.franja_contaminada = 1;
+        obs.franja_tapada_pct = 45;
+        for (t = 0; t < 1500; t += 50) {
+            navegador_tick(&nav, (uint32_t)t, &obs);
+        }
+        while (navegador_diag_siguiente(&nav, linea, sizeof linea)) {
+            if (strstr(linea, "OBS_DIAG evento=detiene") != NULL) {
+                visto = (strstr(linea, "mascara_cen=0000000000000000000000000") == NULL && strstr(linea, "mascara_izq=0000000000000000000000000") != NULL &&
+                         strstr(linea, "mascara_der=0000000000000000000000000") != NULL && strstr(linea, "cercania=(0,3,0)") != NULL && strstr(linea, "celdas=(0,49,0)") != NULL &&
+                         strstr(linea, "franja_tapada=1 franja_pct=45") != NULL);
+            }
+        }
+        caso("OBS_DIAG al detenerse: la mascara hexadecimal de la zona central tiene celdas (y la de la izquierda y la derecha no), con cercania (0,3,0), celdas (0,49,0) y la franja tapada 45 %", visto);
+    }
+
+    /* 7. Hueco de video: 700 ms. */
+    preparar(RECTA, N(RECTA));
+    {
+        ResultadoObstaculos libre;
+
+        memset(&libre, 0, sizeof libre);
+        correr(1500);
+        navegador_tick(&nav, sim.t_ms, &libre);
+        navegador_tick(&nav, sim.t_ms + 650, NULL);
+        caso("hueco de video de 650 ms: sigue (NAV_MAX_HUECO_VIDEO_MS = 700)", nav.estado != NAV_ERROR && NAV_MAX_HUECO_VIDEO_MS == 700);
+        navegador_tick(&nav, sim.t_ms + 760, NULL);
+        caso("hueco de video de 760 ms: ERROR sin video", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO);
+    }
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -2659,6 +2825,7 @@ int main(void)
     pruebas_plan_pivote();
     pruebas_final_de_ruta();
     pruebas_frenos_anti_locura();
+    pruebas_arranque_y_sondeo();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

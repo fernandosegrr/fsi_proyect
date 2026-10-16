@@ -285,6 +285,7 @@ class CamaraObstaculos(
         if (hilo != null || enSesionVideo) {
             return true   // ya está abierta o abriéndose
         }
+        CalibracionGuardada(contexto).aplicarMascaraAlDetector()   // los artefactos fijos de la imagen que se calibraron en «Calibrar visión» se ignoran en cualquier pantalla con cámara
         val configVision = ConfigVision(contexto)
         if (forzarVideoCarro || configVision.fuenteCarro) {
             return abrirVideoCarro(configVision.urlVideoCarro)

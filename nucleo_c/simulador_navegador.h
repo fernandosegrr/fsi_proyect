@@ -28,6 +28,9 @@ typedef struct {
     uint32_t t_fin_ms;
     int zona;        /* ZONA_IZQUIERDA, ZONA_CENTRO o ZONA_DERECHA */
     int cercania;    /* 1 a 3 */
+    int crece_por_10cm;   /* un obstáculo REAL crece al acercarse: cuántas celdas se agregan por cada 10 cm que el carro avanza desde que el evento se ve por primera vez (0 = fijo: un artefacto de la imagen) */
+    long base_recorrido_cmm;   /* lo que había avanzado el carro cuando el evento se vio por primera vez (lo llena el simulador) */
+    int visto;                 /* 1 si el evento ya se vio alguna vez (lo llena el simulador) */
     int celdas;      /* cuántas celdas de obstáculo ve el detector en esa zona (por defecto NAV_CERC3_AREA_INMEDIATA = 60: un solo cuadro en cercanía 3 frena) */
 } EventoObstaculo;
 
@@ -74,6 +77,7 @@ typedef struct {
     long giro_h0_cgrados;    /* rumbo con el que empezó el comando de giro actual */
     long giro_acum_cgrados;  /* cuánto lleva girado en este comando (valor absoluto, con lo que sigue girando al frenar) */
     long desp_x_cmm, desp_y_cmm;   /* cuánto se ha movido ya el centro por ese giro */
+    long recorrido_cmm;            /* cuánto ha avanzado el carro hacia adelante en total (centésimas de mm): hace crecer los obstáculos reales */
 
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];
@@ -97,6 +101,9 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados);
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania);
 
 /* Igual que sim_agregar_obstaculo pero con el número de celdas de obstáculo de la zona (sirve para probar la elección del lado). */
+/* Un obstáculo que crece al acercarse: igual que sim_agregar_obstaculo_celdas pero con `crece_por_10cm` celdas más por cada 10 cm que el carro avanza hacia él (un objeto real; con 0 es un artefacto fijo). */
+int sim_agregar_obstaculo_creciente(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int crece_por_10cm);
+
 int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas);
 
 /* Corre el ciclo durante `duracion_ms`. Devuelve el último comando. */

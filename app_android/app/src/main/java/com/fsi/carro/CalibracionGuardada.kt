@@ -43,7 +43,8 @@ enum class Parte(val porPerfil: Boolean, val dependeDePilas: Boolean) {
     GIRO_VISUAL(false, false),
     DESPLAZAMIENTO(true, true),
     GIRO_90(true, true),
-    RECTA(true, true)
+    RECTA(true, true),
+    VISION(false, false)   // la máscara de artefactos fijos de la imagen («Calibrar visión»)
 }
 
 /**
@@ -103,6 +104,7 @@ class CalibracionGuardada(contexto: Context) {
     companion object {
         const val ETIQUETA = "CALIBRACION"
         const val NOMBRE_ARCHIVO = "calibracion.txt"
+        const val MAX_COPIAS = 3
     }
 
     private val aplicacion = contexto.applicationContext
@@ -326,8 +328,114 @@ class CalibracionGuardada(contexto: Context) {
         Log.i(ETIQUETA, "calibración borrada: se usan los valores por defecto")
     }
 
+    // ── Visión: la máscara de artefactos fijos de la imagen (J9) ──
+
+    /** La máscara guardada: 25 cifras hexadecimales de 10 x 10 celdas ("" = no hay). */
+    fun mascaraVisionHex(): String = preferencias.getString("vision_mascara_hex", "") ?: ""
+
+    /** El informe de la última calibración de la visión (números en texto; nunca una imagen). */
+    fun informeVision(): String = preferencias.getString("vision_informe", "") ?: ""
+
+    /** Cuántas celdas enmascaradas (de 100) y si la visión salió sospechosa. */
+    fun celdasEnmascaradas(): Int = preferencias.getInt("vision_celdas", 0)
+    fun visionSospechosa(): Boolean = preferencias.getInt("vision_sospechosa", 0) != 0
+
+    /** true si la visión se calibró alguna vez (aunque no haya quedado ninguna celda enmascarada). */
+    fun hayVision(): Boolean = fecha(Parte.VISION) > 0L || mascaraVisionHex().isNotEmpty()
+
+    fun guardarVision(hex: String, informe: String, celdas: Int, sospechosa: Int) {
+        preferencias.edit().putString("vision_mascara_hex", hex).putString("vision_informe", informe).putInt("vision_celdas", celdas).putInt("vision_sospechosa", sospechosa).apply()
+        marcarCalibrado(Parte.VISION)
+        Log.i(ETIQUETA, "visión calibrada: $celdas celdas enmascaradas, sospechosa=$sospechosa, máscara=$hex")
+    }
+
+    /** «Restaurar»: la visión vuelve a no tener máscara. */
+    fun restaurarVision() {
+        preferencias.edit().remove("vision_mascara_hex").remove("vision_informe").remove("vision_celdas").remove("vision_sospechosa").remove(claveFecha(Parte.VISION, null)).apply()
+        Log.i(ETIQUETA, "visión restaurada: sin máscara")
+    }
+
+    /** Pone la máscara guardada en el detector (la pantalla de calibración de la visión la apaga mientras captura). */
+    fun aplicarMascaraAlDetector() {
+        val codigo = ObstaculosNativa.ponerMascara(mascaraVisionHex())
+        if (codigo != 0) {
+            Log.w(ETIQUETA, "la máscara guardada no es válida (código $codigo): se usa sin máscara")
+            ObstaculosNativa.ponerMascara("")
+        }
+    }
+
+    // ── Restaurar por parte, copias y «Deshacer» (J9) ──
+
+    private val copias = aplicacion.getSharedPreferences("calibracion_copias", Context.MODE_PRIVATE)
+
+    /** Guarda una copia de TODO lo guardado (se conservan las últimas MAX_COPIAS) ANTES de borrar algo: `motivo` dice qué se va a borrar. */
+    fun guardarCopia(motivo: String) {
+        val texto = StringBuilder()
+        for ((clave, valor) in preferencias.all) {
+            val tipo = when (valor) {
+                is Boolean -> 'b'
+                is Int -> 'i'
+                is Long -> 'l'
+                is Float -> 'f'
+                else -> 's'
+            }
+            texto.append(tipo).append('\t').append(clave).append('\t').append(valor.toString().replace("\\", "\\\\").replace("\n", "\\n")).append('\n')
+        }
+        val edicion = copias.edit()
+        for (i in MAX_COPIAS - 1 downTo 1) {
+            edicion.putString("copia_$i", copias.getString("copia_${i - 1}", null)).putString("motivo_$i", copias.getString("motivo_${i - 1}", null)).putLong("hora_$i", copias.getLong("hora_${i - 1}", 0L))
+        }
+        edicion.putString("copia_0", texto.toString()).putString("motivo_0", motivo).putLong("hora_0", System.currentTimeMillis()).apply()
+        Log.i(ETIQUETA, "copia de la calibración guardada antes de borrar: $motivo")
+    }
+
+    /** Lo que borró la última copia (para el aviso «Deshacer»), o null si no hay copia. */
+    fun motivoUltimaCopia(): String? = if (copias.getString("copia_0", null) != null) copias.getString("motivo_0", "") else null
+
+    /** Los motivos de las copias guardadas, de la más nueva a la más vieja (máximo MAX_COPIAS). */
+    fun copiasGuardadas(): List<String> = (0 until MAX_COPIAS).mapNotNull { i -> if (copias.getString("copia_$i", null) != null) copias.getString("motivo_$i", "") else null }
+
+    /** «Deshacer»: vuelve todo a como estaba en la última copia y la quita de la lista. Devuelve false si no había copia. */
+    fun deshacer(): Boolean {
+        val texto = copias.getString("copia_0", null) ?: return false
+        val nuevo = preferencias.edit().clear()
+        for (linea in texto.split('\n')) {
+            val partes = linea.split('\t', limit = 3)
+            if (partes.size < 3) continue
+            val valor = partes[2].replace("\\n", "\n").replace("\\\\", "\\")
+            when (partes[0]) {
+                "b" -> nuevo.putBoolean(partes[1], valor == "true")
+                "i" -> nuevo.putInt(partes[1], valor.toIntOrNull() ?: 0)
+                "l" -> nuevo.putLong(partes[1], valor.toLongOrNull() ?: 0L)
+                "f" -> nuevo.putFloat(partes[1], valor.toFloatOrNull() ?: 0f)
+                else -> nuevo.putString(partes[1], valor)
+            }
+        }
+        nuevo.apply()
+        val edicion = copias.edit()
+        for (i in 0 until MAX_COPIAS - 1) {
+            edicion.putString("copia_$i", copias.getString("copia_${i + 1}", null)).putString("motivo_$i", copias.getString("motivo_${i + 1}", null)).putLong("hora_$i", copias.getLong("hora_${i + 1}", 0L))
+        }
+        edicion.remove("copia_${MAX_COPIAS - 1}").remove("motivo_${MAX_COPIAS - 1}").remove("hora_${MAX_COPIAS - 1}").apply()
+        Log.i(ETIQUETA, "calibración deshecha: vuelve a como estaba antes de borrar")
+        return true
+    }
+
+    /** Restaurar el desplazamiento de UN lado y perfil (el otro lado NO se toca). */
+    fun restaurarDesplazamientoLado(perfil: ControlLogica.Perfil, lado: Int) {
+        val edicion = preferencias.edit()
+        edicion.remove(claveDespAdelante(perfil, lado)).remove(claveDespDerecha(perfil, lado)).remove(claveGiroPruebaDesp(perfil, lado)).remove(clavePocaPrecisionDesp(perfil, lado)).remove(claveDespGrados(perfil, lado))
+        val (a, d) = desplazamiento(perfil, -lado)
+        if (a == 0 && d == 0) {
+            edicion.remove(claveFecha(Parte.DESPLAZAMIENTO, perfil))   // ya no queda ningún lado medido
+        }
+        edicion.apply()
+        Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} ${if (lado < 0) "izquierda" else "derecha"} restaurado a 0 (el otro lado no se tocó)")
+    }
+
     /** Le entrega la calibración guardada (con el factor de giro y el desplazamiento del perfil AUTO) al navegador, para la próxima ruta. */
     fun aplicarAlNavegador() {
+        aplicarMascaraAlDetector()
         val codigo = NavegadorNativa.ponerCalibracion(leerAjustada(ControlLogica.Perfil.AUTO))
         if (codigo != 0) {
             Log.w(ETIQUETA, "el navegador rechazó la calibración (código $codigo)")

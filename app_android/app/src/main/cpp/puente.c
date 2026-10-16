@@ -25,6 +25,7 @@
 #include <string.h>
 #include "trayectoria.h"
 #include "obstaculos.h"
+#include "mascara_vision.h"
 #include "navegador.h"
 #include "calibracion.h"
 #include "fusion.h"
@@ -311,6 +312,14 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
  *   [40] celdas marcadas en la zona de avance  [41] motivo (bits OBS_MOTIVO_*)
  *   [42...] la máscara de celdas "no piso" (1 = no piso), fila por fila (índice 42 + fila * columnas + columna).
  * Si hay error, el arreglo trae solo el encabezado (con el código en [0]). */
+/* ── «Calibrar visión» (mascara_vision.h): la máscara de artefactos de la imagen y lo último que vio el detector ──────────────────────────────── */
+
+static MascaraVision mascara_vision_global;        /* la máscara guardada (la pone Kotlin con ponerMascara) */
+static int mascara_vision_activa = 0;              /* 0 mientras se está calibrando la visión (no debe haber máscara) o si no hay ninguna */
+/* Lo último que analizó el detector: el navegador lo usa para escribir OBS_DIAG con la máscara de cada zona (solo registro). */
+static int ultimo_filas = 0, ultimo_columnas = 0, ultimo_fila_minima = 0, ultimo_franja_contaminada = 0, ultimo_franja_pct = 0, ultimo_franja_ignorada = 0;
+static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
+
 static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray celdas, jint columnas, jint filas,
                                        jint ancho, jint alto, jintArray config,
                                        jboolean avanzando, jlong ahora_ms)
@@ -361,6 +370,9 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         cfg.mejoras_piso = 1;
         cfg.piso_fijo = 0;
     }
+    if (mascara_vision_activa) {
+        masc_aplicar_a_config(&mascara_vision_global, &cfg);   /* los artefactos fijos de la imagen se ignoran */
+    }
     if (!modelo_inicializado || reiniciar_modelo) {
         obstaculos_modelo_iniciar(&modelo_global);
         modelo_inicializado = 1;
@@ -405,6 +417,13 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
             }
         }
         largo = ENTEROS_ENCABEZADO_DETALLE + resultado.filas * resultado.columnas;
+        ultimo_filas = resultado.filas;
+        ultimo_columnas = resultado.columnas;
+        ultimo_fila_minima = resultado.fila_minima_usada;
+        ultimo_franja_contaminada = resultado.franja_contaminada;
+        ultimo_franja_ignorada = resultado.franja_ignorada;
+        ultimo_franja_pct = resultado.franja_tapada_pct;
+        memcpy(ultimo_no_piso, resultado.no_piso, sizeof ultimo_no_piso);
     }
 
     arreglo = (*env)->NewIntArray(env, largo);
@@ -2067,6 +2086,142 @@ Java_com_fsi_carro_NavegadorNativa_aporteVisual(JNIEnv *env, jobject objeto, jin
     navegador_aporte_visual(obtener_navegador(), (int)giro_x10, (int)dt_ms, confiable ? 1 : 0);
 }
 
+/* Pone la máscara de artefactos (25 cifras hexadecimales; vacío = sin máscara). Devuelve 0 o MASC_ERR_TEXTO. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_ObstaculosNativa_ponerMascara(JNIEnv *env, jobject objeto, jstring hex)
+{
+    const char *texto;
+    int codigo;
+
+    (void)objeto;
+    if (hex == NULL) {
+        mascara_vision_activa = 0;
+        return MASC_OK;
+    }
+    texto = (*env)->GetStringUTFChars(env, hex, NULL);
+    if (texto == NULL) {
+        return MASC_ERR_ARGUMENTO;
+    }
+    if (texto[0] == '\0') {
+        memset(&mascara_vision_global, 0, sizeof mascara_vision_global);
+        mascara_vision_activa = 0;
+        codigo = MASC_OK;
+    } else {
+        codigo = masc_de_hex(texto, &mascara_vision_global);
+        mascara_vision_activa = (codigo == MASC_OK && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
+    }
+    (*env)->ReleaseStringUTFChars(env, hex, texto);
+    return codigo;
+}
+
+/* Enciende o apaga la máscara sin borrarla (se apaga mientras se calibra la visión: ahí el detector debe verlo todo). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_ObstaculosNativa_activarMascara(JNIEnv *env, jobject objeto, jboolean activa)
+{
+    (void)env;
+    (void)objeto;
+    mascara_vision_activa = (activa && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
+}
+
+/* Suma un cuadro (el detalle de ObstaculosNativa.analizarConfig) a un lugar de la calibración de la visión. `lugar` es un arreglo de 1 + 100 enteros: [0] cuadros y [1..100] las marcas
+ * de cada celda gruesa. Devuelve 0 o un código de mascara_vision.h. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_ObstaculosNativa_mascaraLugarCuadro(JNIEnv *env, jobject objeto, jintArray lugar, jintArray detalle)
+{
+    LugarMascara l;
+    static ResultadoObstaculos r;
+    jint cab[ENTEROS_ENCABEZADO_DETALLE];
+    jint marcas[1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS];
+    jsize largo;
+    int i, fila, columna, codigo;
+    jint *celdas;
+
+    (void)objeto;
+    if (lugar == NULL || detalle == NULL || (*env)->GetArrayLength(env, lugar) < 1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS) {
+        return MASC_ERR_ARGUMENTO;
+    }
+    largo = (*env)->GetArrayLength(env, detalle);
+    if (largo < ENTEROS_ENCABEZADO_DETALLE) {
+        return MASC_ERR_ARGUMENTO;
+    }
+    (*env)->GetIntArrayRegion(env, detalle, 0, ENTEROS_ENCABEZADO_DETALLE, cab);
+    memset(&r, 0, sizeof r);
+    r.columnas = (int)cab[10];
+    r.filas = (int)cab[11];
+    r.fila_minima_usada = (int)cab[12];
+    if (r.columnas < OBS_MIN_COLUMNAS || r.filas < OBS_MIN_FILAS || r.columnas > OBS_MAX_COLUMNAS || r.filas > OBS_MAX_FILAS || largo < ENTEROS_ENCABEZADO_DETALLE + r.filas * r.columnas) {
+        return MASC_ERR_ARGUMENTO;
+    }
+    celdas = (*env)->GetIntArrayElements(env, detalle, NULL);
+    if (celdas == NULL) {
+        return MASC_ERR_ARGUMENTO;
+    }
+    for (fila = 0; fila < r.filas; fila++) {
+        for (columna = 0; columna < r.columnas; columna++) {
+            r.no_piso[fila][columna] = (unsigned char)(celdas[ENTEROS_ENCABEZADO_DETALLE + fila * r.columnas + columna] ? 1 : 0);
+        }
+    }
+    (*env)->ReleaseIntArrayElements(env, detalle, celdas, JNI_ABORT);
+    (*env)->GetIntArrayRegion(env, lugar, 0, 1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS, marcas);
+    masc_lugar_iniciar(&l);
+    l.cuadros = (int)marcas[0];
+    for (i = 0; i < OBS_MASC_FILAS * OBS_MASC_COLUMNAS; i++) {
+        l.marcas[i / OBS_MASC_COLUMNAS][i % OBS_MASC_COLUMNAS] = (int)marcas[1 + i];
+    }
+    codigo = masc_lugar_cuadro(&l, &r);
+    if (codigo == MASC_OK) {
+        marcas[0] = l.cuadros;
+        for (i = 0; i < OBS_MASC_FILAS * OBS_MASC_COLUMNAS; i++) {
+            marcas[1 + i] = l.marcas[i / OBS_MASC_COLUMNAS][i % OBS_MASC_COLUMNAS];
+        }
+        (*env)->SetIntArrayRegion(env, lugar, 0, 1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS, marcas);
+    }
+    return codigo;
+}
+
+static void lugar_de_arreglo(JNIEnv *env, jintArray arreglo, LugarMascara *l)
+{
+    jint marcas[1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS];
+    int i;
+
+    masc_lugar_iniciar(l);
+    if (arreglo == NULL || (*env)->GetArrayLength(env, arreglo) < 1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS) {
+        return;
+    }
+    (*env)->GetIntArrayRegion(env, arreglo, 0, 1 + OBS_MASC_FILAS * OBS_MASC_COLUMNAS, marcas);
+    l->cuadros = (int)marcas[0];
+    for (i = 0; i < OBS_MASC_FILAS * OBS_MASC_COLUMNAS; i++) {
+        l->marcas[i / OBS_MASC_COLUMNAS][i % OBS_MASC_COLUMNAS] = (int)marcas[1 + i];
+    }
+}
+
+/* Calcula la máscara con los tres lugares. Devuelve texto: la primera línea es «OK <hex> <enmascaradas> <sospechosa>» (o «ERROR <código>») y lo que sigue es el informe en español
+ * (cuadrícula de números, máscara, «depende del lugar», visión sospechosa). Nunca una imagen. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_ObstaculosNativa_mascaraCalcular(JNIEnv *env, jobject objeto, jintArray l1, jintArray l2, jintArray l3)
+{
+    LugarMascara lugares[MASC_LUGARES];
+    MascaraVision m;
+    InformeMascara informe;
+    static char texto[4000];
+    char hex[MASC_HEX_LARGO + 1];
+    int codigo, largo;
+
+    (void)objeto;
+    lugar_de_arreglo(env, l1, &lugares[0]);
+    lugar_de_arreglo(env, l2, &lugares[1]);
+    lugar_de_arreglo(env, l3, &lugares[2]);
+    codigo = masc_calcular(lugares, &m, &informe);
+    if (codigo != MASC_OK) {
+        snprintf(texto, sizeof texto, "ERROR %d", codigo);
+        return (*env)->NewStringUTF(env, texto);
+    }
+    masc_a_hex(&m, hex, (int)sizeof hex);
+    largo = snprintf(texto, sizeof texto, "OK %s %d %d\n", hex, informe.enmascaradas, informe.sospechosa);
+    masc_texto_informe(&m, &informe, texto + largo, (int)sizeof texto - largo);
+    return (*env)->NewStringUTF(env, texto);
+}
+
 /* Un tick. `obs` es el arreglo de 10 enteros de ObstaculosNativa.analizar (se usan los
  * índices 1 a 6: hay/cercanía de izquierda, centro y derecha); solo se mira si `hay_cuadro`
  * es verdadero. Devuelve el comando: 0 STOP, 1 FORWARD, 2 REVERSE, 3 LEFT, 4 RIGHT. */
@@ -2090,6 +2245,15 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].celdas_corredor = 0;
             resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
             resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
+        }
+        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector, solo para el registro OBS_DIAG */
+            resultado.filas = ultimo_filas;
+            resultado.columnas = ultimo_columnas;
+            resultado.fila_minima_usada = ultimo_fila_minima;
+            resultado.franja_contaminada = ultimo_franja_contaminada;
+            resultado.franja_ignorada = ultimo_franja_ignorada;
+            resultado.franja_tapada_pct = ultimo_franja_pct;
+            memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
         }
         cuadro = &resultado;
     }

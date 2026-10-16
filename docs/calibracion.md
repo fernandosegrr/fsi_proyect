@@ -364,3 +364,25 @@ El giro es de pivote (un lado gira, el otro queda fijo), así que el centro del 
 
 La izquierda y la derecha de este carro **no son espejo**: medido a 90° la derecha da (15 cm adelante, 16.5 de lado, R = 15.8 cm) y la izquierda, a 90° y a 180°, R = 8.7 a 9 cm. Con la derecha como espejo de la izquierda el navegador se equivocó 12 cm hacia adelante y
 4.8 de lado por cada giro de 90° a la derecha. Mide **los dos lados**. «Restaurar valor por defecto» borra el desplazamiento de los DOS lados: no lo uses para rehacer uno solo (se perdió la derecha medida a las 15:03 y las cinco corridas usaron el espejo).
+
+## Calibrar visión: la máscara de artefactos fijos de la imagen (J9, 16 oct)
+
+Para qué: en la prueba real del 16 oct la zona izquierda marcaba obstáculo desde el primer cuadro (cercanía 3, 25 a 57 celdas) con el piso despejado. Si es un **artefacto de la imagen** (viñeteo, una parte del carro) marca igual en
+cualquier lugar; si es algo **del lugar**, solo ahí. Esta parte de la calibración (tarjeta «Visión (artefactos fijos de la imagen)», módulo, con fecha) lo separa.
+
+- **Cómo:** pon el carro en piso DESPEJADO en 3 lugares distintos y toca «Capturar el lugar N de 3» en cada uno (la cámara se abre sola; no hace falta el carro conectado). En cada lugar toma 20 cuadros y cuenta, por celda gruesa de
+  10 x 10 (la imagen entera), en cuántos cuadros marcó «no piso» (una celda gruesa cuenta si el 50 % o más de las celdas del detector que la forman lo están, en la zona de avance). Mientras se calibra, la máscara guardada se apaga.
+- **Artefacto = celda marcada en 80 % o más de los cuadros en los TRES lugares.** Esas celdas se enmascaran: el detector las trata como piso (y, como la fusión color/modelo parte de las zonas del detector, también la fusión las ignora).
+- **Límites:** a lo más 20 % de las celdas (20 de 100) y NUNCA las 2 filas más cercanas de las 2 columnas centrales (lo que el carro va a chocar). Si se pasa, el informe dice **«VISIÓN SOSPECHOSA»**: con más de 20 % no se enmascara nada; si el
+  artefacto cae en las 2 filas cercanas del centro esas celdas no se enmascaran.
+- **«Depende del lugar»:** una zona que marca en algún lugar pero no en los tres NO se enmascara; el informe lista sus celdas con el % de cada lugar (por ejemplo 0 %, 100 %, 0 %).
+- **Qué se guarda y se ve:** la máscara en 25 cifras hexadecimales (10 x 10), la cuadrícula de 10 x 10 números (% de cuadros marcada, el menor de los tres lugares), las celdas enmascaradas y la fecha. Nunca una imagen.
+- **Dónde vale:** en cualquier pantalla con cámara (se aplica al abrirla) y en las rutas (`aplicarAlNavegador`). Código: `mascara_vision.c/h`, `ConfigObstaculos.mascara`, JNI `ObstaculosNativa.ponerMascara/mascaraLugarCuadro/mascaraCalcular`.
+- **La franja de referencia** del piso: si lleva tapada más del 30 % de los últimos 20 cuadros (y ya hay 10), el detector deja de reaprender o agregar colores con ella y sigue con el último modelo (en la prueba real estaba tapada 40 a 60 %).
+
+### «Restaurar» por parte, copias y «Deshacer» (J9)
+
+Antes «Restaurar» del desplazamiento borraba los DOS lados (el 16 oct se perdió así la derecha medida). Ahora:
+- el desplazamiento se restaura **de UN lado** (el que se está editando); el otro no se toca;
+- todo «Restaurar» (desplazamiento, giro de 90°, recta, visión) y «Borrar la calibración» **preguntan antes y nombran exactamente lo que borran y lo que no tocan**;
+- antes de borrar se guarda una **copia de todo lo guardado** (se conservan las últimas 3) y queda un aviso **«Deshacer» de 10 segundos**; `CalibracionGuardada.guardarCopia/deshacer/copiasGuardadas`.

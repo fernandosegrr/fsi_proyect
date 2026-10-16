@@ -73,6 +73,12 @@
     <string name="cal_chip_sin">Sin calibrar</string>
     <string name="cal_chip_ajustado">Ajustado</string>
     <string name="cal_chip_poca_precision">Poca precisión</string>
+    <string name="cal_parte_vision">Visión (artefactos fijos de la imagen)</string>
+    <string name="cal_t_vision">Calibrar la visión</string>
+    <string name="cal_i_vision">Pon el carro en piso DESPEJADO (sin nada enfrente ni a los lados) y toca «Capturar». Toma unos 20 cuadros y cuenta qué celdas de la imagen marcan «obstáculo». Hazlo en 3 lugares distintos del piso (cambia de cuarto o de loseta). Lo que marca igual en los tres lugares es un artefacto de la imagen (viñeteo, una parte del carro) y se ignora; lo que marca solo en uno es del lugar y NO se ignora.</string>
+    <string name="cal_n_vision">No se guarda ninguna imagen: solo números. Nunca se ignora lo que está justo delante del carro (las 2 filas más cercanas de las 2 columnas del centro) ni más del 20 % de las celdas: si pasa, la app avisa «visión sospechosa».</string>
+    <string name="cal_b_vision_n">Capturar el lugar %1$d de 3</string>
+    <string name="cal_b_vision_listo">Visión calibrada</string>
     <string name="cal_izq_espejo">Izquierda: estimada como espejo de la derecha, mídela</string>
     <string name="cal_der_espejo">Derecha: estimada como espejo de la izquierda, mídela</string>
     <string name="cal_chip_sin_fecha">Medido (sin fecha)</string>

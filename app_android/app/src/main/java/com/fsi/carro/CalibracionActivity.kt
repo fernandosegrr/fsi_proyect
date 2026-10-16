@@ -55,6 +55,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.TextInputLayout
 import java.util.Locale
@@ -83,7 +84,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     /** Las pantallas: la lista y cada paso de una prueba. */
-    private enum class Paso { LISTA, REACCION, ARRANQUE, AVANCE, FRENADO, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, DESPLAZ, RESUMEN, GIRO_90, RECTA }
+    private enum class Paso { LISTA, REACCION, ARRANQUE, AVANCE, FRENADO, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, DESPLAZ, RESUMEN, GIRO_90, RECTA, VISION }
 
     /** Los pasos de cada parte, en orden. Las partes que se ajustan de a poco (desplazamiento, giro de 90°, recta) guardan en cada repetición y no tienen RESUMEN. */
     private fun secuencia(p: Parte): List<Paso> = when (p) {
@@ -95,6 +96,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Parte.RETROCESO -> listOf(Paso.RETROCESO, Paso.RESUMEN)
         Parte.GIRO_VISUAL -> listOf(Paso.GIRO_VISUAL, Paso.RESUMEN)
         Parte.DESPLAZAMIENTO -> listOf(Paso.DESPLAZ)
+        Parte.VISION -> listOf(Paso.VISION)
         Parte.GIRO_90 -> listOf(Paso.GIRO_90)
         Parte.RECTA -> listOf(Paso.RECTA)
     }
@@ -243,7 +245,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private val tareaReloj = object : Runnable {
         override fun run() {
             actualizarChipYAviso()
-            if (paso == Paso.GIRO_VISUAL && camara.abierta != camaraAbiertaMostrada && !ocupado()) {
+            if (usaCamara() && camara.abierta != camaraAbiertaMostrada && !ocupado()) {
                 mostrarPaso()
             }
             reloj.postDelayed(this, 500)
@@ -423,6 +425,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         "DESPLAZ", "DESPLAZAMIENTO" -> Parte.DESPLAZAMIENTO
         "GIRO_90" -> Parte.GIRO_90
         "RECTA" -> Parte.RECTA
+        "VISION" -> Parte.VISION
         else -> null
     }
 
@@ -433,7 +436,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         logica.pedirPerfil(perfilEsperado())   // la calibración en el perfil AUTO (210), que es la velocidad a la que andan las rutas; el ajuste fino puede usar también MANUAL
         reloj.removeCallbacks(tareaReloj)
         reloj.post(tareaReloj)
-        if (paso == Paso.GIRO_VISUAL) {
+        if (usaCamara()) {
             abrirCamaraSiHayPermiso()
         }
         mostrarConexion()
@@ -441,6 +444,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             armarLista()   // por si algo cambió mientras la pantalla no estaba a la vista
         }
     }
+
+    /** Los pasos que usan la cámara del teléfono: la prueba del giro visual y «Calibrar visión». */
+    private fun usaCamara() = paso == Paso.GIRO_VISUAL || paso == Paso.VISION
 
     /** Abre la cámara (pidiendo el permiso si falta) para la prueba del giro visual. */
     private fun abrirCamaraSiHayPermiso() {
@@ -454,13 +460,14 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     override fun onRequestPermissionsResult(codigo: Int, permisos: Array<out String>, resultados: IntArray) {
         super.onRequestPermissionsResult(codigo, permisos, resultados)
-        if (codigo == VisionActivity.PEDIDO_PERMISO_CAMARA && resultados.isNotEmpty() && resultados[0] == PackageManager.PERMISSION_GRANTED && paso == Paso.GIRO_VISUAL) {
+        if (codigo == VisionActivity.PEDIDO_PERMISO_CAMARA && resultados.isNotEmpty() && resultados[0] == PackageManager.PERMISSION_GRANTED && usaCamara()) {
             abrirCamaraSiHayPermiso()
             mostrarPaso()
         }
     }
 
     override fun onPause() {
+        guardada.aplicarMascaraAlDetector()   // por si se salió de «Calibrar visión» sin terminar: la máscara guardada vuelve a valer
         camara.cerrar()   // la cámara se libera al salir
         pararTodo("pantalla en segundo plano")   // STOP (logica.parar) y se cancelan las pruebas en curso
         reloj.removeCallbacks(tareaReloj)
@@ -626,10 +633,13 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         if (paso == Paso.RESUMEN) {
             calcularResultado()
         }
-        if (paso == Paso.GIRO_VISUAL) {
+        if (usaCamara()) {
             abrirCamaraSiHayPermiso()
         } else {
             camara.cerrar()
+        }
+        if (paso == Paso.VISION) {
+            iniciarCalibracionVision()   // la máscara se apaga mientras se captura: el detector tiene que verlo todo
         }
         if (paso == Paso.RECTA) {
             intentosRecta = 0
@@ -641,6 +651,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     private fun volverALista() {
+        guardada.aplicarMascaraAlDetector()   // si se estaba calibrando la visión, vuelve a valer la máscara guardada
+        visionCapturando = false
         parte = null
         todo = null
         secuenciaActual = emptyList()
@@ -755,6 +767,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantasGiro() >= totalGiro()
         Paso.RETROCESO -> cuantas(retroceso) >= totalPruebas()
         Paso.GIRO_VISUAL -> fovReal.isNotEmpty()
+        Paso.VISION -> visionHechos >= 3
         Paso.DESPLAZ, Paso.GIRO_90, Paso.RECTA -> true
     }
 
@@ -810,6 +823,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Parte.DESPLAZAMIENTO -> R.string.cal_parte_desplazamiento
         Parte.GIRO_90 -> R.string.cal_parte_giro_90
         Parte.RECTA -> R.string.cal_parte_recta
+        Parte.VISION -> R.string.cal_parte_vision
     })
 
     /** La escena de la ilustración que corresponde al paso actual. */
@@ -822,7 +836,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         Paso.GIRO_IZQ -> IlustracionCalibracion.Escena.GIRO_IZQ
         Paso.GIRO_DER -> IlustracionCalibracion.Escena.GIRO_DER
         Paso.RETROCESO -> IlustracionCalibracion.Escena.RETROCESO
-        Paso.GIRO_VISUAL -> IlustracionCalibracion.Escena.GIRO_VISUAL
+        Paso.GIRO_VISUAL, Paso.VISION -> IlustracionCalibracion.Escena.GIRO_VISUAL
         Paso.DESPLAZ -> IlustracionCalibracion.Escena.DESPLAZAMIENTO
         Paso.RESUMEN -> IlustracionCalibracion.Escena.RESUMEN
         Paso.GIRO_90 -> IlustracionCalibracion.Escena.GIRO_90
@@ -877,6 +891,13 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Parte.RETROCESO -> {
                 val medido = medidos and CalibracionNativa.MEDIDO_ATRAS != 0
                 EstadoParte(medido, if (medido) fmt("%.1f ms por cm hacia atrás", cal[CalibracionNativa.CAL_MS_POR_CM_ATRAS_X10] / 10.0) else "Sin medir (usa la velocidad de avance)", lineaFecha(p, medido))
+            }
+            Parte.VISION -> {
+                val medido = guardada.hayVision()
+                val celdas = guardada.celdasEnmascaradas()
+                EstadoParte(medido, if (!medido) "Sin calibrar (no se ignora ninguna celda de la imagen)"
+                    else (if (celdas == 0) "Sin artefactos fijos: no se ignora ninguna celda" else "$celdas de 100 celdas de la imagen se ignoran (artefactos fijos)") +
+                        (if (guardada.visionSospechosa()) ". VISIÓN SOSPECHOSA: revisa el informe y repite la calibración" else ""), lineaFecha(p, medido), medido && guardada.visionSospechosa())
             }
             Parte.GIRO_VISUAL -> {
                 val medido = medidos and CalibracionNativa.MEDIDO_FOV != 0
@@ -1107,6 +1128,28 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 }
                 textoDatos.text = sb.toString()
             }
+            Paso.VISION -> {
+                camaraAbiertaMostrada = camara.abierta
+                textoTitulo.setText(R.string.cal_t_vision)
+                textoInstruccion.setText(R.string.cal_i_vision)
+                textoNota.setText(R.string.cal_n_vision)
+                textoNota.visibility = View.VISIBLE
+                botonProbar.visibility = View.VISIBLE
+                botonProbar.text = if (visionHechos >= 3) getString(R.string.cal_b_vision_listo) else getString(R.string.cal_b_vision_n, visionHechos + 1)
+                botonRepetir.visibility = View.VISIBLE
+                botonRestaurar.visibility = View.VISIBLE
+                val sb = StringBuilder()
+                sb.append("Cámara: " + (if (camara.abierta) "abierta" else if (camara.error.isNotEmpty()) "no se pudo abrir (revisa el permiso de cámara y cierra otras apps que la usen)" else "abriendo...") + "\n")
+                for (i in 0 until 3) {
+                    sb.append("Lugar ${i + 1}: " + (if (i < visionHechos) "${visionLugares[i][0]} cuadros capturados" else if (i == visionHechos && visionCapturando) "capturando: ${visionLugares[i][0]} de ${MASC_CUADROS}" else "falta") + "\n")
+                }
+                if (visionInforme.isNotEmpty()) {
+                    sb.append("\n").append(visionInforme)
+                } else if (guardada.hayVision() && visionHechos == 0) {
+                    sb.append("\nGuardado antes: ").append(guardada.celdasEnmascaradas()).append(" celdas enmascaradas.\n").append(guardada.informeVision())
+                }
+                textoDatos.text = sb.toString()
+            }
             Paso.DESPLAZ -> mostrarDesplazamiento()
             Paso.RESUMEN -> {
                 textoTitulo.setText(R.string.cal_t_resumen)
@@ -1190,6 +1233,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.FRENADO -> listoParaProbar() && !corriendo && !esperandoDato && frenadoMm.size < REPETICIONES
             Paso.GIRO_IZQ, Paso.GIRO_DER -> listoParaProbar() && !corriendo && !esperandoDato && cuantasGiro() < totalGiro()
             Paso.GIRO_VISUAL -> listoParaProbar() && camara.abierta && !corriendo && !esperandoDato && fovReal.size < 3
+            Paso.VISION -> camara.abierta && !visionCapturando && visionHechos < 3
             Paso.DESPLAZ -> listoParaProbar() && !corriendo && !esperandoDato
             Paso.GIRO_90 -> listoParaProbar() && !corriendo && !esperandoDato
             Paso.RECTA -> listoParaProbar() && !corriendo && !esperandoDato && !rectaLista && intentosRecta < CalibracionNativa.RECTA_MAX_ITERACIONES
@@ -1203,6 +1247,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.FRENADO -> frenadoMm.isNotEmpty() || esperandoDato
             Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantasGiro() > 0 || esperandoDato
             Paso.GIRO_VISUAL -> fovReal.isNotEmpty() || esperandoDato
+            Paso.VISION -> visionHechos > 0 || visionCapturando
             Paso.DESPLAZ -> esperandoDato   // descarta el giro en curso (no se guarda esa repetición) para volver a girar
             else -> false
         })
@@ -1241,6 +1286,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.ARRANQUE -> empezarArranque()
             Paso.AVANCE, Paso.RETROCESO, Paso.FRENADO, Paso.GIRO_IZQ, Paso.GIRO_DER -> empezarPruebaDeTiempo()
             Paso.GIRO_VISUAL -> empezarGiroVisual()
+            Paso.VISION -> empezarCapturaVision()
             Paso.DESPLAZ -> empezarGiroDesplazamiento()
             Paso.GIRO_90 -> empezarGiro90()
             Paso.RECTA -> empezarRecta()
@@ -1855,10 +1901,61 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         mostrarPaso()
     }
 
-    /** «Restaurar valor por defecto»: en el giro de 90° los dos lados del perfil vuelven a 1000; en la recta el balance vuelve al del firmware; en el desplazamiento los dos lados vuelven a 0. */
+    /** «Restaurar»: pregunta antes, diciendo EXACTAMENTE qué se va a borrar (y qué no se toca). Después de borrar queda una copia y un aviso «Deshacer» de 10 segundos. */
     private fun restaurarAjuste() {
         if (corriendo) {
             return
+        }
+        val que: String
+        val detalle: String
+        when (paso) {
+            Paso.DESPLAZ -> {
+                val (a, d) = guardada.desplazamiento(perfilAjuste, ladoAjuste)
+                que = "el desplazamiento al girar a la ${nombreLado(ladoAjuste)} del perfil ${perfilAjuste.texto}"
+                detalle = "Se borra SOLO el de la ${nombreLado(ladoAjuste)} (hoy " + fmt("%.1f cm adelante y %.1f de lado en un giro de 90°", a * 0.009, d * 0.009) + "). El otro lado NO se toca."
+            }
+            Paso.GIRO_90 -> {
+                que = "el ajuste fino del giro de 90° del perfil ${perfilAjuste.texto}"
+                detalle = "Se borran los factores de giro de LOS DOS lados (izquierda y derecha) de ese perfil. El desplazamiento y el balance NO se tocan."
+            }
+            Paso.RECTA -> {
+                que = "el balance de la recta del perfil ${perfilAjuste.texto}"
+                detalle = "El balance vuelve al del firmware. El giro y el desplazamiento NO se tocan."
+            }
+            Paso.VISION -> {
+                que = "la máscara de la visión"
+                detalle = "Se borran las ${guardada.celdasEnmascaradas()} celdas enmascaradas y la fecha de esa calibración. Nada más se toca."
+            }
+            else -> return
+        }
+        Dialogos.confirmar(this, "¿Restaurar $que?", detalle + "\n\nAntes se guarda una copia: tendrás 10 segundos para «Deshacer» (y se conservan las últimas ${CalibracionGuardada.MAX_COPIAS}).", "Restaurar") {
+            guardada.guardarCopia(que)
+            restaurarAjusteConfirmado()
+            mostrarDeshacer(que)
+        }
+    }
+
+    /** El aviso de 10 segundos con «Deshacer» después de borrar algo: vuelve todo a como estaba antes. */
+    private fun mostrarDeshacer(que: String) {
+        Snackbar.make(findViewById(android.R.id.content), "Se borró $que.", 10000).setAction("Deshacer") {
+            if (guardada.deshacer()) {
+                guardada.aplicarAlNavegador()
+                Toast.makeText(this, "Deshecho: vuelve $que", Toast.LENGTH_LONG).show()
+                if (paso == Paso.LISTA) armarLista() else mostrarPaso()
+            }
+        }.show()
+    }
+
+    private fun restaurarAjusteConfirmado() {
+        when (paso) {
+            Paso.VISION -> {
+                guardada.restaurarVision()
+                guardada.aplicarAlNavegador()
+                visionInforme = ""
+                iniciarCalibracionVision()
+                return
+            }
+            else -> {}
         }
         when (paso) {
             Paso.RECTA -> {
@@ -1866,10 +1963,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 return
             }
             Paso.DESPLAZ -> {
-                guardada.restaurarDesplazamiento(perfilAjuste)
+                guardada.restaurarDesplazamientoLado(perfilAjuste, ladoAjuste)
                 guardada.aplicarAlNavegador()
                 despAdelanteUm[0].clear(); despAdelanteUm[1].clear(); despDerechaUm[0].clear(); despDerechaUm[1].clear(); despGrados[0].clear(); despGrados[1].clear()
-                resumenAjuste = "Se restauró el valor por defecto del desplazamiento en el perfil ${perfilAjuste.texto}: el carro gira en su sitio."
+                resumenAjuste = "Se restauró el desplazamiento de la ${nombreLado(ladoAjuste)} en el perfil ${perfilAjuste.texto} (el otro lado no se tocó)."
             }
             else -> {
                 guardada.restaurarFactoresGiro(perfilAjuste)
@@ -2131,6 +2228,11 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             return
         }
         when (paso) {
+            Paso.VISION -> {
+                visionCapturando = false
+                principal.removeCallbacksAndMessages(null)
+                iniciarCalibracionVision()   // «Repetir»: se descartan los lugares capturados y se empieza otra vez
+            }
             Paso.GIRO_VISUAL -> {
                 if (esperandoDato) {
                     esperandoDato = false
@@ -2373,11 +2475,88 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     private fun confirmarBorrarCalibracion() {
-        Dialogos.confirmar(this, "¿Borrar la calibración?", "Se vuelve a los valores por defecto en todas las partes medidas (arranque, velocidad, frenado, giros, retroceso y campo de visión). El ajuste fino, el desplazamiento y el balance no se tocan.", "Borrar") {
+        Dialogos.confirmar(this, "¿Borrar la calibración?", "Se vuelve a los valores por defecto en todas las partes medidas (arranque, velocidad, frenado, giros, retroceso y campo de visión). El ajuste fino, el desplazamiento, el balance y la máscara de la visión no se tocan.\n\nAntes se guarda una copia: tendrás 10 segundos para «Deshacer».", "Borrar") {
+            guardada.guardarCopia("la calibración medida (arranque, velocidad, frenado, giros, retroceso y campo de visión)")
             guardada.borrar()
             guardada.aplicarAlNavegador()
-            Toast.makeText(this, "Calibración borrada: se usan los valores por defecto", Toast.LENGTH_LONG).show()
             armarLista()
+            mostrarDeshacer("la calibración medida")
+        }
+    }
+
+    // ── Calibrar visión (J9): la máscara de artefactos fijos de la imagen ─────────────────────────────
+
+    private val visionLugares = Array(3) { IntArray(ObstaculosNativa.ENTEROS_LUGAR) }   // por lugar: [cuadros, marcas de las 100 celdas gruesas]
+    private var visionHechos = 0
+    private var visionCapturando = false
+    private var visionInforme = ""
+    private val MASC_CUADROS = 20      // cuadros que se toman en cada lugar
+    private val MASC_ESPERA_MS = 12000L   // si en tanto tiempo no llegan los cuadros, se cancela la captura
+
+    /** Empieza la calibración de la visión: sin lugares capturados y SIN máscara en el detector (si no, lo ya enmascarado no se vería). */
+    private fun iniciarCalibracionVision() {
+        for (l in visionLugares) l.fill(0)
+        visionHechos = 0
+        visionCapturando = false
+        visionInforme = ""
+        ObstaculosNativa.activarMascara(false)
+    }
+
+    /** «Capturar el lugar N de 3»: toma MASC_CUADROS cuadros del detector (el piso debe estar despejado) y los cuenta. */
+    private fun empezarCapturaVision() {
+        if (visionCapturando || visionHechos >= 3 || !camara.abierta) {
+            return
+        }
+        val lugar = visionLugares[visionHechos]
+        lugar.fill(0)
+        visionCapturando = true
+        val inicio = SystemClock.elapsedRealtime()
+        val tarea = object : Runnable {
+            override fun run() {
+                val nuevo = camara.tomarCuadroNuevo()
+                val detalle = camara.cuadroTomado?.resultado
+                if (nuevo != null && detalle != null && detalle.isNotEmpty() && detalle[0] == 0) {
+                    ObstaculosNativa.mascaraLugarCuadro(lugar, detalle)
+                }
+                if (lugar[0] >= MASC_CUADROS) {
+                    visionCapturando = false
+                    visionHechos++
+                    Log.i(CalibracionGuardada.ETIQUETA, "visión: lugar $visionHechos capturado con ${lugar[0]} cuadros")
+                    if (visionHechos >= 3) {
+                        terminarCalibracionVision()
+                    }
+                    mostrarPaso()
+                } else if (SystemClock.elapsedRealtime() - inicio > MASC_ESPERA_MS) {
+                    visionCapturando = false
+                    lugar.fill(0)
+                    visionInforme = "No llegaron cuadros de la cámara a tiempo (${lugar[0]} de $MASC_CUADROS). Revisa la cámara y toca «Capturar» otra vez."
+                    mostrarPaso()
+                } else {
+                    mostrarPaso()
+                    principal.postDelayed(this, 80)
+                }
+            }
+        }
+        mostrarPaso()
+        principal.postDelayed(tarea, 80)
+    }
+
+    /** Con los tres lugares capturados: calcula la máscara, la guarda con fecha y muestra el informe (números, sin imagen). */
+    private fun terminarCalibracionVision() {
+        val texto = ObstaculosNativa.mascaraCalcular(visionLugares[0], visionLugares[1], visionLugares[2])
+        val primera = texto.substringBefore('\n')
+        val informe = texto.substringAfter('\n', "")
+        val partes = primera.split(' ')
+        if (partes.size >= 4 && partes[0] == "OK") {
+            val celdas = partes[2].toIntOrNull() ?: 0
+            val sospechosa = partes[3].toIntOrNull() ?: 0
+            guardada.guardarVision(partes[1], informe, celdas, sospechosa)
+            guardada.aplicarAlNavegador()   // la máscara nueva ya vale (y el modelo del piso se reaprende con ella)
+            ObstaculosNativa.reiniciarModelo()
+            visionInforme = (if (sospechosa != 0) "VISIÓN SOSPECHOSA (revisa el informe). " else "") + "Guardado: $celdas celdas enmascaradas.\n" + informe
+            Toast.makeText(this, if (sospechosa != 0) "Visión sospechosa: revisa el informe" else "Visión calibrada: $celdas celdas ignoradas", Toast.LENGTH_LONG).show()
+        } else {
+            visionInforme = "No se pudo calcular la máscara (" + primera + "): hacen falta al menos 10 cuadros en cada lugar. Toca «Repetir»."
         }
     }
 }

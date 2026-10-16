@@ -155,4 +155,20 @@ object ObstaculosNativa {
 
     /** Configuración por defecto del código en C (10 enteros). */
     external fun configDefecto(): IntArray
+
+    // ── «Calibrar visión»: la máscara de artefactos fijos de la imagen (mascara_vision.h) ──
+
+    /** Pone la máscara (25 cifras hexadecimales; "" = sin máscara): las celdas enmascaradas se ignoran en la detección. Devuelve 0 o un código de error (-3 = texto malo). */
+    external fun ponerMascara(hex: String): Int
+
+    /** Enciende o apaga la máscara sin borrarla (se apaga mientras se calibra la visión). */
+    external fun activarMascara(activa: Boolean)
+
+    /** Suma un cuadro (el detalle de analizarConfig) a un lugar: `lugar` es un IntArray(ENTEROS_LUGAR) = [cuadros, marcas de las 100 celdas gruesas]. Devuelve 0 o un código. */
+    external fun mascaraLugarCuadro(lugar: IntArray, detalle: IntArray): Int
+
+    /** Calcula la máscara con los tres lugares: la primera línea es «OK <hex> <enmascaradas> <sospechosa>» (o «ERROR <código>») y el resto el informe en español (números, sin imagen). */
+    external fun mascaraCalcular(lugar1: IntArray, lugar2: IntArray, lugar3: IntArray): String
+
+    const val ENTEROS_LUGAR = 101
 }

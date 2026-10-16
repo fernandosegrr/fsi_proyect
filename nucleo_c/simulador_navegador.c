@@ -71,6 +71,7 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->balance_mil = 1000;
     sim->periodo_cuadro_ms = NAV_TICK_MS;
     sim->t_cancelar_ms = 0xFFFFFFFFu;
+    sim->recorrido_cmm = 0;
 }
 
 int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas)
@@ -86,7 +87,20 @@ int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_f
     e->zona = zona;
     e->cercania = cercania;
     e->celdas = celdas;
+    e->crece_por_10cm = 0;
+    e->base_recorrido_cmm = 0;
+    e->visto = 0;
     return 0;
+}
+
+int sim_agregar_obstaculo_creciente(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int crece_por_10cm)
+{
+    int codigo = sim_agregar_obstaculo_celdas(sim, t_ini_ms, t_fin_ms, zona, cercania, celdas);
+
+    if (codigo == 0) {
+        sim->eventos[sim->n_eventos - 1].crece_por_10cm = crece_por_10cm;
+    }
+    return codigo;
 }
 
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania)
@@ -146,6 +160,9 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
         /* rumbo 0 = arriba (y decrece), 90 = derecha (x crece) */
         sim->x_cmm += seno(rumbo) * distancia / 1000;
         sim->y_cmm -= coseno(rumbo) * distancia / 1000;
+        if (distancia > 0) {
+            sim->recorrido_cmm += distancia;
+        }
         {   /* Si un lado empuja más que el otro el carro se tuerce: el giro es la diferencia de lo que recorre cada lado entre el ancho entre ruedas. Hacia atrás se tuerce al revés. */
             long long razon_mil = (long long)sim->desbalance_mil * sim->balance_mil / 1000;   /* velocidad izquierda / derecha, en milésimas */
             long long giro_cgrados = (long long)distancia * 2 * (razon_mil - 1000) * 4775 / ((razon_mil + 1000) * 10000);   /* 4775 = 57.3 grados por radián / 120 mm de ejes, por 10 000 */
@@ -167,18 +184,25 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
 }
 
 /* Arma lo que vería el detector de obstáculos en la hora `t_ms`. */
-static void armar_cuadro(const Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cuadro)
+static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cuadro)
 {
     int i;
 
     memset(cuadro, 0, sizeof *cuadro);
     for (i = 0; i < sim->n_eventos; i++) {
-        const EventoObstaculo *e = &sim->eventos[i];
+        EventoObstaculo *e = &sim->eventos[i];
 
         if (t_ms >= e->t_ini_ms && t_ms < e->t_fin_ms) {
+            int celdas = e->celdas;
+
+            if (!e->visto) {
+                e->visto = 1;
+                e->base_recorrido_cmm = sim->recorrido_cmm;
+            }
+            celdas += (int)((sim->recorrido_cmm - e->base_recorrido_cmm) * e->crece_por_10cm / 10000);   /* un obstáculo real crece al acercarse */
             cuadro->zona[e->zona].hay_obstaculo = 1;
-            if (e->celdas > cuadro->zona[e->zona].celdas) {
-                cuadro->zona[e->zona].celdas = e->celdas;
+            if (celdas > cuadro->zona[e->zona].celdas) {
+                cuadro->zona[e->zona].celdas = celdas;
             }
             if (e->cercania > cuadro->zona[e->zona].cercania) {
                 cuadro->zona[e->zona].cercania = e->cercania;

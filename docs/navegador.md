@@ -494,3 +494,19 @@ Al terminar la vuelta a la línea, `indice_objetivo` (el siguiente punto de la r
 no tocaba el índice. Con el índice viejo la ruta mandaba al carro dar media vuelta y recorrerla hacia atrás (síntoma: «se volvió loco» al final). Ahora `reinc_saltar_puntos_pasados` salta los puntos que el carro ya pasó por
 `NAV_REINC_PUNTO_PASADO_MM` (10 cm) o más, medido a lo largo de la ruta y solo si está a 30 cm o menos de la línea; si no queda ninguno, TERMINADO (`REINC_DIAG saltados=N ... siguiente_punto=M`). La ruta se retoma desde la celda más cercana
 a la pose, así que el final puede quedar hasta media celda (10 cm) antes o después. Prueba: `pruebas_final_de_ruta` en `pruebas_navegador.c`. Diagnóstico completo en `docs/bitacora.md` (16 oct, «Diagnóstico de la prueba real»).
+
+## Arranque, sondeo del obstáculo fijo y frenos anti-locura (J9, 16 oct)
+
+- **Arranque.** Si el primer cuadro ya muestra un obstáculo no se decide con él: hacen falta **4 cuadros seguidos iguales** (la misma cercanía en cada zona) o 1.5 s; con el frente libre arranca de una vez.
+- **Sondeo del «sospechoso fijo».** Si el obstáculo ya estaba en esos cuadros, el carro no se ha movido ni esquivado (menos de 3 cm recorridos), el centro está libre y la cercanía es 2 o menor **o el obstáculo está solo en los lados**
+  (desviación mía de lo pedido: el fantasma real era lateral en cercanía 3 y con la regla literal nunca se sondeaba), avanza **4 cm**, se asienta 300 ms y compara las celdas: si **no crecen** (15 %, al menos 3) es un «sospechoso fijo»: se
+  **ignora esa zona en esa corrida** (`OBS_DIAG sondeo=sospechoso_fijo`) mientras no pase de 130 % de sus celdas; si crecen o no hay cuadros para comparar, es real y se detiene y esquiva como siempre. El piso no se reaprende con él
+  (`piso_fijo` ya vale 1 durante la ruta y lo marcado nunca se aprende). Solo se hace un sondeo por ruta. Si la ruta empieza con un giro, el sondeo no aplica (el carro ya se movió).
+- **Cercanía 3 frena con 2 cuadros seguidos, o con 1 si el área es de 60 celdas o más** (`NAV_CERC3_AREA_INMEDIATA`). La cercanía 2 en el centro sigue siendo inmediata.
+- **Hueco de video:** `NAV_MAX_HUECO_VIDEO_MS` 500 → **700** (un hueco de 503 ms detuvo la ruta del 16 oct con huecos normales de 250 a 330 ms).
+- **Registro `OBS_DIAG`** al arrancar y en cada decisión (`arranque`, `sondeo_inicio`, `sondeo_fijo`, `sondeo_real`, `detiene`, `esquiva`): la máscara 10 x 10 en hexadecimal de lo que se ve en cada zona (`mascara_izq/cen/der`), la cercanía y las
+  celdas de cada zona, `franja_tapada`/`franja_pct`, qué zonas se ignoran y cuántos cuadros iguales. (En la app la máscara por zona sale del último cuadro del detector; `franja_pct` hoy no llega al log de la app.)
+- **Frenos anti-locura** (para y pide AYUDA, o ERROR si no se pidió): un giro **planeado de más de 150°** que la ruta no tiene (la vuelta a la línea o la ruta que se retoma; los giros de la propia ruta y el de deshacer una esquivada no cuentan),
+  el **índice de la ruta que retrocede**, una distancia recorrida de más de **2.5 veces la de la ruta** (tomándola de al menos 60 cm), la pose a más de **1 m** de la ruta, y más de 3 esquivadas (`NAV_MAX_ESQUIVADAS`, ya existía).
+  Causas `NAV_CAUSA_GIRO_LOCO/INDICE/RECORRIDO/LEJOS`. Prueba que reproduce el **bug del índice vencido**: `pruebas_final_de_ruta` (con `sin_arreglo_indice` el freno para en vez de dar la media vuelta de 180°).
+- **Final de ruta:** se prueba llegar con el rumbo a 15° del último tramo; si el punto es el final y no hay plan, se llega sin giro final y el rumbo puede quedar torcido (**pendiente**: el giro final de hasta 20° mueve el centro hasta 22 cm con el pivote).
