@@ -64,10 +64,21 @@ object Mensajes {
         "Puede tener un firmware viejo. Carga el firmware nuevo en el carro y vuelve a intentar."
     )
 
-    fun sinVideo() = Mensaje(
-        "No llega el video de la cámara",
-        "Puedes seguir manejando sin video. Revisa que la cámara esté encendida y toca Reintentar."
+    /** La cámara no contestó. Dice la dirección que se intentó (la de ConfigVision) y que la app reintenta sola cada 3 s (SES_REINTENTO_MS en sesion_compartida.h). */
+    fun sinVideo(contexto: Context) = Mensaje(
+        "La cámara no responde",
+        "Se intentó con ${direccionDeLaCamara(contexto)} y se reintenta sola cada 3 s. Puedes seguir manejando sin video; si sigue igual, apaga y enciende la cámara."
     )
+
+    /** La IP (o nombre) de la cámara a la que intenta conectarse el video, sin puerto ni ruta. */
+    fun direccionDeLaCamara(contexto: Context): String {
+        val url = ConfigVision(contexto).urlVideoCarro
+        return try {
+            java.net.URL(url).host.ifEmpty { url }
+        } catch (e: java.net.MalformedURLException) {
+            url
+        }
+    }
 
     fun videoApagado() = Mensaje(
         "El video está apagado",

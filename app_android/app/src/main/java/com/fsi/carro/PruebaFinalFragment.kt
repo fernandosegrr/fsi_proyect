@@ -335,7 +335,7 @@ class PruebaFinalFragment : Fragment(R.layout.fragment_prueba_final) {
 
     private fun abortarSinVideo() {
         cerrarMedida()
-        val m = Mensajes.sinVideo()
+        val m = Mensajes.sinVideo(requireContext())
         aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { empezarMedida() }
     }
 

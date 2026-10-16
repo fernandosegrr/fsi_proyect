@@ -443,7 +443,7 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
             camara.error.isNotEmpty() -> {
                 chipCamara.poner(Nivel.ERROR, getString(R.string.vision_chip_sin_camara))
                 if (configuracion.fuenteCarro) {
-                    val m = Mensajes.sinVideo()
+                    val m = Mensajes.sinVideo(this)
                     aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) {
                         SesionVideo.reintentar()
                         camara.cerrar()

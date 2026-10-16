@@ -25,7 +25,7 @@ extern "C" {
 
 #define SES_MAX_USUARIOS          16     /* números de usuario válidos: 0 a 15 */
 #define SES_GRACIA_CIERRE_MS    1500     /* espera antes de cerrar cuando sale el último usuario */
-#define SES_REINTENTO_MS        5000     /* cada cuánto se vuelve a abrir solo un recurso en FALLO */
+#define SES_REINTENTO_MS        3000     /* cada cuánto se vuelve a abrir solo un recurso en FALLO (el video de la cámara y el control del carro) */
 
 typedef enum {
     SES_CERRADA = 0,    /* nadie lo usa y no está abierto */

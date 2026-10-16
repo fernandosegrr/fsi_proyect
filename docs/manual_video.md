@@ -16,7 +16,7 @@ La decisión de abrir, compartir, cerrar y reintentar vive en C: `nucleo_c/sesio
 
 - **Abrir:** entra el primer usuario. **Compartir:** los demás no abren otra vez (entrar dos veces con el mismo número cuenta una).
 - **Cerrar:** al salir el último usuario se espera **1.5 s** de gracia (cambiar de pantalla o girar el teléfono no corta el video) y entonces se cierra.
-- **Fallo:** si el video falla, la sesión pasa a FALLO, las pantallas muestran un aviso en banda con «Reintentar» y, además, se reabre sola cada **5 s**.
+- **Fallo:** si el video falla, la sesión pasa a FALLO, las pantallas muestran un aviso en banda con «Reintentar» y, además, se reabre sola cada **3 s** (antes 5 s; la pantalla dice «La cámara no responde» con la IP intentada).
 - La misma lógica (otra instancia) comparte la **conexión de control** con el carro (`SesionCarro.kt`): el video y el manejo son sesiones distintas, así que **el manejo no depende del video**.
 
 Comprobado en el teléfono (registro `SESION_VIDEO`): al ir Inicio → Manual → Inicio → Manual → Rutas, el video se abre **una sola vez**, se queda abierto (estado ABIERTA) mientras alguna pantalla lo usa y se cierra 1.5 s después de entrar a Rutas, que no lo usa.

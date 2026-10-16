@@ -202,6 +202,7 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
         placeholderTexto.setText(
             when {
                 !videoEncendido -> R.string.manual_video_apagado
+                estado == SesionNativa.FALLO -> R.string.manual_camara_no_responde
                 else -> R.string.manual_sin_video
             }
         )
@@ -213,7 +214,7 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
 
         // Aviso en banda: el video falló (se sigue manejando sin video)
         if (videoEncendido && (estado == SesionNativa.FALLO)) {
-            val m = Mensajes.sinVideo()
+            val m = Mensajes.sinVideo(requireContext())
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { SesionVideo.reintentar() }
         } else if (videoEncendido && modo == ModoVideo.RAW && estado == SesionNativa.ABIERTA) {
             val m = Mensajes.videoSinImagenEnModo(modo)

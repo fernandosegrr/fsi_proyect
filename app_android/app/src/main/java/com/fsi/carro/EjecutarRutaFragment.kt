@@ -115,8 +115,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
                     faseDesdeMs = ahora
                     pedirPerfilAuto()
                 } else if (ahora - faseDesdeMs > ESPERA_VIDEO_MS) {
-                    val m = Mensajes.sinVideo()
-                    fallarPreparacion(Mensaje(m.quePaso, getString(R.string.ejecutar_sin_video_ruta)), getString(R.string.reintentar)) { SesionVideo.reintentar() }
+                    val m = Mensajes.sinVideo(requireContext())
+                    fallarPreparacion(Mensaje(m.quePaso, getString(R.string.ejecutar_sin_video_ruta, Mensajes.direccionDeLaCamara(requireContext()))), getString(R.string.reintentar)) { SesionVideo.reintentar() }
                     return
                 }
                 2 -> if (!camara.aprendiendoPiso) {
@@ -508,7 +508,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         if (!corriendo && !terminada && !avisoDelFlujo && semi.mensaje.isNotEmpty()) {
             aviso.mostrar(Nivel.AVISO, "No se pudo iniciar la ruta", semi.mensaje)
         } else if (SesionVideo.estado == SesionNativa.FALLO && !corriendo) {
-            val m = Mensajes.sinVideo()
+            val m = Mensajes.sinVideo(requireContext())
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { SesionVideo.reintentar() }
         } else if (semi.activo && semi.mensaje.startsWith("Aviso")) {
             aviso.mostrar(Nivel.AVISO, "Aviso antes de empezar", semi.mensaje)

@@ -8,7 +8,7 @@
  *     (con 1.5 s de gracia para que cambiar de pantalla o girar el teléfono no lo corte).
  *  2. Las decisiones (abrir, compartir, cerrar, fallo, reintento) las toma el código en C (nucleo_c/sesion_compartida.c, con sus pruebas);
  *     aquí solo se ejecutan las acciones: crear el VideoCarro, detenerlo o volverlo a crear.
- *  3. Si el video falla, las pantallas lo ven en `mensajeFallo` y pueden mostrar «Reintentar» (reintentar()); además, la sesión reabre sola cada 5 s.
+ *  3. Si el video falla, las pantallas lo ven en `mensajeFallo` y pueden mostrar «Reintentar» (reintentar()); además, la sesión reabre sola cada 3 s (SES_REINTENTO_MS).
  *     El manejo del carro NO depende del video: la conexión de control es otra (SesionCarro).
  *  4. Todas las llamadas se hacen desde el hilo principal. Los cuadros llegan en el hilo del video y se reparten tal cual: cada consumidor copia lo
  *     que necesite (el arreglo se reutiliza).

@@ -151,7 +151,7 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
             val m = if (RedCarro.enRedDelCarro(requireContext())) Mensajes.carroNoResponde() else Mensajes.sinRedDelCarro()
             aviso.mostrar(Nivel.ERROR, m.quePaso, m.queHacer)
         } else if (conectado && estadoVideo == SesionNativa.FALLO) {
-            val m = Mensajes.sinVideo()
+            val m = Mensajes.sinVideo(requireContext())
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { SesionVideo.reintentar() }
         } else {
             aviso.ocultar()

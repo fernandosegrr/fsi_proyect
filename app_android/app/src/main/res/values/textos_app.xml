@@ -40,7 +40,7 @@
     <string name="acceso_rutas_detalle">Dibuja y recorre una ruta</string>
     <string name="camara_conectada">Conectada</string>
     <string name="camara_abriendo">Abriendo…</string>
-    <string name="camara_sin_video">Sin video</string>
+    <string name="camara_sin_video">No responde</string>
     <string name="camara_en_espera">En espera</string>
     <string name="reintentar">Reintentar</string>
     <string name="conectar">Conectar</string>
@@ -51,6 +51,7 @@
     <string name="manual_aviso_retraso">Rápido. El video llega ~0.3 s tarde: frena antes.</string>
     <string name="manual_aviso_retraso_lento">Lento. El video llega ~0.3 s tarde: frena antes.</string>
     <string name="manual_sin_video">Sin video</string>
+    <string name="manual_camara_no_responde">La cámara no responde</string>
     <string name="manual_video_apagado">Video apagado</string>
     <string name="chip_retraso">≈ 0.3 s</string>
     <string name="adelante">Adelante</string>
