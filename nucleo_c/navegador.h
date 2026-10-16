@@ -99,6 +99,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_REINC_ADELANTE_CM      30    /* a cuántos cm por delante del punto de salida (donde ya pasó el obstáculo) está el punto de la línea al que vuelve */
 #define NAV_REINC_DESVIO_MIN_MM    80    /* menos de esta desviación (8 cm) a la línea: solo corrige el rumbo */
 #define NAV_REINC_GIRO_MIN_GRADOS   4    /* un giro de menos de esto no se hace (el error de la estimación es mayor) */
+#define NAV_REINC_PASADO_MAX_MM   400    /* ...pero solo si no se pasó de aquí (40 cm) ni quedó a más de NAV_REINC_PASADO_LADO_MM (60 cm) de lado: una ruta que da la vuelta y termina donde empezó no cuenta */
+#define NAV_REINC_PASADO_LADO_MM  600
+#define NAV_REINC_PASADO_MM        30    /* si al empezar a volver el carro ya está más allá del punto final de la ruta por esto (3 cm) o más, la ruta se da por terminada:
+                                          * no vuelve hacia atrás al punto final (pasa, por ejemplo, cuando el obstáculo estaba justo en el destino y se rodeó con «toma el control») */
 
 /* DETECCION DURANTE LA ESQUIVADA (ver docs/navegador.md, "Falso obstáculo al esquivar"). Mientras el carro gira, la cámara barre la escena: lo que se ve en esos cuadros
  * (el mismo obstáculo en el borde, patas o sombras lejanas, juntas de loseta) no cuenta. Después del giro se ignoran los cuadros hasta que hayan llegado
@@ -273,6 +277,7 @@ typedef struct {
     uint32_t       ayuda_t_ini_ms;   /* hora en que pidió ayuda */
     MotivoErrorNav ayuda_motivo;     /* por qué la pidió (el motivo con el que habría dado ERROR) */
     int            ayudas;           /* cuántas veces pidió ayuda en esta ruta */
+    int            desde_ayuda;      /* 1 mientras vuelve a la línea después de que el usuario tomó el control (ahí sí se da por terminada la ruta si ya pasó el final) */
 
     /* Dónde salió de la línea (pose estimada al empezar la esquivada). */
     int salida_x_mm, salida_y_mm, salida_rumbo;

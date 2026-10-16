@@ -1698,6 +1698,28 @@ static void pruebas_ayuda(void)
         informar_posicion("ayuda");
     }
 
+
+    /* La ruta terminaba justo donde estaba el obstáculo: se rodea con «toma el control» y se pasa del punto final. Al continuar NO debe regresar hacia atrás, la ruta ya terminó. */
+    preparar(RECTA, N(RECTA));
+    navegador_poner_pedir_ayuda(&nav, 1);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 14000, ZONA_CENTRO, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 14000, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 14000, ZONA_DERECHA, 3, 40);
+    correr(7000);
+    maniobra(NAV_CMD_RIGHT, 900);
+    maniobra(NAV_CMD_FORWARD, 2000);   /* 40 cm de lado */
+    maniobra(NAV_CMD_LEFT, 900);
+    maniobra(NAV_CMD_FORWARD, 4200);   /* ya más allá del punto final (la salida está a 70 cm de él y avanza unos 84 cm) */
+    {
+        int lefts_antes = sim_contar_cambios_a(&sim, NAV_CMD_LEFT), rights_antes = sim_contar_cambios_a(&sim, NAV_CMD_RIGHT);
+
+        navegador_ayuda_continuar(&nav, sim.t_ms);
+        correr(2000);
+        caso("pasó del punto final con la cruceta: al continuar la ruta TERMINA y el carro no gira ni regresa hacia atrás",
+             nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_LEFT) == lefts_antes && sim_contar_cambios_a(&sim, NAV_CMD_RIGHT) == rights_antes &&
+             sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    }
+
     /* Un obstáculo que no se va y no hay a quién pedirle: a los 3 minutos ERROR. */
     preparar(RECTA, N(RECTA));
     navegador_poner_pedir_ayuda(&nav, 1);

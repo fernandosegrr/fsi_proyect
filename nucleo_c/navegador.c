@@ -798,6 +798,7 @@ void navegador_iniciar(Navegador *nav)
     nav->ayuda_t_ini_ms = 0;
     nav->ayuda_motivo = NAV_MOTIVO_NINGUNO;
     nav->ayudas = 0;
+    nav->desde_ayuda = 0;
     nav->salida_x_mm = nav->salida_y_mm = nav->salida_rumbo = 0;
     nav->salida_cercania = 0;
     nav->paralelo_mm = 0;
@@ -1298,6 +1299,30 @@ static void reinc_calcular(Navegador *nav)
                   nav->reinc_obj_x_mm, nav->reinc_obj_y_mm, nav->reinc_dist_mm, nav->reinc_giro1, nav->reinc_giro2, nav->reinc_rumbo_final, nav->esquivadas);
 }
 
+/* ¿El carro ya está más allá del punto final de la ruta (por NAV_REINC_PASADO_MM o más, medido a lo largo del último tramo)? Entonces ya no hay a dónde volver. */
+static int reinc_ya_paso_el_final(const Navegador *nav)
+{
+    long fx, fy, vx, vy, largo, a_lo_largo, lado;
+
+    if (nav->n_puntos < 2) {
+        return 0;
+    }
+    fx = punto_ruta_x(nav, nav->n_puntos - 1);
+    fy = punto_ruta_y(nav, nav->n_puntos - 1);
+    vx = fx - punto_ruta_x(nav, nav->n_puntos - 2);
+    vy = fy - punto_ruta_y(nav, nav->n_puntos - 2);
+    largo = raiz_entera(vx * vx + vy * vy);
+    if (largo <= 0) {
+        return 0;
+    }
+    a_lo_largo = ((nav->x_mm - fx) * vx + (nav->y_mm - fy) * vy) / largo;   /* positivo = más allá del punto final, siguiendo la dirección del último tramo */
+    lado = ((nav->x_mm - fx) * (-vy) + (nav->y_mm - fy) * vx) / largo;   /* distancia lateral a la línea del último tramo (con signo) */
+    if (lado < 0) {
+        lado = -lado;
+    }
+    return a_lo_largo >= NAV_REINC_PASADO_MM && a_lo_largo <= NAV_REINC_PASADO_MAX_MM && lado <= NAV_REINC_PASADO_LADO_MM;
+}
+
 /* Siguiente fase de MOVIMIENTO después de `actual` (NAV_RF_PLAN, GIRO1, AVANZAR o GIRO2); -1 si ya no queda ninguna (las que no hacen falta se saltan). */
 static int reinc_siguiente_movimiento(const Navegador *nav, int actual)
 {
@@ -1316,6 +1341,7 @@ static int reinc_siguiente_movimiento(const Navegador *nav, int actual)
 /* Terminó la vuelta: anota la pose final, se dirige al siguiente punto de la ruta y sigue (SIGUIENDO). */
 static ComandoNav reinc_terminar(Navegador *nav)
 {
+    nav->desde_ayuda = 0;
     long s, desvio;
     int tramo;
 
@@ -1581,6 +1607,11 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
         if ((uint32_t)(ahora_ms - nav->reinc_t_fase_ms) < (uint32_t)NAV_PAUSA_ASENTAR_MS) {
             return NAV_CMD_STOP;
         }
+        if (nav->desde_ayuda && reinc_ya_paso_el_final(nav)) {   /* rodeó el obstáculo y ya quedó más allá del punto final: no regresa a él */
+            diag_escribir(nav, "REINC_DIAG fin ya_paso_el_final pose=(%d,%d,%d): la ruta se da por terminada", nav->x_mm, nav->y_mm, nav->rumbo_grados);
+            nav->estado = NAV_TERMINADO;
+            return NAV_CMD_STOP;
+        }
         reinc_calcular(nav);
         siguiente = reinc_siguiente_movimiento(nav, NAV_RF_PLAN);
         if (siguiente < 0) {
@@ -1682,6 +1713,7 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
     nav->esquivadas = 0;          /* tras la ayuda se vuelve a poder esquivar */
     nav->reintentos = 0;
     nav->error_causa = NAV_CAUSA_NINGUNA;
+    nav->desde_ayuda = 1;
     diag_escribir(nav, "AYUDA_DIAG continua pose=(%d,%d,%d)", nav->x_mm, nav->y_mm, nav->rumbo_grados);
     entrar_reincorporando(nav, ahora_ms);   /* quieto 300 ms y calcula la vuelta a la línea con la pose estimada */
     return NAV_OK;
