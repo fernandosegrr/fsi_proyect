@@ -22,7 +22,7 @@
  *         90° y tú dices cómo giró («se pasó mucho / un poco / justo / se quedó corto») o escribes los grados. Con eso se corrige un FACTOR del giro por lado (izquierda y derecha) y
  *         por perfil (AUTO y MANUAL), que se guarda en CalibracionGuardada y lo usan las rutas y el simulador. Se repite hasta que quede justo. «Restaurar valor por defecto»
  *         lo vuelve a 1000. Con pilas nuevas hay que repetirlo (docs/calibracion.md).
- *       - RECTA (AJUSTE FINO): con el carro sobre una línea de cinta toca «Avanzar 2 s»; dices hacia dónde se desvió (izquierda, derecha o recto) y cuántos cm (de 1 en 1). La
+ *       - RECTA (AJUSTE FINO): con el carro sobre una línea de cinta toca «Avanzar 4 s»; dices hacia dónde se desvió (izquierda, derecha o recto) y cuántos cm (de 1 en 1). La
  *         geometría (en C: cal_balance_nuevo) da el BALANCE nuevo del lado izquierdo (800 a 1000), que se guarda en el teléfono y se manda al carro (BAL_AUTO / BAL_MANUAL,
  *         con ACK; el carro lo guarda en su memoria). Se repite hasta 1 cm o menos de desvío, máximo 4 intentos. El ancho entre las ruedas es configurable (12 cm).
  *         Ver docs/perfiles_velocidad.md.
@@ -77,7 +77,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         const val REACCION_POR_DEFECTO_MS = 180             // si no se midió la reacción
         const val ESPERA_MAXIMA_ARRANQUE_MS = 3000L         // si no tocas en este tiempo, se detiene el carro
         private const val LADO_ATRAS = 2                    // en ajustarGrupo: 0 = avance, -1 / 1 = giros, 2 = retroceso
-        const val TIEMPO_RECTA_MS = 2000                    // la prueba de recta avanza 2 s
+        const val TIEMPO_RECTA_MS = 4000                    // la prueba de recta avanza 4 s (con 2 s el ruido de arranque de ±2 a 3 cm era mayor que la meta de 1 cm)
         const val MS_POR_CM_MANUAL_X10 = 263                // 26.3 ms por cm en el perfil MANUAL (255), medido el 13 oct (docs/calibracion.md)
     }
 
@@ -1164,7 +1164,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         guardada.guardarBalance(perfilAjuste, nuevo)
         resumenAjuste = "Se desvió $desvioCm cm ${nombreDireccion(direccionDesvio)}: el balance pasó de $antes a $nuevo." +
             (if (intentosRecta >= CalibracionNativa.RECTA_MAX_ITERACIONES) " Se hicieron los ${CalibracionNativa.RECTA_MAX_ITERACIONES} intentos: queda este balance. Si sigue desviándose, revisa las ruedas o restaura el valor por defecto."
-            else " Vuelve a probar con «Avanzar 2 s».")
+            else " Vuelve a probar con «Avanzar 4 s».")
         Log.i(CalibracionGuardada.ETIQUETA, "recta: perfil=${perfilAjuste.name} desvio=${desvioMm} mm balance $antes -> $nuevo (intento $intentosRecta)")
         logica.enviarBalance(perfilAjuste, nuevo, 1000L) { confirmado ->
             if (!confirmado) {

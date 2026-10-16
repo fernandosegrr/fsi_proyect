@@ -40,7 +40,7 @@ No son un movimiento: no frenan, no cambian el comando actual ni el perfil (como
 **Calibración «Recta»** (Calibración → «Ajuste fino: giro y recta» → segundo paso; ver también `docs/calibracion.md`): una prueba por pantalla.
 
 1. Pon el carro sobre una **línea de cinta**, mirando a lo largo de ella, con las pilas que usarás en la demo (la pantalla lo avisa: **«Recalibra con las pilas que usarás en la demo»**).
-2. «Avanzar 2 s»: la app manda el balance al carro (con ACK) y el carro avanza 2 s con su perfil (AUTO por defecto) y se detiene.
+2. «Avanzar 4 s»: la app manda el balance al carro (con ACK) y el carro avanza 4 s con su perfil (antes eran 2 s; el ruido de arranque, de ±2 a 3 cm, era mayor que la meta de 1 cm) (AUTO por defecto) y se detiene.
 3. Dices **hacia dónde se desvió** (izquierda, derecha o recto) y **cuántos cm** (de 1 en 1) y tocas «Aplicar el desvío».
 4. La app calcula el balance nuevo con la geometría de un arco (`cal_balance_nuevo`, en C y probado en PC): ángulo ≈ **2 x desvío / recorrido**; la diferencia entre los dos lados es ese ángulo x
    el **ancho entre las ruedas** (configurable, **12 cm** por defecto) / recorrido; el recorrido sale de la calibración (en AUTO ~39 cm en 2 s; en MANUAL 76 cm con 26.3 ms por cm). Un desvío a la derecha baja el balance; uno a la
@@ -106,8 +106,8 @@ frenar por detección en manual; si algún día se quiere, habría que abrir la 
 ## PENDIENTE HARDWARE: balance de la recta (al final, con las pilas de la demo)
 
 1. Cargar el DevKit con el firmware nuevo (`.\scripts\cargar.ps1 nuevo`) y comprobar en el monitor serie que arranca.
-2. En la app: Calibración → «Ajuste fino: giro y recta» → paso de la recta. Línea de cinta, «Avanzar 2 s», decir hacia dónde y cuántos cm, repetir hasta 1 cm (máximo 4 intentos), en **AUTO**; si se maneja en MANUAL, también en MANUAL.
-3. Anotar el balance final de cada perfil (aparece en la pantalla) y comprobar que al apagar y encender el carro lo conserva (`BAL?` o el siguiente «Avanzar 2 s»).
+2. En la app: Calibración → «Ajuste fino: giro y recta» → paso de la recta. Línea de cinta, «Avanzar 4 s», decir hacia dónde y cuántos cm, repetir hasta 1 cm (máximo 4 intentos), en **AUTO**; si se maneja en MANUAL, también en MANUAL.
+3. Anotar el balance final de cada perfil (aparece en la pantalla) y comprobar que al apagar y encender el carro lo conserva (`BAL?` o el siguiente «Avanzar 4 s»).
 4. Una ruta recta de 1 m desde Rutas: el desvío debe ser de 1 a 2 cm.
 
 ## PENDIENTE HARDWARE (anterior): rectas de 150 cm en los dos perfiles

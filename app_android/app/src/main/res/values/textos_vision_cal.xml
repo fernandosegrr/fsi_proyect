@@ -77,7 +77,7 @@
     <string name="cal_i_giro_visual">Frente a algo con detalles (no una pared lisa), toca «Probar»: gira 90° a la derecha. Escribe cuántos grados giró de verdad.</string>
     <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones.</string>
     <string name="cal_i_giro_90">Pon el carro sobre una marca de 90°, elige el lado y toca «Probar»: gira lo que la calibración dice que son 90°. Después dime cómo giró.</string>
-    <string name="cal_i_recta">Pon el carro sobre una línea de cinta, mirando a lo largo de ella, y toca «Avanzar 2 s». Después dime hacia dónde se desvió y cuántos cm.</string>
+    <string name="cal_i_recta">Pon el carro sobre una línea de cinta, mirando a lo largo de ella, y toca «Avanzar 4 s». Después dime hacia dónde se desvió y cuántos cm.</string>
 
     <string name="cal_n_intro">Necesitas una cinta o regla y marcas de 90° en el piso. El botón PARO siempre detiene el carro.</string>
     <string name="cal_n_intro_giro">«Solo calibrar el giro con la cámara» salta al paso 8 y conserva la calibración guardada.</string>
@@ -105,7 +105,7 @@
     <string name="cal_b_aplicar_grados">Aplicar los grados</string>
     <string name="cal_b_restaurar">Restaurar valor por defecto</string>
     <string name="cal_b_siguiente_recta">Siguiente</string>
-    <string name="cal_b_probar_recta">Avanzar 2 s (intento %1$d de %2$d)</string>
+    <string name="cal_b_probar_recta">Avanzar 4 s (intento %1$d de %2$d)</string>
     <string name="cal_b_recta_maximo">Ya se hicieron los 4 intentos</string>
     <string name="cal_b_recta_lista">La recta ya quedó bien</string>
     <string name="cal_b_aplicar_desvio">Aplicar el desvío</string>
