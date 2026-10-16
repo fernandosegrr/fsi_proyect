@@ -6,7 +6,7 @@ de motor hay que **medir el carro real**. Estas medidas cambian con el peso, el 
 hay que repetirlas si algo de eso cambia.
 
 Código: `nucleo_c/calibracion.c/.h` (C puro, probado en PC: `nucleo_c/pruebas_calibracion.c`) y en la
-app `CalibracionActivity` (asistente paso a paso), `CalibracionNativa`, `CalibracionGuardada`.
+app `CalibracionActivity` (la lista de partes y cada prueba), `CalibracionNativa`, `CalibracionGuardada`.
 
 ## Qué se mide
 
@@ -19,34 +19,80 @@ app `CalibracionActivity` (asistente paso a paso), `CalibracionNativa`, `Calibra
 5. **MS_POR_CM_ATRÁS** (opcional): cuánto tiempo de motor hace falta para RETROCEDER 1 cm. Lo usa el reintento de esquive (el carro
    retrocede 15 cm, ver `docs/navegador.md`). Si no se mide se usa el del avance y la app avisa.
 
+6. **DESPLAZAMIENTO DEL CENTRO AL GIRAR** (opcional, por lado y por perfil): cuánto se mueve el centro del carro por cada grado que gira (ruedas mecanum). Ver su sección.
+
 El modelo es:  `distancia = (tiempo − arranque) × velocidad + frenado`  (y lo mismo con grados).
 
-## Procedimiento (lo guía la app: pantalla principal → «Calibración del carro»)
+## Procedimiento (lo guía la app: Más → «Calibración del carro»)
 
-Necesitas: el carro en el piso donde va a andar y con la batería cargada, ~2 m libres, una cinta
-métrica y cinta adhesiva para marcar el piso (salida del avance, y marcas de 90 grados para los giros).
+**Calibración por partes (J5, 16 oct).** Antes había un asistente de una sola tirada y quien quería repetir una cosa sentía que debía repetir todas. Ahora la pantalla es **una lista de partes
+independientes**: cada tarjeta muestra el **valor actual**, la **fecha y hora de la última calibración**, si **depende de las pilas** («Repite si cambiaste pilas») y un botón **«Calibrar solo esto»**.
+
+| Parte | Qué mide | Cuánto toma | Depende de las pilas |
+|---|---|---|---|
+| Arranque del motor | reacción (3 toques) + arranque (5 toques) | 1 min | sí |
+| Velocidad de avance | ms por cm: avanza 1, 2 y 3 s, 3 veces cada uno (9 pruebas) | 5 min | sí |
+| Frenado de avance | cm que sigue avanzando tras el STOP: avanza 2 s, 3 veces | 2 min | sí |
+| Giro a la izquierda / a la derecha | ms por grado de ese lado (y el frenado del giro con la prueba de tres tiempos) | 2 min (3 giros) | sí |
+| Retroceso | ms por cm hacia atrás: igual que la velocidad pero en reversa | 5 min | sí |
+| Giro con la cámara | campo de visión de la cámara (`docs/giro_visual.md`) | 3 min | no |
+| Desplazamiento al girar | cuánto se mueve el centro al girar (más abajo) | 5 min | sí |
+| Ajuste fino del giro de 90° | factor del giro por lado y perfil (más abajo) | 1 min | sí |
+| Ajuste fino de la recta (balance) | balance del lado izquierdo por perfil (`docs/perfiles_velocidad.md`) | 2 min | sí |
+
+Reglas que se cumplen en todas (están en `CalibracionActivity.kt`):
+
+- **Cada prueba es independiente**: no exige haber hecho otra antes (el ajuste fino del giro de 90° y de la recta ya no piden una calibración completa; sin giro medido usan el valor de ejemplo y lo dicen), **no borra
+  los otros valores** (solo cambia lo suyo: la velocidad no toca el frenado ni el arranque; el frenado solo el frenado; un giro solo ese lado) y **guarda al terminar**.
+- **Una prueba cancelada no cambia nada**: salir de la parte (botón «Cancelar», la flecha de la barra de título o el botón atrás del teléfono) descarta lo medido y los valores guardados quedan igual. Si ya mediste algo
+  pide confirmación. Las partes que se ajustan de a poco (desplazamiento, giro de 90° y recta) guardan en cada repetición y se cierran con «Listo».
+- Las demás terminan en un **resultado** que dice qué cambia (antes → después) con «Guardar esta calibración». Antes de guardar, el código en C revisa que los ms por grado de cada lado estén entre 3 y 20 (más abajo).
+- **«Calibrar todo, en orden»** recorre las partes una tras otra (arranque, velocidad, frenado, giro izquierdo, giro derecho, retroceso, desplazamiento, giro de 90° y recta; el giro con la cámara queda aparte
+  porque pide la cámara abierta). Cada parte se guarda sola al terminar y «Omitir esta parte» salta una; si abandonas a la mitad, lo ya guardado se queda guardado.
+- Al final de la lista, «Copiar los valores como texto» (el texto de `calibracion.txt`) y «Borrar la calibración guardada» (con confirmación; no toca el ajuste fino, el desplazamiento ni el balance).
+
+Necesitas: el carro en el piso donde va a andar y con la batería cargada, ~2 m libres, una cinta métrica y cinta adhesiva para marcar el piso (salida del avance, y marcas de 90 grados para los giros).
 Conecta el carro (ws://192.168.4.1/ws por defecto). El botón **STOP** de la pantalla siempre detiene el carro.
 
-1. **Reacción** (3 veces): toca el botón grande cuando se ponga verde. Sirve para descontar tu tiempo de
-   reacción del paso siguiente.
-2. **Arranque** (5 veces): toca «Probar» (el carro recibe FORWARD) y toca «YA SE MOVIÓ» en cuanto veas
-   moverse las ruedas. Arranque = promedio de los toques (sin datos raros) − tu reacción.
-3. **Avance**: el carro avanza 1000, 2000 y 3000 ms, **3 veces cada tiempo** (9 pruebas). Después de cada una,
-   espera a que se detenga **por completo**, mide con la cinta cuántos cm avanzó (de la marca de salida
-   a las ruedas) y escríbelo. Vuelve a poner el carro en la marca cada vez.
-4. **Giro a la izquierda** y **Giro a la derecha**: igual, con 500, 1000 y 1500 ms (3 veces cada uno).
-   Alinea el carro con una marca de 90 grados y anota los grados que giró, aproximados.
-5. **Retroceso (opcional)**: se mide **igual que el avance**, pero el carro recibe REVERSE (1000, 2000 y 3000 ms, 3 veces cada uno). Deja
-   unos **80 cm libres detrás** del carro (no ve hacia atrás), mide cuántos cm retrocedió y escríbelo. Si no quieres medirlo toca «Siguiente».
-6. **Giro con la cámara (opcional)**: calibra el campo de visión de la cámara para medir el giro con ella (`docs/giro_visual.md`): el carro gira 90°
-   a la derecha según la calibración mientras la cámara mide; tú escribes los grados que giró de verdad (hasta 3 pruebas).
-7. **Resumen**: la app calcula todo en C y muestra los valores. «Usar estos valores» los guarda y el
-   navegador los usa en la próxima ruta. «Copiar» deja el texto en el portapapeles. «Borrar» vuelve a los
-   valores por defecto.
+Cómo se hace cada parte:
 
-«Borrar el último dato / repetir» quita el último número si te equivocaste. Si una medida sale muy
-rara, repítela: el cálculo descarta los datos que se alejan mucho de los demás (más de 30 % de la
+1. **Arranque**: *reacción* (3 veces): toca el botón grande cuando se ponga verde; sirve para descontar tu tiempo de reacción. *Arranque* (5 veces): toca «Probar» (el carro recibe FORWARD) y toca «YA SE MOVIÓ» en
+   cuanto veas moverse las ruedas. Arranque = promedio de los toques (sin datos raros) − tu reacción. Si cambia más de 40 ms, el resultado avisa que la velocidad y los giros guardados se midieron con el arranque anterior.
+2. **Velocidad de avance**: el carro avanza 1000, 2000 y 3000 ms, **3 veces cada tiempo** (9 pruebas). Después de cada una, espera a que se detenga **por completo**, mide con la cinta cuántos cm avanzó (de la marca de salida
+   a las ruedas) y escríbelo. Vuelve a poner el carro en la marca cada vez. Solo se guardan los **ms por cm**: el frenado y el arranque que ya había se conservan.
+3. **Frenado de avance**: el carro avanza 2000 ms, **3 veces**; escribe cuántos cm avanzó **en total**. Con la velocidad y el arranque guardados, lo que sobra sobre lo que debía avanzar es el frenado (`cal_ajustar_frenado`).
+   Si el carro avanzó mucho *menos* de lo esperado (más de 3 cm), la velocidad guardada ya no vale y el resultado dice que calibres primero la velocidad.
+4. **Giro a la izquierda** y **Giro a la derecha**: eliges el **giro de prueba** (siguiente sección), alineas el carro con una marca y anotas los grados que giró, aproximados.
+5. **Retroceso**: se mide **igual que la velocidad**, pero el carro recibe REVERSE (1000, 2000 y 3000 ms, 3 veces cada uno). Deja unos **80 cm libres detrás** del carro (no ve hacia atrás), mide cuántos cm retrocedió y escríbelo.
+6. **Giro con la cámara**: calibra el campo de visión de la cámara para medir el giro con ella (`docs/giro_visual.md`): el carro gira 90° a la derecha según la calibración guardada mientras la cámara mide; tú escribes los grados
+   que giró de verdad (hasta 3 pruebas).
+7. **Desplazamiento al girar**, **ajuste fino del giro de 90°** y **ajuste fino de la recta**: ver sus secciones.
+
+«Borrar el último dato / repetir» quita el último número si te equivocaste. Si una medida sale muy rara, repítela: el cálculo descarta los datos que se alejan mucho de los demás (más de 30 % de la
 mediana), pero no puede arreglar varias medidas malas.
+
+### El giro de prueba (J5)
+
+En las pruebas de **giro** (izquierda y derecha) y en la de **desplazamiento al girar** se elige con qué giro se prueba:
+
+- **«Giro de 90° real»** (por defecto): el mismo comando que usa el navegador para un giro de 90°, con la calibración y el ajuste fino guardados (`gradosAMs(leerAjustada(), ±90)`). Es lo que más hace el navegador.
+- **«180°»**: lo mismo con 180°. Mide mejor el desplazamiento grande, pero el arranque pesa menos que en un giro corto.
+- **«Libre»**: una duración de 500 a 1500 ms (de 100 en 100). Dices cuántos grados giró.
+- **Solo en el giro: «Completa: tres tiempos»**: la prueba de siempre (500, 1000 y 1500 ms, 3 veces cada uno = 9 pruebas, recta por mínimos cuadrados): es la única que mide además cuánto sigue girando el carro al frenar.
+
+Con un solo giro de prueba son **3 repeticiones** y los **ms por grado salen de los grados que TÚ dices que giró**: `ms por grado = (ms − arranque) / (grados − frenado del giro)` (`cal_ajustar_giro_fijo`, con el arranque y el frenado
+ya guardados; un frenado de giro de más de 20°, como el 38.9° que quedó guardado, se descarta al volver a medir ese lado). Ejemplo: un carro de 8 ms por grado con 150 ms de arranque gira 112.5° cuando se le piden 1050 ms; dices
+112 y el ajuste da 8.0 ms por grado, con lo que el siguiente giro de 90° dura 870 ms y gira 90° justos (probado en `pruebas_calibracion.c`). Si lo mides más de una vez, cada pasada parte de la anterior.
+
+**No se mezclan sin avisar.** Los ms por grado dependen de la duración con la que se midieron (el arranque pesa más en un giro corto). La app guarda con qué giro de prueba se midió cada lado (`CalibracionGuardada`,
+`GiroPrueba`) y, si el otro lado se midió con una prueba distinta —o dos repeticiones de un lado se quieren hacer con pruebas distintas—, lo avisa en el panel de la prueba y en el resultado. Cambiar el giro de prueba a mitad
+de una medición **borra** las repeticiones de ese lado (mezclarlas no sirve).
+
+### Ms por grado entre 3 y 20 (J5)
+
+Al **guardar** una calibración, `cal_validar_para_guardar` (en C) rechaza —y la app avisa, sin guardar nada— si los ms por grado de algún lado salen de **3 a 20** ms por grado (`CAL_MS_GRADO_GUARDAR_*`): un carro de este tamaño gira
+~1° cada 7 a 10 ms; fuera de ese rango casi seguro se anotó mal un dato. Es más estricto a propósito que `cal_es_valida` (1 a 200), que solo protege al LEER lo ya guardado. Lo mismo aplica al ajuste fino del giro de 90°: si
+el factor nuevo dejaría los ms por grado fuera de 3 a 20, no se guarda.
 
 ### Cómo se calcula
 
@@ -76,8 +122,8 @@ mediana), pero no puede arreglar varias medidas malas.
 - **La pausa de 300 ms** (`NAV_PAUSA_ASENTAR_MS`) es la misma entre todos los movimientos: entre avanzar y girar o dos giros distintos al seguir la ruta, después de retroceder, al
   enderezarse, antes de calcular la vuelta a la línea y entre los tres movimientos de la vuelta.
 
-**Qué se agregó: «Giro 90°».** Después del resumen (botón «Ajuste fino: giro y recta»), o directo desde la primera pantalla («Solo el ajuste fino»), hay un paso por prueba. Parte de la calibración
-**guardada** (si no hay una completa, avisa y no deja probar).
+**Qué se agregó: «Giro 90°».** Es la parte «Ajuste fino del giro de 90°» de la lista (J5: ya no hace falta pasar por una calibración completa; parte de la calibración **guardada** y, si el giro
+nunca se midió, usa el valor de ejemplo y lo avisa).
 
 1. Elige el **perfil** (AUTO por defecto; MANUAL también se puede) y el **lado** (izquierda o derecha).
 2. Toca «Probar»: el carro gira lo que la calibración (con el factor de ese lado y perfil) dice que son 90° y se detiene.
@@ -164,10 +210,33 @@ sin esas líneas se siguen leyendo.
 
 ## Ajuste fino: recta (equilibrio de los lados)
 
-El segundo paso del ajuste fino («Siguiente: la recta») corrige que el carro se tuerza al avanzar: se hace sobre una línea de cinta, «Avanzar 4 s», se dice hacia dónde se desvió y cuántos cm, y la app calcula y manda al carro el **balance**
+La parte «Ajuste fino de la recta (balance)» de la lista corrige que el carro se tuerza al avanzar (ya no pide una calibración completa antes): se hace sobre una línea de cinta, «Avanzar 4 s», se dice hacia dónde se desvió y cuántos cm, y la app calcula y manda al carro el **balance**
 del lado izquierdo (800 a 1000), por perfil. Explicación, protocolo, geometría y pruebas en `docs/perfiles_velocidad.md`. Igual que con el giro, se hace con las pilas de la demo («Recalibra con las pilas que usarás en la demo»).
 
-El factor de giro **no** está en `calibracion.txt` (ese archivo solo trae lo medido); vive en las preferencias de la app.
+El factor de giro **no** está en `calibracion.txt` (ese archivo solo trae lo medido); vive en las preferencias de la app. Igual que el desplazamiento al girar, el balance, **la fecha y hora de la última calibración
+de cada parte** (`fecha_velocidad`, `fecha_giro_izq`, `fecha_giro_90_auto`...: milisegundos desde 1970) y **con qué giro de prueba se midió cada lado** (`giro_prueba_izq`, `giro_prueba_der`: `90`, `180`,
+`libre:1000` o `tres`; `desp_prueba_*` para el desplazamiento). Una parte medida antes de que la app anotara las fechas aparece como «medido, sin fecha» hasta que se vuelva a calibrar.
+
+## Una ruta que no giró «una vez de tres» (J5, 16 oct)
+
+**Qué pasó.** En la prueba real, una ruta de 40 cm a la derecha con 1 giro giró bien 2 de 3 veces; en una avanzó recto. Probablemente es **contacto eléctrico intermitente** (hardware), así que **no se rediseñó el navegador**.
+Solo se agregó lo necesario para separar «el programa mandó mal el comando» de «el comando fue correcto y el carro no lo hizo»:
+
+1. **Simulación en C** (`pruebas_navegador.c`, `pruebas_ruta_derecha_40cm`): la ruta `(2,8) → (3,8) → (4,8)` (40 cm a la derecha, 1 giro) manda **RIGHT como primer comando, en el primer tick (t = 0)**, durante **900 ms**
+   con la calibración de ejemplo (10 ms por grado) o **738 ms** con 8.2 ms por grado (la medida del 14 oct); después una pausa de 300 ms y FORWARD, nunca FORWARD antes del giro y un solo giro en toda la ruta.
+2. **Registro `RUTA_DIAG`** (log de la app: `adb logcat -d -s RUTA_DIAG:I`): una línea al **enviar** cada comando de movimiento y otra al **terminarlo**:
+   ```
+   RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=90 plan_ms=900 t_ms=18420
+   TURN_DIAG lado=DER origen=ruta pedido=90 hecho=90 plan_ms=900 real_ms=900 um_grado=(0,0) mm=(0,0) carro_mm=(0,0) rumbo=0>90
+   RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=900 hecho=90
+   ```
+   `pedido` son grados (giros) o mm (avance y retroceso); `plan_ms` la duración planeada y `real_ms` la real (si se cancela a mitad, menos); `hecho` lo estimado (grados o mm). Un tramo que sigue en línea recta hasta el
+   siguiente punto de la ruta tiene su propio envío y fin.
+3. **Pantalla de resultado** («Ejecutar ruta» al terminar o cancelar): bajo el resultado, la duración y los obstáculos esquivados, **«Giro pedido / Giro hecho (estimado)»**, una línea por giro: `Giro derecha: pedido 90°,
+   hecho ~90°` (con el origen entre paréntesis si fue al esquivar o al volver a la línea). «Hecho» es lo que el **navegador estima** (por tiempo, o con la cámara si era confiable): no mide el carro real.
+4. **Cómo leerlo.** Si el log de la corrida que falló dice `envia cmd=RIGHT ... pedido=90 plan_ms=...` y `fin ... real_ms=` cercano al planeado, **el programa mandó bien el giro**: el fallo está en el carro (contacto en el motor,
+   conector, pilas), no en el software; se anota en `docs/bitacora.md` como «no software». Si falta el `envia cmd=RIGHT` o el primer comando fue FORWARD, el fallo sí es del programa. **PENDIENTE HARDWARE**: repetir
+   la ruta de 40 cm a la derecha varias veces con el teléfono conectado y guardar el log de una corrida que falle.
 
 ## Si no se calibró
 
@@ -176,7 +245,7 @@ pantalla de control (modo semiautónomo) muestra un aviso con lo que falta: «Ca
 
 ## Pruebas en PC (datos simulados con ruido de ±10 %)
 
-`cd nucleo_c; make test` (92 casos en `pruebas_calibracion.c`, y casos de calibración en `pruebas_navegador.c`):
+`cd nucleo_c; make test` (212 casos en `pruebas_calibracion.c`, y casos de calibración en `pruebas_navegador.c`, 234):
 
 - estadística (promedio, mediana, atípicos), validez, ajuste con datos exactos y con errores (tiempos iguales,
   datos que decrecen, pendiente absurda), conversiones de ida y vuelta, texto exportado e importado;
@@ -186,7 +255,12 @@ pantalla de control (modo semiautónomo) muestra un aviso con lo que falta: «Ca
   disparatadas (un dato multiplicado por 3) el rechazo de atípicos mantiene 398 de 400 calibraciones dentro de 15 %;
 - navegador con un carro simulado que tiene arranque, frenado y giros distintos a cada lado: sin calibrar queda a
   ~185 mm del destino de una ruta recta de 1 m; con su calibración, a 6 mm; zigzag y cuadrado con giros a ambos
-  lados llegan al destino; una detención a mitad de camino y reanudación también.
+  lados llegan al destino; una detención a mitad de camino y reanudación también;
+- **por partes (J5)**: la velocidad guarda solo los ms por cm y conserva el frenado y el arranque; el frenado con un solo tiempo (492 mm en 2000 ms con 462 esperados = 30 mm); el giro con un solo tiempo
+  (un carro de 8 ms por grado medido con el «giro de 90° real» queda justo en la siguiente pasada); el frenado de giro imposible se descarta al volver a medir; ms por grado de 3 a 20 al guardar
+  (2.9 y 21 se rechazan, 3.0 y 20.0 se aceptan);
+- **desplazamiento (J4)**: un giro de 90° con 1 mm por grado hacia adelante mueve el centro 64 mm a la derecha y 64 mm arriba (cuenta a mano 90 × 0.707); una medida pasada a µm por grado y aplicada al mismo giro
+  vuelve a dar lo medido (±1 mm); dos repeticiones se promedian y se rechazan si difieren más de 30 % (con tolerancia absoluta para valores casi cero).
 
 ## PENDIENTE HARDWARE
 
@@ -197,6 +271,11 @@ Todo lo que necesita el carro real:
 2. Revisar que la reacción y el toque de arranque dan datos parecidos entre repeticiones (si no, la medida del
    arranque a mano es poco confiable; ver la limitación).
 3. Probar una ruta (cuadrado) con el navegador y la calibración guardada y medir cuánto se desvía.
+4. **Desplazamiento al girar**: medir con cinta los dos lados en el piso de la demo (2 repeticiones por lado), AUTO y, si se va a usar, MANUAL. Comparar `carro_mm` de `TURN_DIAG` con lo medido; el simulador usa
+   el desplazamiento medido, así que mientras no se mide el simulador y el navegador suponen giro en el sitio, como antes.
+5. **Giro de prueba**: medir los dos lados con el mismo giro de prueba («Giro de 90° real»), repetir el ajuste fino del giro de 90° y comprobar que `RUTA_DIAG` y la pantalla de resultado coinciden con el carro.
+6. **Ruta que no giró una vez de tres**: repetir la ruta de 40 cm a la derecha y guardar el `RUTA_DIAG` de una corrida que falle (ver «Una ruta que no giró»).
+7. Instalar la app nueva en el teléfono y revisar las pantallas de Calibración (lista, giro de prueba, desplazamiento): en esta sesión se compiló pero el teléfono estaba bloqueado y no se pudo instalar ni capturar.
 
 ## Límites
 

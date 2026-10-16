@@ -120,7 +120,7 @@
     <string name="cal_n_giro_90">Hazlo con las pilas que usarás en la demo. Se repite hasta que quede justo. El ajuste se guarda por lado y por perfil y lo usan las rutas y el simulador.</string>
     <string name="cal_n_recta">Hazlo con las pilas que usarás en la demo. Se repite hasta que el desvío sea de 1 cm o menos (hasta 4 intentos). El ajuste se guarda en el carro y en el teléfono.</string>
     <string name="cal_n_giro_visual">Se repite hasta 3 veces. Usa los giros que ya están guardados.</string>
-    <string name="cal_n_desplazamiento">Son 2 repeticiones por lado. Se promedian y, si difieren más de 30 %, se rechazan. El desplazamiento cambia con el piso y las pilas, y de un giro a otro: es un promedio.</string>
+    <string name="cal_n_desplazamiento" formatted="false">Son 2 repeticiones por lado. Se promedian y, si difieren más de 30 %, se rechazan. El desplazamiento cambia con el piso y las pilas, y de un giro a otro: es un promedio.</string>
 
     <!-- Botones -->
     <string name="cal_b_empezar">Empezar</string>

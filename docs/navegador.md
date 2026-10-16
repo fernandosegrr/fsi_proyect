@@ -203,6 +203,17 @@ desplazamiento por grado del modelo; **`mm` el desplazamiento aplicado a este gi
 la cinta); `rumbo` de dónde a dónde. Con desplazamiento 0, `mm=(0,0)`. Para comparar con el carro real: mide con cinta lo que se movió el centro en un giro y compáralo con `carro_mm` de esa línea
 (`adb logcat -d -s TURN_DIAG:I`).
 
+**Registro `RUTA_DIAG`** (J5; una línea al enviar cada comando de movimiento y otra al terminarlo, con la duración planeada y la real; los STOP no se anotan):
+
+```
+RUTA_DIAG envia cmd=RIGHT origen=ruta pedido=90 plan_ms=900 t_ms=18420
+RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=900 hecho=90
+```
+
+`pedido` son grados (giros) o mm (avance y retroceso; 0 si fue a mano); `hecho` lo estimado (grados o mm, con el frenado). Sirve para saber si «el programa mandó mal el comando» o «el comando fue correcto y el carro no lo
+hizo» (contacto eléctrico): ver `docs/calibracion.md`, «Una ruta que no giró». El navegador también guarda los giros de la ruta (`navegador_texto_giros`) y la pantalla de resultado de «Ejecutar ruta» los muestra como
+«Giro pedido / Giro hecho (estimado)».
+
 **Es un promedio, no una constante.** El desplazamiento depende del piso (agarre), de las pilas y varía de un giro a otro (por eso la prueba pide 2 repeticiones por lado y rechaza si difieren más de 30 %). El modelo
 corrige el promedio, no cada giro: lo que queda de error es el que ya tenía el navegador (a menos de 8 cm de la línea solo corrige el rumbo, `NAV_REINC_DESVIO_MIN_MM`).
 

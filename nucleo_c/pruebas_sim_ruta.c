@@ -275,6 +275,21 @@ int main(void)
         codigo = sr_simular(salto, 2, NULL, NULL, 0, 0, 0, &res);
         caso("una ruta con salto: el navegador la rechaza (error de ruta con su código)", codigo == SR_ERR_RUTA && res.codigo_ruta == TRAY_ERR_SALTO);
     }
+    /* ── Con desplazamiento del centro al girar (J4): el carro virtual y el navegador usan los mismos valores, así que la ruta sigue llegando ── */
+    {
+        CalibracionCarro cal;
+
+        cal_defecto(&cal);
+        cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, 400, 80);
+        cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 700, -120);
+        n = ruta_de(RE_PLANTILLA_L, ruta);
+        sr_simular(ruta, n, &cal, NULL, 0, 0, 0, &res);
+        caso("ruta en L con desplazamiento al girar (0.7 mm por grado a la derecha): llega y termina a menos de 8 cm del punto final", res.llego && res.error_final_mm < 80);
+        n = ruta_de(RE_PLANTILLA_CUADRADO, ruta);
+        sr_simular(ruta, n, &cal, NULL, 0, 0, 0, &res);
+        printf("      cuadrado con desplazamiento: llego=%d error=%d mm\n", res.llego, res.error_final_mm);
+        caso("cuadrado con desplazamiento al girar: llega y cierra a menos de 10 cm del punto de partida", res.llego && res.error_final_mm < 100);
+    }
     caso("una ruta de un solo punto: error de argumento", sr_simular(ruta, 1, NULL, NULL, 0, 0, 0, &res) == SR_ERR_ARGUMENTO);
     caso("punteros nulos: error de argumento", sr_simular(NULL, 3, NULL, NULL, 0, 0, 0, &res) == SR_ERR_ARGUMENTO && sr_simular(ruta, n, NULL, NULL, 0, 0, 0, NULL) == SR_ERR_ARGUMENTO && sr_dispersion(ruta, n, NULL, NULL, 0, 0, 0, &disp) == SR_ERR_ARGUMENTO);
     {

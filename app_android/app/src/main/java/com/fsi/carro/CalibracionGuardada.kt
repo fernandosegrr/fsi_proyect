@@ -136,7 +136,7 @@ class CalibracionGuardada(contexto: Context) {
 
     /** Vuelve los dos lados del perfil a 1000 (sin corrección). */
     fun restaurarFactoresGiro(perfil: ControlLogica.Perfil) {
-        preferencias.edit().remove(claveGiro(perfil, CalibracionNativa.LADO_IZQUIERDA)).remove(claveGiro(perfil, CalibracionNativa.LADO_DERECHA)).apply()
+        preferencias.edit().remove(claveGiro(perfil, CalibracionNativa.LADO_IZQUIERDA)).remove(claveGiro(perfil, CalibracionNativa.LADO_DERECHA)).remove(claveFecha(Parte.GIRO_90, perfil)).apply()
         Log.i(ETIQUETA, "factores de giro ${perfil.name} restaurados a 1000")
     }
 
@@ -145,6 +145,10 @@ class CalibracionGuardada(contexto: Context) {
         val edicion = preferencias.edit()
         for (perfil in ControlLogica.Perfil.values()) {
             edicion.remove(claveGiro(perfil, lado))
+            val otroLado = -lado
+            if (factorGiro(perfil, otroLado) == CalibracionNativa.FACTOR_GIRO_DEFECTO) {
+                edicion.remove(claveFecha(Parte.GIRO_90, perfil))   // ya no queda ningún ajuste fino en ese perfil
+            }
         }
         edicion.apply()
         Log.i(ETIQUETA, "factor de giro de la ${if (lado < 0) "izquierda" else "derecha"} restaurado a 1000 en los dos perfiles")
@@ -175,7 +179,7 @@ class CalibracionGuardada(contexto: Context) {
         for (lado in intArrayOf(CalibracionNativa.LADO_IZQUIERDA, CalibracionNativa.LADO_DERECHA)) {
             edicion.remove(claveDespAdelante(perfil, lado)).remove(claveDespDerecha(perfil, lado)).remove(claveGiroPruebaDesp(perfil, lado))
         }
-        edicion.apply()
+        edicion.remove(claveFecha(Parte.DESPLAZAMIENTO, perfil)).apply()
         Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} restaurado a 0")
     }
 
@@ -230,7 +234,7 @@ class CalibracionGuardada(contexto: Context) {
 
     /** Vuelve al balance por defecto del firmware y olvida que se había calibrado. */
     fun restaurarBalance(perfil: ControlLogica.Perfil) {
-        preferencias.edit().remove(claveBalance(perfil)).remove(claveBalanceCalibrado(perfil)).apply()
+        preferencias.edit().remove(claveBalance(perfil)).remove(claveBalanceCalibrado(perfil)).remove(claveFecha(Parte.RECTA, perfil)).apply()
         Log.i(ETIQUETA, "balance ${perfil.name} restaurado al valor por defecto (${balanceDefecto(perfil)})")
     }
 

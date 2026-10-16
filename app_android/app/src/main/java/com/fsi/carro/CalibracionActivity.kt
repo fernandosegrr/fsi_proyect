@@ -234,10 +234,16 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     /** La sesión compartida avisa (conexión, perfil, latencia): se redibuja el chip y se habilitan o no los botones. */
     private val alCambiar: () -> Unit = { mostrarConexion() }
 
-    /** Cada medio segundo: el aviso de «sin conexión» depende del tiempo que lleva sin conectar. */
+    private var camaraAbiertaMostrada = false   // lo último que se dibujó del estado de la cámara en el giro visual
+    private var entradaPasoMs = 0L              // cuándo se mostró el paso actual (para ignorar el doble toque de «Listo»)
+
+    /** Cada medio segundo: el aviso de «sin conexión» depende del tiempo que lleva sin conectar. También redibuja el giro visual cuando la cámara termina de abrir (abre sola, en otro hilo). */
     private val tareaReloj = object : Runnable {
         override fun run() {
             actualizarChipYAviso()
+            if (paso == Paso.GIRO_VISUAL && camara.abierta != camaraAbiertaMostrada && !ocupado()) {
+                mostrarPaso()
+            }
             reloj.postDelayed(this, 500)
         }
     }
@@ -598,6 +604,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     /** Lo que hay que hacer cada vez que se muestra un paso nuevo (la cámara, el perfil, el cálculo del resultado). */
     private fun entrarPaso() {
         paso = secuenciaActual[indicePaso]
+        entradaPasoMs = SystemClock.elapsedRealtime()
         esperandoDato = false
         resumenAjuste = ""
         campoResultado.setText("")
@@ -640,7 +647,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             iniciarParte(lista[todoIndice], true)
         } else {
             if (lista != null) {
-                Toast.makeText(this, "Calibración completa. Cada parte se guardó al terminar.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Se acabaron las partes. Las que terminaste ya se guardaron.", Toast.LENGTH_LONG).show()
             }
             volverALista()
         }
@@ -670,7 +677,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     private fun cancelarParte() {
-        if (hayDatosSinGuardar() && paso != Paso.RESUMEN) {
+        if (hayDatosSinGuardar()) {
             Dialogos.confirmar(this, "¿Cancelar esta calibración?", "Lo que ya mediste en esta parte no se guarda y los valores guardados no cambian.", "Cancelar la calibración") { volverALista() }
         } else {
             volverALista()
@@ -693,8 +700,16 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         if (ocupado() || esperandoDato) {
             return
         }
+        if (SystemClock.elapsedRealtime() - entradaPasoMs < 700L) {
+            return   // un doble toque en «Listo» no debe saltarse también la parte que viene (en «Calibrar todo»)
+        }
         if (indicePaso >= secuenciaActual.size - 1) {
-            terminarParte()   // «Listo» (las partes que se ajustan de a poco ya guardaron)
+            // «Listo» (las partes que se ajustan de a poco ya guardaron). Una repetición del desplazamiento a medias se perdería: se pregunta.
+            if (paso == Paso.DESPLAZ && hayDatosSinGuardar()) {
+                Dialogos.confirmar(this, "¿Terminar sin completar?", "Falta la segunda repetición de ese lado: lo que ya mediste de él no se guarda. Los lados ya guardados no cambian.", "Terminar") { terminarParte() }
+            } else {
+                terminarParte()
+            }
             return
         }
         indicePaso++
@@ -1038,6 +1053,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             }
             Paso.GIRO_IZQ, Paso.GIRO_DER -> mostrarGiroCalibracion()
             Paso.GIRO_VISUAL -> {
+                camaraAbiertaMostrada = camara.abierta
                 textoTitulo.setText(R.string.cal_t_giro_visual)
                 textoInstruccion.setText(R.string.cal_i_giro_visual)
                 textoNota.setText(R.string.cal_n_giro_visual)
@@ -1133,8 +1149,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private fun actualizarBotones() {
         val ocupado = ocupado()
         val enLista = paso == Paso.LISTA
-        filaNav.visibility = if (enLista || paso == Paso.RESUMEN) View.GONE else View.VISIBLE
+        filaNav.visibility = if (enLista) View.GONE else View.VISIBLE
         botonAtras.visibility = View.VISIBLE
+        botonSiguiente.visibility = if (paso == Paso.RESUMEN) View.GONE else View.VISIBLE   // en el resultado queda «Atrás» (para corregir un dato) y «Guardar esta calibración»
         val probarActivo = when (paso) {
             Paso.LISTA -> !ocupado
             Paso.REACCION -> estadoReaccion == 0 && reacciones.size < TOQUES_REACCION
@@ -1156,6 +1173,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.FRENADO -> frenadoMm.isNotEmpty() || esperandoDato
             Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantasGiro() > 0 || esperandoDato
             Paso.GIRO_VISUAL -> fovReal.isNotEmpty() || esperandoDato
+            Paso.DESPLAZ -> esperandoDato   // descarta el giro en curso (no se guarda esa repetición) para volver a girar
             else -> false
         })
         habilitar(botonAtras, !ocupado)
@@ -1406,7 +1424,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private fun hayMedidasDelGiro(): Boolean = when (paso) {
         Paso.GIRO_IZQ, Paso.GIRO_DER -> cuantasGiro() > 0
-        Paso.DESPLAZ -> despAdelanteUm[indiceLado(ladoAjuste)].isNotEmpty()
+        Paso.DESPLAZ -> despAdelanteUm.any { it.isNotEmpty() }   // las repeticiones de los dos lados deben ser del mismo giro de prueba
         else -> false
     }
 
@@ -1417,8 +1435,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 giroFijo[indiceLado(ladoDelPaso())].clear()
             }
             Paso.DESPLAZ -> {
-                despAdelanteUm[indiceLado(ladoAjuste)].clear()
-                despDerechaUm[indiceLado(ladoAjuste)].clear()
+                for (l in despAdelanteUm) l.clear()
+                for (l in despDerechaUm) l.clear()
             }
             else -> {}
         }
@@ -2216,7 +2234,14 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             avisoGuardar = if (codigo == CalibracionNativa.ERR_GIRO_FUERA) {
                 val izq = cal[CalibracionNativa.CAL_MS_GRADO_IZQ_X10] / 10.0
                 val der = cal[CalibracionNativa.CAL_MS_GRADO_DER_X10] / 10.0
-                fmt("NO SE GUARDÓ NADA: los ms por grado quedarían en %.1f (izquierda) y %.1f (derecha), y deben estar entre 3 y 20. Casi seguro se anotó mal algún dato. Vuelve atrás, borra el dato malo o repite la prueba.", izq, der)
+                val guardadaAntes = guardada.leer()
+                // ¿El valor que está fuera de 3 a 20 lo cambió ESTA parte o ya estaba guardado así de antes?
+                val cambioIzq = cal[CalibracionNativa.CAL_MS_GRADO_IZQ_X10] != guardadaAntes[CalibracionNativa.CAL_MS_GRADO_IZQ_X10]
+                val cambioDer = cal[CalibracionNativa.CAL_MS_GRADO_DER_X10] != guardadaAntes[CalibracionNativa.CAL_MS_GRADO_DER_X10]
+                val deEstaParte = cambioIzq || cambioDer
+                fmt("NO SE GUARDÓ NADA: los ms por grado quedarían en %.1f (izquierda) y %.1f (derecha), y deben estar entre 3 y 20. ", izq, der) +
+                    (if (deEstaParte) "Casi seguro se anotó mal algún dato: toca «Atrás», borra el dato malo con «Borrar el último dato» o repite la prueba."
+                    else "Esa medida de giro ya estaba guardada así de antes y no es de esta prueba: calibra primero el giro que está fuera de rango (en la lista, «Giro a la izquierda» o «Giro a la derecha»).")
             } else {
                 "NO SE GUARDÓ NADA: ${CalibracionNativa.textoError(codigo)}"
             }

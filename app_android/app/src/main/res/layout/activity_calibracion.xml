@@ -351,7 +351,6 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:gravity="center"
-                            android:lineHeight="32sp"
                             android:textSize="24sp" />
 
                         <com.google.android.material.button.MaterialButton

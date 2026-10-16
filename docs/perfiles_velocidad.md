@@ -37,7 +37,7 @@ No son un movimiento: no frenan, no cambian el comando actual ni el perfil (como
 (los que tiene guardados en el teléfono; si nunca los cambió, no manda nada y vale lo que el carro tenga) y **al cambiarlos** (con ACK; si el carro no contesta en 1 s, avisa). El servidor falso hace lo mismo
 (y conserva el balance al reconectar, como la memoria del carro).
 
-**Calibración «Recta»** (Calibración → «Ajuste fino: giro y recta» → segundo paso; ver también `docs/calibracion.md`): una prueba por pantalla.
+**Calibración «Recta»** (Calibración → parte «Ajuste fino de la recta (balance)» → «Calibrar solo esto»; ver también `docs/calibracion.md`): una prueba por pantalla.
 
 1. Pon el carro sobre una **línea de cinta**, mirando a lo largo de ella, con las pilas que usarás en la demo (la pantalla lo avisa: **«Recalibra con las pilas que usarás en la demo»**).
 2. «Avanzar 4 s»: la app manda el balance al carro (con ACK) y el carro avanza 4 s con su perfil (antes eran 2 s; el ruido de arranque, de ±2 a 3 cm, era mayor que la meta de 1 cm) (AUTO por defecto) y se detiene.
@@ -106,7 +106,7 @@ frenar por detección en manual; si algún día se quiere, habría que abrir la 
 ## PENDIENTE HARDWARE: balance de la recta (al final, con las pilas de la demo)
 
 1. Cargar el DevKit con el firmware nuevo (`.\scripts\cargar.ps1 nuevo`) y comprobar en el monitor serie que arranca.
-2. En la app: Calibración → «Ajuste fino: giro y recta» → paso de la recta. Línea de cinta, «Avanzar 4 s», decir hacia dónde y cuántos cm, repetir hasta 1 cm (máximo 4 intentos), en **AUTO**; si se maneja en MANUAL, también en MANUAL.
+2. En la app: Calibración → «Ajuste fino de la recta (balance)» → «Calibrar solo esto». Línea de cinta, «Avanzar 4 s», decir hacia dónde y cuántos cm, repetir hasta 1 cm (máximo 4 intentos), en **AUTO**; si se maneja en MANUAL, también en MANUAL.
 3. Anotar el balance final de cada perfil (aparece en la pantalla) y comprobar que al apagar y encender el carro lo conserva (`BAL?` o el siguiente «Avanzar 4 s»).
 4. Una ruta recta de 1 m desde Rutas: el desvío debe ser de 1 a 2 cm.
 
