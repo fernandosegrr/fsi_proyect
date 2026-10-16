@@ -96,6 +96,16 @@ int main(void)
     codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
     caso("zigzag: llega", codigo == SR_OK && res.llego);
 
+    /* ── Plantillas de salida rápida: en L y ida y vuelta llegan ─────────── */
+    n = ruta_de(RE_PLANTILLA_L, ruta);
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
+    printf("      en L: llego=%d duracion=%u ms comandos=%d error=%d mm\n", res.llego, (unsigned)res.duracion_ms, res.n_comandos, res.error_final_mm);
+    caso("plantilla en L: llega a menos de 10 cm del punto final", codigo == SR_OK && res.llego && res.error_final_mm < 100);
+    n = ruta_de(RE_PLANTILLA_IDA_VUELTA, ruta);
+    codigo = sr_simular(ruta, n, NULL, NULL, 0, 0, 0, &res);
+    printf("      ida y vuelta: llego=%d duracion=%u ms comandos=%d error=%d mm\n", res.llego, (unsigned)res.duracion_ms, res.n_comandos, res.error_final_mm);
+    caso("plantilla ida y vuelta: llega y termina a menos de 10 cm del punto de salida", codigo == SR_OK && res.llego && res.error_final_mm < 100);
+
     /* ── Con un obstáculo ──────────────────────────────────────────────── */
     nl = 0;
     for (i = 7; i >= 0; i--) {   /* una recta larga por la columna 5 */

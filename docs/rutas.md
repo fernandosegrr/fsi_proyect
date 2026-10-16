@@ -27,10 +27,12 @@ Código: `nucleo_c/sim_ruta.c` (40 casos de prueba) y el puente `SimRutaNativa`.
 
 Abre la pantalla **Ejecutar ruta** con la ruta del editor. Usa el mismo ciclo de siempre (`ModoSemiautonomo`): obstáculos de la **cámara del carro** (sesión de video compartida), perfil **AUTO** confirmado por el carro y giro por tiempo corregido con la cámara.
 
-1. **Aprender piso** (carro quieto sobre el piso de la ruta, ~1 s), antes de cada ruta.
-2. **Iniciar ruta.** Lo grande es el estado en palabras: «Preparando el carro…», «Avanzando», «Girando», «Obstáculo: detenido», «Obstáculo: esquivando», «Volviendo a la ruta», «Terminado», «La ruta se detuvo» o «Ruta cancelada». Debajo, el progreso por puntos con su barra.
+**Salir en 3 toques (ajustes del 15 oct).** Desde Inicio, la tarjeta «Salir rápido» tiene **«Repetir la última ruta»** y tres plantillas (**Recta 1 m**, **En L**: 60 cm adelante y 60 cm a la derecha, e **Ida y vuelta**: 60 cm, media vuelta y de regreso; también están en Rutas). Contando desde que se abre la app: **1.** elegir la ruta (abre Ejecutar ruta con la ruta cargada), **2.** «Iniciar ruta», **3.** «Confirmar y salir». Antes eran 5 o 6 toques (pestaña Rutas, plantilla, Ejecutar, Aprender piso, Iniciar y confirmar el piso).
+
+1. **«Iniciar ruta» hace solo lo que antes eran varios pasos:** comprueba la conexión con el carro y que llegue el video (espera hasta 6 s), pide el perfil **AUTO** y espera su ACK, **aprende el piso** con el carro quieto (~1 s) y queda en «Listo para salir». Si el piso se ve **muy variado** (o falla) no sigue con un piso mal aprendido: avisa **«Despeja el frente del carro»** (o qué revisar) y se vuelve a tocar Iniciar. «Aprender piso» a mano quedó en **«Avanzado»**.
+2. **«Confirmar y salir»** (el tercer toque): cuenta **3, 2, 1** y sale (el PARO cancela la cuenta; «Cancelar la salida» también). La ruta que sale queda como la última. Lo grande es el estado en palabras: «Preparando el carro…», «Avanzando», «Girando», «Obstáculo: detenido», «Obstáculo: esquivando», «Volviendo a la ruta», «Terminado», «La ruta se detuvo» o «Ruta cancelada». Debajo, el progreso por puntos con su barra.
 3. **PARO:** un botón rojo grande ocupa el lugar de «Iniciar ruta» mientras corre (y también aparece en la cabecera).
 4. Al terminar o cancelar: **resumen** (resultado, duración y obstáculos esquivados), vibración y una fila en el **historial** de Rutas (fecha, ruta, TERMINADO / ERROR / CANCELADO y duración). Si fue un error, un aviso en banda dice qué pasó y qué hacer.
 5. Al salir de la pantalla (o de la app) la ruta se cancela con un STOP.
 
-Los detalles técnicos (posición estimada, cuadros por segundo, la prueba de obstáculos `OBST_PRUEBA`) están detrás del botón «Detalles técnicos».
+Aprender el piso a mano, los detalles técnicos (posición estimada, cuadros por segundo, la prueba de obstáculos `OBST_PRUEBA`) están detrás del botón «Avanzado».

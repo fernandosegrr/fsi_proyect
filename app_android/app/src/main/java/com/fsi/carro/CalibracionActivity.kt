@@ -282,6 +282,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             }
             override fun afterTextChanged(texto: Editable?) {}
         })
+        // Solo para revisar las pantallas con adb (scripts/qa_captura.py): `--es paso GIRO_90` abre el asistente directamente en ese paso.
+        intent.getStringExtra("paso")?.let { nombrePaso -> Paso.values().firstOrNull { it.name.equals(nombrePaso, true) }?.let { paso = it } }
         mostrarPaso()
         PantallasLog.abierta("CALIBRACION")
     }

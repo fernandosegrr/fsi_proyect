@@ -43,7 +43,9 @@ extern "C" {
 #define RE_PLANTILLA_CUADRADO  1   /* cuadrado de 2 celdas por lado (40 cm) */
 #define RE_PLANTILLA_OCHO      2   /* ocho hecho con dos rombos que se tocan en el centro */
 #define RE_PLANTILLA_ZIGZAG    3   /* escalones de 1 celda */
-#define RE_N_PLANTILLAS        4
+#define RE_PLANTILLA_L         4   /* en L: 3 celdas (60 cm) adelante y 3 a la derecha (un solo giro de 90 grados) */
+#define RE_PLANTILLA_IDA_VUELTA 5  /* ida y vuelta: 3 celdas (60 cm) adelante, media vuelta (180 grados) y de regreso al punto de salida */
+#define RE_N_PLANTILLAS        6
 
 /* Advertencias (bits). */
 #define RE_ADV_POCOS_PUNTOS    1   /* menos de 2 puntos: no hay ruta */
@@ -89,6 +91,10 @@ int  re_puede_rehacer(const EditorRuta *e);
 
 /* Reemplaza la ruta por una plantilla, puesta abajo y al centro de la cuadrícula (se puede deshacer). */
 int  re_plantilla(EditorRuta *e, int plantilla);
+
+/* Las celdas (ya con los pasos intermedios, las que entiende el navegador) de una plantilla, sin tocar ningún editor. Sirven para salir rápido desde Inicio con una ruta conocida.
+ * Devuelve cuántas celdas escribió (0 si la plantilla no existe) o RE_ERR_LARGA. */
+int  re_celdas_de_plantilla(int plantilla, Punto *salida, int capacidad);
 
 /* Rellena los huecos entre vértices: la ruta de celdas vecinas que entiende el navegador. Devuelve cuántas celdas escribió (0 si no hay ruta) o RE_ERR_LARGA. */
 int  re_expandir(const RutaVertices *r, Punto *salida, int capacidad);

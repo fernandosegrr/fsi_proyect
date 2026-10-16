@@ -151,6 +151,47 @@ int main(void)
     caso("poner una plantilla se puede deshacer", re_deshacer(&e) == RE_OK && e.actual.n == 9);
     caso("plantilla desconocida: error de argumento", re_plantilla(&e, 9) == RE_ERR_ARGUMENTO);
 
+    /* Las plantillas nuevas de salida rápida: en L y ida y vuelta. */
+    {
+        Punto celdas[MAX_PUNTOS];
+        int n;
+
+        re_iniciar(&e);
+        re_plantilla(&e, RE_PLANTILLA_L);
+        n = re_expandir(&e.actual, celdas, MAX_PUNTOS);
+        caso("plantilla en L: 7 celdas (3 adelante y 3 a la derecha, un solo giro de 90°)", e.actual.n == 3 && n == 7 && re_resumen(&e, NULL).giros == 1 && re_resumen(&e, NULL).largo_cm == 120);
+        re_iniciar(&e);
+        re_plantilla(&e, RE_PLANTILLA_IDA_VUELTA);
+        n = re_expandir(&e.actual, celdas, MAX_PUNTOS);
+        caso("plantilla ida y vuelta: 7 celdas, vuelve al punto de salida y avisa de la media vuelta",
+             e.actual.n == 3 && n == 7 && celdas[0].columna == celdas[n - 1].columna && celdas[0].fila == celdas[n - 1].fila && (re_resumen(&e, NULL).advertencias & RE_ADV_GIRO_CERRADO) != 0 &&
+             re_resumen(&e, NULL).largo_cm == 120);
+        /* re_celdas_de_plantilla da las mismas celdas que poner la plantilla en un editor, sin tocar el editor del usuario. */
+        re_iniciar(&e);
+        re_agregar(&e, 3, 3);
+        re_agregar(&e, 3, 4);
+        {
+            Punto con_editor[MAX_PUNTOS], directas[MAX_PUNTOS];
+            EditorRuta otro;
+            int nd, ne, i, igual = 1, k;
+
+            for (k = 0; k < RE_N_PLANTILLAS; k++) {
+                re_iniciar(&otro);
+                re_plantilla(&otro, k);
+                ne = re_expandir(&otro.actual, con_editor, MAX_PUNTOS);
+                nd = re_celdas_de_plantilla(k, directas, MAX_PUNTOS);
+                igual = igual && ne == nd && ne >= 2;
+                for (i = 0; i < ne && i < nd; i++) {
+                    igual = igual && con_editor[i].columna == directas[i].columna && con_editor[i].fila == directas[i].fila;
+                }
+            }
+            caso("re_celdas_de_plantilla da las mismas celdas que la plantilla puesta en un editor (las 6)", igual);
+            caso("... y no toca la ruta que el usuario estaba dibujando (2 puntos)", e.actual.n == 2 && e.actual.v[0].columna == 3 && e.actual.v[1].fila == 4);
+            caso("re_celdas_de_plantilla: plantilla desconocida, puntero nulo o capacidad 0 dan 0", re_celdas_de_plantilla(9, directas, MAX_PUNTOS) == 0 && re_celdas_de_plantilla(-1, directas, MAX_PUNTOS) == 0 &&
+                 re_celdas_de_plantilla(0, NULL, MAX_PUNTOS) == 0 && re_celdas_de_plantilla(0, directas, 0) == 0);
+        }
+    }
+
     /* ── Resumen ───────────────────────────────────────────────────────── */
     re_iniciar(&e);
     r = re_resumen(&e, NULL);

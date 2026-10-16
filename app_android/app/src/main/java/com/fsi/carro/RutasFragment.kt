@@ -108,7 +108,8 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
             }
         }
         for ((id, plantilla) in listOf(R.id.rutas_plantilla_recta to RutaEditorNativa.PLANTILLA_RECTA, R.id.rutas_plantilla_cuadrado to RutaEditorNativa.PLANTILLA_CUADRADO,
-            R.id.rutas_plantilla_ocho to RutaEditorNativa.PLANTILLA_OCHO, R.id.rutas_plantilla_zigzag to RutaEditorNativa.PLANTILLA_ZIGZAG)) {
+            R.id.rutas_plantilla_ocho to RutaEditorNativa.PLANTILLA_OCHO, R.id.rutas_plantilla_zigzag to RutaEditorNativa.PLANTILLA_ZIGZAG,
+            R.id.rutas_plantilla_l to RutaEditorNativa.PLANTILLA_L, R.id.rutas_plantilla_ida to RutaEditorNativa.PLANTILLA_IDA_VUELTA)) {
             vista.findViewById<View>(id).setOnClickListener { hacer { RutaEditorNativa.plantilla(plantilla) } }
         }
         vista.findViewById<MaterialSwitch>(R.id.rutas_switch_obstaculo).setOnCheckedChangeListener { _, encendido ->

@@ -25,6 +25,8 @@ object RutaEditorNativa {
     const val PLANTILLA_CUADRADO = 1
     const val PLANTILLA_OCHO = 2
     const val PLANTILLA_ZIGZAG = 3
+    const val PLANTILLA_L = 4
+    const val PLANTILLA_IDA_VUELTA = 5
 
     const val R_LARGO_CM = 0
     const val R_TIEMPO_MS = 1
@@ -49,6 +51,8 @@ object RutaEditorNativa {
     external fun puedeDeshacer(): Int
     external fun puedeRehacer(): Int
     external fun plantilla(plantilla: Int): Int
+    /** Las celdas (ya con los pasos intermedios) de una plantilla SIN tocar el editor: [columna0, fila0, ...]. Para salir rápido desde Inicio. */
+    external fun celdasDePlantilla(plantilla: Int): IntArray
     external fun vertices(): IntArray
     external fun celdas(): IntArray
     external fun resumen(calibracion: IntArray?): IntArray

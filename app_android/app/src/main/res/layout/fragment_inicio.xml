@@ -173,6 +173,66 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/e3"
+            android:text="@string/rapida_titulo" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/e2">
+
+                <TextView
+                    style="@style/Texto.Suave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/rapida_detalle" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/inicio_rapida_ultima"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginTop="@dimen/e2"
+                    android:text="@string/rapida_ultima"
+                    app:icon="@drawable/ic_history"
+                    app:iconGravity="textStart" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/inicio_rapida_recta"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginTop="@dimen/e1"
+                    android:text="@string/plantilla_recta" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/inicio_rapida_l"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginTop="@dimen/e1"
+                    android:text="@string/plantilla_l" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/inicio_rapida_ida"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginTop="@dimen/e1"
+                    android:text="@string/plantilla_ida_vuelta" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
             android:text="@string/accesos_rapidos" />
 
         <LinearLayout

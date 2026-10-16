@@ -4,8 +4,10 @@
  * GUÍA DE LECTURA
  *  1. Usa el MISMO ciclo de siempre (ModoSemiautonomo, el navegador en C): obstáculos de la CÁMARA DEL CARRO (CamaraObstaculos sobre la sesión de video compartida),
  *     perfil AUTO confirmado, giro por tiempo corregido con la cámara. Esta pantalla solo lo muestra y lo maneja.
- *  2. Antes de cada ruta hay que APRENDER EL PISO (botón «Aprender piso», con el carro quieto): así el detector sabe qué color es el piso. Si falta, «Iniciar ruta»
- *     lo explica (ModoSemiautonomo.mensaje) y se puede tocar otra vez en 10 s para usar el último piso aprendido.
+ *  2. SALIR EN 3 TOQUES (elegir la ruta, «Iniciar ruta» y «Confirmar y salir»). «Iniciar ruta» hace solo lo que antes eran varios pasos: (a) comprueba que hay conexión
+ *     con el carro y que el video llega, (b) pide el perfil AUTO y espera su ACK, (c) APRENDE EL PISO con el carro quieto (~1 s; si el piso se ve «muy variado» o falla, dice
+ *     «Despeja el frente del carro» o qué revisar en vez de aprender mal) y (d) queda en «Listo para salir». Al tocar «Confirmar y salir» cuenta 3, 2, 1 y sale (el PARO
+ *     cancela la cuenta). Cada ruta que sale queda como «la última ruta» (AlmacenRutas) para repetirla desde Inicio. «Aprender piso» a mano sigue en «Avanzado».
  *  3. Lo grande es el ESTADO EN PALABRAS («Avanzando», «Obstáculo: esquivando», «Terminado»), con el progreso por puntos. El PARO rojo ocupa el lugar del botón de iniciar
  *     mientras corre (y también está en la cabecera).
  *  4. Al terminar (o al cancelar) se muestra un RESUMEN (resultado, duración y obstáculos esquivados) y se anota en el historial (AlmacenRutas).
@@ -30,6 +32,10 @@ import java.util.Locale
 class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
     companion object {
+        private const val ESPERA_VIDEO_MS = 6000L     // cuánto se espera al primer cuadro del video antes de decir que no hay video
+        private const val ESPERA_PISO_MS = 6000L      // cuánto se espera a que termine de aprender el piso
+        private const val PERFIL_ESPERA_MS = 1000L    // cuánto se espera el ACK del perfil AUTO
+
         fun nueva(nombre: String, celdas: IntArray): EjecutarRutaFragment = EjecutarRutaFragment().also {
             it.arguments = Bundle().apply {
                 putString("nombre", nombre)
@@ -65,12 +71,75 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     private lateinit var placeholder: View
     private lateinit var chipFps: ChipEstado
     private lateinit var chipRetraso: ChipEstado
+    private lateinit var botonCancelar: MaterialButton
+    private lateinit var ayudaConfirmar: TextView
+    private lateinit var avanzado: View
+
+    /** Lo que pasa entre tocar «Iniciar ruta» y que el carro salga. */
+    private enum class Fase { OCIOSA, COMPROBANDO, CONFIRMAR, CUENTA }
+    private var fase = Fase.OCIOSA
+    private var subpaso = 0            // dentro de COMPROBANDO: 0 espera el video, 1 espera el perfil AUTO, 2 aprende el piso
+    private var faseDesdeMs = 0L
+    private var cuenta = 0             // el número que se ve en la cuenta regresiva
+    private var avisoDelFlujo = false  // true mientras el aviso en banda es de la preparación (el reloj de la pantalla no lo oculta)
 
     private var estabaActiva = false
     private var inicioMs = 0L
     private var ultimaEsquivadas = 0
     private var terminada = false
     private var resultadoFinal = ""
+
+    /** Cada 200 ms mientras se comprueba todo: espera el video, el perfil AUTO y el piso aprendido, y pasa a «Listo para salir» o dice qué falló. */
+    private val vigilarPreparacion = object : Runnable {
+        override fun run() {
+            if (fase != Fase.COMPROBANDO || !isAdded) {
+                return
+            }
+            val ahora = SystemClock.elapsedRealtime()
+            if (SesionCarro.logica.conexion != ControlLogica.Conexion.CONECTADO) {
+                fallarPreparacion(Mensajes.conexionPerdida())
+                return
+            }
+            when (subpaso) {
+                0 -> if (camara.abierta && camara.ultimoCuadro != null) {
+                    subpaso = 1
+                    faseDesdeMs = ahora
+                    pedirPerfilAuto()
+                } else if (ahora - faseDesdeMs > ESPERA_VIDEO_MS) {
+                    val m = Mensajes.sinVideo()
+                    fallarPreparacion(Mensaje(m.quePaso, getString(R.string.ejecutar_sin_video_ruta)), getString(R.string.reintentar)) { SesionVideo.reintentar() }
+                    return
+                }
+                2 -> if (!camara.aprendiendoPiso) {
+                    evaluarPiso()
+                    return
+                } else if (ahora - faseDesdeMs > ESPERA_PISO_MS) {
+                    fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_error), getString(R.string.ejecutar_piso_error_hacer)))
+                    return
+                }
+            }
+            principal.postDelayed(this, 200)
+        }
+    }
+
+    /** La cuenta regresiva 3, 2, 1 y salir. */
+    private val tareaCuenta = object : Runnable {
+        override fun run() {
+            if (fase != Fase.CUENTA || !isAdded) {
+                return
+            }
+            if (cuenta > 0) {
+                Haptica.corta(requireContext())
+                actualizar()
+                cuenta--
+                principal.postDelayed(this, 1000)
+            } else {
+                fase = Fase.OCIOSA
+                SesionCarro.semi.iniciar(celdas)   // la comprobación de arriba ya dejó el piso aprendido y el perfil AUTO: arranca sin pedir nada más
+                actualizar()
+            }
+        }
+    }
 
     private val alCambiar: () -> Unit = { actualizar() }
     private val reloj = object : Runnable {
@@ -110,6 +179,10 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         chipFps = vista.findViewById(R.id.manual_chip_fps)
         chipRetraso = vista.findViewById(R.id.manual_chip_retraso)
         chipRetraso.poner(Nivel.NEUTRO, getString(R.string.chip_retraso))
+        botonCancelar = vista.findViewById(R.id.ej_cancelar)
+        ayudaConfirmar = vista.findViewById(R.id.ej_ayuda_confirmar)
+        avanzado = vista.findViewById(R.id.ej_avanzado)
+        botonCancelar.setOnClickListener { cancelarSalida() }
         for (id in listOf(R.id.ej_iniciar, R.id.ej_aprender)) {
             Movimiento.respuestaAlTocar(vista.findViewById(id))
         }
@@ -120,6 +193,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             if (evento.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
                 Movimiento.escala(v, true)
                 Haptica.corta(ctx)
+                cancelarSalida()   // si todavía se estaba comprobando o contando, no sale
                 SesionCarro.pararTodo("PARO (ruta)")
             } else if (evento.actionMasked == android.view.MotionEvent.ACTION_UP || evento.actionMasked == android.view.MotionEvent.ACTION_CANCEL) {
                 Movimiento.escala(v, false)
@@ -129,8 +203,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         botonVolver.setOnClickListener { (activity as? MainActivity)?.volver() }
         val botonDetalles = vista.findViewById<MaterialButton>(R.id.ej_boton_detalles)
         botonDetalles.setOnClickListener {
-            val abrir = detalles.visibility != View.VISIBLE
-            detalles.visibility = if (abrir) View.VISIBLE else View.GONE
+            val abrir = avanzado.visibility != View.VISIBLE
+            avanzado.visibility = if (abrir) View.VISIBLE else View.GONE
             botonDetalles.setIconResource(if (abrir) R.drawable.ic_expand_less else R.drawable.ic_expand_more)
         }
     }
@@ -166,6 +240,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     }
 
     override fun onStop() {
+        cancelarSalida()
         principal.removeCallbacks(reloj)
         SesionCarro.dejarDeEscuchar(alCambiar)
         SesionVideo.dejarDeEscuchar(alCambiar)
@@ -197,18 +272,100 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         }
     }
 
+    /** El botón grande: «Iniciar ruta» (comprueba todo) y, cuando está listo, «Confirmar y salir» (cuenta 3, 2, 1 y sale). */
     private fun iniciar() {
+        if (fase == Fase.CONFIRMAR) {
+            confirmarSalida()
+            return
+        }
+        if (fase != Fase.OCIOSA) {
+            return
+        }
         terminada = false
         resumen.visibility = View.GONE
         aviso.ocultar()
+        avisoDelFlujo = false
         Haptica.corta(requireContext())
-        val semi = SesionCarro.semi
-        if (!camara.abierta) {
-            val m = Mensajes.sinVideo()
-            aviso.mostrar(Nivel.AVISO, m.quePaso, getString(R.string.ejecutar_sin_video_ruta), getString(R.string.reintentar)) { SesionVideo.reintentar() }
+        if (SesionCarro.logica.conexion != ControlLogica.Conexion.CONECTADO) {
+            val m = if (RedCarro.enRedDelCarro(requireContext())) Mensajes.carroNoResponde() else Mensajes.sinRedDelCarro()
+            aviso.mostrar(Nivel.ERROR, m.quePaso, m.queHacer, getString(R.string.conectar)) { SesionCarro.conectarAhora() }
+            avisoDelFlujo = true
             return
         }
-        semi.iniciar(celdas)
+        fase = Fase.COMPROBANDO
+        subpaso = 0
+        faseDesdeMs = SystemClock.elapsedRealtime()
+        principal.removeCallbacks(vigilarPreparacion)
+        principal.post(vigilarPreparacion)
+        actualizar()
+    }
+
+    /** Pide el perfil AUTO y espera su ACK (1 s). Con el ACK sigue con el piso. */
+    private fun pedirPerfilAuto() {
+        SesionCarro.logica.confirmarPerfil(ControlLogica.Perfil.AUTO, PERFIL_ESPERA_MS) { confirmado ->
+            if (fase != Fase.COMPROBANDO) {
+                return@confirmarPerfil   // se canceló mientras se esperaba
+            }
+            if (!confirmado) {
+                fallarPreparacion(Mensajes.perfilSinConfirmar())
+                return@confirmarPerfil
+            }
+            subpaso = 2
+            faseDesdeMs = SystemClock.elapsedRealtime()
+            camara.aprenderPiso()   // con el carro quieto, ~1 s
+        }
+    }
+
+    /** El piso ya se aprendió: si salió bien pasa a «Listo para salir»; si se ve muy variado o falló, dice qué hacer en vez de seguir con un piso mal aprendido. */
+    private fun evaluarPiso() {
+        val informe = camara.informePiso
+        if (camara.errorAprender.isNotEmpty() || informe == null) {
+            fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_error), getString(R.string.ejecutar_piso_error_hacer)))
+        } else if (informe.muyVariado) {
+            fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_variado), getString(R.string.ejecutar_piso_variado_hacer)))
+        } else {
+            fase = Fase.CONFIRMAR
+            Haptica.corta(requireContext())
+            actualizar()
+        }
+    }
+
+    private fun fallarPreparacion(m: Mensaje, textoAccion: String? = null, accion: (() -> Unit)? = null) {
+        fase = Fase.OCIOSA
+        principal.removeCallbacks(vigilarPreparacion)
+        SesionCarro.logica.cancelarConfirmacion()
+        if (textoAccion != null && accion != null) {
+            aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, textoAccion, accion)
+        } else {
+            aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
+        }
+        avisoDelFlujo = true
+        actualizar()
+    }
+
+    private fun confirmarSalida() {
+        fase = Fase.CUENTA
+        cuenta = 3
+        avisoDelFlujo = false
+        aviso.ocultar()
+        almacen.guardarUltimaRuta(nombreRuta, celdas)   // queda como «la última ruta» para repetirla desde Inicio
+        principal.removeCallbacks(tareaCuenta)
+        principal.post(tareaCuenta)
+        actualizar()
+    }
+
+    /** Cancela la comprobación, la espera de confirmación o la cuenta regresiva (no sale). */
+    private fun cancelarSalida() {
+        if (fase == Fase.OCIOSA) {
+            return
+        }
+        fase = Fase.OCIOSA
+        principal.removeCallbacks(vigilarPreparacion)
+        principal.removeCallbacks(tareaCuenta)
+        SesionCarro.logica.cancelarConfirmacion()
+        if (isAdded && view != null) {
+            actualizar()
+        }
     }
 
     private fun aprenderPiso() {
@@ -231,7 +388,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         }
         val semi = SesionCarro.semi
         val e = NavegadorNativa.estado()
-        val corriendo = semi.activo || semi.esperandoPerfil
+        val corriendo = semi.activo || semi.esperandoPerfil || fase == Fase.COMPROBANDO || fase == Fase.CUENTA
         val hayVideo = SesionVideo.estado == SesionNativa.ABIERTA && SesionVideo.fps > 0.5
 
         // El fin de la ruta: pasó de «corriendo» a «detenida»
@@ -250,6 +407,9 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
         // Lo grande: el estado en palabras
         val palabra = when {
+            fase == Fase.CUENTA -> "$cuenta"
+            fase == Fase.COMPROBANDO -> getString(R.string.ejecutar_estado_comprobando)
+            fase == Fase.CONFIRMAR -> getString(R.string.ejecutar_estado_confirmar)
             semi.esperandoPerfil -> getString(R.string.ejecutar_estado_preparando)
             semi.activo -> palabraEstado(e)
             terminada -> when (resultadoFinal) {
@@ -270,7 +430,9 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
         // Botones
         botonIniciar.visibility = if (corriendo) View.GONE else View.VISIBLE
-        botonIniciar.setText(if (terminada) R.string.ejecutar_repetir else R.string.ejecutar_iniciar)
+        botonIniciar.setText(if (fase == Fase.CONFIRMAR) R.string.ejecutar_confirmar else if (terminada) R.string.ejecutar_repetir else R.string.ejecutar_iniciar)
+        botonCancelar.visibility = if (fase == Fase.CONFIRMAR) View.VISIBLE else View.GONE
+        ayudaConfirmar.visibility = if (fase == Fase.CONFIRMAR) View.VISIBLE else View.GONE
         botonParo.visibility = if (corriendo) View.VISIBLE else View.GONE
         botonAprender.visibility = if (corriendo) View.GONE else View.VISIBLE
         ayudaAprender.visibility = if (corriendo) View.GONE else View.VISIBLE
@@ -285,14 +447,14 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         }
 
         // Avisos: el mensaje del ciclo de la ruta (por qué no arrancó o por qué se detuvo)
-        if (!corriendo && !terminada && semi.mensaje.isNotEmpty()) {
+        if (!corriendo && !terminada && !avisoDelFlujo && semi.mensaje.isNotEmpty()) {
             aviso.mostrar(Nivel.AVISO, "No se pudo iniciar la ruta", semi.mensaje)
         } else if (SesionVideo.estado == SesionNativa.FALLO && !corriendo) {
             val m = Mensajes.sinVideo()
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { SesionVideo.reintentar() }
-        } else if (corriendo && semi.mensaje.startsWith("Aviso")) {
+        } else if (semi.activo && semi.mensaje.startsWith("Aviso")) {
             aviso.mostrar(Nivel.AVISO, "Aviso antes de empezar", semi.mensaje)
-        } else if (!terminada) {
+        } else if (!terminada && !avisoDelFlujo) {
             aviso.ocultar()
         }
         detalles.text = textoDetalles(e)

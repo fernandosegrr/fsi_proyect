@@ -43,6 +43,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/e0" />
 
+            <TextView
+                android:id="@+id/ej_ayuda_confirmar"
+                style="@style/Texto.Suave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/ejecutar_confirmar_ayuda"
+                android:visibility="gone" />
+
             <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/ej_barra"
                 android:layout_width="match_parent"
@@ -147,29 +156,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <TextView
-                android:id="@+id/ej_piso"
-                style="@style/Texto.Suave"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/e2" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/ej_aprender"
-                style="@style/Boton.Secundario"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/toque_minimo"
-                android:layout_marginTop="@dimen/e1"
-                android:text="@string/ejecutar_aprender" />
-
-            <TextView
-                android:id="@+id/ej_aprender_ayuda"
-                style="@style/Texto.Etiqueta"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/e0"
-                android:text="@string/ejecutar_aprender_ayuda" />
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/ej_iniciar"
                 style="@style/Boton.Primario"
@@ -179,6 +165,15 @@
                 android:text="@string/ejecutar_iniciar"
                 app:icon="@drawable/ic_play_arrow"
                 app:iconGravity="textStart" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ej_cancelar"
+                style="@style/Boton.Texto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e1"
+                android:text="@string/ejecutar_cancelar_salida"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/ej_paro"
@@ -211,12 +206,44 @@
                 app:icon="@drawable/ic_expand_more"
                 app:iconGravity="end" />
 
-            <TextView
-                android:id="@+id/ej_detalles"
-                style="@style/Texto.Suave"
+            <!-- Avanzado (plegado): aprender el piso a mano y los detalles técnicos -->
+            <LinearLayout
+                android:id="@+id/ej_avanzado"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:visibility="gone" />
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/ej_piso"
+                    style="@style/Texto.Suave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e1" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/ej_aprender"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginTop="@dimen/e1"
+                    android:text="@string/ejecutar_aprender" />
+
+                <TextView
+                    android:id="@+id/ej_aprender_ayuda"
+                    style="@style/Texto.Etiqueta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e0"
+                    android:text="@string/ejecutar_aprender_ayuda" />
+
+                <TextView
+                    android:id="@+id/ej_detalles"
+                    style="@style/Texto.Suave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/e2" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

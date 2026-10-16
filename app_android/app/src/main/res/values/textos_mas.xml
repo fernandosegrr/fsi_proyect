@@ -118,21 +118,26 @@
     <string name="pf_boton_inicio">Ir a Inicio</string>
     <string name="pf_boton_vision">Abrir Visión y diagnóstico</string>
     <string name="pf_boton_rutas">Ir a Rutas</string>
+    <string name="pf_boton_calibracion">Abrir Calibración</string>
 
     <string name="pf_p1_t">Recargar las dos placas</string>
     <string name="pf_p1_i">Carga el firmware nuevo en la placa del carro y en la de la cámara. Conecta el teléfono a la red «CarroFSI». En Inicio, el carro y la cámara deben verse en verde.</string>
     <string name="pf_p2_t">Latencia del control con y sin video</string>
     <string name="pf_p2_i">Con el carro quieto, la app mide el PONG del control 8 s sin video y 8 s con video. Si con video sube más de 30 ms, el video de Manual se apaga.</string>
     <string name="pf_p3_t">Piso negro y de 2 colores</string>
-    <string name="pf_p3_i">Con el carro quieto y nada adelante, toca «Aprender piso». Haz pasadas en un piso negro y en uno de 2 colores.</string>
+    <string name="pf_p3_i">Con el carro quieto y nada adelante, abre Visión y diagnóstico y toca «Aprender piso» (en Ejecutar ruta está en «Avanzado»). Haz pasadas en un piso negro y en uno de 2 colores.</string>
     <string name="pf_p4_t">Ruta con mochila y esquive</string>
-    <string name="pf_p4_i">Dibuja una ruta recta y aprende el piso. Pon una mochila a mitad del camino: el carro debe esquivarla y seguir.</string>
+    <string name="pf_p4_i">Elige una ruta recta (en Inicio, «Recta de 1 m»). Pon una mochila a mitad del camino: el carro debe esquivarla, volver a la línea y seguir. Toca Iniciar y Confirmar: aprende el piso solo.</string>
     <string name="pf_p5_t">Modelo sin reconocer</string>
     <string name="pf_p5_i">Con «cualquier objeto» encendido, haz pasadas con el termo, la caja y la mochila a 120 cm. Luego deja el piso vacío 1 minuto: no debe frenar.</string>
     <string name="pf_p6_t">Nueve pasadas de modos de video</string>
-    <string name="pf_p6_i">Tres pasadas en cada modo (jpeg, raw y celdas) con una caja a unos 80 cm. Aprende el piso antes, en jpeg. El modo se cambia en Visión y diagnóstico.</string>
+    <string name="pf_p6_i">Tres pasadas en cada modo (jpeg, raw y celdas) con una caja a unos 80 cm. Aprende el piso antes, en jpeg, desde Visión y diagnóstico. El modo se cambia ahí mismo.</string>
     <string name="pf_p7_t">Opcionales</string>
     <string name="pf_p7_i">Prueba el flujo del piso y compara los compresores JPEG de la cámara. Puedes dejarlo para después.</string>
+    <string name="pf_p8_t">Ajuste fino con las pilas de la demo</string>
+    <string name="pf_p8_i">Con las pilas que usarás en la demo: calibra el giro de 90° (hasta que quede justo) y la recta (hasta 1 cm de desvío), en la pantalla Calibración → «Ajuste fino». Si cambias las pilas, repítelo.</string>
+    <string name="pf_p9_t">Salir en 3 toques y volver a la línea</string>
+    <string name="pf_p9_i">Desde Inicio: elige «Recta de 1 m» (1), «Iniciar ruta» (2) y «Confirmar y salir» (3): el carro sale tras la cuenta 3, 2, 1. Con un obstáculo de 20 a 30 cm a mitad, debe esquivarlo y volver a la línea; los números salen en el registro REINC_DIAG.</string>
 
     <!-- Paso 2: medir el PONG sin y con video -->
     <string name="pf_medir">Medir ahora</string>

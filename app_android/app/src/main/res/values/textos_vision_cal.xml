@@ -104,7 +104,7 @@
     <string name="cal_b_probar_giro_der">Probar: girar 90° a la derecha</string>
     <string name="cal_b_aplicar_grados">Aplicar los grados</string>
     <string name="cal_b_restaurar">Restaurar valor por defecto</string>
-    <string name="cal_b_siguiente_recta">Siguiente: la recta</string>
+    <string name="cal_b_siguiente_recta">Siguiente</string>
     <string name="cal_b_probar_recta">Avanzar 2 s (intento %1$d de %2$d)</string>
     <string name="cal_b_recta_maximo">Ya se hicieron los 4 intentos</string>
     <string name="cal_b_recta_lista">La recta ya quedó bien</string>

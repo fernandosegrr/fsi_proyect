@@ -7,6 +7,8 @@
  *     para saber los cuadros por segundo y la latencia de la red (la cámara atiende un solo cliente, por eso se comparte la sesión).
  *  3. «Conectar» abre la conexión de nuevo ya. Si falla, el aviso en banda dice qué pasó y qué hacer (Mensajes.kt).
  *  4. Se refresca con los avisos de las sesiones y con un reloj de 500 ms (latencia y cuadros cambian solos).
+ *  5. SALIR RÁPIDO: «Repetir la última ruta» y las plantillas «Recta 1 m», «En L» e «Ida y vuelta» abren Ejecutar ruta con esa ruta ya cargada: 1 toque aquí, «Iniciar ruta» (2) y
+ *     «Confirmar y salir» (3). Las plantillas se piden al código en C sin tocar el borrador del editor de Rutas.
  */
 package com.fsi.carro
 
@@ -60,6 +62,24 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
             SesionVideo.reintentar()
             actualizar()
         }
+        val almacen = AlmacenRutas(requireContext())
+        val ultima = almacen.ultimaRuta()
+        val botonUltima = vista.findViewById<MaterialButton>(R.id.inicio_rapida_ultima)
+        if (ultima != null) {
+            botonUltima.text = getString(R.string.rapida_ultima_nombre, ultima.first)
+        } else {
+            botonUltima.isEnabled = false
+            botonUltima.alpha = 0.38f
+            botonUltima.setText(R.string.rapida_sin_ultima)
+        }
+        botonUltima.setOnClickListener { almacen.ultimaRuta()?.let { salirRapido(it.first, it.second) } }
+        for ((id, plantilla, nombre) in listOf(Triple(R.id.inicio_rapida_recta, RutaEditorNativa.PLANTILLA_RECTA, R.string.plantilla_recta),
+            Triple(R.id.inicio_rapida_l, RutaEditorNativa.PLANTILLA_L, R.string.plantilla_l), Triple(R.id.inicio_rapida_ida, RutaEditorNativa.PLANTILLA_IDA_VUELTA, R.string.plantilla_ida_vuelta))) {
+            val boton = vista.findViewById<MaterialButton>(id)
+            Movimiento.respuestaAlTocar(boton)
+            boton.setOnClickListener { salirRapido(getString(nombre), RutaEditorNativa.celdasDePlantilla(plantilla)) }
+        }
+        Movimiento.respuestaAlTocar(botonUltima)
         for ((id, pestana) in listOf(R.id.inicio_acceso_manual to R.id.pestana_manual, R.id.inicio_acceso_rutas to R.id.pestana_rutas)) {
             val tarjeta = vista.findViewById<View>(id)
             Movimiento.respuestaAlTocar(tarjeta)
@@ -136,6 +156,15 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
         } else {
             aviso.ocultar()
         }
+    }
+
+    /** Abre Ejecutar ruta con esa ruta ya cargada (el primer toque de los tres). */
+    private fun salirRapido(nombre: String, celdas: IntArray) {
+        if (celdas.size < 4) {
+            return
+        }
+        Haptica.corta(requireContext())
+        (activity as? MainActivity)?.abrirSubpantalla(EjecutarRutaFragment.nueva(nombre, celdas))
     }
 
     private fun poner(grande: Int, detalle: Int) {

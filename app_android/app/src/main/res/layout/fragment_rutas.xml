@@ -172,6 +172,22 @@
                     android:layout_height="@dimen/toque_minimo"
                     android:layout_marginStart="@dimen/e1"
                     android:text="@string/plantilla_zigzag" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_l"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:text="@string/plantilla_l" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_plantilla_ida"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:text="@string/plantilla_ida_vuelta" />
             </LinearLayout>
         </HorizontalScrollView>
 

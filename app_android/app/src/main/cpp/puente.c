@@ -2369,6 +2369,31 @@ Java_com_fsi_carro_RutaEditorNativa_plantilla(JNIEnv *env, jobject objeto, jint 
     return re_plantilla(obtener_editor(), plantilla);
 }
 
+/* Las celdas de una plantilla (ya con los pasos intermedios), sin tocar el editor: [columna0, fila0, columna1, fila1, ...] (vacío si la plantilla no existe). Sirve para salir rápido desde Inicio. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_RutaEditorNativa_celdasDePlantilla(JNIEnv *env, jobject objeto, jint plantilla)
+{
+    Punto celdas[MAX_PUNTOS];
+    jint salida[2 * MAX_PUNTOS];
+    int n = re_celdas_de_plantilla((int)plantilla, celdas, MAX_PUNTOS);
+    int i;
+    jintArray arreglo;
+
+    (void)objeto;
+    if (n < 0) {
+        n = 0;
+    }
+    for (i = 0; i < n; i++) {
+        salida[2 * i] = celdas[i].columna;
+        salida[2 * i + 1] = celdas[i].fila;
+    }
+    arreglo = (*env)->NewIntArray(env, 2 * n);
+    if (arreglo != NULL && n > 0) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 2 * n, salida);
+    }
+    return arreglo;
+}
+
 /* Los vértices que puso el usuario: [columna0, fila0, columna1, fila1, ...]. */
 JNIEXPORT jintArray JNICALL
 Java_com_fsi_carro_RutaEditorNativa_vertices(JNIEnv *env, jobject objeto)

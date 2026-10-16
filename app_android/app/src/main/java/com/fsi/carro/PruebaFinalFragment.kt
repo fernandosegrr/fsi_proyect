@@ -2,7 +2,7 @@
  * PruebaFinalFragment.kt — La pantalla PRUEBA FINAL: la lista guiada de las pruebas pendientes con el carro real.
  *
  * GUÍA DE LECTURA
- *  1. Arriba, lo grande: «3 de 7 hechos» con su barra de avance. Cada paso es una tarjeta con casilla, título, instrucciones cortas y, si aplica, un botón
+ *  1. Arriba, lo grande: «3 de 9 hechos» con su barra de avance. Cada paso es una tarjeta con casilla, título, instrucciones cortas y, si aplica, un botón
  *     que abre la pantalla relacionada (Inicio, Rutas o Visión y diagnóstico). Las casillas se guardan en Ajustes.pruebaFinal (los números de los pasos hechos).
  *  2. Los pasos salen de docs/reporte_lote4.md (sección 4), docs/modelo_objetos.md (sección 7), docs/latencia_modos.md (sección 4) y docs/latencia.md.
  *  3. PASO 2 «Medir ahora»: mide el PONG del control (el ida y vuelta del WebSocket) 8 s SIN video y 8 s CON video, y dice en palabras si el video estorba.
@@ -40,7 +40,7 @@ import java.util.Locale
 class PruebaFinalFragment : Fragment(R.layout.fragment_prueba_final) {
 
     companion object {
-        private const val TOTAL_PASOS = 7
+        private const val TOTAL_PASOS = 9
         private const val DURACION_MEDIDA_MS = 8000L      // cada lado de la medida: 8 s
         private const val ESPERA_CERRAR_MAX_MS = 6000L    // cuánto se espera a que el video se cierre
         private const val CALMA_MS = 1500L                // tras cerrarse el video, la cámara tarda en soltar la conexión
@@ -60,7 +60,9 @@ class PruebaFinalFragment : Fragment(R.layout.fragment_prueba_final) {
         Paso(4, R.string.pf_p4_t, R.string.pf_p4_i, R.string.pf_boton_rutas) { irARutas() },
         Paso(5, R.string.pf_p5_t, R.string.pf_p5_i, R.string.pf_boton_vision) { abrirVision() },
         Paso(6, R.string.pf_p6_t, R.string.pf_p6_i, R.string.pf_boton_vision) { abrirVision() },
-        Paso(7, R.string.pf_p7_t, R.string.pf_p7_i, R.string.pf_boton_vision) { abrirVision() }
+        Paso(7, R.string.pf_p7_t, R.string.pf_p7_i, R.string.pf_boton_vision) { abrirVision() },
+        Paso(8, R.string.pf_p8_t, R.string.pf_p8_i, R.string.pf_boton_calibracion) { abrirCalibracion() },
+        Paso(9, R.string.pf_p9_t, R.string.pf_p9_i, R.string.pf_boton_inicio) { irAInicio() }
     )
 
     private val principal = Handler(Looper.getMainLooper())
@@ -169,6 +171,10 @@ class PruebaFinalFragment : Fragment(R.layout.fragment_prueba_final) {
         val hechos = ajustes.pruebaFinal.count { it in 1..TOTAL_PASOS }
         contador.text = getString(R.string.pf_contador, hechos, TOTAL_PASOS)
         progreso.setProgressCompat(hechos, animar)
+    }
+
+    private fun abrirCalibracion() {
+        startActivity(Intent(requireContext(), CalibracionActivity::class.java))
     }
 
     private fun abrirVision() {

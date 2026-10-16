@@ -195,7 +195,7 @@ Cada pantalla se capturó en el teléfono (`scripts/qa_captura.py`, con la cáma
 - «Más» es una lista de 6 tarjetas de 64 dp o más con icono, título, una frase y flecha. Las pantallas internas llevan una barra de título con flecha de volver y la barra inferior sigue visible.
 - **Ajustes:** tarjetas por tema (Red, Velocidad en Manual, Video en Manual, Tema, Vibración) con una frase de ayuda debajo de cada una; las direcciones se validan y el error sale dentro del campo.
 - **Ayuda:** 10 preguntas en tarjetas desplegables (200 ms) que dicen qué pasó y qué hacer; «Si algo falla» con 4 pasos numerados; botón para ver otra vez el asistente.
-- **Prueba final:** contador grande «0 de 7 hechos» con barra de avance y una tarjeta por paso, con casilla guardada en el teléfono; el paso de la latencia con y sin video tiene el único botón primario («Medir ahora»).
+- **Prueba final:** contador grande «0 de 9 hechos» con barra de avance y una tarjeta por paso, con casilla guardada en el teléfono; el paso de la latencia con y sin video tiene el único botón primario («Medir ahora»).
 
 ### Visión y diagnóstico y Calibración
 - **Visión (horizontal):** el video con esquinas redondeadas y un chip de estado de la cámara ocupa la izquierda; a la derecha las tarjetas (Detector, Guardar cuadro) y una sección **«Avanzado»** plegable (cerrada por defecto) con todos los ajustes finos agrupados por tema y el botón «Restablecer». El título se acorta a «Visión» para que no se corte.

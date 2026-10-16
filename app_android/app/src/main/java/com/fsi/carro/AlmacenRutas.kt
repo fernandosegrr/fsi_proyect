@@ -7,6 +7,7 @@
  *  2. BORRADOR: la ruta que se está dibujando se guarda sola en «borrador.txt» cada vez que cambia, y se recupera al volver a abrir la pantalla.
  *  3. HISTORIAL: una línea por ejecución en «historial.txt» (los últimos 30): fecha en segundos, resultado (TERMINADO, ERROR o CANCELADO), duración en segundos,
  *     obstáculos esquivados y nombre de la ruta, separados por «|».
+ *  3b. LA ÚLTIMA RUTA: la que se mandó a recorrer por última vez (nombre y celdas) en «ultima_ruta.txt»; Inicio la ofrece como «Repetir la última ruta».
  *  4. Todo se lee y se escribe en el hilo principal (son archivos muy chicos). Si algo no se puede leer, se ignora: nunca debe tumbar la pantalla.
  */
 package com.fsi.carro
@@ -19,6 +20,7 @@ class AlmacenRutas(contexto: Context) {
     private val carpeta = File(contexto.filesDir, "rutas").also { it.mkdirs() }
     private val borrador = File(contexto.filesDir, "borrador.txt")
     private val historial = File(contexto.filesDir, "historial.txt")
+    private val ultima = File(contexto.filesDir, "ultima_ruta.txt")
 
     /** Una ejecución del historial. */
     class Ejecucion(val epochS: Long, val resultado: String, val duracionS: Int, val esquivadas: Int, val ruta: String)
@@ -54,6 +56,43 @@ class AlmacenRutas(contexto: Context) {
     fun borrar(nombre: String): Boolean = File(carpeta, "$nombre.txt").delete()
 
     fun existe(nombre: String): Boolean = File(carpeta, "$nombre.txt").exists()
+
+    // ── La última ruta ejecutada ─────────────────────────────────────────
+
+    /** Anota la ruta que se va a recorrer: línea 1 el nombre, línea 2 las celdas «columna,fila;columna,fila;...». */
+    fun guardarUltimaRuta(nombre: String, celdas: IntArray) {
+        try {
+            val pares = (0 until celdas.size / 2).joinToString(";") { "${celdas[2 * it]},${celdas[2 * it + 1]}" }
+            ultima.writeText(nombre.replace("\n", " ") + "\n" + pares + "\n")
+        } catch (e: Exception) {
+            // sin última ruta: no pasa nada
+        }
+    }
+
+    /** La última ruta (nombre y celdas) o null si no hay o no se puede leer. */
+    fun ultimaRuta(): Pair<String, IntArray>? {
+        return try {
+            if (!ultima.exists()) {
+                return null
+            }
+            val lineas = ultima.readLines()
+            if (lineas.size < 2) {
+                return null
+            }
+            val celdas = ArrayList<Int>()
+            for (par in lineas[1].split(";")) {
+                val p = par.split(",")
+                if (p.size != 2) {
+                    return null
+                }
+                celdas.add(p[0].trim().toInt())
+                celdas.add(p[1].trim().toInt())
+            }
+            if (celdas.size < 4) null else Pair(lineas[0], celdas.toIntArray())
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     // ── Borrador ──────────────────────────────────────────────────────────
 

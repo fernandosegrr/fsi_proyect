@@ -240,6 +240,8 @@ static const Punto P_RECTA[] = {{0, 0}, {0, -5}};
 static const Punto P_CUADRADO[] = {{0, 0}, {0, -2}, {2, -2}, {2, 0}, {0, 0}};
 static const Punto P_OCHO[] = {{2, 1}, {3, 0}, {4, 1}, {3, 2}, {2, 1}, {1, 0}, {0, 1}, {1, 2}, {2, 1}};
 static const Punto P_ZIGZAG[] = {{0, 0}, {0, -1}, {1, -1}, {1, -2}, {2, -2}, {2, -3}, {3, -3}};
+static const Punto P_L[] = {{0, 0}, {0, -3}, {3, -3}};
+static const Punto P_IDA_VUELTA[] = {{0, 0}, {0, -3}, {0, 0}};
 
 int re_plantilla(EditorRuta *e, int plantilla)
 {
@@ -257,6 +259,8 @@ int re_plantilla(EditorRuta *e, int plantilla)
     case RE_PLANTILLA_CUADRADO: puntos = P_CUADRADO; cantidad = (int)(sizeof P_CUADRADO / sizeof P_CUADRADO[0]); break;
     case RE_PLANTILLA_OCHO:     puntos = P_OCHO;     cantidad = (int)(sizeof P_OCHO / sizeof P_OCHO[0]); break;
     case RE_PLANTILLA_ZIGZAG:   puntos = P_ZIGZAG;   cantidad = (int)(sizeof P_ZIGZAG / sizeof P_ZIGZAG[0]); break;
+    case RE_PLANTILLA_L:        puntos = P_L;        cantidad = (int)(sizeof P_L / sizeof P_L[0]); break;
+    case RE_PLANTILLA_IDA_VUELTA: puntos = P_IDA_VUELTA; cantidad = (int)(sizeof P_IDA_VUELTA / sizeof P_IDA_VUELTA[0]); break;
     default: return RE_ERR_ARGUMENTO;
     }
     minc = maxc = puntos[0].columna;
@@ -277,6 +281,20 @@ int re_plantilla(EditorRuta *e, int plantilla)
     guardar_para_deshacer(e);
     e->actual = nueva;
     return RE_OK;
+}
+
+int re_celdas_de_plantilla(int plantilla, Punto *salida, int capacidad)
+{
+    static EditorRuta auxiliar;   /* un editor de ayuda: no se toca el que está dibujando el usuario */
+
+    if (salida == NULL || capacidad < 1 || plantilla < 0 || plantilla >= RE_N_PLANTILLAS) {
+        return 0;
+    }
+    re_iniciar(&auxiliar);
+    if (re_plantilla(&auxiliar, plantilla) != RE_OK) {
+        return 0;
+    }
+    return re_expandir(&auxiliar.actual, salida, capacidad);
 }
 
 /* ── Resumen ───────────────────────────────────────────────────────────── */
