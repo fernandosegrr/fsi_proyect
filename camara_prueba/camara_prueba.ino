@@ -44,6 +44,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
+#include "esp_system.h"      /* esp_reset_reason: por qué se reinició la placa */
+#include "esp_attr.h"        /* RTC_NOINIT_ATTR: memoria que sobrevive a ESP.restart() */
+#include "recuperacion.h"    /* decisiones de recuperación (C puro, con pruebas en pruebas_firmware/pruebas_camara.c) */
 
 #define COMPRESOR_JPEGENC 1   /* 1 = incluye JPEGENC (src/JPEGENC, Apache-2.0) para compararlo con frame2jpg; el compresor de siempre sigue siendo frame2jpg salvo /control?comp= */
 #if COMPRESOR_JPEGENC
@@ -87,7 +90,6 @@ static const IPAddress IP_FIJA(192, 168, 4, 2);
 static const IPAddress PUERTA(192, 168, 4, 1);
 static const IPAddress MASCARA(255, 255, 255, 0);
 
-static const uint32_t TIEMPO_CONEXION_MS = 15000;   /* sin conectar en este tiempo: reintenta */
 static const uint32_t PERIODO_ESTADO_MS = 5000;
 static const int CUADROS_MEDIDOS = 100;
 static const int64_t EDAD_MAX_US = 450000;          /* un cuadro que ya tiene más edad al salir de la cámara está viejo: se tira */
@@ -316,6 +318,70 @@ static void reiniciar_estadisticas()
   memset(anilloMs, 0, sizeof(anilloMs));
   anilloPos = 0;
   anilloLleno = 0;
+}
+
+/* ── Recuperación: por qué se reinició, por qué se desconectó y el vigilante ───────────────────────────────────────────────
+ * Lo que decide cuándo reiniciar está en recuperacion.c (con pruebas); aquí solo se actúa y se guarda lo que /stats cuenta. */
+static const uint32_t MARCA_REINICIO = 0xCA11AB1Eu;
+static RTC_NOINIT_ATTR uint32_t rtcMarca;        /* MARCA_REINICIO = el reinicio lo pidió este programa (y rtcMotivo dice por qué) */
+static RTC_NOINIT_ATTR char rtcMotivo[24];
+static RTC_NOINIT_ATTR uint32_t rtcReinicios;    /* cuántos reinicios propios seguidos (se pierde si la causa fue otra, como un apagón) */
+static char causaReinicio[32] = "desconocida";   /* causa del reinicio anterior, para /stats */
+static char motivoReinicio[24] = "";             /* si fue propio: el motivo (sin_wifi_60s, cuadro_viejo_5s...) */
+static uint32_t reiniciosPropios = 0;
+
+static volatile int razonDesconexion = 0;        /* código de ESP-IDF de la última desconexión del WiFi (0 = ninguna desde que arrancó) */
+static volatile uint32_t desconexionMs = 0;      /* millis() de esa desconexión */
+static volatile uint32_t reintentosWifi = 0;     /* veces que se volvió a llamar a WiFi.begin */
+
+static volatile uint32_t latidoLoopMs = 0;             /* loop() lo actualiza en cada vuelta: el vigilante vigila que avance */
+static volatile uint32_t ultimaActividadCaptura = 0;   /* la última vez que tarea_captura hizo algo útil (sin demanda, o recibió un cuadro) */
+static volatile bool servidorListo = false;            /* el servidor HTTP ya arrancó (el vigilante ya puede pedirle /salud) */
+static volatile bool vigilanteActivo = false;          /* arranca al terminar setup() */
+
+static const char *nombre_causa_reinicio(esp_reset_reason_t r)
+{
+  switch (r) {
+  case ESP_RST_POWERON:   return "encendido";
+  case ESP_RST_EXT:       return "pin_externo";
+  case ESP_RST_SW:        return "software";
+  case ESP_RST_PANIC:     return "panic";
+  case ESP_RST_INT_WDT:   return "watchdog_interrupciones";
+  case ESP_RST_TASK_WDT:  return "watchdog_tareas";
+  case ESP_RST_WDT:       return "watchdog_otro";
+  case ESP_RST_DEEPSLEEP: return "sueno_profundo";
+  case ESP_RST_BROWNOUT:  return "brownout";
+  default:                return "desconocida";
+  }
+}
+
+/* Al arrancar: anota por qué se reinició la placa (y si fue un reinicio propio, el motivo que dejó anotado). */
+static void leer_causa_de_arranque()
+{
+  const esp_reset_reason_t r = esp_reset_reason();
+  strncpy(causaReinicio, nombre_causa_reinicio(r), sizeof(causaReinicio) - 1);
+  motivoReinicio[0] = 0;
+  reiniciosPropios = 0;
+  if (r == ESP_RST_SW && rtcMarca == MARCA_REINICIO) {
+    rtcMotivo[sizeof(rtcMotivo) - 1] = 0;
+    strncpy(motivoReinicio, rtcMotivo, sizeof(motivoReinicio) - 1);
+    strncpy(causaReinicio, "reinicio_propio", sizeof(causaReinicio) - 1);
+    reiniciosPropios = rtcReinicios;
+  }
+  rtcMarca = 0;
+  Serial.printf("[sistema] ultimo reinicio: %s%s%s (reinicios propios seguidos: %u)\n", causaReinicio, motivoReinicio[0] ? ", motivo " : "", motivoReinicio, (unsigned)reiniciosPropios);
+}
+
+/* Reinicia la placa dejando anotado el motivo (sobrevive al reinicio en la memoria RTC). Se puede llamar desde cualquier tarea. */
+static void reiniciar_placa(const char *motivo)
+{
+  Serial.printf("[recuperacion] REINICIO por: %s (despues de %u s encendida)\n", motivo, (unsigned)(millis() / 1000));
+  strncpy(rtcMotivo, motivo, sizeof(rtcMotivo) - 1);
+  rtcMotivo[sizeof(rtcMotivo) - 1] = 0;
+  rtcReinicios = reiniciosPropios + 1;
+  rtcMarca = MARCA_REINICIO;
+  Serial.flush();
+  ESP.restart();
 }
 
 /* Salud del WiFi (para /stats): cuántas veces se cayó la conexión y la señal más baja de los últimos 10 segundos. */
@@ -618,15 +684,18 @@ static void tarea_captura(void *)
   int64_t ultimoT = 0;
   for (;;) {
     if (reinicioPedido) {
+      ultimaActividadCaptura = millis();
       reinicioOk = hacer_reinicio(cfgPedida);
       reinicioPedido = false;
       ultimoT = 0;
+      ultimaActividadCaptura = millis();
       xSemaphoreGive(reinicioHecho);
       continue;
     }
     const bool paraCeldas = (modoVideo == MODO_CELDAS) && cliente_celdas_vigente();
     if (demanda <= 0 && !paraCeldas) {
       ultimoT = 0;
+      ultimaActividadCaptura = millis();   /* nadie pide cuadros: no hay nada que esperar (el vigilante no lo cuenta como atasco) */
       if (casillaFb) vaciar_casilla();   /* sin nadie que lo pida, el cuadro de la casilla envejece: se devuelve */
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
@@ -636,6 +705,7 @@ static void tarea_captura(void *)
       vTaskDelay(pdMS_TO_TICKS(5));
       continue;
     }
+    ultimaActividadCaptura = millis();     /* la cámara entregó un cuadro: sigue viva (aunque este se tire por viejo) */
     int64_t t = (int64_t)fb->timestamp.tv_sec * 1000000LL + fb->timestamp.tv_usec;
     /* Al empezar a pedir cuadros después de un rato sin demanda, el primero que entrega el driver
      * puede ser de hace segundos: se tira (y los de hace más de EDAD_MAX_US al llegar). */
@@ -1234,23 +1304,36 @@ static esp_err_t manejar_control(httpd_req_t *req)
   return httpd_resp_send_500(req);
 }
 
+/* /salud: responde "ok" sin anotar nada en el serial. La usa el vigilante (la propia placa se la pide cada 10 s) para saber si el servidor atiende. */
+static esp_err_t manejar_salud(httpd_req_t *req)
+{
+  httpd_resp_set_type(req, "text/plain");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  return httpd_resp_send(req, "ok", HTTPD_RESP_USE_STRLEN);
+}
+
 static esp_err_t manejar_stats(httpd_req_t *req)
 {
   log_peticion(req);
   Resumen r = resumir(3);   /* últimos 3 segundos */
-  char json[1200];
+  char json[1800];
   int n = snprintf(json, sizeof(json),
     "{\"fps_captura\":%.1f,\"fps_envio\":%.1f,\"ms_captura\":%.1f,\"ms_compresion\":%.1f,\"ms_envio\":%.1f,"
     "\"edad_ms\":%.0f,\"edad_max_ms\":%.0f,\"envio_max_ms\":%.0f,\"descartados\":%u,\"descartados_total\":%u,\"jpeg_medio_bytes\":%.0f,\"stream\":%s,"
     "\"rssi\":%d,\"rssi_min_10s\":%d,\"reconexiones\":%u,\"heap_libre\":%u,\"psram_libre\":%u,\"uptime_s\":%u,"
     "\"config\":{\"xclk_mhz\":%d,\"formato\":\"%s\",\"tam\":\"%s\",\"calidad\":%d,\"sensor\":\"%s\",\"compresor\":\"%s\"},"
-    "\"modo\":\"%s\",\"bytes_s\":%.0f,\"celdas_enviadas\":%u,\"celdas_ms\":%.2f,\"celdas_max_ms\":%.2f,\"cliente_celdas\":%s,\"pings\":%u}",
+    "\"modo\":\"%s\",\"bytes_s\":%.0f,\"celdas_enviadas\":%u,\"celdas_ms\":%.2f,\"celdas_max_ms\":%.2f,\"cliente_celdas\":%s,\"pings\":%u,"
+    "\"ultima_desconexion\":{\"razon\":%d,\"texto\":\"%s\",\"hace_s\":%d},\"reintentos_wifi\":%u,"
+    "\"ultimo_reinicio\":{\"causa\":\"%s\",\"motivo\":\"%s\",\"propios_seguidos\":%u}}",
     r.fpsCaptura, r.fpsEnvio, r.msCaptura, r.msCompresion, r.msEnvio, r.edadMs, r.edadMaxMs, r.envioMaxMs,
     (unsigned)r.descartados, (unsigned)totalDescartados, r.jpegMedio, streamActivo ? "true" : "false",
     WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, rssi_minimo_10s(), (unsigned)reconexiones, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
     (unsigned)(millis() / 1000), cfg.xclkMHz, nombre_formato(cfg.fmt), nombre_tam(cfg.tam), cfg.calidad, nombreSensor, nombre_compresor(compresor),
     nombre_modo(modoVideo), r.fpsEnvio * r.jpegMedio, (unsigned)celdasEnviadas, celdasEnviadas ? celdasUsTotal / 1000.0 / celdasEnviadas : 0.0,
-    celdasMaxUs / 1000.0, cliente_celdas_vigente() ? "true" : "false", (unsigned)pingsContestados);
+    celdasMaxUs / 1000.0, cliente_celdas_vigente() ? "true" : "false", (unsigned)pingsContestados,
+    (int)razonDesconexion, razonDesconexion ? WiFi.disconnectReasonName((wifi_err_reason_t)razonDesconexion) : "ninguna",
+    razonDesconexion ? (int)((millis() - desconexionMs) / 1000) : -1, (unsigned)reintentosWifi,
+    causaReinicio, motivoReinicio, (unsigned)reiniciosPropios);
   if (n <= 0 || n >= (int)sizeof(json)) return httpd_resp_send_500(req);
   httpd_resp_set_type(req, "application/json");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
@@ -1277,6 +1360,7 @@ static void iniciar_servidor()
     { "/raw",     HTTP_GET, manejar_raw,     NULL },
     { "/control", HTTP_GET, manejar_control, NULL },
     { "/stats",   HTTP_GET, manejar_stats,   NULL },
+    { "/salud",   HTTP_GET, manejar_salud,   NULL },
   };
   for (size_t i = 0; i < sizeof(rutas) / sizeof(rutas[0]); i++) {
     httpd_register_uri_handler(servidor, &rutas[i]);
@@ -1371,9 +1455,11 @@ static void tarea_autoprueba(void *)
 
 /* ── WiFi (cliente de la red del carro, IP fija) ───────────────────────── */
 
-static uint32_t inicioIntento = 0;
 static int numIntento = 0;
+static RecWifi seguimientoWifi;          /* desde cuándo no hay conexión y cuándo toca el siguiente reintento (recuperacion.c) */
+static bool wifiAvisado = false;         /* ya se escribió "CONECTADO" para esta conexión */
 
+/* Primer intento de conexión (al arrancar): con diagnóstico del escaneo. */
 static void conectar_wifi()
 {
   numIntento++;
@@ -1397,22 +1483,86 @@ static void conectar_wifi()
   WiFi.config(IP_FIJA, PUERTA, MASCARA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.setSleep(false);   /* sin ahorro de energía del radio: menos retraso */
-  inicioIntento = millis();
 }
 
-/* Espera hasta TIEMPO_CONEXION_MS a que conecte. */
-static bool esperar_conexion()
+/* Reintento después de perder la asociación: vuelve a llamar a WiFi.begin (sin escaneo, que tarda y suelta el canal). */
+static void reintentar_wifi()
 {
-  while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - inicioIntento > TIEMPO_CONEXION_MS) {
-      Serial.printf("[wifi] no conecto en %u s: reintento\n", (unsigned)(TIEMPO_CONEXION_MS / 1000));
-      return false;
-    }
-    delay(250);
+  reintentosWifi++;
+  Serial.printf("[wifi] reintento %u (lleva %u s sin conexion; ultima razon %d)\n", (unsigned)reintentosWifi,
+                (unsigned)(rec_wifi_ms_sin_conexion(&seguimientoWifi, millis()) / 1000), (int)razonDesconexion);
+  WiFi.disconnect();
+  WiFi.config(IP_FIJA, PUERTA, MASCARA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.setSleep(false);
+}
+
+/* Se llama seguido (al arrancar y una vez por segundo desde loop). Devuelve true si hay conexión. Si no la hay, reintenta con espera creciente
+ * (1, 2, 4... hasta 10 s) y, si pasan 60 s sin conectar, reinicia la placa. */
+static bool atender_wifi()
+{
+  const bool conectado = WiFi.status() == WL_CONNECTED;
+  if (conectado && !wifiAvisado) {
+    wifiAvisado = true;
+    WiFi.setSleep(false);   /* otra vez ya conectado: algunas versiones lo reactivan al asociarse */
+    Serial.printf("[wifi] CONECTADO: IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  } else if (!conectado) {
+    wifiAvisado = false;
   }
-  WiFi.setSleep(false);   /* otra vez ya conectado: algunas versiones lo reactivan al asociarse */
-  Serial.printf("[wifi] CONECTADO: IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  return true;
+  switch (rec_wifi_paso(&seguimientoWifi, millis(), conectado)) {
+  case REC_REINTENTAR: reintentar_wifi(); break;
+  case REC_REINICIAR:  reiniciar_placa("sin_wifi_60s"); break;
+  default: break;
+  }
+  return conectado;
+}
+
+/* ── Vigilante interno ─────────────────────────────────────────────────── */
+
+/* La propia placa se pide /salud por el lazo local de lwIP: true si el servidor HTTP contesta 200 en 3 s. */
+static bool servidor_responde()
+{
+  WiFiClient cli;
+  if (!cli.connect(IPAddress(127, 0, 0, 1), 80, 2000)) return false;
+  cli.print("GET /salud HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+  char buf[12];
+  size_t n = 0;
+  const uint32_t t0 = millis();
+  while (n < sizeof(buf) && millis() - t0 < 3000) {
+    if (cli.available()) {
+      const int c = cli.read();
+      if (c < 0) break;
+      buf[n++] = (char)c;
+    } else if (!cli.connected()) {
+      break;
+    } else {
+      vTaskDelay(pdMS_TO_TICKS(5));
+    }
+  }
+  cli.stop();
+  return n == sizeof(buf) && memcmp(buf, "HTTP/1.1 200", sizeof(buf)) == 0;
+}
+
+/* Cada 0.5 s revisa tres cosas y, si falla alguna, reinicia la placa (con el motivo anotado para /stats):
+ *   1. el bucle principal (loop) sigue avanzando;
+ *   2. si alguien pide cuadros, la cámara los entrega (la última actividad de la captura no tiene más de 5 s);
+ *   3. cada 10 s el servidor HTTP contesta /salud (3 fallos seguidos = no atiende). */
+static void tarea_vigilante(void *)
+{
+  static RecServidor seguimientoServidor = { 0 };
+  uint32_t ultimaSalud = millis();
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(500));
+    if (!vigilanteActivo) continue;
+    const uint32_t ahora = millis();
+    if (rec_latido_perdido(ahora, latidoLoopMs)) reiniciar_placa("bucle_sin_senal");
+    const bool hayDemanda = demanda > 0 || (modoVideo == MODO_CELDAS && cliente_celdas_vigente());
+    if (rec_cuadro_atascado(ahora, ultimaActividadCaptura, hayDemanda)) reiniciar_placa("cuadro_viejo_5s");
+    if (servidorListo && ahora - ultimaSalud >= 10000) {
+      ultimaSalud = ahora;
+      if (rec_servidor_paso(&seguimientoServidor, servidor_responde()) == REC_REINICIAR) reiniciar_placa("servidor_no_atiende");
+    }
+  }
 }
 
 /* ── Arranque y ciclo ──────────────────────────────────────────────────── */
@@ -1445,6 +1595,7 @@ void setup()
   delay(300);
   Serial.println();
   Serial.println("=== camara_prueba: Freenove ESP32-WROVER ===");
+  leer_causa_de_arranque();
   Serial.printf("[sistema] CPU %u MHz, PSRAM %s, libre %u bytes; heap libre %u bytes\n",
                 (unsigned)getCpuFrequencyMhz(), psramFound() ? "SI" : "NO", (unsigned)ESP.getFreePsram(), (unsigned)ESP.getFreeHeap());
 
@@ -1457,7 +1608,9 @@ void setup()
   /* Avisa por qué se desconecta el WiFi (código de razón de ESP-IDF; 201 = no se encuentra la red). */
   WiFi.onEvent([](arduino_event_id_t ev, arduino_event_info_t info) {
     if (ev == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
-      Serial.printf("[wifi] desconectado, razon %d\n", (int)info.wifi_sta_disconnected.reason);
+      razonDesconexion = (int)info.wifi_sta_disconnected.reason;
+      desconexionMs = millis() ? millis() : 1;
+      Serial.printf("[wifi] desconectado, razon %d (%s)\n", razonDesconexion, WiFi.disconnectReasonName((wifi_err_reason_t)razonDesconexion));
       reconexiones++;
     }
   });
@@ -1482,11 +1635,13 @@ void setup()
   }
 
   conectar_wifi();
-  while (!esperar_conexion()) {
-    conectar_wifi();
+  rec_wifi_arrancar(&seguimientoWifi, millis());
+  while (!atender_wifi()) {   /* reintenta con espera creciente; a los 60 s sin conectar reinicia la placa */
+    delay(250);
   }
   reiniciar_estadisticas();
   iniciar_servidor();
+  servidorListo = true;
 #if MODO_CELDAS_DISPONIBLE
   xTaskCreatePinnedToCore(tarea_udp, "udp", 4096, NULL, 2, NULL, 1);
   Serial.printf("[udp] escuchando HOLA y PING en el puerto %d (modo celdas disponible)\n", PUERTO_UDP);
@@ -1497,6 +1652,11 @@ void setup()
   /* En otra tarea: así loop() sigue tomando las estadísticas mientras corre. */
   xTaskCreatePinnedToCore(tarea_autoprueba, "autoprueba", 8192, NULL, 1, NULL, 0);
 #endif
+  /* El vigilante (núcleo 0, prioridad alta) empieza a vigilar cuando setup() terminó. */
+  latidoLoopMs = millis();
+  ultimaActividadCaptura = millis();
+  xTaskCreatePinnedToCore(tarea_vigilante, "vigilante", 6144, NULL, 5, NULL, 0);
+  vigilanteActivo = true;
 }
 
 void loop()
@@ -1504,6 +1664,8 @@ void loop()
   static uint32_t ultimoEstado = 0;
   static uint32_t ultimaRevision = 0;
   static uint32_t ultimaInstantanea = 0;
+
+  latidoLoopMs = millis();   /* señal de vida para el vigilante */
 
   if (mapaActivo == NULL) {
     if (millis() - ultimoEstado >= PERIODO_ESTADO_MS) {
@@ -1521,13 +1683,10 @@ void loop()
     tomar_instantanea(ms);
   }
 
-  /* Si se cae el WiFi, reintenta (cada 15 s sin conexión). */
+  /* Si se cae el WiFi, reintenta con espera creciente y, a los 60 s sin conexión, reinicia la placa. */
   if (millis() - ultimaRevision >= 1000) {
     ultimaRevision = millis();
-    if (WiFi.status() != WL_CONNECTED && millis() - inicioIntento > TIEMPO_CONEXION_MS) {
-      Serial.println("[wifi] conexion perdida: reintento");
-      conectar_wifi();
-    }
+    atender_wifi();
   }
 
   if (millis() - ultimoEstado >= PERIODO_ESTADO_MS) {

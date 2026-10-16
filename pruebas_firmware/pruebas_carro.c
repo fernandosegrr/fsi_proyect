@@ -842,6 +842,19 @@ static void prueba_escalonado(void)
 }
 #endif
 
+/* Direcciones de la red del carro: el DHCP del DevKit reparte .10 a .20 y la .2 (cámara) y la .1 (DevKit) quedan fuera. El .ino solo arma estas direcciones con config.h. */
+static void prueba_direcciones(void)
+{
+    printf("-- direcciones y DHCP --\n");
+    caso("el DHCP empieza en la .10", DHCP_INICIO_OCTETO == 10);
+    caso("el DHCP termina en la .20 (el core reparte inicio .. inicio+10)", DHCP_FIN_OCTETO == 20 && DHCP_FIN_OCTETO - DHCP_INICIO_OCTETO == 10);
+    caso("la camara (.2) esta fuera del rango del DHCP", IP_CAMARA_OCTETO < DHCP_INICIO_OCTETO || IP_CAMARA_OCTETO > DHCP_FIN_OCTETO);
+    caso("el DevKit (.1) esta fuera del rango del DHCP", IP_AP_OCTETO < DHCP_INICIO_OCTETO || IP_AP_OCTETO > DHCP_FIN_OCTETO);
+    caso("la camara y el DevKit no comparten direccion", IP_CAMARA_OCTETO != IP_AP_OCTETO);
+    caso("el rango cabe en la red /24 (termina antes de la .254)", DHCP_FIN_OCTETO < 254);
+    caso("la red es 192.168.4.x", IP_RED_BASE_1 == 192 && IP_RED_BASE_2 == 168 && IP_RED_BASE_3 == 4);
+}
+
 /* Todas las pruebas de siempre (con el arranque escalonado apagado). Fuera del main para que, al compilar la prueba escalonada, no sobren funciones sin usar. */
 int pruebas_normales(void);
 int pruebas_normales(void)
@@ -859,6 +872,7 @@ int pruebas_normales(void)
     prueba_desconocido();
     prueba_keepalive();
     prueba_desbordamiento();
+    prueba_direcciones();
 
     printf("== Parte 2: comparación con el código original ==\n");
     prueba_diferencial(0, "reloj desde 0");

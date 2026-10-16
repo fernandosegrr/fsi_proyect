@@ -25,10 +25,21 @@
 #  include "secretos.ejemplo.h"
 #endif
 
-/* El ESP32 crea su propia red; su IP por defecto es 192.168.4.1 (no se fija
- * en el código). Servidor HTTP en el puerto 80, WebSocket en la ruta /ws. */
+/* El ESP32 crea su propia red; su IP es 192.168.4.1 (ver abajo las direcciones y el DHCP). Servidor HTTP en el puerto 80, WebSocket en la ruta /ws. */
 #define PUERTO_HTTP    80
 #define RUTA_WEBSOCKET "/ws"
+
+/* DIRECCIONES DE LA RED DEL CARRO (192.168.4.x). El DevKit es 192.168.4.1; la cámara usa la 192.168.4.2 FIJA (no pide dirección). El servidor DHCP del DevKit
+ * reparte desde la .10 (la API de Arduino-ESP32 3.x da DHCP_CUANTAS direcciones: .10 a .20), así la .2 queda libre para la cámara aunque el teléfono se conecte antes.
+ * Los números son el último byte de la dirección; el .ino arma 192.168.4.<n>. */
+#define IP_RED_BASE_1       192
+#define IP_RED_BASE_2       168
+#define IP_RED_BASE_3         4
+#define IP_AP_OCTETO          1   /* el DevKit (y la puerta de enlace) */
+#define IP_CAMARA_OCTETO      2   /* la cámara: IP fija, fuera del rango del DHCP */
+#define DHCP_INICIO_OCTETO   10   /* primera dirección que reparte el DHCP */
+#define DHCP_CUANTAS         11   /* el core reparte inicio .. inicio+10 (dato del core 3.3.12: lease.end = start + 10) */
+#define DHCP_FIN_OCTETO      (DHCP_INICIO_OCTETO + DHCP_CUANTAS - 1)   /* 20 */
 
 /* Potencia de transmisión WiFi: 13 dBm reduce picos de corriente que algunas
  * powerbanks interpretan como cortocircuito. WIFI_POWER_13dBm lo define la

@@ -115,6 +115,23 @@ static void iniciar_watchdog_hardware()
 /* Crea la red WiFi propia del carro (punto de acceso). */
 static void iniciar_wifi()
 {
+  /* Antes de crear la red se fija la IP del carro y dónde EMPIEZA el DHCP: .10 a .20, así la .2 (de la cámara) nunca se reparte. softAPConfig tiene que ir antes
+   * de que se conecte nadie; el core devuelve false si el rango no cabe o se pisa con la IP del carro. */
+  const IPAddress ip_ap(IP_RED_BASE_1, IP_RED_BASE_2, IP_RED_BASE_3, IP_AP_OCTETO);
+  const IPAddress mascara(255, 255, 255, 0);
+  const IPAddress dhcp_inicio(IP_RED_BASE_1, IP_RED_BASE_2, IP_RED_BASE_3, DHCP_INICIO_OCTETO);
+  const bool dhcp_ok = WiFi.softAPConfig(ip_ap, ip_ap, mascara, dhcp_inicio);
+  Serial.printf("DHCP: %s (reparte .%d a .%d; la .%d queda para la camara)\n", dhcp_ok ? "configurado" : "ERROR al configurar",
+                DHCP_INICIO_OCTETO, DHCP_FIN_OCTETO, IP_CAMARA_OCTETO);
+
+  /* Avisa a quién se le da cada dirección: sirve para comprobar que nadie recibe la .2. */
+  WiFi.onEvent([](arduino_event_id_t evento, arduino_event_info_t info) {
+    if (evento == ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED) {
+      const IPAddress entregada(info.wifi_ap_staipassigned.ip.addr);
+      Serial.printf("DHCP: entrego %s%s\n", entregada.toString().c_str(), entregada[3] == IP_CAMARA_OCTETO ? "  <-- ERROR: es la de la camara" : "");
+    }
+  });
+
   WiFi.softAP(WIFI_SSID, WIFI_PASSWORD, WIFI_CANAL);   /* canal fijo */
   WiFi.setSleep(false);                                 /* sin ahorro de energía del radio: menos retraso y menos tropiezos */
   WiFi.setTxPower(WIFI_POTENCIA_TX);

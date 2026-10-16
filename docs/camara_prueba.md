@@ -99,7 +99,7 @@ Qué anotar: nitidez (¿se distingue el piso y un objeto a 20 y 50 cm?), retraso
   `Sketch_06.1_CameraWebServer/camera_pins.h`, idéntico al del core de ESP32): XCLK 21, SIOD 26, SIOC 27, datos Y2..Y9 = 4, 5, 18, 19, 36, 39, 34, 35, VSYNC 25, HREF 23, PCLK 22, sin PWDN ni RESET.
   `AI_THINKER` falló con `0x106 ESP_ERR_NOT_SUPPORTED`.
 - **Sensor GC0308** (PID 0x9B, 0,3 megapíxeles): no hace JPEG (con JPEG da `0x106` "JPEG format is not supported on this sensor"), por eso la cámara entrega RGB565/YUV422 y la ESP32 comprime.
-- **WiFi**: red `CarroFSI`, IP fija 192.168.4.2, RSSI de -19 a -44 dBm con las placas juntas. Si la red no está, reintenta cada 15 s.
+- **WiFi**: red `CarroFSI`, IP fija 192.168.4.2, RSSI de -19 a -44 dBm con las placas juntas. Si la red no está o se cae, reintenta con espera creciente (1, 2, 4... 10 s) y a los 60 s sin conectar se reinicia (ver «Robustez del WiFi y de la cámara» más abajo).
 - **Memoria** con el servidor listo: heap libre 130 a 145 KB; PSRAM libre 3,7 MB.
 - Los errores `gpio_install_isr_service ... already installed` al reiniciar la cámara son inofensivos.
 
@@ -108,3 +108,52 @@ Qué anotar: nitidez (¿se distingue el piso y un objeto a 20 y 50 cm?), retraso
 Con QVGA y este sensor se esperan unos 9 fps y ~250 ms de edad antes de contar el WiFi; HQVGA da 12 fps y ~137 ms. El presupuesto de 300 ms del proyecto queda justo en QVGA.
 Con una cámara con JPEG por hardware (por ejemplo OV2640) la compresión dejaría de ser el límite; si la ESP32-CAM definitiva trae uno, hay que repetir el barrido
 (`#define MODO_BARRIDO 1` en el programa y `.\scripts\cargar.ps1 camara -MonitorSegundos 540`).
+
+## Robustez del WiFi y de la cámara (16 oct)
+
+**Qué pasó:** la cámara (IP fija 192.168.4.2) dejó de responder en la red `CarroFSI` y solo volvió al desconectarla y conectarla. No se sabe si fue un cuelgue de la placa o un choque de IP
+(el DHCP del DevKit repartía desde la .2, la misma de la cámara, y un teléfono que se conecta antes se la queda). Se cubrieron las dos causas.
+
+### 1. DevKit: el DHCP ya no reparte la .2
+- `firmware_carro.ino` llama a `WiFi.softAPConfig(192.168.4.1, 192.168.4.1, 255.255.255.0, 192.168.4.10)` antes de crear la red. En Arduino-ESP32 3.3.12 el cuarto parámetro es dónde EMPIEZA el DHCP y el core
+  reparte esa dirección y las 10 siguientes (en `NetworkInterface.cpp`: `lease.end_ip = lease.start_ip + 10`): **.10 a .20**. La .2 (cámara) y la .1 (DevKit) quedan fuera; el core además rechaza (devuelve `false`) un rango que pise la IP del carro o la puerta de enlace.
+- Los números están en `config.h` (`DHCP_INICIO_OCTETO`, `DHCP_FIN_OCTETO`, `IP_CAMARA_OCTETO`...) y `pruebas_firmware/pruebas_carro.c` comprueba en PC que el rango es .10 a .20 y no contiene la .2 ni la .1 (7 casos).
+- **Cómo verificarlo con la placa** (monitor serie del DevKit a 115200, `.\scripts\cargar.ps1 nuevo` ya lo abre 15 s):
+  1. Al arrancar debe salir `DHCP: configurado (reparte .10 a .20; la .2 queda para la camara)`. Si dice `ERROR al configurar`, el core no aceptó el rango.
+  2. Cada vez que un teléfono se conecta sale `DHCP: entrego 192.168.4.1x`. Debe ser un número de .10 a .20; si alguna vez sale la .2 aparece `<-- ERROR: es la de la camara`.
+  3. En el teléfono (Ajustes → WiFi → CarroFSI → dirección IP) debe verse 192.168.4.10 a .20. Se puede conectar el teléfono ANTES que la cámara: la cámara debe seguir entrando con la .2.
+
+### 2. Cámara: recuperación y vigilante
+Las decisiones están en `camara_prueba/recuperacion.c/.h` (C puro, probado en PC con `pruebas_firmware/pruebas_camara.c`, 34 casos, incluido el cruce de la vuelta de `millis()` a los 49 días); `camara_prueba.ino` solo actúa.
+
+| Situación | Qué hace |
+|---|---|
+| Se pierde la asociación WiFi | Vuelve a llamar a `WiFi.begin` (con la misma IP fija y el canal de la red) esperando 1, 2, 4, 8 y luego 10 s entre intentos. En el arranque el primer intento tiene 5 s antes del primer reintento. |
+| 60 s sin conectar (en el arranque o después de una caída) | `ESP.restart()` con motivo `sin_wifi_60s`. |
+| El servidor HTTP no atiende | La placa se pide `/salud` a sí misma (127.0.0.1) cada 10 s; 3 fallos seguidos (30 s) → reinicio con motivo `servidor_no_atiende`. `/salud` responde `ok` sin escribir en el serial. |
+| Alguien pide cuadros y la captura lleva más de 5 s sin entregar uno | Reinicio con motivo `cuadro_viejo_5s`. Sin demanda de video no cuenta (la captura no pide cuadros). |
+| El bucle principal (`loop`) no avanza más de 8 s | Reinicio con motivo `bucle_sin_senal`. |
+
+El vigilante es una tarea (núcleo 0, prioridad 5) que empieza cuando `setup()` termina. Se mantiene IP fija 192.168.4.2, canal de la red (1, lo fija el DevKit), `setSleep(false)` y todo el resto del comportamiento.
+El motivo de un reinicio propio se guarda en memoria RTC (`RTC_NOINIT_ATTR`) y sobrevive al `ESP.restart()`.
+
+### `/stats` (campos nuevos; los de antes no cambian)
+- `uptime_s`: segundos encendida (ya existía).
+- `reconexiones`: veces que el WiFi se desconectó (ya existía); `reintentos_wifi`: veces que se volvió a llamar a `WiFi.begin`.
+- `ultima_desconexion`: `{"razon": 200, "texto": "BEACON_TIMEOUT", "hace_s": 35}` (`razon` 0, `texto` "ninguna" y `hace_s` -1 si no se ha desconectado desde que arrancó). Los códigos son los de ESP-IDF: 201 = no encuentra la red, 200 = se perdió la señal del DevKit, 15 = fallo del apretón de manos...
+- `ultimo_reinicio`: `{"causa": "brownout", "motivo": "", "propios_seguidos": 0}`. `causa` puede ser `encendido`, `pin_externo`, `software`, `panic`, `watchdog_tareas`, `watchdog_interrupciones`, `watchdog_otro`, `brownout` o, si el reinicio lo pidió el vigilante, `reinicio_propio` con el `motivo` de la tabla de arriba. `propios_seguidos` cuenta reinicios propios seguidos (vuelve a 0 con cualquier otra causa, como un apagón).
+- También sale por el serial al arrancar: `[sistema] ultimo reinicio: ...`, y cada reinicio propio escribe `[recuperacion] REINICIO por: <motivo>`.
+- Cómo leerlo: `http://192.168.4.2/stats` desde el teléfono en la red CarroFSI (o `Invoke-WebRequest` desde la PC conectada a CarroFSI). Si la cámara se vuelve a quedar sin respuesta, lo primero es mirar `ultimo_reinicio.causa` y `ultima_desconexion` en cuanto vuelva.
+
+### Qué NO cubre (para la siguiente vez)
+- Si la cámara no consigue iniciar el sensor al arrancar (`DETENIDO: la camara no inicio con ningun mapa de pines`) sigue sin reiniciarse sola (suele ser el cable de la cámara, no un fallo pasajero).
+- Si la radio se queda colgada pero `WiFi.status()` sigue en «conectado» y el servidor local contesta, la placa no lo nota (no se mide el alcance hacia el DevKit). Si pasa, `/stats` no estará disponible y bastará compararlo con el último `reconexiones`.
+
+### App
+Si la cámara no responde, las pantallas (Inicio, Manual, Visión, Ejecutar ruta, Prueba final) dicen **«La cámara no responde»** con la IP intentada («Se intentó con 192.168.4.2 y se reintenta sola cada 3 s…»); la sesión de video reabre sola cada **3 s** (`SES_REINTENTO_MS`, antes 5 s; el control del carro usa el mismo plazo). El chip de Inicio dice «No responde» y el hueco del video de Manual «La cámara no responde».
+
+### Cargar (no se cargó nada en este trabajo)
+- DevKit (**COM6**, solo esa placa por USB): `.\scripts\cargar.ps1 nuevo -Puerto COM6`
+- Cámara Freenove (**COM8**, solo esa placa por USB): `.\scripts\cargar.ps1 camara -Puerto COM8`
+- Solo compilar: `.\scripts\cargar.ps1 nuevo -SoloCompilar` y `.\scripts\cargar.ps1 camara -SoloCompilar` (compilan: DevKit 74 %, cámara 83 % de la flash).
+- Después de cargar ambas, reiniciar la cámara y el DevKit en cualquier orden: la cámara debe entrar sola con la .2 y el teléfono debe recibir una dirección de .10 a .20.
