@@ -48,3 +48,10 @@ nucleo_c/pruebas_movimiento_piso
 nucleo_c/pruebas_movimiento_piso.exe
 nucleo_c/pruebas_celdas
 nucleo_c/pruebas_celdas.exe
+nucleo_c/pruebas_latencia_video
+nucleo_c/pruebas_ruta_editor
+nucleo_c/pruebas_sesion_compartida
+nucleo_c/pruebas_sim_ruta
+nucleo_c/pruebas_*.exe
+pruebas_firmware/pruebas_*.exe
+pruebas_firmware/pruebas_*
