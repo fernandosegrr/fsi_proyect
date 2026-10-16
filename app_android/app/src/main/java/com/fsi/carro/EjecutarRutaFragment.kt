@@ -70,6 +70,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     private lateinit var resumenChip: ChipEstado
     private lateinit var resumenDuracion: TextView
     private lateinit var resumenEsquivadas: TextView
+    private lateinit var resumenGirosTitulo: TextView
+    private lateinit var resumenGiros: TextView
     private lateinit var detalles: TextView
     private lateinit var imagen: ImageView
     private lateinit var placeholder: View
@@ -180,6 +182,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         resumenChip = vista.findViewById(R.id.ej_resumen_chip)
         resumenDuracion = vista.findViewById(R.id.ej_resumen_duracion)
         resumenEsquivadas = vista.findViewById(R.id.ej_resumen_esquivadas)
+        resumenGirosTitulo = vista.findViewById(R.id.ej_resumen_giros_titulo)
+        resumenGiros = vista.findViewById(R.id.ej_resumen_giros)
         detalles = vista.findViewById(R.id.ej_detalles)
         imagen = vista.findViewById(R.id.manual_video)
         placeholder = vista.findViewById(R.id.manual_placeholder)
@@ -564,6 +568,12 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         })
         resumenDuracion.text = String.format(Locale.US, "%d s", duracion / 1000)
         resumenEsquivadas.text = "$ultimaEsquivadas"
+        // «Giro pedido / Giro hecho (estimado)»: lo que el programa pidió en cada giro y lo que el navegador estima que giró (por tiempo, o con la cámara si era confiable). Si el programa pidió
+        // 90° y el carro no giró, aquí se ve que el comando fue correcto y que el problema es del carro (contacto eléctrico), no del programa.
+        val giros = NavegadorNativa.textoGiros()
+        resumenGirosTitulo.visibility = if (giros.isEmpty()) View.GONE else View.VISIBLE
+        resumenGiros.visibility = resumenGirosTitulo.visibility
+        resumenGiros.text = giros
         if (resultadoFinal == "ERROR") {
             Haptica.obstaculo(requireContext())
             val m = mensajeDeError(e[NavegadorNativa.E_MOTIVO_ERROR])

@@ -1764,6 +1764,19 @@ Java_com_fsi_carro_CalibracionNativa_gradosAMs(JNIEnv *env, jobject objeto, jint
     return (jint)cal_grados_a_ms(&cal, (int)grados);
 }
 
+/* Cuántos mm avanza el carro con `ms` de FORWARD (sin el frenado). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalibracionNativa_msAMm(JNIEnv *env, jobject objeto, jintArray calibracion, jint ms)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        return 0;
+    }
+    return (jint)cal_ms_a_mm(&cal, (int)ms);
+}
+
 /* La calibración como texto "clave=valor" (vacío si no es válida). */
 JNIEXPORT jstring JNICALL
 Java_com_fsi_carro_CalibracionNativa_aTexto(JNIEnv *env, jobject objeto, jintArray calibracion)

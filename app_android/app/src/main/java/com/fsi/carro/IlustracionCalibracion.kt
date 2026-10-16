@@ -6,7 +6,8 @@
  *     así que se ve bien en claro y en oscuro y no hay hexadecimales sueltos.
  *  2. La pantalla solo le dice dos cosas: `escena` (qué paso es) y `enMarcha` (la prueba está corriendo ahora).
  *  3. Escenas: INTRO (el carro con su espacio libre), REACCION y ARRANQUE (cronómetro y dedo), AVANCE (flecha hacia adelante y una regla en cm),
- *     GIRO_IZQ y GIRO_DER (arco de 90 grados), RETROCESO (flecha hacia atrás), GIRO_VISUAL (el carro girando y un ojo/cámara) y RESUMEN (una palomita).
+ *     FRENADO (el carro pasa la raya de STOP y sigue un poco más), GIRO_IZQ y GIRO_DER (arco de 90 grados), RETROCESO (flecha hacia atrás), GIRO_VISUAL (el carro girando y un ojo/cámara),
+ *     DESPLAZAMIENTO (el carro donde empezó, girado donde terminó y una flecha entre las marcas de cinta de su centro) y RESUMEN (una palomita).
  *  4. El carro se dibuja de frente hacia ARRIBA: un rectángulo redondeado con 4 ruedas y una franja del acento al frente (ahí va la cámara).
  *  5. Con `enMarcha` en true corre una animación suave (fase de 0 a 1 cada 1.4 s): el carro avanza, retrocede o gira, el cronómetro da vueltas.
  *     Solo anima mientras la prueba corre y se detiene al salir de la pantalla (onDetachedFromWindow).
@@ -31,7 +32,7 @@ import androidx.core.content.res.ResourcesCompat
 class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atributos: AttributeSet? = null) : View(contexto, atributos) {
 
     /** Una escena por paso del asistente (mismos nombres que los pasos de CalibracionActivity). */
-    enum class Escena { INTRO, REACCION, ARRANQUE, AVANCE, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90, RECTA }
+    enum class Escena { INTRO, REACCION, ARRANQUE, AVANCE, FRENADO, GIRO_IZQ, GIRO_DER, RETROCESO, GIRO_VISUAL, RESUMEN, GIRO_90, RECTA, DESPLAZAMIENTO }
 
     /** Qué paso se dibuja. */
     var escena: Escena = Escena.INTRO
@@ -68,6 +69,8 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
             Escena.REACCION -> R.string.cal_ilus_reaccion
             Escena.ARRANQUE -> R.string.cal_ilus_arranque
             Escena.AVANCE -> R.string.cal_ilus_avance
+            Escena.FRENADO -> R.string.cal_ilus_frenado
+            Escena.DESPLAZAMIENTO -> R.string.cal_ilus_desplazamiento
             Escena.GIRO_IZQ -> R.string.cal_ilus_giro_izq
             Escena.GIRO_DER -> R.string.cal_ilus_giro_der
             Escena.RETROCESO -> R.string.cal_ilus_retroceso
@@ -155,6 +158,8 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
             Escena.REACCION -> escenaReaccion(lienzo, cx, cy, u)
             Escena.ARRANQUE -> escenaArranque(lienzo, cx, cy, u)
             Escena.AVANCE -> escenaAvance(lienzo, cx, u)
+            Escena.FRENADO -> escenaFrenado(lienzo, cx, u)
+            Escena.DESPLAZAMIENTO -> escenaDesplazamiento(lienzo, cx, cy, u)
             Escena.RETROCESO -> escenaRetroceso(lienzo, cx, u)
             Escena.GIRO_IZQ -> escenaGiro(lienzo, cx, cy, u, -1f)
             Escena.GIRO_DER -> escenaGiro(lienzo, cx, cy, u, 1f)
@@ -215,6 +220,51 @@ class IlustracionCalibracion @JvmOverloads constructor(contexto: Context, atribu
         dibujarFlecha(c, carroX, frente - 0.03f * u, carroX, metaY, u)
         val corrimiento = if (enMarcha) fase * 0.24f * u else 0f
         dibujarCarro(c, carroX, carroY - corrimiento, u, 1f)
+    }
+
+    /** FRENADO: el carro avanza, pasa una raya de «STOP» (donde se le ordena detenerse) y sigue un poco más: esa distancia extra, entre la raya y la punta, es el frenado. */
+    private fun escenaFrenado(c: Canvas, cx: Float, u: Float) {
+        val carroX = cx - 0.22f * u
+        val rayaY = 0.46f * u
+        val frenadoY = 0.26f * u                       // hasta aquí llega el frente del carro después de la raya (con el carro quieto)
+        val reposo = frenadoY + 0.25f * u              // centro del carro cuando se detiene del todo
+        val salida = 0.80f * u                         // centro del carro al salir
+        pincelLinea.color = colorContorno
+        pincelLinea.strokeWidth = dp(2f)
+        pincelLinea.pathEffect = DashPathEffect(floatArrayOf(dp(5f), dp(5f)), 0f)
+        c.drawLine(carroX - 0.24f * u, rayaY, cx + 0.06f * u, rayaY, pincelLinea)
+        pincelLinea.pathEffect = null
+        pincelTexto.color = colorRueda
+        c.drawText("STOP", carroX - 0.34f * u, rayaY + pincelTexto.textSize / 3f, pincelTexto)
+        dibujarFlecha(c, cx + 0.04f * u, rayaY, cx + 0.04f * u, frenadoY, u)               // el frenado: de la raya a donde queda el frente
+        val posicion = if (enMarcha) salida + (reposo - salida) * fase else reposo
+        dibujarCarro(c, carroX, posicion, u, 1f)
+        dibujarRegla(c, cx + 0.26f * u, 0.10f * u, 0.90f * u, u)
+    }
+
+    /** DESPLAZAMIENTO: el carro (fantasma) donde empezó, el carro girado donde terminó, y una flecha entre las dos marcas de cinta del centro: ese es el desplazamiento del centro. */
+    private fun escenaDesplazamiento(c: Canvas, cx: Float, cy: Float, u: Float) {
+        val x0 = cx - 0.30f * u
+        val y0 = cy + 0.12f * u
+        val x1 = cx + 0.24f * u
+        val y1 = cy - 0.10f * u
+        // El carro donde empezó, atenuado.
+        c.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), 90)
+        dibujarCarro(c, x0, y0, u, 0.8f)
+        c.restore()
+        // El carro girado 90° donde terminó (si la prueba corre, se mueve y gira de una posición a la otra).
+        val avance = if (enMarcha) fase else 1f
+        val x = x0 + (x1 - x0) * avance
+        val y = y0 + (y1 - y0) * avance
+        c.save()
+        c.rotate(90f * avance, x, y)
+        dibujarCarro(c, x, y, u, 0.8f)
+        c.restore()
+        // Las marcas de cinta del centro y la flecha entre ellas.
+        dibujarFlecha(c, x0 + 0.04f * u, y0 - 0.03f * u, x1 - 0.05f * u, y1 + 0.02f * u, u)
+        pincelRelleno.color = colorAcento
+        c.drawCircle(x0, y0, dp(5f), pincelRelleno)
+        c.drawCircle(x1, y1, dp(5f), pincelRelleno)
     }
 
     /** RETROCESO: igual que el avance pero la flecha sale de atrás del carro, hacia abajo. */

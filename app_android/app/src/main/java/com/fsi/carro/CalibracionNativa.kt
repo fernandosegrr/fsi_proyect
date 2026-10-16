@@ -111,6 +111,9 @@ object CalibracionNativa {
     /** Cuántos ms de motor se piden para girar `grados` (negativo = izquierda). */
     external fun gradosAMs(calibracion: IntArray, grados: Int): Int
 
+    /** Cuántos mm avanza el carro con `ms` de FORWARD (sin contar el frenado, que se suma al soltar). */
+    external fun msAMm(calibracion: IntArray, ms: Int): Int
+
     // ── Ajuste fino: giro de 90° y recta (ver docs/calibracion.md y docs/perfiles_velocidad.md) ──
     const val FACTOR_GIRO_DEFECTO = 1000   // milésimas: 1000 = sin corrección
     const val GIRO_SE_PASO_MUCHO = 0

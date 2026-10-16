@@ -108,6 +108,7 @@
     <string name="ejecutar_resumen_resultado">Resultado</string>
     <string name="ejecutar_resumen_duracion">Duración</string>
     <string name="ejecutar_resumen_esquivadas">Obstáculos esquivados</string>
+    <string name="ejecutar_resumen_giros">Giro pedido / Giro hecho (estimado)</string>
     <string name="ejecutar_salir_titulo">Hay una ruta en marcha</string>
     <string name="ejecutar_salir_texto">Si sales, el carro se detiene y la ruta se cancela.</string>
     <string name="ejecutar_salir_si">Detener y salir</string>

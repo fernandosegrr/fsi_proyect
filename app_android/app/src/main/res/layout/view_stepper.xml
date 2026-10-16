@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: un contador con − y + (como el de los cm de la recta): una etiqueta de sección, los dos botones de 56 dp y, en medio, el valor con cifras tabulares.
+  Se usa con <include> en la medida del desplazamiento al girar (adelante o atrás, izquierda o derecha, ángulo); CalibracionActivity le pone la etiqueta y el valor.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/stepper_etiqueta"
+        style="@style/Seccion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/e2" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/e1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stepper_menos"
+            style="@style/Boton.Secundario"
+            android:layout_width="@dimen/toque_manejo"
+            android:layout_height="@dimen/toque_manejo"
+            android:text="−"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/stepper_valor"
+            style="@style/Texto.Cifras"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:lineHeight="32sp"
+            android:textSize="24sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stepper_mas"
+            style="@style/Boton.Secundario"
+            android:layout_width="@dimen/toque_manejo"
+            android:layout_height="@dimen/toque_manejo"
+            android:text="+"
+            android:textSize="24sp" />
+    </LinearLayout>
+</LinearLayout>

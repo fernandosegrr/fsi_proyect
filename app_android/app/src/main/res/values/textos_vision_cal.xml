@@ -54,61 +54,109 @@
     <!-- ═══ Calibración ═══ -->
     <string name="cal_titulo">Calibración</string>
     <string name="cal_paso">Paso %1$d de %2$d</string>
+    <string name="cal_paso_todo">Parte %1$d de %2$d · paso %3$d de %4$d</string>
+    <string name="cal_paso_lista">Elige qué calibrar</string>
 
-    <string name="cal_t_intro">Calibración del carro</string>
+    <!-- La lista de partes -->
+    <string name="cal_t_lista">Calibración del carro</string>
+    <string name="cal_i_lista">Cada parte se mide sola: toca «Calibrar solo esto» en la que quieras repetir. No hace falta hacer las demás ni se borran sus valores. Lo que no termines no se guarda.</string>
+    <string name="cal_pilas">Repite si cambiaste pilas.</string>
+    <string name="cal_b_solo_esto">Calibrar solo esto</string>
+    <string name="cal_b_todo">Calibrar todo, en orden</string>
+    <string name="cal_b_omitir">Omitir esta parte</string>
+    <string name="cal_b_listo">Listo</string>
+    <string name="cal_b_cancelar">Cancelar</string>
+    <string name="cal_b_siguiente_parte">Siguiente parte</string>
+    <string name="cal_b_guardar_calibracion">Guardar esta calibración</string>
+    <string name="cal_chip_calibrado">Calibrado</string>
+    <string name="cal_chip_sin">Sin calibrar</string>
+    <string name="cal_chip_ajustado">Ajustado</string>
+    <string name="cal_chip_sin_fecha">Medido (sin fecha)</string>
+
+    <string name="cal_parte_arranque">Arranque del motor</string>
+    <string name="cal_parte_velocidad">Velocidad de avance</string>
+    <string name="cal_parte_frenado">Frenado de avance</string>
+    <string name="cal_parte_giro_izq">Giro a la izquierda</string>
+    <string name="cal_parte_giro_der">Giro a la derecha</string>
+    <string name="cal_parte_retroceso">Retroceso</string>
+    <string name="cal_parte_giro_visual">Giro con la cámara</string>
+    <string name="cal_parte_desplazamiento">Desplazamiento al girar</string>
+    <string name="cal_parte_giro_90">Ajuste fino del giro de 90°</string>
+    <string name="cal_parte_recta">Ajuste fino de la recta (balance)</string>
+
+    <!-- Títulos de las pruebas -->
     <string name="cal_t_reaccion">Tu tiempo de reacción</string>
     <string name="cal_t_arranque">Retardo de arranque</string>
-    <string name="cal_t_avance">Avance en línea recta</string>
+    <string name="cal_t_avance">Velocidad de avance</string>
+    <string name="cal_t_frenado">Frenado de avance</string>
     <string name="cal_t_giro_izq">Giro a la izquierda</string>
     <string name="cal_t_giro_der">Giro a la derecha</string>
-    <string name="cal_t_retroceso">Retroceso (opcional)</string>
-    <string name="cal_t_giro_visual">Giro con la cámara (opcional)</string>
-    <string name="cal_t_resumen">Resumen</string>
+    <string name="cal_t_retroceso">Retroceso</string>
+    <string name="cal_t_giro_visual">Giro con la cámara</string>
+    <string name="cal_t_resumen">Resultado</string>
     <string name="cal_t_giro_90">Ajuste fino: giro de 90°</string>
     <string name="cal_t_recta">Ajuste fino: recta</string>
+    <string name="cal_t_desplazamiento">Desplazamiento al girar</string>
 
     <!-- Instrucciones: máximo 3 líneas. Lo que sobra va en la nota (letra suave). -->
-    <string name="cal_i_intro">Vamos a medir cómo arranca, avanza y gira el carro. Ponlo en el piso donde andará, con batería y 2 m libres.</string>
     <string name="cal_i_reaccion">Toca «Empezar». Cuando el botón grande se ponga verde, tócalo lo más rápido que puedas. Son 3 veces.</string>
     <string name="cal_i_arranque">Toca «Probar»: el carro avanza. Toca «YA SE MOVIÓ» en cuanto veas girar las ruedas. Son 5 veces.</string>
     <string name="cal_i_avance">Pon el carro en la marca de salida y toca «Probar»: avanza y se detiene. Escribe cuántos cm avanzó.</string>
-    <string name="cal_i_giro">Alinea el carro con una marca de 90° y toca «Probar»: gira y se detiene. Escribe los grados que giró.</string>
+    <string name="cal_i_frenado">Pon el carro en la marca de salida y toca «Probar»: avanza 2 s y se detiene. Escribe cuántos cm avanzó EN TOTAL, hasta que pare del todo.</string>
+    <string name="cal_i_giro">Elige el giro de prueba, alinea el carro con una marca y toca «Probar»: gira y se detiene. Escribe los grados que giró.</string>
     <string name="cal_i_retroceso">Igual que el avance, pero en reversa. Deja 80 cm libres DETRÁS: el carro no ve hacia atrás.</string>
     <string name="cal_i_giro_visual">Frente a algo con detalles (no una pared lisa), toca «Probar»: gira 90° a la derecha. Escribe cuántos grados giró de verdad.</string>
-    <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones.</string>
+    <string name="cal_i_resumen">Estos son los valores calculados con tus mediciones. Si todo está bien, guárdalos.</string>
     <string name="cal_i_giro_90">Pon el carro sobre una marca de 90°, elige el lado y toca «Probar»: gira lo que la calibración dice que son 90°. Después dime cómo giró.</string>
     <string name="cal_i_recta">Pon el carro sobre una línea de cinta, mirando a lo largo de ella, y toca «Avanzar 4 s». Después dime hacia dónde se desvió y cuántos cm.</string>
+    <string name="cal_i_desplazamiento">Marca con cinta el CENTRO del carro y alinéalo con una junta de la loseta. Toca «Girar». Después mide cuánto se movió el centro y cuánto giró.</string>
 
-    <string name="cal_n_intro">Necesitas una cinta o regla y marcas de 90° en el piso. El botón PARO siempre detiene el carro.</string>
-    <string name="cal_n_intro_giro">«Solo calibrar el giro con la cámara» salta al paso 8 y conserva la calibración guardada.</string>
     <string name="cal_n_reaccion">Sirve para descontar tu reacción de la prueba de arranque.</string>
     <string name="cal_n_arranque">Si no tocas en 3 s, el carro se detiene solo.</string>
-    <string name="cal_n_avance">Espera a que pare del todo y mide de la marca a las ruedas. Cada vez, vuelve a poner el carro en la marca.</string>
-    <string name="cal_n_giro">Pon grados aproximados (45, 90, 135…). Espera a que pare y vuelve a alinear el carro cada vez.</string>
-    <string name="cal_n_retroceso">Mide cuántos cm retrocedió, de la marca a las ruedas. Si no lo mides, toca «Siguiente»: se usa el valor del avance.</string>
+    <string name="cal_n_avance">Se manda avanzar 1, 2 y 3 s, 3 veces cada uno. Espera a que pare del todo y mide de la marca a las ruedas. Cada vez, vuelve a poner el carro en la marca. Usa el arranque que ya está guardado.</string>
+    <string name="cal_n_frenado">Son 3 veces. Usa la velocidad y el arranque que ya están guardados: si cambiaste de pilas o de piso, calibra primero la velocidad de avance.</string>
+    <string name="cal_n_giro">Pon grados aproximados (45, 90, 135…). Espera a que pare y vuelve a alinear el carro cada vez. Son 3 veces (9 con los tres tiempos). Usa el arranque y el frenado que ya están guardados.</string>
+    <string name="cal_n_retroceso">Mide cuántos cm retrocedió, de la marca a las ruedas. Se manda retroceder 1, 2 y 3 s, 3 veces cada uno.</string>
     <string name="cal_n_giro_90">Hazlo con las pilas que usarás en la demo. Se repite hasta que quede justo. El ajuste se guarda por lado y por perfil y lo usan las rutas y el simulador.</string>
     <string name="cal_n_recta">Hazlo con las pilas que usarás en la demo. Se repite hasta que el desvío sea de 1 cm o menos (hasta 4 intentos). El ajuste se guarda en el carro y en el teléfono.</string>
-    <string name="cal_n_giro_visual">Se repite hasta 3 veces. Si no quieres este paso, toca «Ver resumen».</string>
+    <string name="cal_n_giro_visual">Se repite hasta 3 veces. Usa los giros que ya están guardados.</string>
+    <string name="cal_n_desplazamiento">Son 2 repeticiones por lado. Se promedian y, si difieren más de 30 %, se rechazan. El desplazamiento cambia con el piso y las pilas, y de un giro a otro: es un promedio.</string>
 
+    <!-- Botones -->
     <string name="cal_b_empezar">Empezar</string>
-    <string name="cal_b_solo_giro">Solo calibrar el giro con la cámara</string>
     <string name="cal_b_probar_arranque">Probar (el carro avanza)</string>
     <string name="cal_b_probar_n">Probar: %1$d ms (%2$d de %3$d)</string>
+    <string name="cal_b_probar_frenado">Probar: avanzar %1$d ms (%2$d de %3$d)</string>
+    <string name="cal_b_probar_giro_n">Probar: %1$s, %2$d ms (%3$d de %4$d)</string>
     <string name="cal_b_todas">Ya están todas las pruebas</string>
     <string name="cal_b_visual_n">Probar: girar 90° a la derecha (%1$d de 3)</string>
     <string name="cal_b_visual_listo">Ya están las 3 pruebas</string>
-    <string name="cal_b_ver_resumen">Ver resumen</string>
-    <string name="cal_b_ajuste_fino">Ajuste fino: giro y recta</string>
-    <string name="cal_b_solo_ajuste">Solo el ajuste fino (giro de 90° y recta)</string>
+    <string name="cal_b_ver_resumen">Ver resultado</string>
     <string name="cal_b_probar_giro_izq">Probar: girar 90° a la izquierda</string>
     <string name="cal_b_probar_giro_der">Probar: girar 90° a la derecha</string>
     <string name="cal_b_aplicar_grados">Aplicar los grados</string>
     <string name="cal_b_restaurar">Restaurar valor por defecto</string>
-    <string name="cal_b_siguiente_recta">Siguiente</string>
     <string name="cal_b_probar_recta">Avanzar 4 s (intento %1$d de %2$d)</string>
     <string name="cal_b_recta_maximo">Ya se hicieron los 4 intentos</string>
     <string name="cal_b_recta_lista">La recta ya quedó bien</string>
     <string name="cal_b_aplicar_desvio">Aplicar el desvío</string>
+    <string name="cal_b_girar_desp">Girar (repetición %1$d de %2$d)</string>
+    <string name="cal_b_guardar_rep">Guardar esta repetición</string>
+    <string name="cal_b_ya_toca">¡TOCA YA!</string>
+    <string name="cal_b_ya_espera">Espera el verde…</string>
+    <string name="cal_b_ya_empezar">Toca «Empezar»</string>
+    <string name="cal_b_ya_movio">YA SE MOVIÓ</string>
+
+    <!-- Giro de prueba -->
+    <string name="cal_gp_titulo">GIRO DE PRUEBA</string>
+    <string name="cal_gp_90">90° real</string>
+    <string name="cal_gp_180">180°</string>
+    <string name="cal_gp_libre">Libre</string>
+    <string name="cal_gp_tres">Completa: tres tiempos (500, 1000 y 1500 ms)</string>
+    <string name="cal_gp_menos">100 ms menos</string>
+    <string name="cal_gp_mas">100 ms más</string>
+
+    <!-- Ajuste fino y desplazamiento -->
     <string name="cal_aj_dir">¿HACIA DÓNDE SE DESVIÓ?</string>
     <string name="cal_aj_dir_izq">Izquierda</string>
     <string name="cal_aj_dir_recto">Recto</string>
@@ -129,14 +177,16 @@
     <string name="cal_op_justo">Quedó justo</string>
     <string name="cal_op_corto">Se quedó corto</string>
     <string name="cal_h_grados_giro_90">…o escribe cuántos grados giró</string>
-    <string name="cal_aj_sin_cal">Primero guarda una calibración completa (los pasos 1 a 6 y «Usar estos valores»): el ajuste fino parte de ella.</string>
+    <string name="cal_aj_sin_cal">Todavía no hay giro calibrado: se usa el valor de ejemplo (10 ms por grado). El ajuste fino corrige lo que haya, pero conviene medir primero el giro de cada lado.</string>
     <string name="cal_aj_pilas">Recalibra con las pilas que usarás en la demo.</string>
-    <string name="cal_b_ya_toca">¡TOCA YA!</string>
-    <string name="cal_b_ya_espera">Espera el verde…</string>
-    <string name="cal_b_ya_empezar">Toca «Empezar»</string>
-    <string name="cal_b_ya_movio">YA SE MOVIÓ</string>
+    <string name="cal_dp_adelante">AVANZÓ (+) O RETROCEDIÓ (−), EN CM</string>
+    <string name="cal_dp_derecha">SE FUE A LA DERECHA (+) O A LA IZQUIERDA (−), EN CM</string>
+    <string name="cal_dp_angulo">ÁNGULO FINAL, EN GRADOS</string>
+    <string name="cal_dp_menos">Menos</string>
+    <string name="cal_dp_mas">Más</string>
 
     <string name="cal_h_cm">¿Cuántos cm avanzó?</string>
+    <string name="cal_h_cm_total">¿Cuántos cm avanzó en total?</string>
     <string name="cal_h_cm_atras">¿Cuántos cm retrocedió?</string>
     <string name="cal_h_grados">¿Cuántos grados giró?</string>
     <string name="cal_h_grados_reales">¿Cuántos grados giró de verdad?</string>
@@ -145,15 +195,18 @@
     <string name="cal_chip_sin_confirmar">Velocidad sin confirmar</string>
     <string name="cal_chip_auto">AUTO</string>
 
+    <string name="cal_ilus_lista">Dibujo: el carro visto desde arriba, con espacio libre alrededor.</string>
     <string name="cal_ilus_intro">Dibujo: el carro visto desde arriba, con espacio libre alrededor.</string>
     <string name="cal_ilus_reaccion">Dibujo: un cronómetro y un dedo que toca.</string>
     <string name="cal_ilus_arranque">Dibujo: el carro empieza a moverse y un cronómetro mide el tiempo.</string>
     <string name="cal_ilus_avance">Dibujo: el carro avanza en línea recta junto a una regla en centímetros.</string>
+    <string name="cal_ilus_frenado">Dibujo: el carro avanza, pasa una raya de STOP y sigue un poco más.</string>
     <string name="cal_ilus_giro_izq">Dibujo: el carro gira 90 grados a la izquierda.</string>
     <string name="cal_ilus_giro_der">Dibujo: el carro gira 90 grados a la derecha.</string>
     <string name="cal_ilus_retroceso">Dibujo: el carro retrocede en línea recta junto a una regla en centímetros.</string>
     <string name="cal_ilus_giro_visual">Dibujo: el carro gira a la derecha mientras la cámara, un ojo, mide el giro.</string>
     <string name="cal_ilus_giro_90">Dibujo: el carro gira 90 grados y un arco muestra cuánto se pasó o se quedó corto.</string>
     <string name="cal_ilus_recta">Dibujo: el carro avanza en línea recta sobre una línea de cinta.</string>
+    <string name="cal_ilus_desplazamiento">Dibujo: el carro gira y su centro, marcado con cinta, termina en otro lugar; una flecha une los dos puntos.</string>
     <string name="cal_ilus_resumen">Dibujo: una palomita verde, las mediciones están listas.</string>
 </resources>
