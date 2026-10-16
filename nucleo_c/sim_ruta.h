@@ -4,7 +4,7 @@
  * GUÍA DE LECTURA
  *  1. sr_simular() recibe la ruta (celdas vecinas), la calibración del carro (o NULL = valores por defecto), los obstáculos virtuales (celdas de la cuadrícula) y
  *     un ruido de giro. Corre el ciclo del navegador cada 50 ms con el carro virtual y anota el recorrido cada 100 ms para que la pantalla lo anime.
- *  2. OBSTÁCULO VIRTUAL: una celda de la cuadrícula (20 x 20 cm). En cada vuelta se calcula qué «vería» la cámara según dónde está el carro y hacia dónde mira:
+ *  2. OBSTÁCULO VIRTUAL: una celda de la cuadrícula (20 x 20 cm): una CAJA de ~20 cm que la cámara virtual ve ocupando varias celdas del detector (más cuanto más cerca). En cada vuelta se calcula qué «vería» la cámara según dónde está el carro y hacia dónde mira:
  *     solo ve lo que está adelante dentro de ~60 grados de campo de visión y a menos de 80 cm; la zona (izquierda, centro, derecha) sale de a qué lado cae y la
  *     cercanía (1 lejos, 2 media, 3 muy cerca) de la distancia a su cara. Es un modelo APROXIMADO (la cámara real puede ver distinto), pero sirve para ver la maniobra
  *     de esquivar y comprobar que la ruta tiene espacio.
@@ -60,6 +60,7 @@ typedef struct {
     int llego;             /* 1 si el navegador terminó la ruta (TERMINADO) */
     int estado_final;      /* EstadoNav */
     int motivo_error;      /* MotivoErrorNav si terminó en ERROR */
+    int error_causa;       /* NAV_CAUSA_* (causa concreta del ERROR, ver navegador.h) */
     uint32_t duracion_ms;
     int n_comandos;        /* cuántas veces cambió el comando */
     int esquivadas;
@@ -97,6 +98,10 @@ int sr_dispersion(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, co
 
 /* Qué vería la cámara: rellena zona[3] (hay, cercanía, celdas) para un carro en (x_mm, y_mm) con rumbo `rumbo_grados`. Se deja pública para probarla. */
 void sr_vista(int x_mm, int y_mm, int rumbo_grados, const Punto *obstaculos, int n_obstaculos, int hay[3], int cercania[3], int celdas[3]);
+
+/* Por qué NO llegó, en una frase para la pantalla (por ejemplo "El obstáculo bloqueó el camino y se agotaron los 2 reintentos."). Devuelve el largo escrito; 0 si llegó
+ * o si no hay una causa que contar. */
+int sr_texto_causa(const ResultadoSimRuta *r, char *texto, int capacidad);
 
 /* Texto corto de las advertencias en español para la pantalla (una frase por bit; devuelve cuántas escribió). */
 int sr_texto_advertencia(int bit, char *texto, int capacidad);

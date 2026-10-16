@@ -359,12 +359,18 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
     /** Qué pasó y qué hacer según el motivo del error del navegador (MotivoErrorNav). */
     private fun mensajeDeError(motivo: Int): Mensaje = when (motivo) {
-        1 -> Mensaje("Había obstáculos a los dos lados", "Quita lo que estorba y vuelve a iniciar.")
-        2 -> Mensaje("Ya esquivó las 3 veces permitidas y el obstáculo seguía enfrente", "Quita el obstáculo o cambia la ruta y vuelve a iniciar.")
-        3 -> Mensaje("Apareció otro obstáculo muy cerca mientras esquivaba", "Deja más espacio libre y vuelve a iniciar.")
+        1 -> Mensaje(conCausa("Había obstáculos a los dos lados"), "Quita lo que estorba y vuelve a iniciar.")
+        2 -> Mensaje(conCausa("Ya esquivó las 3 veces permitidas y el obstáculo seguía enfrente"), "Quita el obstáculo o cambia la ruta y vuelve a iniciar.")
+        3 -> Mensaje(conCausa("No pudo esquivar el obstáculo"), "Quita el obstáculo o deja más espacio libre y vuelve a iniciar.")
         4 -> Mensaje("No encontró cómo volver a la ruta", "Pon el carro de vuelta en el inicio y vuelve a iniciar.")
         5 -> Mensajes.sinCamaraEnRuta()
         else -> Mensaje("La ruta se detuvo", "Revisa el carro y vuelve a iniciar.")
+    }
+
+    /** La causa concreta que dice el navegador (con los números), con la primera letra en mayúscula; si no hay, el texto general. */
+    private fun conCausa(general: String): String {
+        val causa = NavegadorNativa.textoError()
+        return if (causa.isEmpty()) general else causa.replaceFirstChar { it.uppercase() }
     }
 
     private fun textoDetalles(e: IntArray): String {

@@ -302,6 +302,7 @@ class ModoSemiautonomo(
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
         registrarEsquive()
+        registrarDiagnostico()
 
         if (comando != ultimoComando) {
             ultimoComando = comando
@@ -327,6 +328,17 @@ class ModoSemiautonomo(
         alCambiar()
     }
 
+    /** Copia al log las líneas de diagnóstico del navegador: REINC_DIAG (la vuelta a la línea) y ESQUIVE_DIAG (qué se vio y qué se hizo al esquivar). Solo números y palabras. */
+    private fun registrarDiagnostico() {
+        while (true) {
+            val linea = NavegadorNativa.diagnostico()
+            if (linea.isEmpty()) {
+                break
+            }
+            Log.i(if (linea.startsWith("REINC_DIAG")) "REINC_DIAG" else "ESQUIVE_DIAG", linea)
+        }
+    }
+
     /** Escribe en el log los cambios de la maniobra de esquivar (giro, mirar, retroceso, reintentos) para revisarla después de la prueba. */
     private fun registrarEsquive() {
         val e = NavegadorNativa.estado()
@@ -336,7 +348,7 @@ class ModoSemiautonomo(
             ultimaFaseLog = fase
             ultimosReintentosLog = reintentos
             if (fase >= 0) {
-                val nombre = arrayOf("GIRAR", "AVANZAR_DE_LADO", "VOLVER", "MIRAR", "RETROCEDER", "ASENTAR").getOrElse(fase) { "?" }
+                val nombre = arrayOf("GIRAR", "AVANZAR_DE_LADO", "VOLVER", "MIRAR", "RETROCEDER", "ASENTAR", "PAUSA_PASAR", "PARALELO").getOrElse(fase) { "?" }
                 Log.i(ETIQUETA, "esquivar fase=$nombre reintentos=$reintentos rumbo=${e[NavegadorNativa.E_RUMBO]} x_mm=${e[NavegadorNativa.E_X_MM]} y_mm=${e[NavegadorNativa.E_Y_MM]}")
             }
         }

@@ -54,4 +54,7 @@ object SimRutaNativa {
     external fun cambios(): IntArray
     external fun dispersion(calibracion: IntArray?, obstaculos: IntArray, ruido: Int, corridas: Int): IntArray
     external fun textoAdvertencia(bit: Int): String
+
+    /** Por qué no llegó la última simulación, en una frase ("" si llegó o no hay una causa que contar). */
+    external fun textoCausa(): String
 }

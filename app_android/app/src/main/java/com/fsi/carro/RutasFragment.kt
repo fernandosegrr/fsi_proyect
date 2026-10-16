@@ -262,7 +262,10 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
             4 -> R.string.sim_motivo_4
             else -> 0
         }
-        if (!llego && motivo != 0) {
+        val causa = SimRutaNativa.textoCausa()
+        if (!llego && causa.isNotEmpty()) {
+            texto += " $causa"     // por qué no llegó, con los números ("El obstáculo bloqueó el camino y se agotaron los 2 reintentos.")
+        } else if (!llego && motivo != 0) {
             texto += " " + getString(motivo)
         }
         simTexto.text = texto

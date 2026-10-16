@@ -1789,6 +1789,33 @@ Java_com_fsi_carro_NavegadorNativa_estado(JNIEnv *env, jobject objeto)
     return arreglo;
 }
 
+/* La siguiente línea de diagnóstico del navegador (REINC_DIAG o ESQUIVE_DIAG), o "" si no hay ninguna nueva. La app la llama después de cada tick hasta que
+ * devuelve "" y copia cada línea al log. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_NavegadorNativa_diagnostico(JNIEnv *env, jobject objeto)
+{
+    char texto[NAV_DIAG_LARGO];
+
+    (void)objeto;
+    if (!navegador_diag_siguiente(obtener_navegador(), texto, sizeof texto)) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
+/* La causa concreta del ERROR del navegador, con los números ("se agotaron los 2 reintentos, el obstáculo seguía en el centro"), o "" si no hay error. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_NavegadorNativa_textoError(JNIEnv *env, jobject objeto)
+{
+    char texto[NAV_DIAG_LARGO];
+
+    (void)objeto;
+    if (navegador_texto_error(obtener_navegador(), texto, sizeof texto) == 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
 /* Texto del comando (0 a 4) tal como lo entiende el firmware: "FORWARD", "STOP"... */
 JNIEXPORT jstring JNICALL
 Java_com_fsi_carro_NavegadorNativa_textoComando(JNIEnv *env, jobject objeto, jint comando)
@@ -2560,6 +2587,19 @@ Java_com_fsi_carro_SimRutaNativa_dispersion(JNIEnv *env, jobject objeto, jintArr
         (*env)->SetIntArrayRegion(env, arreglo, 0, 6 + 5 * (codigo == SR_OK ? dispersion_global.n : 0), salida);
     }
     return arreglo;
+}
+
+/* Por qué no llegó la última simulación, en una frase ("El obstáculo bloqueó el camino y se agotaron los 2 reintentos."), o "" si llegó o no hay causa. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_SimRutaNativa_textoCausa(JNIEnv *env, jobject objeto)
+{
+    char texto[200];
+
+    (void)objeto;
+    if (sr_texto_causa(&simulacion_global, texto, sizeof texto) == 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
 }
 
 JNIEXPORT jstring JNICALL

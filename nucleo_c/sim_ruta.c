@@ -8,6 +8,7 @@
  *  - Coordenadas: milímetros; (0,0) es el centro de la celda (columna 0, fila 0); la fila crece hacia abajo; rumbo 0 = arriba, 90 = derecha.
  */
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 #include "sim_ruta.h"
 #include "simulador_navegador.h"
@@ -19,6 +20,9 @@
 #define CERC3_MM        300      /* hasta esta distancia a la cara del obstáculo: muy cerca */
 #define CERC2_MM        500      /* hasta esta: media */
 #define SOLAPE_MIN_MM    80      /* cuánto de la celda (de 200 mm) debe caer dentro de una zona para marcarla */
+#define DET_COLUMNAS     24      /* la cuadrícula del detector con la cámara del carro (240x176 con celdas de 10 px): sirve para decir cuántas celdas ocupa una caja */
+#define DET_FILAS        17
+#define ALTO_CAJA_MM    200      /* la caja virtual mide 20 cm de alto */
 
 /* seno de 0 a 90 grados, de 5 en 5, por 1000 */
 static const int TABLA_SENO[19] = {0, 87, 174, 259, 342, 423, 500, 574, 643, 707, 766, 819, 866, 906, 940, 966, 985, 996, 1000};
@@ -118,7 +122,12 @@ void sr_vista(int x_mm, int y_mm, int rumbo_grados, const Punto *obstaculos, int
         solape[2] = maximo(0, der - maximo(izq, borde));
         for (z = 0; z < 3; z++) {
             if (solape[z] >= SOLAPE_MIN_MM) {   /* un pedazo chico de la celda no alcanza para marcar la zona (como MIN_CELDAS del detector) */
-                int n = maximo(1, solape[z] / (MITAD_CELDA_MM / 5));   /* 1 a 10 celdas */
+                /* Cuántas celdas del detector ocuparía la caja: columnas = lo que cae en la zona respecto del ancho que ve la cámara a esa distancia; filas = su alto
+                 * (20 cm) respecto del alto que ve la cámara a esa distancia. Una caja de 20 cm a 50 cm ocupa unas 50 celdas; lejos, menos. */
+                int distancia = maximo(adelante, MITAD_CELDA_MM);
+                int columnas = maximo(1, solape[z] * DET_COLUMNAS / (2 * maximo(1, mitad_campo)));
+                int filas = minimo(DET_FILAS, maximo(1, ALTO_CAJA_MM * DET_FILAS * 10 / (7 * distancia)));
+                int n = minimo(99, columnas * filas);
                 hay[z] = 1;
                 cercania[z] = maximo(cercania[z], cerc);
                 celdas[z] = maximo(celdas[z], n);
@@ -227,6 +236,7 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
     r->duracion_ms = t;
     r->estado_final = (int)nav_sim.estado;
     r->motivo_error = (int)nav_sim.motivo_error;
+    r->error_causa = nav_sim.error_causa;
     r->llego = nav_sim.estado == NAV_TERMINADO;
     r->esquivadas = nav_sim.esquivadas;
     r->x_final_mm = sim_x_mm(&car_sim);
@@ -318,4 +328,51 @@ int sr_texto_advertencia(int bit, char *texto, int capacidad)
     }
     texto[i] = '\0';
     return i;
+}
+
+/* Escribe `frase` en `texto` (cortándola si no cabe) y devuelve el largo. */
+static int copiar_frase(const char *frase, char *texto, int capacidad)
+{
+    int i = 0;
+
+    if (texto == NULL || capacidad < 2) {
+        return 0;
+    }
+    while (frase[i] != '\0' && i < capacidad - 1) {
+        texto[i] = frase[i];
+        i++;
+    }
+    texto[i] = '\0';
+    return i;
+}
+
+int sr_texto_causa(const ResultadoSimRuta *r, char *texto, int capacidad)
+{
+    char numero[96];
+
+    if (r == NULL || texto == NULL || capacidad < 2) {
+        return 0;
+    }
+    texto[0] = '\0';
+    if (r->llego) {
+        return 0;
+    }
+    switch (r->error_causa) {
+    case NAV_CAUSA_LADOS:
+        return copiar_frase("No había por dónde esquivar: los dos lados estaban ocupados.", texto, capacidad);
+    case NAV_CAUSA_MAX_ESQUIVADAS:
+        snprintf(numero, sizeof numero, "El obstáculo bloqueó el camino y se agotaron las %d esquivadas.", NAV_MAX_ESQUIVADAS);
+        return copiar_frase(numero, texto, capacidad);
+    case NAV_CAUSA_REINTENTOS:
+        snprintf(numero, sizeof numero, "El obstáculo bloqueó el camino y se agotaron los %d reintentos.", NAV_MAX_REINTENTOS);
+        return copiar_frase(numero, texto, capacidad);
+    case NAV_CAUSA_PLAN:
+        return copiar_frase("No encontró cómo volver a la ruta.", texto, capacidad);
+    default:
+        break;
+    }
+    if ((r->advertencias & SR_ADV_CORTADA) != 0) {
+        return copiar_frase("La simulación se cortó por tardar demasiado.", texto, capacidad);
+    }
+    return 0;
 }

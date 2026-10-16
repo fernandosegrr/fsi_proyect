@@ -94,6 +94,12 @@ object NavegadorNativa {
     /** Estado para mostrar en pantalla (ver los índices E_*). */
     external fun estado(): IntArray
 
+    /** La siguiente línea de diagnóstico del navegador (empieza con REINC_DIAG o ESQUIVE_DIAG), o "" si no hay una nueva. Llamar hasta que devuelva "". */
+    external fun diagnostico(): String
+
+    /** La causa concreta del ERROR con los números ("se agotaron los 2 reintentos, el obstáculo seguía en el centro"), o "" si no hay error. */
+    external fun textoError(): String
+
     /** Texto del comando tal como lo entiende el firmware ("FORWARD", "STOP"...). */
     external fun textoComando(comando: Int): String
 

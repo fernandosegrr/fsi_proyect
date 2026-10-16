@@ -87,6 +87,42 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_TRAMO_ESQUIVAR_CM      40    /* cuánto avanza de lado, en cm */
 #define NAV_MAX_ESQUIVADAS          3    /* máximo de esquivadas en una misma ruta */
 
+/* REINCORPORACION A LA LINEA (ver docs/navegador.md, "Volver a la línea"). Al terminar de esquivar, el carro lleva su pose estimada (x, y, rumbo) y:
+ *   1. busca el punto de la línea original NAV_REINC_ADELANTE_CM cm por delante del punto donde salió de ella;
+ *   2. gira hacia ese punto con el giro mínimo, avanza la distancia estimada y, al llegar, gira al rumbo original de la línea;
+ *   3. si estaba a menos de NAV_REINC_DESVIO_MIN_MM de la línea, solo corrige el rumbo y sigue (no se mueve de lado).
+ * Nunca avanza recto sin haberse reorientado. Entre cada movimiento hay la pausa de siempre (NAV_PAUSA_ASENTAR_MS). */
+#define NAV_REINC_ADELANTE_CM      30    /* a cuántos cm por delante del punto de salida (donde ya pasó el obstáculo) está el punto de la línea al que vuelve */
+#define NAV_REINC_DESVIO_MIN_MM    80    /* menos de esta desviación (8 cm) a la línea: solo corrige el rumbo */
+#define NAV_REINC_GIRO_MIN_GRADOS   4    /* un giro de menos de esto no se hace (el error de la estimación es mayor) */
+
+/* DETECCION DURANTE LA ESQUIVADA (ver docs/navegador.md, "Falso obstáculo al esquivar"). Mientras el carro gira, la cámara barre la escena: lo que se ve en esos cuadros
+ * (el mismo obstáculo en el borde, patas o sombras lejanas, juntas de loseta) no cuenta. Después del giro se ignoran los cuadros hasta que hayan llegado
+ * NAV_ESQ_CUADROS_ESTABLES cuadros o pasado NAV_ESQ_MS_ESTABLE ms (lo que ocurra primero). Y solo bloquea un obstáculo en la zona CENTRAL con cercanía de al menos
+ * NAV_ESQ_CERCANIA_BLOQUEA, visto MS_CONFIRMAR_LEJOS ms seguidos (y en 2 cuadros): uno lateral o lejano no aborta la esquivada. */
+#define NAV_ESQ_CUADROS_ESTABLES    2
+#define NAV_ESQ_MS_ESTABLE        150
+#define NAV_ESQ_CERCANIA_BLOQUEA    2
+
+/* PASAR EL OBSTACULO ANTES DE VOLVER. Después de apartarse y enderezarse (VOLVER), el carro sigue PARALELO a la línea, a la distancia lateral a la que quedó, hasta
+ * haber pasado el obstáculo, y solo entonces vuelve a la línea (con el punto de NAV_REINC_ADELANTE_CM cm de arriba). Si volviera a la línea justo al lado del obstáculo, el camino
+ * de vuelta lo cruzaría o quedaría de nuevo frente a él. La distancia que avanza en paralelo, medida desde el punto de salida, es lo que había hasta la cara del obstáculo
+ * (se estima con la cercanía con la que frenó: NAV_CARA_CERCANIA_x_MM son los límites de cada banda del detector) más NAV_OBSTACULO_PROFUNDO_MM (cuánto fondo se supone que
+ * tiene) más NAV_PASO_MARGEN_MM. Nunca pasa de NAV_PARALELO_FIN_MM antes del final de la ruta. Si ya está más adelante que eso, no avanza. */
+#define NAV_CARA_CERCANIA_3_MM    300    /* con cercanía 3 el obstáculo estaba a menos de esto */
+#define NAV_CARA_CERCANIA_2_MM    500
+#define NAV_CARA_CERCANIA_1_MM    800
+#define NAV_OBSTACULO_PROFUNDO_MM 250    /* fondo supuesto del obstáculo (una caja de ~20 a 25 cm) */
+#define NAV_PASO_MARGEN_MM        100    /* holgura al terminar de pasarlo */
+#define NAV_PARALELO_FIN_MM        50    /* el tramo paralelo termina al menos esto antes del final de la ruta */
+#define NAV_PARALELO_MIN_MM        50    /* un tramo paralelo más corto que esto no se hace */
+
+/* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
+ * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada). */
+#define NAV_DIAG_LINEAS             8
+#define NAV_DIAG_LARGO            200
+#define NAV_DIAG_REPETIR_MS       500   /* una línea ESQUIVE_DIAG igual a la anterior se repite como máximo cada tanto */
+
 /* ── Tipos ─────────────────────────────────────────────────────────────── */
 
 typedef enum {
@@ -118,6 +154,14 @@ typedef enum {
     NAV_MOTIVO_SIN_VIDEO           /* la cámara dejó de mandar cuadros más de NAV_MAX_HUECO_VIDEO_MS: se detuvo y NO reanuda sola */
 } MotivoErrorNav;
 
+/* Causa concreta del ERROR (campo `error_causa`; navegador_texto_error la convierte en una frase con los números). */
+#define NAV_CAUSA_NINGUNA                0
+#define NAV_CAUSA_LADOS                  1   /* los dos lados estaban ocupados durante NAV_TIMEOUT_ESQUIVAR_MS */
+#define NAV_CAUSA_MAX_ESQUIVADAS         2   /* ya esquivó NAV_MAX_ESQUIVADAS veces y el obstáculo seguía en el camino */
+#define NAV_CAUSA_REINTENTOS             3   /* se agotaron los reintentos de esquive y el obstáculo seguía en el centro */
+#define NAV_CAUSA_PLAN                   4   /* no se pudo calcular el camino */
+#define NAV_CAUSA_SIN_VIDEO              5   /* la cámara dejó de mandar cuadros */
+
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
 #define NAV_FASE_GIRAR        0   /* girar hacia `lado` angulo_giro grados */
@@ -126,6 +170,18 @@ typedef enum {
 #define NAV_FASE_MIRAR        3   /* STOP: espera a que el carro pare y a que llegue un cuadro que lo muestre parado, y decide */
 #define NAV_FASE_RETROCEDER   4   /* REVERSE NAV_RETROCESO_CM cm (ciego) */
 #define NAV_FASE_ASENTAR      5   /* STOP NAV_PAUSA_ASENTAR_MS antes de girar otra vez */
+#define NAV_FASE_PAUSA_PASAR  6   /* STOP NAV_PAUSA_ASENTAR_MS después de enderezarse; al terminar calcula cuánto debe avanzar en paralelo */
+#define NAV_FASE_PARALELO     7   /* FORWARD paralelo a la línea hasta pasar el obstáculo (nav->paralelo_mm) */
+
+/* Fases de REINCORPORANDO (campo `reinc_fase`): PLAN (STOP, calcula) → GIRO1 → PAUSA → AVANZAR → PAUSA → GIRO2 → PAUSA → SIGUIENDO. Las fases de giro que no hacen
+ * falta (ángulo casi cero) se saltan. */
+#define NAV_RF_PLAN           0   /* quieto NAV_PAUSA_ASENTAR_MS y calcula el punto de la línea y los ángulos */
+#define NAV_RF_GIRO1          1   /* gira hacia el punto de la línea (giro mínimo) */
+#define NAV_RF_PAUSA1         2   /* STOP */
+#define NAV_RF_AVANZAR        3   /* avanza la distancia estimada hasta el punto de la línea */
+#define NAV_RF_PAUSA2         4   /* STOP */
+#define NAV_RF_GIRO2          5   /* gira al rumbo original de la línea */
+#define NAV_RF_PAUSA3         6   /* STOP; al terminar la pausa vuelve a SIGUIENDO */
 
 /* Códigos de retorno de las funciones de configuración. */
 #define NAV_OK                 0
@@ -192,6 +248,41 @@ typedef struct {
     int angulo_giro;             /* grados que debe girar la fase GIRAR actual (90 la primera vez; 45 o 90 en los reintentos) */
     int angulo_total;            /* grados girados hacia `lado` en total desde que empezó la esquivada (para deshacerlos al final) */
     uint32_t t_mirar_ms;         /* hora en que el carro quedó quieto para mirar si el frente está libre */
+
+    /* Detección durante la esquivada: giros, cuadros estables y racha de obstáculo central. */
+    int      error_causa;            /* NAV_CAUSA_*: por qué terminó en ERROR (con motivo_error) */
+    int      esq_en_giro;            /* 1 mientras la maniobra gira (los cuadros de ese momento se ignoran) */
+    uint32_t esq_t_giro_ini_ms;      /* hora en que empezó el último giro de la maniobra */
+    uint32_t esq_t_giro_fin_ms;      /* hora en que terminó */
+    int      esq_cuadros_tras_giro;  /* cuadros que han llegado desde que terminó el giro */
+    int      centro_frames;          /* cuadros seguidos (no ignorados) con obstáculo central de cercanía >= NAV_ESQ_CERCANIA_BLOQUEA */
+    uint32_t centro_t_ms;            /* hora del primer cuadro de esa racha */
+    int      zona_fila_min[OBS_ZONAS], zona_fila_max[OBS_ZONAS];   /* filas y columnas de las celdas de obstáculo de cada zona en el último cuadro (-1 = no se sabe) */
+    int      zona_col_min[OBS_ZONAS], zona_col_max[OBS_ZONAS];
+
+    /* Dónde salió de la línea (pose estimada al empezar la esquivada). */
+    int salida_x_mm, salida_y_mm, salida_rumbo;
+    int salida_cercania;         /* cercanía (1 a 3) con la que frenó: dice a qué distancia estaba el obstáculo */
+    int paralelo_mm;             /* cuánto debe avanzar en paralelo a la línea para pasar el obstáculo (se calcula al terminar de enderezarse) */
+
+    /* Reincorporación a la línea (REINCORPORANDO). Se calcula una vez, en la fase PLAN, y se ejecuta por fases (NAV_RF_*). */
+    int      reinc_fase;
+    uint32_t reinc_t_fase_ms;        /* hora en que empezó la fase actual (las pausas se miden con la hora, no con ticks) */
+    int      reinc_solo_rumbo;       /* 1 = estaba a menos de NAV_REINC_DESVIO_MIN_MM de la línea: solo corrige el rumbo */
+    int      reinc_obj_x_mm, reinc_obj_y_mm;   /* punto de la línea al que vuelve */
+    int      reinc_rumbo_final;      /* rumbo original de la línea en ese punto */
+    int      reinc_giro1, reinc_giro2;         /* grados con signo (+ derecha) del giro hacia el punto y del giro final */
+    int      reinc_dist_mm;          /* distancia que avanza entre los dos giros */
+    int      reinc_indice_obj;       /* punto de la ruta al que se dirige después de volver */
+    int      reinc_desvio_mm;        /* a cuánto estaba de la línea al empezar a volver */
+    int      reinc_antes_x_mm, reinc_antes_y_mm, reinc_antes_rumbo;   /* pose estimada al empezar a volver */
+    int      volver_a_reinc;         /* 1 si lo que detuvo al carro ocurrió mientras avanzaba hacia la línea: al liberarse el frente vuelve a calcular la vuelta */
+
+    /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG): ver navegador_diag_siguiente. */
+    char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
+    int  diag_escritas, diag_leidas;
+    int  diag_firma;             /* resumen de la última línea ESQUIVE_DIAG (para no repetirla en cada cuadro) */
+    uint32_t diag_t_ms;
 } Navegador;
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
@@ -239,6 +330,15 @@ void navegador_aporte_visual(Navegador *nav, int giro_grados_x10, int dt_ms, int
 
 /* 1 si el retroceso de los reintentos usa una calibración medida de verdad (CAL_MEDIDO_ATRAS); 0 si usa los ms por cm del avance (sin medir). */
 int navegador_retroceso_calibrado(const Navegador *nav);
+
+/* Saca la siguiente línea de diagnóstico que el navegador escribió y la copia a `texto` (capacidad `capacidad`, termina en '\0'). Devuelve 1 si había una
+ * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG o ESQUIVE_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick
+ * y las manda al log; si no se leen, las más viejas se pierden. */
+int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad);
+
+/* Frase que dice la causa concreta del ERROR, con los números (por ejemplo "se agotaron los 2 reintentos, el obstáculo seguía en el centro"). Sirve para
+ * mostrarla en pantalla. Devuelve el largo escrito, o 0 si no hay error. */
+int navegador_texto_error(const Navegador *nav, char *texto, int capacidad);
 
 /* Texto del comando tal como lo entiende el firmware ("FORWARD", "STOP"...). */
 const char *navegador_texto_comando(ComandoNav comando);

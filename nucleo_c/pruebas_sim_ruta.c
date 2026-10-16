@@ -150,6 +150,83 @@ int main(void)
     sr_vista(1000, 1400, 0, obst, 0, hay, cerc, celdas);
     caso("sin obstáculos no ve nada", !hay[0] && !hay[1] && !hay[2] && celdas[1] == 0);
 
+
+    /* ── Casos simples: una caja de 20 cm (o de 40 cm de ancho) en una recta con espacio a los lados LLEGA ── */
+    {
+        int fila, col, todos = 1, esquivan = 0, casos_probados = 0;
+        Punto caja[4];
+
+        for (i = 0; i < 8; i++) {   /* la recta larga por la columna 5 (de la fila 7 a la 0) */
+            larga[i].columna = 5;
+            larga[i].fila = 7 - i;
+        }
+        for (fila = 1; fila <= 5; fila++) {
+            for (col = 4; col <= 6; col++) {   /* centrado y a 20 cm de la línea (la cámara lo ve en un lado) */
+                caja[0].columna = col;
+                caja[0].fila = fila;
+                codigo = sr_simular(larga, 8, NULL, caja, 1, 0, 0, &res);
+                casos_probados++;
+                if (codigo != SR_OK || !res.llego) {
+                    todos = 0;
+                    printf("      NO llegó con una caja de 20 cm en (%d,%d): estado=%d causa=%d\n", col, fila, res.estado_final, res.error_causa);
+                }
+                esquivan += (res.esquivadas >= 1);
+            }
+        }
+        caso("una caja de 20 cm (una celda) en cualquier fila de 1 a 5 y a 0 o 20 cm de la línea: la ruta LLEGA", todos && casos_probados == 15);
+        caso("... y las que están justo sobre la línea (al menos 5 de las 15) obligan a esquivar", esquivan >= 5);
+        todos = 1;
+        for (fila = 1; fila <= 4; fila++) {   /* una caja de 40 cm de ancho (dos celdas lado a lado) sobre la línea */
+            caja[0].columna = 5;
+            caja[0].fila = fila;
+            caja[1].columna = 6;
+            caja[1].fila = fila;
+            codigo = sr_simular(larga, 8, NULL, caja, 2, 0, 0, &res);
+            if (codigo != SR_OK || !res.llego) {
+                todos = 0;
+                printf("      NO llegó con una caja de 40 cm de ancho en (5..6,%d): estado=%d causa=%d\n", fila, res.estado_final, res.error_causa);
+            }
+        }
+        caso("una caja de 40 cm de ancho (dos celdas) sobre la línea: LLEGA en las filas 1 a 4", todos);
+        caso("con una caja la ruta termina cerca del final (menos de 15 cm) y sin salir de la cuadrícula", res.error_final_mm < 150 && (res.advertencias & SR_ADV_SALE_CUADRICULA) == 0);
+    }
+
+    /* ── La cámara virtual ve la caja de 20 cm ocupando varias celdas del detector (más cuanto más cerca) ── */
+    obst[0].columna = 5;
+    obst[0].fila = 5;
+    sr_vista(1000, 1400, 0, obst, 1, hay, cerc, celdas);
+    caso("la caja de 20 cm a 30 cm de su cara ocupa varias celdas del detector (al menos MIN_CELDAS = 7)", celdas[1] >= 7);
+    {
+        int cerca = celdas[1];
+
+        sr_vista(1000, 1600, 0, obst, 1, hay, cerc, celdas);
+        caso("... y más lejos (70 cm de su cara) ocupa menos celdas pero sigue siendo un obstáculo", hay[1] == 1 && celdas[1] >= 7 && celdas[1] < cerca);
+    }
+
+    /* ── Cuando no llega, la pantalla dice por qué ── */
+    obst[0].columna = 5;
+    obst[0].fila = 6;
+    codigo = sr_simular(larga, 8, NULL, obst, 1, 0, 0, &res);
+    {
+        char causa[160];
+
+        caso("un obstáculo pegado al punto de partida (no hay espacio para pasar): no llega", codigo == SR_OK && !res.llego);
+        caso("... y sr_texto_causa dice por qué (los dos lados ocupados)", sr_texto_causa(&res, causa, sizeof causa) > 10 && strstr(causa, "lados") != NULL);
+        res.llego = 0;
+        res.error_causa = NAV_CAUSA_REINTENTOS;
+        sr_texto_causa(&res, causa, sizeof causa);
+        caso("causa REINTENTOS: \"El obstáculo bloqueó el camino y se agotaron los 2 reintentos.\"", strcmp(causa, "El obstáculo bloqueó el camino y se agotaron los 2 reintentos.") == 0);
+        res.error_causa = NAV_CAUSA_MAX_ESQUIVADAS;
+        sr_texto_causa(&res, causa, sizeof causa);
+        caso("causa MAX_ESQUIVADAS: dice que se agotaron las 3 esquivadas", strstr(causa, "se agotaron las 3 esquivadas") != NULL);
+        res.error_causa = NAV_CAUSA_NINGUNA;
+        res.advertencias = SR_ADV_CORTADA;
+        caso("sin error pero cortada por tiempo: dice que se cortó por tardar demasiado", sr_texto_causa(&res, causa, sizeof causa) > 10 && strstr(causa, "cortó") != NULL);
+        res.llego = 1;
+        caso("si llegó no hay causa que contar", sr_texto_causa(&res, causa, sizeof causa) == 0 && causa[0] == '\0');
+        caso("sr_texto_causa con punteros nulos no revienta", sr_texto_causa(NULL, causa, sizeof causa) == 0 && sr_texto_causa(&res, NULL, 10) == 0);
+    }
+
     /* ── Ruido de giro y dispersión ────────────────────────────────────── */
     n = ruta_de(RE_PLANTILLA_CUADRADO, ruta);
     codigo = sr_dispersion(ruta, n, NULL, NULL, 0, 0, 8, &disp0);

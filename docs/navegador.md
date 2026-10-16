@@ -50,10 +50,84 @@ calibración de `nucleo_c/calibracion.h`.
 - **ESQUIVANDO**: gira `NAV_ANGULO_ESQUIVAR` grados hacia el lado libre, avanza `NAV_TRAMO_ESQUIVAR_CM` de
   lado y gira de vuelta. Si mientras avanza de lado aparece un obstáculo MUY cerca (cercanía 3) al frente:
   ERROR.
-- **REINCORPORANDO**: un solo tick con STOP; calcula el camino desde la posición estimada (rumbo ajustado
-  al múltiplo de 45° más cercano) hasta el punto de la ruta al que iba, y vuelve a SIGUIENDO.
-  Máximo `NAV_MAX_ESQUIVADAS` esquivadas por ruta; la siguiente detención da ERROR.
+- **REINCORPORANDO**: vuelve a la línea de la ruta con la pose estimada; ver «Volver a la línea» más abajo (ya no es un solo tick: gira hacia la línea,
+  avanza, gira al rumbo de la ruta, con la pausa de 300 ms entre cada movimiento). Máximo `NAV_MAX_ESQUIVADAS` esquivadas por ruta; la siguiente detención da ERROR.
 - **Cancelar** deja ESPERANDO; con `navegador_comenzar` se puede retomar desde la posición estimada.
+
+## Volver a la línea (REINCORPORANDO)
+
+**Qué fallaba (prueba real en loseta con tijeras de obstáculo):** después de esquivar, el carro no volvía a la ruta: giraba y se iba derecho hacia un lado. El
+navegador replanificaba desde la *celda* más cercana con el rumbo redondeado a 45°, así que cualquier error de giro (por ejemplo 110° por 90°) y los 40 cm que ya
+se había apartado se perdían; además la posición estimada solo se movía en múltiplos de 45°, de modo que un avance en diagonal suave no cambiaba la x.
+
+**Cómo funciona ahora** (`navegador.c`, funciones `reinc_*`, `ubicar_en_linea`, `punto_en_linea`; constantes `NAV_REINC_*` en `navegador.h`):
+
+1. **Pose estimada** (x, y, rumbo) por tiempos de la calibración, actualizada con cada avance, giro, retroceso y frenado, también durante el esquive. La posición
+   avanza ahora con el seno y el coseno del rumbo exacto (antes se redondeaba a 45°).
+2. **Pasar el obstáculo.** Al terminar de apartarse y enderezarse (`VOLVER`), el carro sigue **paralelo** a la línea (`NAV_FASE_PARALELO`) hasta haber pasado el
+   obstáculo: desde el punto de salida, la distancia hasta la cara del obstáculo (según la cercanía con la que frenó: 300, 500 u 800 mm, los límites de las bandas
+   del detector) más `NAV_OBSTACULO_PROFUNDO_MM` (250: una caja de ~20 a 25 cm) más `NAV_PASO_MARGEN_MM` (100). Sin este tramo el carro volvía a la línea justo
+   al lado del obstáculo y el camino de vuelta lo cruzaba o quedaba otra vez de frente (ver «Simulador»). Nunca llega a menos de 5 cm del final de la ruta.
+3. **Punto de la línea.** Es el punto de la línea de la ruta (la línea quebrada de todos los puntos, así que vale también en una curva) a `NAV_REINC_ADELANTE_CM` = **30 cm**
+   por delante de ese punto de salida. Si ya está a menos de 8 cm de la línea (`NAV_REINC_DESVIO_MIN_MM`) **solo corrige el rumbo** y sigue.
+4. **Giro mínimo hacia el punto** (de -179° a 180°), **avanza la distancia estimada** y al llegar **gira al rumbo original de la línea** en ese punto. Un giro de menos de
+   4° no se hace (el error de la estimación es mayor). **Nunca avanza recto sin reorientarse**, y hay `NAV_PAUSA_ASENTAR_MS` = 300 ms de STOP entre cada movimiento (y al
+   empezar, para que la pose incluya el frenado). Perfil AUTO, igual que siempre.
+5. Si el obstáculo bloquea ese tramo (o el carril paralelo), el carro se detiene; si el frente se libera sigue la vuelta recalculada y si no, **repite el esquive**
+   (con los reintentos de siempre, y contando en `NAV_MAX_ESQUIVADAS`).
+6. Al terminar: se dirige al siguiente punto de la ruta que queda por delante del punto de la línea, y sigue con SIGUIENDO.
+
+**Registro `REINC_DIAG`** (la app lo copia al log con ese nombre; solo números): `plan` (pose antes, punto de salida, desviación, punto objetivo, distancia, giro1,
+giro2, rumbo de la línea y esquivadas), `pasar` (cuánto avanza en paralelo) y `fin` (pose después y su desviación de la línea). Se lee con `navegador_diag_siguiente`.
+
+**Pruebas en C** (`pruebas_navegador.c`, `pruebas_reincorporacion`): obstáculo al centro, a la izquierda, a la derecha, en curva (cerca de la esquina del cuadrado) y
+con reintento; en todos la pose REAL del carro simulado queda a 10 cm o menos de la línea, la estimada coincide con la real, gira antes de avanzar y hay 300 ms de pausa;
+desviación menor de 8 cm (solo corrige el rumbo); tramo de vuelta bloqueado (repite el esquive) o bloqueado un momento (retoma la vuelta); obstáculo que reaparece (termina en
+`MAX_ESQUIVADAS`, con la causa concreta).
+
+**Qué NO resuelve:** si el giro real se pasa de lo que cree el navegador (110° por 90°) la pose estimada se equivoca igual; eso se corrige calibrando el giro de 90°
+(ver `docs/calibracion.md`). El obstáculo se supone de unos 20 a 25 cm de fondo; uno más largo o una pared necesitan otra esquivada.
+
+## Falso «otro obstáculo mientras esquivaba»
+
+En dos pruebas reales con mucho espacio libre (tijeras; luego patas de silla lejanas) la ruta terminó en ERROR al primer aviso, con 1 esquive hecho y el punto 0 de 7.
+Las hipótesis eran: (1) el mismo obstáculo sigue visible en el borde mientras gira y cuenta como nuevo; (2) al girar la cámara barre la escena y objetos lejanos u oscuros
+(patas, sombras, juntas de loseta) pasan por las filas cercanas; (3) el umbral durante el esquive era más estricto que fuera de él (un solo cuadro de cercanía 3 al centro
+abortaba). Sin el log de esa prueba no se puede saber cuál fue, así que se corrigieron las tres y se agregó el registro para confirmarlo:
+
+- **Durante un giro** de la maniobra (apartarse, enderezarse o los giros de la vuelta) las detecciones se **ignoran**; después del giro también, hasta que hayan llegado
+  `NAV_ESQ_CUADROS_ESTABLES` = 2 cuadros o pasado `NAV_ESQ_MS_ESTABLE` = 150 ms (lo que ocurra primero).
+- Después solo **bloquea** un obstáculo de la zona **central** con cercanía **2 o 3 confirmada** (`MS_CONFIRMAR_LEJOS` = 150 ms seguidos y al menos 2 cuadros). Uno lateral o lejano
+  se anota pero no aborta; ni siquiera con cercanía 3 hace falta (ya no basta un cuadro suelto).
+- Cuando sí bloquea mientras avanza de lado: **reintento** de siempre (retrocede 15 cm, gira 45° y luego 90° más del mismo lado). Solo falla al agotar `NAV_MAX_REINTENTOS` = 2.
+- Mientras pasa en paralelo o vuelve a la línea y el centro se bloquea: se detiene y esquiva otra vez (o retoma la vuelta si el frente se libera).
+- **El mensaje de error dice la causa concreta** (`navegador_texto_error`): «se agotaron los 2 reintentos, el obstáculo seguía en el centro», «ya esquivó 3 veces y el obstáculo
+  seguía en el camino», «los dos lados estuvieron ocupados 4 segundos y no había por dónde esquivar»...
+- **`ESQUIVE_DIAG`** (log): una línea cuando cambia algo (o cada 500 ms) con la fase, la cercanía, la zona, las celdas, las filas y columnas que dispararon (con la cámara real; en el
+  simulador no hay imagen y salen como `?`), los ms desde el inicio del giro, los cuadros desde que terminó el giro y la acción: `ignorada_girando`, `ignorada_espera_estable`,
+  `centro_cuenta`, `lateral_no_bloquea`, `lejos_no_bloquea`, `BLOQUEA_reintento` o `BLOQUEA_se_detiene`.
+- Fuera del esquive **no cambia nada**: un obstáculo cercano de frente sigue frenando con el primer cuadro (probado: el STOP sale a los 1500 ms).
+- **Cambio de comportamiento:** un obstáculo central permanente de cercanía 2 que antes se esquivaba sin verlo hasta el máximo de esquivadas ahora agota los 2 reintentos
+  y termina en ERROR (`NAV_MOTIVO_ESQUIVANDO`). El caso `MAX_ESQUIVADAS` se prueba con un obstáculo que reaparece al volver a la línea.
+
+## Simulador: por qué terminaba en «No llegó» con un obstáculo de una celda
+
+**Investigación.** Con un obstáculo de una celda (20 cm) en una recta de 1.4 m el simulador terminaba en «No llegó» (3 esquivadas, 116 cm de error). Se siguió el recorrido:
+la cámara virtual lo veía bien (zona central, cercanía 2 a 50 cm; ver `sr_vista`) y el carro frenaba y se apartaba como debía. El fallo estaba **en el navegador, no
+en el modelo de la cámara ni en la pantalla**: tras apartarse, el navegador volvía en diagonal a la celda siguiente de la ruta, que estaba **antes** del obstáculo; en
+cuanto quedaba de frente a él otra vez frenaba y esquivaba de nuevo, y a la tercera se acababan las esquivadas. Es el mismo defecto que en la prueba real («tras esquivar no
+vuelve a la línea de la ruta»).
+
+**Corrección:** pasar el obstáculo en paralelo y volver a la línea 30 cm por delante (ver arriba). Resultado en la simulación: la caja de 20 cm en cualquier fila de 1 a 5, sobre
+la línea o a 20 cm, **llega** con 1 esquivada y a menos de 7 cm del último punto; también una caja de 40 cm de ancho (dos celdas) en las filas 1 a 4 (`pruebas_sim_ruta.c`).
+Sigue sin llegar un obstáculo pegado al punto de partida (a 20 cm del carro): no hay espacio para apartarse y los dos lados quedan ocupados; ahora la pantalla lo dice.
+
+**Obstáculo virtual por defecto:** cada celda que se toca en la pantalla Rutas es una **caja de ~20 cm** (una celda de la cuadrícula). La cámara virtual ya no la ve como
+1 a 10 «celdas» según cuánto cae en una zona: ahora ocupa **varias celdas del detector** según su tamaño aparente (más cuanto más cerca; a 30 cm de su cara unas 80 celdas, a 70 cm
+unas 30), como la ve el detector de verdad (`MIN_CELDAS` = 7).
+
+**Cuando no llega, la pantalla dice por qué** (`sr_texto_causa`): «El obstáculo bloqueó el camino y se agotaron los 2 reintentos», «…se agotaron las 3 esquivadas», «No había por
+dónde esquivar: los dos lados estaban ocupados», «No encontró cómo volver a la ruta» o «La simulación se cortó por tardar demasiado».
 
 ## Parámetros a calibrar con el carro
 
@@ -81,6 +155,9 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
   `NAV_COBERTURA_VISUAL_PCT` = 50 % del giro; si no tiene confianza, el giro sigue por tiempo. `navegador_poner_latencia_visual` compensa el retraso de la cámara.
 - `NAV_PAUSA_MS` = 500: pausa antes de decidir. `NAV_TIMEOUT_ESQUIVAR_MS` = 4000: cuánto espera con los dos
   lados bloqueados.
+- `NAV_REINC_ADELANTE_CM` = 30, `NAV_REINC_DESVIO_MIN_MM` = 80, `NAV_CARA_CERCANIA_x_MM` (300, 500, 800), `NAV_OBSTACULO_PROFUNDO_MM` = 250 y `NAV_PASO_MARGEN_MM` = 100: la vuelta a la línea
+  (las distancias a la cara del obstáculo son las del modelo de la cámara virtual; con la cámara real conviene medirlas).
+- `NAV_ESQ_CUADROS_ESTABLES` = 2, `NAV_ESQ_MS_ESTABLE` = 150 y `NAV_ESQ_CERCANIA_BLOQUEA` = 2: qué se ignora y qué bloquea durante la esquivada.
 - `NAV_ANGULO_ESQUIVAR` = 90 grados y `NAV_TRAMO_ESQUIVAR_CM` = 40 cm: cuánto se aparta. Hay que
   ajustarlos al ancho del carro y de los obstáculos típicos (40 cm de lado con celdas de 20 cm).
 - `NAV_MAX_ESQUIVADAS` = 3, `NAV_TICK_MS` = 50 y `NAV_DT_MAX_MS` = 1000 (el firmware frena a los 1000 ms
@@ -138,9 +215,9 @@ Todos están en `nucleo_c/navegador.h` (y `calibracion.h`, que también usa el n
   un pivote con un solo motor lo desplaza y las ruedas patinan según el piso. Hay que medirlo.
 - **El tiempo real de cada comando depende de la red.** El firmware no recibe duraciones, solo comandos que se
   mantienen mientras llegan (heartbeat de 250 ms); un retraso o un salto del WiFi alarga o acorta un giro.
-- **El rumbo se ajusta a múltiplos de 45°** al replanificar; y el camino de regreso a la ruta es en línea
-  recta o diagonal sin mapa, así que puede volver a chocar con el mismo obstáculo (por eso el máximo de
-  esquivadas).
+- **El rumbo se ajusta a múltiplos de 45°** solo al replanificar los pasos de la ruta (`planificar`); la posición estimada ya se mueve en CUALQUIER rumbo (tabla
+  de senos por grado), y la vuelta a la línea sí usa los ángulos exactos. Como no hay mapa, el camino de regreso puede volver a chocar con el mismo obstáculo (por eso
+  el máximo de esquivadas).
 - **Esquivar es "a ciegas"**: mientras gira y avanza de lado solo vigila el frente muy cercano; no hay mapa.
 - **REVERSE no se usa**: el navegador nunca retrocede (solo está en la estimación de posición).
 - La **cercanía** del detector sale de la fila de la imagen, no de centímetros; hay que relacionarla con la
