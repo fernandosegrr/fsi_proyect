@@ -454,7 +454,7 @@ static int ms_de_retroceso(const Navegador *nav)
 static int duracion_fase(const Navegador *nav, int fase)
 {
     if (fase == NAV_FASE_AVANZAR) {
-        return cal_cm_a_ms(&nav->cal, NAV_TRAMO_ESQUIVAR_CM);
+        return cal_cm_a_ms(&nav->cal, (nav->tramo_mm + 5) / 10);   /* el tramo de lado planeado con el desplazamiento de los giros (esq_calcular_tramo) */
     }
     /* Girar va hacia el lado elegido y volver hacia el otro (o el mismo, ver lado_de_vuelta): cada lado tiene su tiempo. */
     if (fase == NAV_FASE_GIRAR) {
@@ -596,7 +596,7 @@ static void plan_del_comando(const Navegador *nav, ComandoNav cmd, int *pedido, 
         switch (nav->fase) {
         case NAV_FASE_GIRAR:      *pedido = nav->angulo_giro; break;
         case NAV_FASE_VOLVER:     *pedido = grados_de_vuelta(nav); break;
-        case NAV_FASE_AVANZAR:    *pedido = NAV_TRAMO_ESQUIVAR_CM * 10; break;
+        case NAV_FASE_AVANZAR:    *pedido = nav->tramo_mm; break;
         case NAV_FASE_RETROCEDER: *pedido = NAV_RETROCESO_CM * 10; break;
         case NAV_FASE_PARALELO:   *pedido = nav->paralelo_mm; break;
         default: break;
@@ -656,9 +656,10 @@ static void registrar_fin_comando(Navegador *nav)
         giro.real_ms = nav->seg_ms;
         giro.desp_adelante_mm = (dx * seno_mil(h0) - dy * seno_mil(h0 + 90)) / 1000;    /* el desplazamiento del mapa, en el marco del carro al empezar el giro */
         giro.desp_derecha_mm = (dx * seno_mil(h0 + 90) + dy * seno_mil(h0)) / 1000;
-        diag_escribir(nav, "TURN_DIAG lado=%s origen=%s pedido=%d hecho=%d plan_ms=%d real_ms=%d um_grado=(%d,%d) mm=(%d,%d) carro_mm=(%d,%d) rumbo=%d>%d",
+        diag_escribir(nav, "TURN_DIAG lado=%s origen=%s pedido=%d hecho=%d plan_ms=%d real_ms=%d um_grado=(%d,%d) mm=(%d,%d) carro_mm=(%d,%d) rumbo=%d>%d%s",
                       (lado < 0) ? "IZQ" : "DER", nombre_origen(giro.origen), giro.pedido_grados, hecho, giro.plan_ms, giro.real_ms, um_adelante, um_derecha,
-                      dx, dy, giro.desp_adelante_mm, giro.desp_derecha_mm, h0, nav->rumbo_grados);
+                      dx, dy, giro.desp_adelante_mm, giro.desp_derecha_mm, h0, nav->rumbo_grados,
+                      cal_desplazamiento_es_espejo(&nav->cal, lado) ? " aviso=espejo_estimado" : "");
         if (nav->n_giros < NAV_MAX_GIROS) {
             nav->giros[nav->n_giros++] = giro;
         } else {
@@ -988,6 +989,13 @@ void navegador_iniciar(Navegador *nav)
     nav->requiere_camara = 0;
     nav->paralelo_mm = 0;
     nav->reinc_pasar_primero = 0;
+    nav->reinc_plan_x_mm[0] = nav->reinc_plan_x_mm[1] = nav->reinc_plan_x_mm[2] = 0;
+    nav->reinc_plan_y_mm[0] = nav->reinc_plan_y_mm[1] = nav->reinc_plan_y_mm[2] = 0;
+    nav->reinc_correcciones = 0;
+    nav->reinc_rumbo_importa = 1;
+    nav->tramo_mm = NAV_TRAMO_ESQUIVAR_CM * 10;
+    nav->sin_red_seguridad = 0;
+    nav->arco_adelante_mm = nav->arco_libre_mm = 0;
     nav->reinc_fase = NAV_RF_PLAN;
     nav->reinc_t_fase_ms = 0;
     nav->reinc_solo_rumbo = 0;
@@ -1094,6 +1102,10 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->cerc_detenido_max = 0;
     nav->fin_obstaculo_mm = -1;
     nav->reinc_pasar_primero = 0;
+    if (cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) || cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_DERECHA)) {
+        diag_escribir(nav, "TURN_DIAG aviso=%s_estimada_como_espejo_de_la_%s: no tiene medida propia, midela en Calibracion",
+                      cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) ? "izquierda" : "derecha", cal_desplazamiento_es_espejo(&nav->cal, CAL_LADO_IZQUIERDA) ? "derecha" : "izquierda");
+    }
 
     if (nav->indice_objetivo >= nav->n_puntos) {
         nav->estado = NAV_TERMINADO;   /* ruta de un solo punto: ya está en el destino */
@@ -1498,15 +1510,305 @@ static void entrar_reincorporando(Navegador *nav, uint32_t ahora_ms)
     nav->bloqueo_inmediato = 0;
     nav->frames_libre = 0;
     nav->centro_frames = 0;
+    nav->reinc_correcciones = 0;   /* una vuelta nueva empieza con las correcciones en cero */
     reinc_cambiar_fase(nav, NAV_RF_PLAN, ahora_ms);
 }
 
-/* Calcula la vuelta con la pose estimada: el punto de la línea NAV_REINC_ADELANTE_CM cm por delante del punto de salida, el giro mínimo hacia él, la distancia
- * y el giro final al rumbo de la línea. Si el carro está a menos de NAV_REINC_DESVIO_MIN_MM de la línea, solo corrige el rumbo. */
-static void reinc_calcular(Navegador *nav)
+/* ── Plan con pivote (J8) ──────────────────────────────────────────────────
+ * El carro gira de pivote: el centro se desplaza al girar (ver cal_desplazamiento_giro). Estas funciones PLANEAN con ese desplazamiento: dada una pose, qué giro hay que hacer para
+ * apuntar a un punto, dónde termina el centro, y desde dónde hay que girar para que el centro caiga en un punto. Todo con las funciones públicas cal_pose_tras_giro y
+ * cal_pose_antes_del_giro de calibracion.h. Con la calibración sin desplazamiento todo reduce a los giros en el sitio de siempre. */
+
+static PoseCarro pose_actual(const Navegador *nav)
 {
-    int tramo_pos, tramo_obj = 0;
+    PoseCarro p;
+
+    p.x_mm = nav->x_mm;
+    p.y_mm = nav->y_mm;
+    p.rumbo_grados = nav->rumbo_grados;
+    return p;
+}
+
+static int valor_absoluto_int(int x)
+{
+    return (x < 0) ? -x : x;
+}
+
+/* La pose después de girar `giro` grados con signo (+ derecha, - izquierda), con el desplazamiento del pivote. */
+static PoseCarro pose_tras_giro_con_signo(const Navegador *nav, PoseCarro p, int giro)
+{
+    if (giro > 0) {
+        cal_pose_tras_giro(&nav->cal, &p, CAL_LADO_DERECHA, giro, &p);
+    } else if (giro < 0) {
+        cal_pose_tras_giro(&nav->cal, &p, CAL_LADO_IZQUIERDA, -giro, &p);
+    }
+    return p;
+}
+
+/* La pose de la que hay que partir para llegar a `p` después de girar `giro` grados con signo (la inversa de la anterior). */
+static PoseCarro pose_antes_de_giro_con_signo(const Navegador *nav, PoseCarro p, int giro)
+{
+    if (giro > 0) {
+        cal_pose_antes_del_giro(&nav->cal, &p, CAL_LADO_DERECHA, giro, &p);
+    } else if (giro < 0) {
+        cal_pose_antes_del_giro(&nav->cal, &p, CAL_LADO_IZQUIERDA, -giro, &p);
+    }
+    return p;
+}
+
+/* Rumbo desde la pose hasta el punto (ox, oy); si ya está ahí, el rumbo que tiene. */
+static int rumbo_hacia_punto(const PoseCarro *p, long ox, long oy)
+{
+    return rumbo_del_vector(ox - p->x_mm, oy - p->y_mm, p->rumbo_grados);
+}
+
+/* Un giro de menos de NAV_REINC_GIRO_MIN_GRADOS no se hace (el error de la estimación es mayor): vale 0. */
+static int giro_util(int giro)
+{
+    return (giro > -NAV_REINC_GIRO_MIN_GRADOS && giro < NAV_REINC_GIRO_MIN_GRADOS) ? 0 : giro;
+}
+
+/* El giro `g` (grados con signo) que, hecho desde `p` con el desplazamiento del pivote, deja el rumbo apuntando al punto (ox, oy) DESDE LA POSICIÓN NUEVA (no desde la de antes del giro:
+ * el centro se movió). Es un punto fijo: g = giro_minimo(rumbo, rumbo hacia el punto desde la pose después de girar g). Se itera NAV_PLAN_ITERACIONES pasos empezando por el giro en el sitio;
+ * si no converge (por ejemplo un giro grande que cambia de lado a mitad de la iteración) se barre de grado en grado y se queda el que deja menos error. Escribe el giro y la pose después de
+ * girarlo y devuelve el error de rumbo que queda (grados, valor absoluto). */
+static int girar_hacia(const Navegador *nav, const PoseCarro *p, long ox, long oy, int *giro, PoseCarro *despues)
+{
+    int g, k, nuevo, error, mejor_g = 0, mejor_error = 1000;
+    PoseCarro q;
+
+    g = giro_util(giro_minimo(p->rumbo_grados, rumbo_hacia_punto(p, ox, oy)));
+    for (k = 0; k < NAV_PLAN_ITERACIONES; k++) {
+        q = pose_tras_giro_con_signo(nav, *p, g);
+        nuevo = giro_util(giro_minimo(p->rumbo_grados, rumbo_hacia_punto(&q, ox, oy)));
+        if (valor_absoluto_int(giro_minimo(g, nuevo)) <= 1) {
+            g = nuevo;
+            break;
+        }
+        g = nuevo;
+    }
+    q = pose_tras_giro_con_signo(nav, *p, g);
+    error = valor_absoluto_int(giro_minimo(q.rumbo_grados, rumbo_hacia_punto(&q, ox, oy)));
+    if (error > 2) {
+        for (g = -179; g <= 180; g++) {
+            q = pose_tras_giro_con_signo(nav, *p, g);
+            error = valor_absoluto_int(giro_minimo(q.rumbo_grados, rumbo_hacia_punto(&q, ox, oy)));
+            if (error < mejor_error || (error == mejor_error && valor_absoluto_int(g) < valor_absoluto_int(mejor_g))) {
+                mejor_error = error;
+                mejor_g = g;
+            }
+        }
+        g = giro_util(mejor_g);
+        q = pose_tras_giro_con_signo(nav, *p, g);
+        error = valor_absoluto_int(giro_minimo(q.rumbo_grados, rumbo_hacia_punto(&q, ox, oy)));
+    }
+    *giro = g;
+    *despues = q;
+    return error;
+}
+
+/* Una vuelta a la línea planeada: giro 1 hacia el punto previo, avance, giro 2 al rumbo de la línea. `p1` es la pose después del giro 1, `q` la pose después de avanzar (el punto previo) y `e`
+ * la pose final, con el centro sobre la línea. */
+typedef struct {
+    int giro1, giro2, dist_mm;
+    PoseCarro p1, q, e;
+} PlanVuelta;
+
+/* Llena el plan con los dos giros y las poses; devuelve cuánto avanza el centro entre ellos (mm; negativo = el punto previo q quedó detrás del carro). */
+static long completar_plan(PlanVuelta *plan, int a1, int a2, const PoseCarro *p1, const PoseCarro *q, const PoseCarro *e, int rumbo_final)
+{
+    long vx = (long)q->x_mm - p1->x_mm, vy = (long)q->y_mm - p1->y_mm;
+    long distancia = raiz_entera(vx * vx + vy * vy);
+    long avance = (vx * dir_x_mil(p1->rumbo_grados) + vy * dir_y_mil(p1->rumbo_grados) >= 0) ? distancia : -distancia;
+
+    plan->giro1 = a1;
+    plan->giro2 = a2;
+    plan->dist_mm = (avance > 0) ? (int)avance : 0;
+    plan->p1 = *p1;
+    plan->q = *q;
+    plan->e = *e;
+    plan->e.rumbo_grados = (a2 == 0) ? p1->rumbo_grados : rumbo_final;
+    return avance;
+}
+
+/* Plan por iteración de punto fijo (el camino normal): converge en 2 o 3 pasos cuando el punto queda delante. */
+static int planear_vuelta_iterando(const Navegador *nav, const PoseCarro *p0, long ex, long ey, int rumbo_final, PlanVuelta *plan)
+{
+    int ha, a1 = 0, a2 = 0, k, converge = 0, error = 0;
+    PoseCarro e = *p0, q = *p0, p1 = *p0;
+
+    ha = rumbo_hacia_punto(p0, ex, ey);   /* primer supuesto del rumbo con el que llega: el directo */
+    for (k = 0; k < NAV_PLAN_ITERACIONES; k++) {
+        a2 = giro_util(giro_minimo(ha, rumbo_final));
+        e.x_mm = (int)ex;
+        e.y_mm = (int)ey;
+        e.rumbo_grados = (a2 == 0) ? ha : rumbo_final;
+        q = pose_antes_de_giro_con_signo(nav, e, a2);
+        error = girar_hacia(nav, p0, q.x_mm, q.y_mm, &a1, &p1);
+        if (valor_absoluto_int(giro_minimo(ha, p1.rumbo_grados)) <= 1) {
+            converge = 1;
+            break;
+        }
+        ha = p1.rumbo_grados;
+    }
+    return completar_plan(plan, a1, a2, &p1, &q, &e, rumbo_final) >= -30 && converge && error <= 3;
+}
+
+/* Plan por barrido de 1 grado del giro 1 (cuando la iteración no converge: el punto queda casi al lado o detrás y el rumbo de llegada salta de un lado a otro). Para cada giro 1 candidato
+ * el rumbo de llegada y el giro 2 quedan definidos; vale el que deja el punto previo q justo delante, en el rumbo con el que llega (error de 2 grados o menos), con el menor giro total. */
+static int planear_vuelta_barriendo(const Navegador *nav, const PoseCarro *p0, long ex, long ey, int rumbo_final, PlanVuelta *plan)
+{
+    int g, a1, a2, error, mejor_a1 = 0, mejor_a2 = 0, mejor_costo = 100000, hay = 0;
+    PoseCarro e, q, p1, mejor_p1 = *p0, mejor_q = *p0, mejor_e = *p0;
+    long vx, vy;
+
+    for (g = -179; g <= 180; g++) {
+        a1 = giro_util(g);
+        if (a1 != g) {
+            continue;   /* los giros de menos de NAV_REINC_GIRO_MIN_GRADOS no existen: solo vale 0 */
+        }
+        p1 = pose_tras_giro_con_signo(nav, *p0, a1);
+        a2 = giro_util(giro_minimo(p1.rumbo_grados, rumbo_final));
+        e.x_mm = (int)ex;
+        e.y_mm = (int)ey;
+        e.rumbo_grados = (a2 == 0) ? p1.rumbo_grados : rumbo_final;
+        q = pose_antes_de_giro_con_signo(nav, e, a2);
+        vx = (long)q.x_mm - p1.x_mm;
+        vy = (long)q.y_mm - p1.y_mm;
+        if (vx * dir_x_mil(p1.rumbo_grados) + vy * dir_y_mil(p1.rumbo_grados) < 0) {
+            continue;   /* q quedó detrás del carro */
+        }
+        error = (vx == 0 && vy == 0) ? 0 : valor_absoluto_int(giro_minimo(p1.rumbo_grados, rumbo_del_vector(vx, vy, p1.rumbo_grados)));
+        if (error <= 2 && valor_absoluto_int(a1) + valor_absoluto_int(a2) < mejor_costo) {
+            hay = 1;
+            mejor_costo = valor_absoluto_int(a1) + valor_absoluto_int(a2);
+            mejor_a1 = a1;
+            mejor_a2 = a2;
+            mejor_p1 = p1;
+            mejor_q = q;
+            mejor_e = e;
+        }
+    }
+    if (hay) {
+        completar_plan(plan, mejor_a1, mejor_a2, &mejor_p1, &mejor_q, &mejor_e, rumbo_final);
+    }
+    return hay;
+}
+
+/* Planea llegar al punto (ex, ey) SIN giro final: un giro hacia él y el avance. Es la vuelta cuando el punto es el final de la ruta (ahí el rumbo con el que se llega no importa). */
+static int planear_hasta_punto(const Navegador *nav, const PoseCarro *p0, long ex, long ey, PlanVuelta *plan)
+{
+    int a1 = 0, error;
+    PoseCarro e, p1 = *p0;
+
+    e.x_mm = (int)ex;
+    e.y_mm = (int)ey;
+    error = girar_hacia(nav, p0, ex, ey, &a1, &p1);
+    e.rumbo_grados = p1.rumbo_grados;
+    return completar_plan(plan, a1, 0, &p1, &e, &e, p1.rumbo_grados) >= -30 && error <= 3;
+}
+
+/* Planea la vuelta desde `p0` para terminar con el centro en (ex, ey) y el rumbo `rumbo_final` de la línea. Los dos giros desplazan el centro, así que:
+ *   - el avance termina en el PUNTO PREVIO q, el que cae en e después del giro final con su desplazamiento (la inversa del modelo, cal_pose_antes_del_giro);
+ *   - el giro 1 apunta a q desde la posición posterior al giro (girar_hacia), y el rumbo con el que llega a q define el giro 2: por eso se itera NAV_PLAN_ITERACIONES veces hasta que el
+ *     rumbo de llegada deje de cambiar (1 grado); si no converge se barre el giro 1 de grado en grado.
+ * Devuelve 1 si hay solución (el punto previo queda delante del carro, a lo más 3 cm detrás) y 0 si no. */
+static int planear_vuelta(const Navegador *nav, const PoseCarro *p0, long ex, long ey, int rumbo_final, PlanVuelta *plan)
+{
+    if (planear_vuelta_iterando(nav, p0, ex, ey, rumbo_final, plan)) {
+        return 1;
+    }
+    return planear_vuelta_barriendo(nav, p0, ex, ey, rumbo_final, plan);
+}
+
+/* La ruta se retoma desde la CELDA más cercana a la pose (planificar), así que si la vuelta termina entre dos celdas el carro se corre hasta media celda a lo largo de la línea al retomarla.
+ * Por eso el punto de la línea al que se vuelve se pega al vértice (centro de celda) más cercano a `s_mm` que esté al menos `minimo_mm` más adelante; si no hay ninguno, el final de la ruta. */
+static long vertice_mas_cercano(const Navegador *nav, long s_mm, long minimo_mm)
+{
+    long mejor = distancia_hasta_tramo(nav, nav->n_puntos - 1), s_k;
+    int k;
+
+    for (k = 0; k < nav->n_puntos; k++) {
+        s_k = distancia_hasta_tramo(nav, k);
+        if (s_k >= minimo_mm && valor_absoluto_largo(s_k - s_mm) < valor_absoluto_largo(mejor - s_mm)) {
+            mejor = s_k;
+        }
+    }
+    return mejor;
+}
+
+/* ¿Hay desplazamiento del centro al girar (en algún lado)? Si no, el esquive se planea como siempre. */
+static int hay_pivote(const Navegador *nav)
+{
+    int ax = 0, ay = 0, bx = 0, by = 0;
+
+    cal_desplazamiento_giro(&nav->cal, CAL_LADO_IZQUIERDA, 90, 0, &ax, &ay, NULL, NULL);
+    cal_desplazamiento_giro(&nav->cal, CAL_LADO_DERECHA, 90, 0, &bx, &by, NULL, NULL);
+    return ax != 0 || ay != 0 || bx != 0 || by != 0;
+}
+
+/* Cuánto debe avanzar de lado (J8): la distancia lateral del centro a la línea al pasar el obstáculo es NAV_ESQ_MARGEN_LATERAL_MM, y en ella cuenta lo que el centro se movió de lado
+ * al girar para apartarse (la pose actual ya lo incluye) y lo que se moverá al enderezarse (el modelo para el giro de vuelta). Sin desplazamiento (o si el carro quedó casi mirando
+ * a lo largo de la línea) es el tramo de siempre, NAV_TRAMO_ESQUIVAR_CM. */
+static int esq_calcular_tramo(Navegador *nav)
+{
+    int normal = NAV_TRAMO_ESQUIVAR_CM * 10;
+    long sx, sy, lat_giro, lat_vuelta, por_mm, tramo;
+    PoseCarro c, v;
+
+    if (!hay_pivote(nav)) {
+        return normal;
+    }
+    sx = dir_x_mil(nav->salida_rumbo + nav->lado * 90);   /* hacia el lado que esquiva, perpendicular a la línea */
+    sy = dir_y_mil(nav->salida_rumbo + nav->lado * 90);
+    c = pose_actual(nav);
+    lat_giro = ((long)(c.x_mm - nav->salida_x_mm) * sx + (long)(c.y_mm - nav->salida_y_mm) * sy) / 1000;
+    por_mm = ((long)dir_x_mil(c.rumbo_grados) * sx + (long)dir_y_mil(c.rumbo_grados) * sy) / 1000;   /* cuánto de cada mm que avanza es de lado (milésimas) */
+    if (por_mm < 300) {
+        return normal;
+    }
+    cal_pose_tras_giro(&nav->cal, &c, lado_de_vuelta(nav), grados_de_vuelta(nav), &v);
+    lat_vuelta = ((long)(v.x_mm - c.x_mm) * sx + (long)(v.y_mm - c.y_mm) * sy) / 1000;
+    tramo = ((long)NAV_ESQ_MARGEN_LATERAL_MM - lat_giro - lat_vuelta) * 1000 / por_mm;
+    if (tramo < NAV_ESQ_TRAMO_MIN_MM) {
+        tramo = NAV_ESQ_TRAMO_MIN_MM;
+    }
+    if (tramo > 2L * normal) {
+        tramo = 2L * normal;
+    }
+    diag_escribir(nav, "ESQUIVE_DIAG tramo lado=%d lateral_giro_mm=%ld lateral_vuelta_mm=%ld tramo_mm=%ld margen_mm=%d", nav->lado, lat_giro, lat_vuelta, tramo, NAV_ESQ_MARGEN_LATERAL_MM);
+    return (int)tramo;
+}
+
+/* Cuánto cabe hacia adelante antes del obstáculo (mm): la cara según la cercanía con la que frenó, menos un colchón. */
+static int libre_hasta_obstaculo_mm(const Navegador *nav)
+{
+    int cara = (nav->salida_cercania >= 3) ? NAV_CARA_CERCANIA_3_MM : ((nav->salida_cercania == 2) ? NAV_CARA_CERCANIA_2_MM : NAV_CARA_CERCANIA_1_MM);
+
+    return cara - NAV_ARCO_MARGEN_MM;
+}
+
+/* ¿Cabe el giro de salida hacia `lado`? El centro se mueve hacia adelante lo que dice el modelo para NAV_ANGULO_ESQUIVAR grados (si se mueve hacia atrás, siempre cabe). */
+static int arco_cabe(Navegador *nav, int lado, int *adelante_mm, int *libre_mm)
+{
+    int adelante = 0;
+
+    cal_desplazamiento_giro(&nav->cal, lado, NAV_ANGULO_ESQUIVAR, nav->rumbo_grados, NULL, NULL, &adelante, NULL);
+    *adelante_mm = adelante;
+    *libre_mm = libre_hasta_obstaculo_mm(nav);
+    return adelante <= *libre_mm;
+}
+
+/* Calcula la vuelta con la pose estimada y el modelo de pivote: el punto de la línea NAV_REINC_ADELANTE_CM cm por delante del punto de salida, el giro hacia él, la distancia y el giro final
+ * al rumbo de la línea (ver planear_vuelta: los dos giros desplazan el centro y el plan lo cuenta). Si el carro está a menos de NAV_REINC_DESVIO_MIN_MM de la línea, solo corrige el rumbo
+ * (salvo que el desplazamiento de ese giro lo saque de la línea). Si el punto no sirve prueba con otros más adelante. Devuelve 1, o 0 si la vuelta no tiene solución (el llamador pide ayuda). */
+static int reinc_calcular(Navegador *nav)
+{
+    int tramo_pos, tramo_obj = 0, etapa;
     long s_pos, desvio_pos, s_obj, tx = 0, ty = 0;
+    PoseCarro p0 = pose_actual(nav), p1;
+    PlanVuelta plan;
+    int hay_plan = 0, plan_fallido = 0, giro_solo, usar_plan = 0;
 
     nav->reinc_antes_x_mm = nav->x_mm;
     nav->reinc_antes_y_mm = nav->y_mm;
@@ -1521,8 +1823,14 @@ static void reinc_calcular(Navegador *nav)
     nav->reinc_obj_y_mm = nav->y_mm;
     nav->reinc_indice_obj = nav->indice_objetivo;
     nav->reinc_rumbo_final = rumbo_del_tramo(nav, tramo_pos);
+    for (etapa = 0; etapa < 3; etapa++) {   /* si una etapa no se hace, la red de seguridad espera estar donde está */
+        nav->reinc_plan_x_mm[etapa] = nav->x_mm;
+        nav->reinc_plan_y_mm[etapa] = nav->y_mm;
+    }
 
     nav->reinc_pasar_primero = 0;
+    nav->reinc_rumbo_importa = 1;
+    giro_solo = giro_util(giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final));
     if (desvio_pos >= NAV_REINC_DESVIO_MIN_MM && nav->fin_obstaculo_mm >= 0 && nav->fin_obstaculo_mm - s_pos >= NAV_PARALELO_MIN_MM) {
         /* Todavía no pasó el obstáculo (pasa tras «toma el control» si el usuario lo dejó al lado o detrás): volver en diagonal 30 cm adelante lo llevaría contra el
          * obstáculo (en la prueba real pidió ayuda 5 veces seguidas por eso). Primero se endereza al rumbo de la línea y avanza en paralelo hasta pasarlo. */
@@ -1531,27 +1839,69 @@ static void reinc_calcular(Navegador *nav)
         nav->reinc_pasar_primero = 1;
         nav->reinc_dist_mm = (int)avance;
         nav->reinc_giro1 = giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final);
-        nav->reinc_obj_x_mm = nav->x_mm + (int)(dir_x_mil(nav->reinc_rumbo_final) * avance / 1000);
-        nav->reinc_obj_y_mm = nav->y_mm + (int)(dir_y_mil(nav->reinc_rumbo_final) * avance / 1000);
-    } else if (desvio_pos >= NAV_REINC_DESVIO_MIN_MM) {
-        long dx, dy, distancia;
-        int rumbo_hacia;
+        p1 = pose_tras_giro_con_signo(nav, p0, giro_util(nav->reinc_giro1));   /* el giro de enderezarse también desplaza el centro */
+        nav->reinc_obj_x_mm = p1.x_mm + (int)(dir_x_mil(nav->reinc_rumbo_final) * avance / 1000);
+        nav->reinc_obj_y_mm = p1.y_mm + (int)(dir_y_mil(nav->reinc_rumbo_final) * avance / 1000);
+        nav->reinc_plan_x_mm[0] = p1.x_mm;
+        nav->reinc_plan_y_mm[0] = p1.y_mm;
+        nav->reinc_plan_x_mm[1] = nav->reinc_obj_x_mm;
+        nav->reinc_plan_y_mm[1] = nav->reinc_obj_y_mm;
+    } else {
+        if (desvio_pos < NAV_REINC_DESVIO_MIN_MM && giro_solo != 0) {
+            /* Cerca de la línea: solo se endereza, pero ese giro desplaza el centro; si lo saca de la línea, la vuelta se planea completa. */
+            long dp, sp;
+            int tp;
 
-        s_obj = s_pos + (long)NAV_REINC_ADELANTE_CM * 10;   /* 30 cm por delante de donde el carro ya pasó el obstáculo (el punto de salida) */
-        punto_en_linea(nav, s_obj, &tx, &ty, &tramo_obj);
-        dx = tx - nav->x_mm;
-        dy = ty - nav->y_mm;
-        distancia = raiz_entera(dx * dx + dy * dy);
-        if (distancia >= 50) {
-            rumbo_hacia = rumbo_del_vector(dx, dy, nav->rumbo_grados);
+            p1 = pose_tras_giro_con_signo(nav, p0, giro_solo);
+            ubicar_en_linea(nav, p1.x_mm, p1.y_mm, &tp, &sp, &dp);
+            usar_plan = (dp >= NAV_REINC_DESVIO_MIN_MM);
+        } else {
+            usar_plan = (desvio_pos >= NAV_REINC_DESVIO_MIN_MM);
+        }
+        if (usar_plan) {
+            int intento;
+
+            for (intento = 0; intento < NAV_PLAN_INTENTOS && !hay_plan; intento++) {
+                long dx, dy, distancia;
+
+                s_obj = s_pos + (long)NAV_REINC_ADELANTE_CM * 10 + (long)intento * NAV_PLAN_MAS_MM;   /* 30 cm por delante de donde el carro ya pasó el obstáculo (y, si no sirve, más adelante) */
+                s_obj = vertice_mas_cercano(nav, s_obj, s_pos + NAV_REINC_VERTICE_MIN_MM);                /* ...pegado a un centro de celda, que es desde donde se retoma la ruta */
+                punto_en_linea(nav, s_obj, &tx, &ty, &tramo_obj);
+                dx = tx - nav->x_mm;
+                dy = ty - nav->y_mm;
+                distancia = raiz_entera(dx * dx + dy * dy);
+                if (distancia < 50) {
+                    break;   /* ya está en el punto: solo corrige el rumbo */
+                }
+                hay_plan = planear_vuelta(nav, &p0, tx, ty, rumbo_del_tramo(nav, tramo_obj), &plan);
+                if (!hay_plan && s_obj >= distancia_hasta_tramo(nav, nav->n_puntos - 1)) {
+                    /* El punto es el final de la ruta y no se puede llegar con el rumbo de la línea (el carro ya está muy cerca del final): ahí el rumbo con el que se llega no importa. */
+                    hay_plan = planear_hasta_punto(nav, &p0, tx, ty, &plan);
+                    nav->reinc_rumbo_importa = 0;   /* se llega al final de la ruta sin giro final: el rumbo ya no importa */
+                    intento = NAV_PLAN_INTENTOS;
+                }
+                plan_fallido = !hay_plan;
+            }
+        }
+        if (hay_plan) {
             nav->reinc_solo_rumbo = 0;
             nav->reinc_obj_x_mm = (int)tx;
             nav->reinc_obj_y_mm = (int)ty;
             nav->reinc_rumbo_final = rumbo_del_tramo(nav, tramo_obj);
-            nav->reinc_giro1 = giro_minimo(nav->rumbo_grados, rumbo_hacia);
-            nav->reinc_dist_mm = (int)distancia;
-            nav->reinc_giro2 = giro_minimo(rumbo_hacia, nav->reinc_rumbo_final);
+            nav->reinc_giro1 = plan.giro1;
+            nav->reinc_dist_mm = plan.dist_mm;
+            nav->reinc_giro2 = plan.giro2;
             nav->reinc_indice_obj = tramo_obj + 1;
+            nav->reinc_plan_x_mm[0] = plan.p1.x_mm;
+            nav->reinc_plan_y_mm[0] = plan.p1.y_mm;
+            nav->reinc_plan_x_mm[1] = plan.q.x_mm;
+            nav->reinc_plan_y_mm[1] = plan.q.y_mm;
+            nav->reinc_plan_x_mm[2] = (int)tx;
+            nav->reinc_plan_y_mm[2] = (int)ty;
+        } else if (usar_plan && plan_fallido) {
+            diag_escribir(nav, "REINC_DIAG sin_solucion pose_antes=(%d,%d,%d) desvio_mm=%d rumbo_linea=%d: ningun punto de la linea se alcanza con los giros de pivote",
+                          nav->x_mm, nav->y_mm, nav->rumbo_grados, nav->reinc_desvio_mm, nav->reinc_rumbo_final);
+            return 0;
         }
     }
     if (nav->reinc_solo_rumbo && !nav->reinc_pasar_primero) {
@@ -1563,10 +1913,20 @@ static void reinc_calcular(Navegador *nav)
     if (nav->reinc_giro2 > -NAV_REINC_GIRO_MIN_GRADOS && nav->reinc_giro2 < NAV_REINC_GIRO_MIN_GRADOS) {
         nav->reinc_giro2 = 0;
     }
+    if (nav->reinc_solo_rumbo && !nav->reinc_pasar_primero) {   /* solo rumbo: la pose planeada es la de después de enderezarse */
+        p1 = pose_tras_giro_con_signo(nav, p0, nav->reinc_giro1);
+        nav->reinc_plan_x_mm[0] = p1.x_mm;
+        nav->reinc_plan_y_mm[0] = p1.y_mm;
+    }
     diag_escribir(nav, "REINC_DIAG plan pose_antes=(%d,%d,%d) salida=(%d,%d,%d) desvio_mm=%d solo_rumbo=%d objetivo=(%d,%d) dist_mm=%d giro1=%d giro2=%d rumbo_linea=%d esquivadas=%d pasar_primero=%d fin_obstaculo=%d",
                   nav->x_mm, nav->y_mm, nav->rumbo_grados, nav->salida_x_mm, nav->salida_y_mm, nav->salida_rumbo, nav->reinc_desvio_mm, nav->reinc_solo_rumbo,
                   nav->reinc_obj_x_mm, nav->reinc_obj_y_mm, nav->reinc_dist_mm, nav->reinc_giro1, nav->reinc_giro2, nav->reinc_rumbo_final, nav->esquivadas,
                   nav->reinc_pasar_primero, nav->fin_obstaculo_mm);
+    if (hay_plan) {
+        diag_escribir(nav, "REINC_DIAG pivote giro1_pose=(%d,%d,%d) previo=(%d,%d) final=(%d,%d,%d) correcciones=%d", plan.p1.x_mm, plan.p1.y_mm, plan.p1.rumbo_grados,
+                      plan.q.x_mm, plan.q.y_mm, plan.e.x_mm, plan.e.y_mm, plan.e.rumbo_grados, nav->reinc_correcciones);
+    }
+    return 1;
 }
 
 /* ¿El carro ya está más allá del punto final de la ruta (por NAV_REINC_PASADO_MM o más, medido a lo largo del último tramo)? Entonces ya no hay a dónde volver. */
@@ -1606,6 +1966,17 @@ static int reinc_siguiente_movimiento(const Navegador *nav, int actual)
         return NAV_RF_GIRO2;
     }
     return -1;
+}
+
+/* Vuelve a planear la vuelta desde donde está (una corrección de la red de seguridad). Si el plan anterior ya había elegido un punto de la línea más adelante, ese punto es ahora el
+ * objetivo de la ruta: un plan nuevo que solo corrige el rumbo no debe volver al punto de antes del obstáculo. */
+static void reinc_replanear(Navegador *nav, uint32_t ahora_ms)
+{
+    if (!nav->reinc_solo_rumbo) {
+        nav->indice_objetivo = nav->reinc_indice_obj;
+    }
+    nav->reinc_correcciones++;
+    reinc_cambiar_fase(nav, NAV_RF_PLAN, ahora_ms);
 }
 
 /* Terminó la vuelta: anota la pose final, se dirige al siguiente punto de la ruta y sigue (SIGUIENDO). */
@@ -1732,6 +2103,25 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->fin_obstaculo_mm = (int)calcular_fin_obstaculo(nav, nav->salida_cercania);   /* lo usan el paralelo y la vuelta tras «toma el control» */
         nav->lado = elegir_lado(nav);
         if (nav->lado != 0) {
+            /* El giro de salida mueve el centro hacia adelante (pivote): si no cabe antes del obstáculo se prueba el otro lado y, si tampoco, se pide ayuda en vez de chocar. */
+            int adelante_mm, libre_mm;
+
+            if (!arco_cabe(nav, nav->lado, &adelante_mm, &libre_mm)) {
+                int otro = -nav->lado;
+                int otro_libre = (otro < 0) ? !nav->zona_hay[ZONA_IZQUIERDA] : !nav->zona_hay[ZONA_DERECHA];
+                int otro_adelante, otro_libre_mm;
+
+                diag_escribir(nav, "ESQUIVE_DIAG plan lado=%d giro_adelante_mm=%d libre_mm=%d cercania=%d cabe=0", nav->lado, adelante_mm, libre_mm, nav->salida_cercania);
+                if (otro_libre && arco_cabe(nav, otro, &otro_adelante, &otro_libre_mm)) {
+                    diag_escribir(nav, "ESQUIVE_DIAG plan cambia_de_lado lado=%d giro_adelante_mm=%d libre_mm=%d", otro, otro_adelante, otro_libre_mm);
+                    nav->lado = otro;
+                } else {
+                    nav->arco_adelante_mm = adelante_mm;
+                    nav->arco_libre_mm = libre_mm;
+                    ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_ARCO);
+                    return NAV_CMD_STOP;
+                }
+            }
             if (nav->esquivadas >= NAV_MAX_ESQUIVADAS) {
                 ir_a_error(nav, NAV_MOTIVO_MAX_ESQUIVADAS);
                 return NAV_CMD_STOP;
@@ -1800,6 +2190,7 @@ static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
 
     nav->ms_fase = 0;
     if (!bloqueado) {
+        nav->tramo_mm = esq_calcular_tramo(nav);   /* cuánto avanza de lado, contando lo que el centro se movió al girar y se moverá al enderezarse */
         nav->fase = NAV_FASE_AVANZAR;
         nav->centro_frames = 0;
         return NAV_CMD_FORWARD;
@@ -1927,7 +2318,10 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
             nav->estado = NAV_TERMINADO;
             return NAV_CMD_STOP;
         }
-        reinc_calcular(nav);
+        if (!reinc_calcular(nav)) {
+            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_VUELTA);   /* sin solución: pide ayuda (o ERROR si no se pidió) en vez de ejecutar un plan inválido */
+            return NAV_CMD_STOP;
+        }
         siguiente = reinc_siguiente_movimiento(nav, NAV_RF_PLAN);
         if (siguiente < 0) {
             return reinc_terminar(nav, ahora_ms);
@@ -1969,7 +2363,33 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
         if ((uint32_t)(ahora_ms - nav->reinc_t_fase_ms) < (uint32_t)NAV_PAUSA_ASENTAR_MS) {
             return NAV_CMD_STOP;
         }
+        {   /* RED DE SEGURIDAD: terminó un tramo (el giro 1, el avance o el giro 2) y la pose ya incluye el frenado. Si la pose estimada se alejó del punto planeado, vuelve a planear desde donde está. */
+            int etapa = (fase - NAV_RF_PAUSA1) / 2;
+            long ex = (long)nav->x_mm - nav->reinc_plan_x_mm[etapa], ey = (long)nav->y_mm - nav->reinc_plan_y_mm[etapa];
+            long error = raiz_entera(ex * ex + ey * ey);
+
+            if (error > NAV_PLAN_ERROR_MM && !nav->sin_red_seguridad) {
+                if (nav->reinc_correcciones >= NAV_PLAN_CORRECCIONES) {
+                    diag_escribir(nav, "REINC_DIAG correccion_agotada etapa=%d error_mm=%ld planeado=(%d,%d) estimado=(%d,%d,%d): se pide ayuda", etapa + 1, error,
+                                  nav->reinc_plan_x_mm[etapa], nav->reinc_plan_y_mm[etapa], nav->x_mm, nav->y_mm, nav->rumbo_grados);
+                    ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_CORRECCIONES);
+                    return NAV_CMD_STOP;
+                }
+                reinc_replanear(nav, ahora_ms);
+                diag_escribir(nav, "REINC_DIAG correccion n=%d etapa=%d error_mm=%ld planeado=(%d,%d) estimado=(%d,%d,%d): vuelve a planear", nav->reinc_correcciones, etapa + 1, error,
+                              nav->reinc_plan_x_mm[etapa], nav->reinc_plan_y_mm[etapa], nav->x_mm, nav->y_mm, nav->rumbo_grados);
+                return NAV_CMD_STOP;
+            }
+        }
         siguiente = reinc_siguiente_movimiento(nav, fase - 1);
+        if (siguiente < 0 && nav->reinc_rumbo_importa && !nav->sin_red_seguridad && nav->reinc_correcciones < NAV_PLAN_CORRECCIONES &&
+            valor_absoluto_int(giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final)) >= NAV_REINC_GIRO_MIN_GRADOS) {
+            /* Terminó la vuelta pero el rumbo quedó a NAV_REINC_GIRO_MIN_GRADOS o más del de la línea (los giros por tiempo salen de a 5 grados): un rumbo chueco se paga después
+             * en todo el resto de la ruta (4 grados son 33 cm en 5 m), así que se corrige con otro plan. Si ya se agotaron las correcciones se sigue como está. */
+            reinc_replanear(nav, ahora_ms);
+            diag_escribir(nav, "REINC_DIAG correccion_rumbo n=%d rumbo=%d rumbo_linea=%d: vuelve a planear", nav->reinc_correcciones, nav->rumbo_grados, nav->reinc_rumbo_final);
+            return NAV_CMD_STOP;
+        }
         if (siguiente < 0) {
             return reinc_terminar(nav, ahora_ms);
         }
@@ -2000,6 +2420,15 @@ int navegador_poner_requiere_camara(Navegador *nav, int activo)
         return NAV_ERR_ARGUMENTO;
     }
     nav->requiere_camara = activo;
+    return NAV_OK;
+}
+
+int navegador_poner_red_seguridad(Navegador *nav, int activo)
+{
+    if (nav == NULL || (activo != 0 && activo != 1)) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->sin_red_seguridad = !activo;
     return NAV_OK;
 }
 
@@ -2154,6 +2583,16 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         break;
     case NAV_CAUSA_SIN_VIDEO:
         n = snprintf(texto, (size_t)capacidad, "la cámara dejó de mandar imágenes más de %d ms", NAV_MAX_HUECO_VIDEO_MS);
+        break;
+    case NAV_CAUSA_ARCO:
+        n = snprintf(texto, (size_t)capacidad, "el giro para apartarse mueve el carro %d cm hacia adelante y solo hay %d cm libres hasta el obstáculo", (nav->arco_adelante_mm + 5) / 10,
+                     (nav->arco_libre_mm + 5) / 10);
+        break;
+    case NAV_CAUSA_CORRECCIONES:
+        n = snprintf(texto, (size_t)capacidad, "se corrigió la vuelta a la línea %d veces y el carro seguía a más de %d cm del punto planeado", NAV_PLAN_CORRECCIONES, NAV_PLAN_ERROR_MM / 10);
+        break;
+    case NAV_CAUSA_VUELTA:
+        n = snprintf(texto, (size_t)capacidad, "no hay camino para volver a la línea con los giros de pivote del carro");
         break;
     default:
         break;

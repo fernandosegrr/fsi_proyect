@@ -108,7 +108,7 @@ class CalibracionGuardada(contexto: Context) {
     private val aplicacion = contexto.applicationContext
     private val preferencias = aplicacion.getSharedPreferences("calibracion", Context.MODE_PRIVATE)
 
-    /** La calibración guardada (14 enteros, el desplazamiento en 0) o la de por defecto. */
+    /** La calibración guardada (16 enteros, el desplazamiento en 0) o la de por defecto. */
     fun leer(): IntArray {
         val texto = preferencias.getString("texto", null)
         if (texto != null) {
@@ -168,15 +168,20 @@ class CalibracionGuardada(contexto: Context) {
     fun desplazamiento(perfil: ControlLogica.Perfil, lado: Int): Pair<Int, Int> =
         Pair(preferencias.getInt(claveDespAdelante(perfil, lado), 0), preferencias.getInt(claveDespDerecha(perfil, lado), 0))
 
+    private fun claveDespGrados(perfil: ControlLogica.Perfil, lado: Int) = "desp_grados_${perfil.name.lowercase()}_${if (lado < 0) "izq" else "der"}"
+
+    /** Con cuántos grados se midió el desplazamiento de ese lado y perfil (el modelo de pivote lo necesita). Las medidas guardadas antes de que se anotara el ángulo valen 90, el giro de prueba de siempre. */
+    fun desplazamientoGrados(perfil: ControlLogica.Perfil, lado: Int): Int = preferencias.getInt(claveDespGrados(perfil, lado), 90)
+
     private fun clavePocaPrecisionDesp(perfil: ControlLogica.Perfil, lado: Int) = "poca_precision_desp_${perfil.name.lowercase()}_${if (lado < 0) "izq" else "der"}"
 
     /** Guarda el desplazamiento de un lado. `pocaPrecision` = true si se guardó el promedio de dos repeticiones que no coincidían (la lista lo marca «calibrado con poca precisión»);
      *  una calibración nueva que sí coincide quita la marca. */
-    fun guardarDesplazamiento(perfil: ControlLogica.Perfil, lado: Int, adelanteUm: Int, derechaUm: Int, pocaPrecision: Boolean = false) {
-        val edicion = preferencias.edit().putInt(claveDespAdelante(perfil, lado), adelanteUm).putInt(claveDespDerecha(perfil, lado), derechaUm)
+    fun guardarDesplazamiento(perfil: ControlLogica.Perfil, lado: Int, adelanteUm: Int, derechaUm: Int, pocaPrecision: Boolean = false, grados: Int = 90) {
+        val edicion = preferencias.edit().putInt(claveDespAdelante(perfil, lado), adelanteUm).putInt(claveDespDerecha(perfil, lado), derechaUm).putInt(claveDespGrados(perfil, lado), grados)
         if (pocaPrecision) edicion.putBoolean(clavePocaPrecisionDesp(perfil, lado), true) else edicion.remove(clavePocaPrecisionDesp(perfil, lado))
         edicion.apply()
-        Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} ${if (lado < 0) "izquierda" else "derecha"}: adelante=$adelanteUm um/grado derecha=$derechaUm um/grado" + (if (pocaPrecision) " (POCA PRECISION: las repeticiones no coincidian)" else ""))
+        Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} ${if (lado < 0) "izquierda" else "derecha"}: adelante=$adelanteUm um/grado derecha=$derechaUm um/grado medido a $grados grados" + (if (pocaPrecision) " (POCA PRECISION: las repeticiones no coincidian)" else ""))
     }
 
     /** true si ese lado del perfil se guardó con poca precisión. */
@@ -186,7 +191,7 @@ class CalibracionGuardada(contexto: Context) {
     fun restaurarDesplazamiento(perfil: ControlLogica.Perfil) {
         val edicion = preferencias.edit()
         for (lado in intArrayOf(CalibracionNativa.LADO_IZQUIERDA, CalibracionNativa.LADO_DERECHA)) {
-            edicion.remove(claveDespAdelante(perfil, lado)).remove(claveDespDerecha(perfil, lado)).remove(claveGiroPruebaDesp(perfil, lado)).remove(clavePocaPrecisionDesp(perfil, lado))
+            edicion.remove(claveDespAdelante(perfil, lado)).remove(claveDespDerecha(perfil, lado)).remove(claveGiroPruebaDesp(perfil, lado)).remove(clavePocaPrecisionDesp(perfil, lado)).remove(claveDespGrados(perfil, lado))
         }
         edicion.remove(claveFecha(Parte.DESPLAZAMIENTO, perfil)).apply()
         Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} restaurado a 0")
@@ -209,6 +214,11 @@ class CalibracionGuardada(contexto: Context) {
             val (c, conDesp) = CalibracionNativa.desempaquetar(CalibracionNativa.ponerDesplazamiento(resultado, lado, adelante, derecha))
             if (c == CalibracionNativa.OK) {
                 resultado = conDesp
+                // Las calibraciones guardadas antes de anotar el ángulo se convierten al cargarlas suponiendo 90 grados (desplazamientoGrados da 90 si no hay nada guardado).
+                val (cg, conGrados) = CalibracionNativa.desempaquetar(CalibracionNativa.ponerDesplazamientoGrados(resultado, lado, desplazamientoGrados(perfil, lado)))
+                if (cg == CalibracionNativa.OK) {
+                    resultado = conGrados
+                }
             }
         }
         return resultado

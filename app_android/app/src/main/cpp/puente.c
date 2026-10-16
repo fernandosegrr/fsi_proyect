@@ -1298,9 +1298,10 @@ Java_com_fsi_carro_FlujoNativa_configDefecto(JNIEnv *env, jobject objeto)
  *   [6] frenado_grados_izq_x10  [7] frenado_grados_der_x10  [8] fov_grados_x10 (campo de visión de la cámara)
  *   [9] ms_por_cm_atras_x10 (ms por cm RETROCEDIENDO; vale solo si el bit CAL_MEDIDO_ATRAS está en `medidos`)
  *   [10] desp_adelante_izq_um  [11] desp_derecha_izq_um  [12] desp_adelante_der_um  [13] desp_derecha_der_um  (desplazamiento del centro al girar, µm por grado)
- * Las funciones que cambian la calibración devuelven 15 enteros: [0] = código (0 = bien) y [1..14] = la
+ *   [14] desp_grados_izq  [15] desp_grados_der  (con cuántos grados se midió ese desplazamiento: el modelo de pivote lo necesita; 0 = no se anotó, se supone 90)
+ * Las funciones que cambian la calibración devuelven 17 enteros: [0] = código (0 = bien) y [1..16] = la
  * calibración resultante (sin cambios si hubo error). */
-#define ENTEROS_CALIBRACION 14
+#define ENTEROS_CALIBRACION 16
 #define ENTEROS_CALIBRACION_BASE 10   /* los 10 primeros: un arreglo más corto (sin el desplazamiento) todavía se acepta */
 
 /* La calibración que usa el navegador: se aplica cada vez que se carga una ruta. */
@@ -1323,7 +1324,7 @@ static CalibracionCarro *obtener_calibracion(void)
     return &calibracion_global;
 }
 
-/* Lee los enteros de la calibración de Kotlin (10 o 14). Devuelve 0 si el arreglo no sirve. */
+/* Lee los enteros de la calibración de Kotlin (10, 14 o 16). Devuelve 0 si el arreglo no sirve. */
 static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *cal)
 {
     jint datos[ENTEROS_CALIBRACION] = { 0 };
@@ -1336,7 +1337,7 @@ static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *ca
     if (largo < ENTEROS_CALIBRACION_BASE) {
         return 0;
     }
-    (*env)->GetIntArrayRegion(env, arreglo, 0, (largo < ENTEROS_CALIBRACION) ? largo : ENTEROS_CALIBRACION, datos);   /* sin los 4 del desplazamiento quedan en 0 */
+    (*env)->GetIntArrayRegion(env, arreglo, 0, (largo < ENTEROS_CALIBRACION) ? largo : ENTEROS_CALIBRACION, datos);   /* sin los del desplazamiento quedan en 0 (y sin los grados se supone 90) */
     cal->medidos = (int)datos[0];
     cal->arranque_ms = (int)datos[1];
     cal->ms_por_cm_x10 = (int)datos[2];
@@ -1351,6 +1352,8 @@ static int leer_calibracion(JNIEnv *env, jintArray arreglo, CalibracionCarro *ca
     cal->desp_derecha_izq_um = (int)datos[11];
     cal->desp_adelante_der_um = (int)datos[12];
     cal->desp_derecha_der_um = (int)datos[13];
+    cal->desp_grados_izq = (int)datos[14];
+    cal->desp_grados_der = (int)datos[15];
     return 1;
 }
 
@@ -1375,6 +1378,8 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
     salida[12] = cal->desp_derecha_izq_um;
     salida[13] = cal->desp_adelante_der_um;
     salida[14] = cal->desp_derecha_der_um;
+    salida[15] = cal->desp_grados_izq;
+    salida[16] = cal->desp_grados_der;
     arreglo = (*env)->NewIntArray(env, 1 + ENTEROS_CALIBRACION);
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
@@ -1674,6 +1679,49 @@ Java_com_fsi_carro_CalibracionNativa_ponerDesplazamiento(JNIEnv *env, jobject ob
     }
     codigo = cal_poner_desplazamiento(&cal, (int)lado, (int)adelante_um, (int)derecha_um);
     return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Anota con cuántos grados se midió el desplazamiento de un lado (el modelo de pivote lo necesita): devuelve [código, calibración...]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_ponerDesplazamientoGrados(JNIEnv *env, jobject objeto, jintArray calibracion, jint lado, jint grados)
+{
+    CalibracionCarro cal;
+    int codigo;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        cal_defecto(&cal);
+        return devolver_calibracion(env, CAL_ERR_ARGUMENTO, &cal);
+    }
+    codigo = cal_poner_desplazamiento_grados(&cal, (int)lado, (int)grados);
+    return devolver_calibracion(env, codigo, &cal);
+}
+
+/* Lo que el modelo de pivote da para un giro de `grados` hacia `lado` con esta calibración: [código, adelante_mm, derecha_mm (en el marco del carro al empezar),
+ * es_espejo (1 = ese lado no tiene medida propia y usa el espejo del otro), hay_pivote (1 = se calculó el punto fijo), pivote_adelante_mm, pivote_derecha_mm]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_desplazamientoDelGiro(JNIEnv *env, jobject objeto, jintArray calibracion, jint lado, jint grados)
+{
+    jint salida[7] = { CAL_ERR_ARGUMENTO, 0, 0, 0, 0, 0, 0 };
+    CalibracionCarro cal;
+    int adelante = 0, derecha = 0, pivote_a = 0, pivote_d = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 7);
+
+    (void)objeto;
+    if (leer_calibracion(env, calibracion, &cal) && (lado == CAL_LADO_IZQUIERDA || lado == CAL_LADO_DERECHA) && grados >= 0 && grados <= 360) {
+        cal_desplazamiento_giro(&cal, (int)lado, (int)grados, 0, NULL, NULL, &adelante, &derecha);
+        salida[0] = CAL_OK;
+        salida[1] = adelante;
+        salida[2] = derecha;
+        salida[3] = cal_desplazamiento_es_espejo(&cal, (int)lado);
+        salida[4] = cal_pivote_punto(&cal, (int)lado, &pivote_a, &pivote_d);
+        salida[5] = pivote_a;
+        salida[6] = pivote_d;
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 7, salida);
+    }
+    return arreglo;
 }
 
 /* De una medida (mm en el marco de la posición inicial y grados girados) a µm por grado: devuelve [código, adelante_um, derecha_um]. */

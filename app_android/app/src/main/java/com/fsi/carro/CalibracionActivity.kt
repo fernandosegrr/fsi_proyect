@@ -887,10 +887,13 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                 val fechas = ArrayList<String>()
                 for (perfil in ControlLogica.Perfil.values()) {
                     if (guardada.hayDesplazamiento(perfil)) {
-                        val (ai, di) = guardada.desplazamiento(perfil, CalibracionNativa.LADO_IZQUIERDA)
-                        val (ad, dd) = guardada.desplazamiento(perfil, CalibracionNativa.LADO_DERECHA)
-                        // En un giro de 90°: µm por grado x 90 grados = mm (x 0.009 = cm).
-                        lineas.add("${perfil.name}: en un giro de 90° el centro se mueve " + fmt("izq %.1f cm adelante y %.1f de lado, der %.1f adelante y %.1f de lado", ai * 0.009, di * 0.009, ad * 0.009, dd * 0.009))
+                        // Lo que el modelo de pivote da para un giro de 90° (marco del carro al empezar el giro), con la calibración de ese perfil.
+                        val cal = guardada.leerAjustada(perfil)
+                        val izq = CalibracionNativa.desplazamientoDelGiro(cal, CalibracionNativa.LADO_IZQUIERDA, 90)
+                        val der = CalibracionNativa.desplazamientoDelGiro(cal, CalibracionNativa.LADO_DERECHA, 90)
+                        lineas.add("${perfil.name}: en un giro de 90° el centro se mueve " + fmt("izq %.1f cm adelante y %.1f de lado, der %.1f adelante y %.1f de lado", izq[1] / 10.0, izq[2] / 10.0, der[1] / 10.0, der[2] / 10.0) +
+                            (if (der[4] == 1 && der[3] == 0) fmt(". Punto fijo del giro a la derecha: %.1f cm del centro a la derecha", der[6] / 10.0) else "") +
+                            (if (izq[3] == 1) ".\n" + getString(R.string.cal_izq_espejo) else if (der[3] == 1) ".\n" + getString(R.string.cal_der_espejo) else ""))
                         fechas.add("${perfil.name} ${lineaFecha(p, true, perfil)}")
                     }
                 }
@@ -1704,7 +1707,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     /** Guarda el promedio de las dos repeticiones del lado. `pocaPrecision` = las repeticiones no coincidían y el usuario eligió guardar de todos modos: la lista lo marca. */
     private fun guardarPromedioDesp(indice: Int, promedioAdelante: Int, promedioDerecha: Int, pocaPrecision: Boolean) {
         val prueba = giroPrueba
-        guardada.guardarDesplazamiento(perfilAjuste, ladoAjuste, promedioAdelante, promedioDerecha, pocaPrecision)
+        val gradosMedidos = if (despGrados[indice].isEmpty()) 90 else despGrados[indice].sum() / despGrados[indice].size   // el ángulo medio de las repeticiones (el modelo de pivote lo usa)
+        guardada.guardarDesplazamiento(perfilAjuste, ladoAjuste, promedioAdelante, promedioDerecha, pocaPrecision, gradosMedidos.coerceIn(10, 360))
         guardada.guardarGiroPruebaDeDesplazamiento(perfilAjuste, ladoAjuste, prueba)
         guardada.marcarCalibrado(Parte.DESPLAZAMIENTO, perfilAjuste)
         guardada.aplicarAlNavegador()

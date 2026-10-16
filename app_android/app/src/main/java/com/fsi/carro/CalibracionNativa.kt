@@ -33,7 +33,10 @@ object CalibracionNativa {
     const val CAL_DESP_DERECHA_IZQ_UM = 11
     const val CAL_DESP_ADELANTE_DER_UM = 12
     const val CAL_DESP_DERECHA_DER_UM = 13
-    const val ENTEROS = 14
+    // Con cuántos grados se midió el desplazamiento de cada lado (el modelo de pivote calcula el punto fijo del chasis con la medida y su ángulo). 0 = no se anotó: se supone 90.
+    const val CAL_DESP_GRADOS_IZQ = 14
+    const val CAL_DESP_GRADOS_DER = 15
+    const val ENTEROS = 16
 
     // Bits de "medidos" / "faltantes".
     const val MEDIDO_ARRANQUE = 1
@@ -56,7 +59,7 @@ object CalibracionNativa {
     const val ERR_GIRO_FUERA = -5   // al guardar: los ms por grado de un giro quedan fuera de 3 a 20
     const val ERR_DIFIEREN = -6     // las repeticiones de una prueba difieren demasiado entre sí
 
-    /** Calibración por defecto (la de ejemplo): [código, 14 enteros]. */
+    /** Calibración por defecto (la de ejemplo): [código, 16 enteros]. */
     external fun defecto(): IntArray
 
     /** Promedio de los valores sin los datos atípicos (los que se alejan mucho de la mediana). */
@@ -95,6 +98,13 @@ object CalibracionNativa {
 
     /** Pone el desplazamiento de un lado (µm por grado, adelante y derecha): [código, calibración]. */
     external fun ponerDesplazamiento(calibracion: IntArray, lado: Int, adelanteUm: Int, derechaUm: Int): IntArray
+
+    /** Anota con cuántos grados se midió el desplazamiento de un lado (10 a 360): [código, calibración]. */
+    external fun ponerDesplazamientoGrados(calibracion: IntArray, lado: Int, grados: Int): IntArray
+
+    /** Lo que el modelo de pivote da para un giro de `grados` hacia `lado`: [código, adelanteMm, derechaMm (marco del carro al empezar el giro), esEspejo, hayPivote, pivoteAdelanteMm, pivoteDerechaMm].
+     *  esEspejo = 1 si ese lado no tiene medida propia y usa el espejo del otro (la pantalla avisa «estimada como espejo, mídela»). */
+    external fun desplazamientoDelGiro(calibracion: IntArray, lado: Int, grados: Int): IntArray
 
     /** De una medida a µm por grado: el centro se movió `adelanteMm` y `derechaMm` (en el marco de la posición inicial) en un giro de `grados`: [código, adelanteUm, derechaUm]. */
     external fun desplazamientoDeMedida(lado: Int, adelanteMm: Int, derechaMm: Int, grados: Int): IntArray

@@ -443,3 +443,47 @@ calibrado.
 - Mientras retrocede, el carro no ve lo que hay detrás (ver arriba).
 - Tras 225° (dos reintentos) el carro avanza de lado 40 cm en una dirección casi opuesta a la ruta; la reincorporación usa la posición estimada
   por tiempo, que acumula error en cada giro y retroceso.
+
+## Plan con pivote (J8, 16 oct)
+
+El navegador ya no planea los giros del esquive y de la vuelta a la línea como giros en el sitio: cada giro mueve el centro (modelo de pivote, `docs/calibracion.md`) y el plan lo cuenta. Constantes en `navegador.h` (`NAV_PLAN_*`).
+
+- **Giro hacia el objetivo.** `girar_hacia` busca el ángulo α tal que, después de girar α y moverse por el pivote, el rumbo apunta al punto objetivo DESDE LA POSICIÓN NUEVA: iteración de punto fijo de 5 pasos
+  (`NAV_PLAN_ITERACIONES`) y, si no converge (error de rumbo mayor de 2°), barrido de 1°. La distancia de avance se cuenta desde la posición posterior al giro.
+- **Giro final al rumbo de la línea.** `planear_vuelta` calcula el **punto previo** `q` desde el que, tras el giro final con su desplazamiento, el centro cae sobre la línea (la inversa del modelo,
+  `cal_pose_antes_del_giro`): el avance termina en `q`. Como el rumbo de llegada define el giro final, se itera (5 pasos) hasta que deje de cambiar (1°); si no converge, se barre el giro 1 de grado en grado y se queda el
+  que deja `q` delante con el menor giro total. El punto de la línea al que se vuelve se pega al **centro de celda más cercano** (la ruta se retoma desde la celda más cercana a la pose: sin esto el carro se corre
+  hasta media celda a lo largo de la línea). Si el punto no sirve se prueba con los siguientes (una celda más adelante, hasta 5 veces); si el punto es el final de la ruta y no se puede llegar con el rumbo de la
+  línea, se llega al punto sin giro final.
+- **Giros de salida del esquive.** El margen lateral del centro a la línea al pasar el obstáculo es `NAV_ESQ_MARGEN_LATERAL_MM` (40 cm, el de siempre) y **cuenta lo que el centro se mueve de lado al girar para apartarse y al
+  enderezarse**: tramo de lado = 40 cm − (lateral del giro de salida) − (lateral del giro de vuelta). Con la medida real: 40 − 16.5 − 15 = 8.5 cm, y el mínimo es 10 cm (`NAV_ESQ_TRAMO_MIN_MM`); se anota en
+  `ESQUIVE_DIAG tramo ...`. Sin desplazamiento es el tramo de 40 cm de siempre.
+- **Si no cabe.** (a) El giro de salida mueve el centro hacia adelante (15 cm con la medida real): si es más que lo que hay libre hasta el obstáculo (la cara según la cercanía con que frenó, menos
+  `NAV_ARCO_MARGEN_MM` = 10 cm) se prueba el otro lado si está libre (`ESQUIVE_DIAG plan cambia_de_lado`) y, si tampoco cabe, pide AYUDA (o ERROR si no se pidió) con la causa
+  «el giro para apartarse mueve el carro 30 cm hacia adelante y solo hay 20 cm libres hasta el obstáculo». (b) Si la vuelta a la línea no tiene solución (ningún punto de la línea se alcanza con los giros de pivote)
+  pide AYUDA en vez de ejecutar un plan inválido (`REINC_DIAG sin_solucion`). Las pausas de 300 ms y las comprobaciones de obstáculo son las de siempre.
+- **Red de seguridad en lazo cerrado.** Al terminar cada tramo de la vuelta (giro 1, avance, giro 2; ya con el frenado) se compara la pose estimada con la planeada: si el error pasa de 8 cm
+  (`NAV_PLAN_ERROR_MM`) se vuelve a planear desde donde está con el mismo método (`REINC_DIAG correccion n=...`), hasta 4 veces (`NAV_PLAN_CORRECCIONES`); si se agotan, para y pide AYUDA
+  («se corrigió la vuelta a la línea 4 veces y el carro seguía a más de 8 cm del punto planeado»). También corrige el rumbo: si al terminar el rumbo queda a 4° o más del de la línea (los giros por tiempo salen de a
+  5°; 4° son 33 cm de error a 5 m) se vuelve a planear (`REINC_DIAG correccion_rumbo`); si ya no quedan correcciones se sigue como está. Se puede apagar para comparar
+  (`navegador_poner_red_seguridad`). **Qué ve y qué no ve:** compara la POSE ESTIMADA (por tiempo, con la cámara en los giros) con el plan; si el carro real patina y la estimación no se entera, la red tampoco.
+  Lo que sí ve: un tramo cortado o corregido por la cámara, un giro que terminó a otro ángulo (cuantización de 5° del tiempo) o una corrección externa de la pose.
+- **Izquierda mientras no tenga medida propia** = espejo de la derecha (aviso en la pantalla de Calibración y en el log, ver `docs/calibracion.md`).
+- **No cubre:** la ruta normal (los giros de las esquinas de la ruta no se compensan en el camino: se corrigen al retomar), ni la geometría del navegador con obstáculos muy grandes. Los pasos de la ruta
+  se siguen planeando por celdas.
+
+### Resultados en el simulador (J8)
+
+Ruta `LARGA` (6 m recta), pivote real 15/16.5 cm, distancia final a la línea y rumbo; «viejo» = el plan de antes (modelo lineal en el simulador, vuelta con giros en el sitio):
+
+| caso | viejo | plan con pivote |
+|---|---|---|
+| obstáculo al centro | 73 mm | 19 mm, rumbo 0 |
+| obstáculo a la izquierda (se aparta a la derecha) | 203 mm, rumbo 45° | 20 mm, rumbo 0 |
+| obstáculo a la derecha (se aparta a la izquierda, espejo) | 73 mm | 19 mm, rumbo 0 |
+| desplazamiento 0 | 38 mm | 7 mm, rumbo 0 |
+| el doble (30/33 cm, cercanía 2) | 450 mm, rumbo 90° | 23 mm, rumbo 0 |
+
+Ruta corta `RECTA` (5 celdas): 267 mm antes (modelo lineal), 224 mm con el modelo de pivote y el plan viejo, **1 mm** con el plan con pivote. Red de seguridad con un empujón de 12 cm a la pose en plena vuelta:
+**356 mm sin la red, 7 mm con ella** (1 corrección); sin empujón las dos dan lo mismo. Pruebas: `pruebas_navegador.c`, `pruebas_plan_pivote` (obstáculo izquierda/derecha/centro, desplazamientos 0, real y 2x,
+espejo y medida propia, no cabe, cambio de lado, red de seguridad y su agotamiento).

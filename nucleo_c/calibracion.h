@@ -67,6 +67,10 @@ typedef struct {
     int desp_derecha_izq_um;
     int desp_adelante_der_um;
     int desp_derecha_der_um;
+    /* Con QUÉ ángulo (grados) se midió el desplazamiento de cada lado. El modelo de pivote lo necesita para saber dónde está el punto fijo del chasis (ver el último bloque de
+     * este archivo). 0 = no se anotó (calibraciones guardadas antes de este campo): se supone CAL_DESP_GRADOS_REF, el giro de prueba de siempre. */
+    int desp_grados_izq;
+    int desp_grados_der;
 } CalibracionCarro;
 
 /* Códigos de retorno. */
@@ -304,9 +308,51 @@ int cal_desplazamiento_promedio(const int *adelante_um, const int *derecha_um, i
 
 /* Cuánto se movió el centro durante un giro de `grados` (positivos, hacia `lado`) que empezó con el rumbo `rumbo_inicial` (grados, 0 = arriba, positivo a la derecha). Escribe, si
  * no son NULL: el desplazamiento en el mapa (dx a la derecha, dy hacia abajo, mm) y el desplazamiento en el marco del carro al empezar el giro (adelante y derecha, mm).
- * Con la calibración sin desplazamiento (ceros) todo es 0. */
+ * Con la calibración sin desplazamiento (ceros) todo es 0.
+ *
+ * MODELO DE PIVOTE (J8). El carro gira de PIVOTE: las ruedas de un lado se mueven y las del otro quedan fijas, así que un punto del chasis (el punto fijo, cerca de las ruedas que
+ * no se mueven) no se mueve y el resto del carro gira alrededor de él. Con la medida de la calibración (el desplazamiento del centro en `desp_grados_*` grados) se calcula ese punto
+ * fijo en el marco del carro; para CUALQUIER ángulo el centro se mueve girando alrededor de él: la cuerda es 2 x R x sen(grados/2), donde R es la distancia del centro al punto fijo.
+ * A los grados de la prueba reproduce la medida exacta. Si el ángulo de la prueba es de menos de 10 o más de 350 grados, o el desplazamiento medido es de menos de
+ * CAL_PIVOTE_MIN_MM (casi nulo), no se puede sacar un punto fijo con sentido y se usa el modelo lineal de antes (µm por grado), sin dividir entre cero.
+ *
+ * LADO SIN MEDIR. Si un lado tiene sus dos valores en 0 («sin medir») y el otro no, se usa el ESPEJO del otro (adelante igual, de lado al revés). Es una suposición: la pantalla de
+ * Calibración lo dice («Izquierda: estimada como espejo de la derecha, mídela») y el navegador lo anota en el log. */
+#define CAL_DESP_GRADOS_REF   90   /* el giro de prueba por defecto, y lo que se supone si no se anotó el ángulo de la medida */
+#define CAL_PIVOTE_MIN_MM      5   /* con menos de 5 mm de desplazamiento medido no se calcula el punto fijo (modelo lineal) */
+#define CAL_PIVOTE_REF_MIN    20   /* si la medida se hizo con menos de 20 o más de 340 grados la cuerda 2 R sen(θ/2) es casi 0 y R sale disparado: modelo lineal */
+#define CAL_PIVOTE_REF_MAX   340
+#define CAL_PIVOTE_RADIO_MAX_MM 600  /* un punto fijo a más de 60 cm del centro no tiene sentido en este carro: modelo lineal */
 void cal_desplazamiento_giro(const CalibracionCarro *cal, int lado, int grados, int rumbo_inicial,
                              int *dx_mm, int *dy_mm, int *adelante_mm, int *derecha_mm);
+
+/* Anota con qué ángulo (10 a 360) se midió el desplazamiento de un lado. CAL_ERR_ARGUMENTO si el lado no existe; CAL_ERR_DATOS si el ángulo sale de rango. */
+int cal_poner_desplazamiento_grados(CalibracionCarro *cal, int lado, int grados);
+
+/* El ángulo con el que se midió el desplazamiento de ese lado (siempre de 10 a 360: si no se anotó, CAL_DESP_GRADOS_REF). */
+int cal_leer_desplazamiento_grados(const CalibracionCarro *cal, int lado);
+
+/* 1 si el desplazamiento de ese lado es el ESPEJO del otro (el lado no tiene medida propia y el otro sí); 0 si es propio o no hay ninguno. */
+int cal_desplazamiento_es_espejo(const CalibracionCarro *cal, int lado);
+
+/* El punto fijo del chasis en milímetros respecto del centro del carro, en el marco del carro (adelante, derecha), para el giro hacia `lado`. Devuelve 1 si el modelo de pivote
+ * se pudo calcular y 0 si se usa el modelo lineal (entonces escribe 0 y 0). Con la medida real (15 cm adelante y 16.5 de lado en 90° a la derecha) da ~(-7, 157): sobre las ruedas
+ * de la derecha, que son las que no se mueven. */
+int cal_pivote_punto(const CalibracionCarro *cal, int lado, int *adelante_mm, int *derecha_mm);
+
+/* Una pose del carro en el mapa: milímetros (x a la derecha, y hacia abajo) y rumbo en grados (0 = arriba, positivo a la derecha). */
+typedef struct {
+    int x_mm;
+    int y_mm;
+    int rumbo_grados;
+} PoseCarro;
+
+/* La pose después de girar `grados` (positivos) hacia `lado`, moviendo el centro alrededor del punto fijo (cal_desplazamiento_giro). `antes` y `despues` pueden ser el mismo. */
+void cal_pose_tras_giro(const CalibracionCarro *cal, const PoseCarro *antes, int lado, int grados, PoseCarro *despues);
+
+/* Lo contrario: la pose de la que hay que partir para llegar a `despues` después de girar `grados` hacia `lado` (el rumbo de salida es el final menos el giro, y el centro se
+ * devuelve lo que se movió). Es exacta salvo el redondeo a milímetros. `antes` y `despues` pueden ser el mismo. */
+void cal_pose_antes_del_giro(const CalibracionCarro *cal, const PoseCarro *despues, int lado, int grados, PoseCarro *antes);
 
 /* ── Texto (para exportar a un archivo o copiar y pegar) ───────────────── */
 

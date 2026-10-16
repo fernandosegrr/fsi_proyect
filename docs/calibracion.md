@@ -160,7 +160,7 @@ completa y después este ajuste, que tarda un minuto). Si cambian las pilas otra
 > real a 3 mm; lo que queda es la geometría de reincorporación del navegador con giros de 22 cm).
 > **Límite del modelo:** es **lineal en el ángulo** (µm por grado). Un pivote real da una cuerda de `2R sen(θ/2)`, que no es lineal: medido a 90°, el modelo subestima ~8 % a 45°, sobrestima ~15 % a 135° y ~41 % a 180°
 > (con R = 15.8 cm: unos 13 cm de más en un giro de 180°). Por eso la medida se hace con el giro de prueba más parecido al que se usa (90° real por defecto). Si hace falta exactitud en otros ángulos, el siguiente paso es
-> guardar el punto de pivote y calcular la rotación alrededor de él (pendiente; no se tocó el navegador).
+> guardar el punto de pivote y calcular la rotación alrededor de él (hecho en J8: ver «Modelo de pivote» al final; la frase de arriba sobre el modelo lineal describe cómo era antes).
 
 **Qué pasó.** En la prueba real, con un giro de 1500 ms a la derecha (~200°) **todo el chasis se desplaza varios cm** y las ruedas traseras tampoco quedan fijas: con ruedas mecanum el carro no
 gira sobre un punto fijo (además aquí el giro se hace con un solo lado, ver `firmware_carro/carro.c`: LEFT usa solo el motor derecho y RIGHT solo el izquierdo, así que el carro pivota alrededor de
@@ -338,3 +338,24 @@ Notas:
 `frenado_grados_izq_x10=389` y `frenado_grados_der_x10=0` con el mismo carro: no es inercia, es un ajuste malo, y hacía que un giro de 45° a la izquierda se
 ordenara por 82 ms mientras la pose estimada sumaba 39° que no ocurrían. Una calibración ya guardada con ese valor sigue siendo válida al cargarse
 (`cal_es_valida` no cambió); hay que repetir la medición del giro izquierdo.
+
+## Modelo de pivote (J8, 16 oct)
+
+El giro es de pivote (un lado gira, el otro queda fijo), así que el centro del carro describe un arco alrededor de un **punto fijo del chasis**. El modelo lineal de antes (µm por grado) fallaba ~8 % a 45°, ~15 % a 135° y
+~41 % a 180°; ahora el desplazamiento se calcula girando el centro alrededor de ese punto.
+
+- **Cómo sale el punto fijo.** Con la medida de la calibración (el desplazamiento del centro `D` en el marco del carro AL EMPEZAR y los grados `θ0` de la prueba) se despeja el vector del punto fijo al centro `v` de `(R(θ0) − I) v = D`
+  (`R` = rotación hacia el lado del giro). Con la medida real (15 cm adelante y 16.5 cm a la derecha en 90°): punto fijo a **(-7.5, 157.5) mm del centro**, es decir sobre las ruedas de la derecha, y R = 157.7 mm.
+- **Para cualquier ángulo θ** el centro se mueve `D(θ) = (R(θ) − I) v`: la cuerda es `2 R sen(θ/2)`. A los grados de la prueba reproduce EXACTO la medida; a 45°, 120.7 mm; a 135°, 291.3 mm; a 180°, 315.4 mm (el centro
+  queda 15 mm atrás y 315 a la derecha). Se probó en C contra esas cuerdas (±2 mm).
+- **Por lado y por perfil.** Cada lado y perfil tiene su vector y su ángulo de medida (`desp_grados_izq/der` en `CalibracionCarro`; la app guarda el ángulo medio de las dos repeticiones junto a los µm por grado).
+- **Calibraciones ya guardadas.** Al cargarlas, si no tienen ángulo anotado se suponen medidas a 90° (el giro de prueba de siempre) y se convierten solas: dan lo mismo a 90° y cambian a los demás ángulos.
+- **Casos límite (sin dividir entre cero).** Se usa el modelo lineal de antes (µm por grado) si la medida se hizo con menos de 20° o más de 340° (`2 − 2 cos θ0` casi 0), si el desplazamiento medido es de menos de 5 mm (casi nulo) o si el
+  punto fijo saldría a más de 60 cm del centro. La validación (±5000 µm/° y 45 cm en total) y el aviso de «desplazamiento grande» (desde 15 cm) siguen igual.
+- **Funciones públicas** (`calibracion.h`): `cal_pose_tras_giro(cal, pose, lado, grados)`, su inversa `cal_pose_antes_del_giro` (de dónde hay que partir para llegar a una pose; exacta salvo el redondeo a mm),
+  `cal_desplazamiento_giro`, `cal_pivote_punto` (el punto fijo, para el log y la pantalla) y `cal_desplazamiento_es_espejo`. El navegador y el simulador usan el MISMO modelo.
+- **Izquierda sin medir = espejo de la derecha.** Si un lado tiene sus dos valores en 0 y el otro no, se usa el espejo (adelante igual, de lado al revés). Es una suposición: la pantalla de Calibración lo dice —
+  «**Izquierda: estimada como espejo de la derecha, mídela**» (y «Derecha: estimada como espejo de la izquierda, mídela» al revés) — y el navegador lo anota en el log: `TURN_DIAG aviso=izquierda_estimada_como_espejo_de_la_derecha`
+  al comenzar la ruta y ` aviso=espejo_estimado` en el `TURN_DIAG` de cada giro que lo usa. Mide el giro a la izquierda para quitarlo.
+- La pantalla de la lista muestra ahora lo que da el modelo a 90° (no el promedio lineal) y el punto fijo del giro a la derecha.
+- **Sigue siendo una aproximación**: supone que el pivote no se mueve entre un giro y otro del mismo lado (el punto fijo depende del piso y las pilas, como todo lo demás) y que el giro es de ruedas de un solo lado.

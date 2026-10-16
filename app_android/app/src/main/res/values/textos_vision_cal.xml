@@ -73,6 +73,8 @@
     <string name="cal_chip_sin">Sin calibrar</string>
     <string name="cal_chip_ajustado">Ajustado</string>
     <string name="cal_chip_poca_precision">Poca precisión</string>
+    <string name="cal_izq_espejo">Izquierda: estimada como espejo de la derecha, mídela</string>
+    <string name="cal_der_espejo">Derecha: estimada como espejo de la izquierda, mídela</string>
     <string name="cal_chip_sin_fecha">Medido (sin fecha)</string>
 
     <string name="cal_parte_arranque">Arranque del motor</string>

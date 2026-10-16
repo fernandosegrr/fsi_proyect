@@ -102,28 +102,26 @@ static int rumbo_entero(const Simulador *sim)
     return (int)((grados + 360) % 360);
 }
 
-/* Al girar `giro_cgrados` más (centésimas de grado, positivas) hacia `lado`, el centro del carro REAL también se mueve. Se usa el MISMO modelo que el navegador (los µm por grado de
- * sim->real; ver cal_desplazamiento_giro): en todo el giro el centro se ha movido (grados girados) x (µm por grado), en el marco del carro a MITAD de ese giro. El simulador lleva
- * la cuenta del giro desde que empezó el comando (giro_acum_cgrados, con el rumbo del que partió) y en cada pedacito mueve lo que falta para completar ese total; así, al terminar un
- * giro de θ grados, el centro se movió justo lo que dice el modelo para θ. Se llama ANTES de sumar el pedacito al rumbo. */
+/* Al girar `giro_cgrados` más (centésimas de grado, positivas) hacia `lado`, el centro del carro REAL también se mueve. Se usa el MISMO modelo que el navegador (el modelo de pivote de
+ * sim->real; ver cal_desplazamiento_giro): el simulador lleva la cuenta del giro desde que empezó el comando (giro_acum_cgrados, con el rumbo del que partió) y en cada pedacito mueve lo
+ * que falta para completar el desplazamiento que el modelo da para ese TOTAL; así, al terminar un giro de θ grados, el centro se movió justo lo que dice el modelo para θ, sea cual sea
+ * el ángulo (no es lineal). Entre dos grados enteros interpola. Se llama ANTES de sumar el pedacito al rumbo. */
 static void desplazar_al_girar(Simulador *sim, int lado, long giro_cgrados)
 {
-    int adelante_um, derecha_um, medio;
-    long f, d, x, y;   /* total de centésimas de mm (1 cmm = 10 µm) */
+    int grados, rumbo_ini, dx0 = 0, dy0 = 0, dx1 = 0, dy1 = 0;
+    long fraccion, x, y;   /* x e y en centésimas de mm */
 
-    cal_leer_desplazamiento(&sim->real, lado, &adelante_um, &derecha_um);
     if (giro_cgrados <= 0) {
         return;
     }
     sim->giro_acum_cgrados += giro_cgrados;
-    if (adelante_um == 0 && derecha_um == 0) {
-        return;
-    }
-    medio = (int)((sim->giro_h0_cgrados + lado * (sim->giro_acum_cgrados / 2)) / 100);
-    f = (long)adelante_um * sim->giro_acum_cgrados / 1000;          /* µm/° x centésimas de ° / 1000 = centésimas de mm */
-    d = (long)derecha_um * sim->giro_acum_cgrados / 1000;
-    x = (f * seno(medio) + d * coseno(medio)) / 1000;
-    y = (-f * coseno(medio) + d * seno(medio)) / 1000;
+    rumbo_ini = (int)((((sim->giro_h0_cgrados / 100) % 360) + 360) % 360);
+    grados = (int)(sim->giro_acum_cgrados / 100);
+    fraccion = sim->giro_acum_cgrados % 100;
+    cal_desplazamiento_giro(&sim->real, lado, grados, rumbo_ini, &dx0, &dy0, NULL, NULL);
+    cal_desplazamiento_giro(&sim->real, lado, grados + 1, rumbo_ini, &dx1, &dy1, NULL, NULL);
+    x = (long)dx0 * (100 - fraccion) + (long)dx1 * fraccion;
+    y = (long)dy0 * (100 - fraccion) + (long)dy1 * fraccion;
     sim->x_cmm += x - sim->desp_x_cmm;
     sim->y_cmm += y - sim->desp_y_cmm;
     sim->desp_x_cmm = x;

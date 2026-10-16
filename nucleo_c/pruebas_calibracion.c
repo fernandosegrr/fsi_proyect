@@ -885,6 +885,7 @@ static void pruebas_desplazamiento(void)
     cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 90, 0, &dx, &dy, NULL, NULL);
     caso("a la izquierda, 1 mm/grado adelante: el rumbo medio es -45: 64 mm a la izquierda y 64 mm arriba", dx == -64 && dy == -64);
     cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, -500, 0);
+    cal_poner_desplazamiento_grados(&cal, CAL_LADO_IZQUIERDA, 180);   /* el modelo de pivote reproduce la medida a los grados con que se midio */
     cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 180, 0, &dx, &dy, &adelante, &derecha);
     caso("a la izquierda, 0.5 mm/grado hacia ATRAS en 180 grados: el centro va 90 mm hacia atras con rumbo medio -90, o sea 90 mm a la derecha", dx == 90 && (dy >= -1 && dy <= 1));
     caso("... que en el marco del carro al empezar son 90 mm a la derecha", adelante >= -1 && adelante <= 1 && derecha == 90);
@@ -899,6 +900,7 @@ static void pruebas_desplazamiento(void)
          valor_absoluto(adelante - 60) <= 1 && valor_absoluto(derecha + 20) <= 1 && valor_absoluto(dx + 20) <= 1 && valor_absoluto(dy + 60) <= 1);
     cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, -45, 130, 200, &ua, &ud);
     cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, ua, ud);
+    cal_poner_desplazamiento_grados(&cal, CAL_LADO_IZQUIERDA, 200);
     cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 200, 0, &dx, &dy, &adelante, &derecha);
     caso("giro de 200 a la izquierda: 45 mm hacia atras y 130 mm a la derecha vuelven a salir (+-1 mm)", valor_absoluto(adelante + 45) <= 1 && valor_absoluto(derecha - 130) <= 1);
     cal_desplazamiento_giro(&cal, CAL_LADO_IZQUIERDA, 200, 135, &dx, &dy, &adelante, &derecha);
@@ -970,6 +972,156 @@ static void pruebas_desplazamiento(void)
         caso("arco: grados fuera de 10 a 360 = CAL_ERR_DATOS, salidas nulas = CAL_ERR_ARGUMENTO",
              cal_desplazamiento_arco(5, 10, 10, &total, &radio) == CAL_ERR_DATOS && cal_desplazamiento_arco(90, 10, 10, NULL, &radio) == CAL_ERR_ARGUMENTO);
         caso("el aviso empieza pasados 15 cm de desplazamiento total (CAL_DESP_AVISO_MM = 150)", CAL_DESP_AVISO_MM == 150);
+    }
+
+    /* ── MODELO DE PIVOTE (J8): el centro se mueve girando alrededor del punto fijo del chasis ──
+     * Medida real: 90 grados a la derecha, el centro 15 cm adelante y 16.5 cm a la derecha. El punto fijo queda en (-7.5, 157.5) respecto del centro (sobre las ruedas de la derecha) y
+     * la distancia del centro al punto fijo (el radio) es R = 157.7 mm, asi que la cuerda de un giro de θ grados es 2 R sen(θ/2): 120.7 mm a 45, 222.9 a 90, 291.3 a 135 y 315.4 a 180. */
+    {
+        CalibracionCarro c;
+        PoseCarro antes, despues, vuelta;
+        int pa_um, pd_um, ia_um, id_um, pf, pr, hay, f, r, d45, d90, d135, d180, grados, rumbo, lado, bien_inversa = 1, finito = 1;
+        static const int RUMBOS_INV[4] = { 0, 45, 135, 300 };
+        static const int GRADOS_INV[5] = { 20, 45, 90, 135, 225 };
+
+        cal_defecto(&c);
+        cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_um, &pd_um);
+        cal_poner_desplazamiento(&c, CAL_LADO_DERECHA, pa_um, pd_um);
+        hay = cal_pivote_punto(&c, CAL_LADO_DERECHA, &pf, &pr);
+        caso("pivote: con la medida real (150, 165 en 90 grados) el punto fijo se calcula y queda en (-7.5, 157.5) mm respecto del centro: sobre las ruedas de la derecha (+-2 mm)",
+             hay == 1 && valor_absoluto(pf + 8) <= 2 && valor_absoluto(pr - 158) <= 2);
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+        caso("pivote: a los 90 grados de la medida reproduce EXACTO el desplazamiento: 150 adelante y 165 a la derecha (+-1 mm)", valor_absoluto(f - 150) <= 1 && valor_absoluto(r - 165) <= 1);
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 45, 0, NULL, NULL, &f, &r);
+        d45 = f * f + r * r;
+        caso("pivote: a 45 grados la cuerda es 2 R sen(22.5) = 120.7 mm (+-2 mm); el modelo lineal daba 111 mm (8 % de menos)", valor_absoluto(d45 - 14568) <= 4 * 121);
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+        d90 = f * f + r * r;
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 135, 0, NULL, NULL, &f, &r);
+        d135 = f * f + r * r;
+        caso("pivote: a 135 grados la cuerda es 2 R sen(67.5) = 291.3 mm (+-2 mm); el modelo lineal daba 334 mm (15 % de mas)", valor_absoluto(d135 - 84856) <= 4 * 291);
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 180, 0, NULL, NULL, &f, &r);
+        d180 = f * f + r * r;
+        caso("pivote: a 180 grados la cuerda es el diametro 2 R = 315.4 mm (+-2 mm) y el centro queda 15 mm atras y 315 a la derecha (-2 v); el lineal daba 446 mm (41 % de mas)",
+             valor_absoluto(d180 - 99477) <= 4 * 315 && valor_absoluto(f + 15) <= 2 && valor_absoluto(r - 315) <= 2);
+        caso("pivote: las cuerdas siguen 2 R sen(θ/2): a 45 grados 120.7, a 90 grados 222.9 (relacion 1.848 entre la de 90 y la de 45, +-1 %)",
+             valor_absoluto(d90 * 1000 / d45 - 3414) <= 40 && d135 > d90 && d180 > d135);   /* (sen45 / sen22.5)^2 = 3.414 */
+        caso("pivote: un giro de 0 grados no mueve nada", (cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 0, 0, &dx, &dy, &adelante, &derecha), dx == 0 && dy == 0 && adelante == 0 && derecha == 0));
+
+        /* El mapa: con rumbo 90 (mirando a la derecha) los 150 adelante van hacia la derecha y los 165 a la derecha hacia abajo. */
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 90, 90, &dx, &dy, NULL, NULL);
+        caso("pivote: mirando a la derecha el mismo giro de 90 mueve el centro (150, 165) en el mapa (+-2 mm)", valor_absoluto(dx - 150) <= 2 && valor_absoluto(dy - 165) <= 2);
+
+        /* Se puede medir con otro angulo: 45 grados dan el mismo punto fijo (y el de 90 es entonces una cuerda mayor). */
+        {
+            CalibracionCarro m;
+            int s45, e45, e90;
+
+            cal_defecto(&m);
+            cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 111, 60, 45, &pa_um, &pd_um);
+            cal_poner_desplazamiento(&m, CAL_LADO_DERECHA, pa_um, pd_um);
+            cal_poner_desplazamiento_grados(&m, CAL_LADO_DERECHA, 45);
+            cal_desplazamiento_giro(&m, CAL_LADO_DERECHA, 45, 0, NULL, NULL, &f, &r);
+            s45 = (valor_absoluto(f - 111) <= 1 && valor_absoluto(r - 60) <= 1);
+            e45 = f * f + r * r;
+            cal_desplazamiento_giro(&m, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+            e90 = f * f + r * r;
+            caso("pivote: medido a 45 grados reproduce la medida de 45 (111 adelante y 60 a la derecha, +-1 mm)", s45);
+            caso("... y el giro de 90 sale con la cuerda que toca: sen(45)/sen(22.5) = 1.848 veces la de 45 (+-2 %)", valor_absoluto(e90 * 1000 / e45 - 3414) <= 70);
+            caso("... el angulo de la medida se lee tal cual", cal_leer_desplazamiento_grados(&m, CAL_LADO_DERECHA) == 45 && cal_leer_desplazamiento_grados(&m, CAL_LADO_IZQUIERDA) == CAL_DESP_GRADOS_REF);
+        }
+        caso("pivote: un angulo de la medida de menos de 10 o mas de 360 se rechaza (CAL_ERR_DATOS), uno sin lado (CAL_ERR_ARGUMENTO)",
+             cal_poner_desplazamiento_grados(&c, CAL_LADO_DERECHA, 5) == CAL_ERR_DATOS && cal_poner_desplazamiento_grados(&c, CAL_LADO_DERECHA, 361) == CAL_ERR_DATOS &&
+             cal_poner_desplazamiento_grados(&c, 0, 90) == CAL_ERR_ARGUMENTO && cal_poner_desplazamiento_grados(NULL, CAL_LADO_DERECHA, 90) == CAL_ERR_ARGUMENTO);
+
+        /* Calibraciones guardadas ANTES de que existiera el angulo (campo en 0): se suponen medidas a 90 grados y funcionan igual; con el campo en 0 la calibracion es valida. */
+        c.desp_grados_der = 0;
+        cal_desplazamiento_giro(&c, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+        caso("calibracion guardada sin el angulo (campo en 0): se supone medida a 90 grados, sigue siendo valida y da lo mismo (150, 165)",
+             cal_es_valida(&c) && cal_leer_desplazamiento_grados(&c, CAL_LADO_DERECHA) == 90 && valor_absoluto(f - 150) <= 1 && valor_absoluto(r - 165) <= 1);
+        c.desp_grados_der = CAL_DESP_GRADOS_REF;
+
+        /* Casos limite del modelo: nunca divide entre cero. */
+        {
+            CalibracionCarro l;
+            int rr;
+
+            cal_defecto(&l);
+            cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 3, 2, 90, &pa_um, &pd_um);
+            cal_poner_desplazamiento(&l, CAL_LADO_DERECHA, pa_um, pd_um);
+            hay = cal_pivote_punto(&l, CAL_LADO_DERECHA, &pf, &pr);
+            cal_desplazamiento_giro(&l, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+            caso("casi nulo (3 mm adelante y 2 de lado = 3.6 mm, menos de 5): no hay punto fijo, usa el modelo lineal y sigue dando 3 y 2 a los 90 grados (+-1 mm)",
+                 hay == 0 && pf == 0 && pr == 0 && valor_absoluto(f - 3) <= 1 && valor_absoluto(r - 2) <= 1);
+            cal_desplazamiento_giro(&l, CAL_LADO_DERECHA, 45, 0, NULL, NULL, &f, &r);
+            caso("... y a 45 grados la mitad (lineal): 1 y 1 mm (+-1)", valor_absoluto(f - 1) <= 1 && valor_absoluto(r - 1) <= 1);
+            for (rr = 0; rr < 3; rr++) {   /* ángulos de la medida donde 2 - 2 cos(θ) es casi 0 o 0: 10, 350 (aún válido) y 360 */
+                static const int ANG[3] = { 10, 350, 360 };
+
+                cal_defecto(&l);
+                cal_poner_desplazamiento(&l, CAL_LADO_DERECHA, 2000, 500);
+                cal_poner_desplazamiento_grados(&l, CAL_LADO_DERECHA, ANG[rr]);
+                cal_desplazamiento_giro(&l, CAL_LADO_DERECHA, 90, 0, NULL, NULL, &f, &r);
+                if (valor_absoluto(f) > 5000 || valor_absoluto(r) > 5000) {
+                    finito = 0;
+                }
+            }
+            caso("angulos de la medida 10, 350 y 360 grados (2 - 2 cos(θ) casi 0 o 0): usa el modelo lineal, finito y razonable, sin dividir entre cero", finito);
+            cal_defecto(&l);
+            caso("sin desplazamiento (ceros): sin punto fijo y todo 0", cal_pivote_punto(&l, CAL_LADO_DERECHA, &pf, &pr) == 0 && (cal_desplazamiento_giro(&l, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &f, &r), dx == 0 && dy == 0 && f == 0 && r == 0));
+        }
+
+        /* El lado SIN MEDIR usa el espejo del otro. */
+        cal_defecto(&c);
+        cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_um, &pd_um);
+        cal_poner_desplazamiento(&c, CAL_LADO_DERECHA, pa_um, pd_um);
+        caso("espejo: con solo la derecha medida, la izquierda es el espejo de la derecha y la derecha es propia",
+             cal_desplazamiento_es_espejo(&c, CAL_LADO_IZQUIERDA) == 1 && cal_desplazamiento_es_espejo(&c, CAL_LADO_DERECHA) == 0);
+        cal_desplazamiento_giro(&c, CAL_LADO_IZQUIERDA, 90, 0, &dx, &dy, &f, &r);
+        caso("... y un giro de 90 a la izquierda mirando arriba mueve el centro 15 cm arriba y 16.5 cm a la izquierda: (-165, -150) en el mapa (+-2 mm)",
+             valor_absoluto(dx + 165) <= 2 && valor_absoluto(dy + 150) <= 2 && valor_absoluto(f - 150) <= 2 && valor_absoluto(r + 165) <= 2);
+        cal_pivote_punto(&c, CAL_LADO_IZQUIERDA, &pf, &pr);
+        caso("... y su punto fijo queda 15.8 cm a la IZQUIERDA del centro (sobre las ruedas de la izquierda)", valor_absoluto(pf + 8) <= 2 && valor_absoluto(pr + 158) <= 2);
+        cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, 100, -120, 90, &ia_um, &id_um);
+        cal_poner_desplazamiento(&c, CAL_LADO_IZQUIERDA, ia_um, id_um);
+        cal_desplazamiento_giro(&c, CAL_LADO_IZQUIERDA, 90, 0, NULL, NULL, &f, &r);
+        caso("con la izquierda medida (100 adelante, 120 a la izquierda) ya no es espejo y usa su propia medida",
+             cal_desplazamiento_es_espejo(&c, CAL_LADO_IZQUIERDA) == 0 && valor_absoluto(f - 100) <= 1 && valor_absoluto(r + 120) <= 1);
+        cal_defecto(&c);
+        cal_poner_desplazamiento(&c, CAL_LADO_IZQUIERDA, 1000, 200);
+        caso("espejo al reves: con solo la izquierda medida la derecha es su espejo", cal_desplazamiento_es_espejo(&c, CAL_LADO_DERECHA) == 1 && cal_desplazamiento_es_espejo(&c, CAL_LADO_IZQUIERDA) == 0);
+        cal_defecto(&c);
+        caso("sin ninguna medida no hay espejo", cal_desplazamiento_es_espejo(&c, CAL_LADO_IZQUIERDA) == 0 && cal_desplazamiento_es_espejo(&c, CAL_LADO_DERECHA) == 0 && cal_desplazamiento_es_espejo(NULL, 1) == 0);
+
+        /* pose tras el giro y su inversa */
+        cal_defecto(&c);
+        cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_um, &pd_um);
+        cal_poner_desplazamiento(&c, CAL_LADO_DERECHA, pa_um, pd_um);
+        antes.x_mm = 1000;
+        antes.y_mm = 2000;
+        antes.rumbo_grados = 0;
+        cal_pose_tras_giro(&c, &antes, CAL_LADO_DERECHA, 90, &despues);
+        caso("pose tras giro: de (1000, 2000) mirando arriba, 90 a la derecha: (1165, 1850) mirando a la derecha (+-2 mm)",
+             valor_absoluto(despues.x_mm - 1165) <= 2 && valor_absoluto(despues.y_mm - 1850) <= 2 && despues.rumbo_grados == 90);
+        cal_pose_antes_del_giro(&c, &despues, CAL_LADO_DERECHA, 90, &vuelta);
+        caso("pose antes del giro (la inversa): de (1165, 1850) mirando a la derecha vuelve a (1000, 2000) mirando arriba (+-1 mm)",
+             valor_absoluto(vuelta.x_mm - 1000) <= 1 && valor_absoluto(vuelta.y_mm - 2000) <= 1 && vuelta.rumbo_grados == 0);
+        for (rumbo = 0; rumbo < 4; rumbo++) {
+            for (grados = 0; grados < 5; grados++) {
+                for (lado = -1; lado <= 1; lado += 2) {
+                    antes.x_mm = 1234;
+                    antes.y_mm = -567;
+                    antes.rumbo_grados = RUMBOS_INV[rumbo];
+                    cal_pose_tras_giro(&c, &antes, lado, GRADOS_INV[grados], &despues);
+                    cal_pose_antes_del_giro(&c, &despues, lado, GRADOS_INV[grados], &vuelta);
+                    if (valor_absoluto(vuelta.x_mm - antes.x_mm) > 1 || valor_absoluto(vuelta.y_mm - antes.y_mm) > 1 || vuelta.rumbo_grados != antes.rumbo_grados) {
+                        bien_inversa = 0;
+                    }
+                }
+            }
+        }
+        caso("la inversa deshace el giro con 4 rumbos iniciales, 5 angulos y los 2 lados (+-1 mm)", bien_inversa);
+        caso("pose: punteros nulos no hacen nada", (cal_pose_tras_giro(&c, NULL, 1, 90, &despues), cal_pose_antes_del_giro(&c, &despues, 1, 90, NULL), 1));
     }
 
     /* ── Dos repeticiones por lado: se aceptan si difieren 30 % o menos O 1 cm o menos (la mayor de las dos tolerancias) ── */

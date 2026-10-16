@@ -154,6 +154,8 @@ void cal_defecto(CalibracionCarro *cal)
     cal->desp_derecha_izq_um = 0;
     cal->desp_adelante_der_um = 0;
     cal->desp_derecha_der_um = 0;
+    cal->desp_grados_izq = CAL_DESP_GRADOS_REF;   /* el ángulo con el que se supone medido (el giro de prueba de siempre) */
+    cal->desp_grados_der = CAL_DESP_GRADOS_REF;
 }
 
 int cal_es_valida(const CalibracionCarro *cal)
@@ -174,7 +176,9 @@ int cal_es_valida(const CalibracionCarro *cal)
            en_rango(cal->desp_adelante_izq_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
            en_rango(cal->desp_derecha_izq_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
            en_rango(cal->desp_adelante_der_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
-           en_rango(cal->desp_derecha_der_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX);
+           en_rango(cal->desp_derecha_der_um, -CAL_DESP_UM_MAX, CAL_DESP_UM_MAX) &&
+           (cal->desp_grados_izq == 0 || en_rango(cal->desp_grados_izq, 10, 360)) &&
+           (cal->desp_grados_der == 0 || en_rango(cal->desp_grados_der, 10, 360));
 }
 
 int cal_faltantes(const CalibracionCarro *cal)
@@ -1034,35 +1038,237 @@ int cal_desplazamiento_promedio(const int *adelante_um, const int *derecha_um, i
     return CAL_OK;
 }
 
+/* ── Modelo de pivote ──────────────────────────────────────────────────────
+ * Todo en enteros de 64 bits (µm x milésimas se pasa de 32 bits con desplazamientos grandes). */
+
+/* División entera redondeada al más cercano, con signo (b > 0). */
+static long long dividir_grande(long long a, long long b)
+{
+    return (a >= 0) ? (a + b / 2) / b : -((-a + b / 2) / b);
+}
+
+static long long raiz_grande(long long valor)
+{
+    long long x = 0, paso = 1LL << 60;
+
+    if (valor <= 0) {
+        return 0;
+    }
+    while (paso > valor) {
+        paso >>= 2;
+    }
+    while (paso != 0) {
+        if (valor >= x + paso) {
+            valor -= x + paso;
+            x = (x >> 1) + paso;
+        } else {
+            x >>= 1;
+        }
+        paso >>= 2;
+    }
+    return x;
+}
+
+static int grados_de_prueba(int grados)
+{
+    return en_rango(grados, 10, 360) ? grados : CAL_DESP_GRADOS_REF;
+}
+
+/* El vector (µm por grado, en el marco de mitad de giro) y el ángulo de la medida que se usa para ese lado. Si el lado no tiene medida propia (sus dos valores en 0) y el otro sí,
+ * toma el espejo del otro: adelante igual y de lado al revés. `espejo` dice si se tomó el espejo. */
+static void vector_del_lado(const CalibracionCarro *cal, int lado, int *adelante_um, int *derecha_um, int *grados_ref, int *espejo)
+{
+    int a = 0, d = 0, g = CAL_DESP_GRADOS_REF, e = 0;
+
+    if (cal != NULL && lado_valido(lado)) {
+        int oa, od, og;
+
+        a = (lado == CAL_LADO_IZQUIERDA) ? cal->desp_adelante_izq_um : cal->desp_adelante_der_um;
+        d = (lado == CAL_LADO_IZQUIERDA) ? cal->desp_derecha_izq_um : cal->desp_derecha_der_um;
+        g = grados_de_prueba((lado == CAL_LADO_IZQUIERDA) ? cal->desp_grados_izq : cal->desp_grados_der);
+        oa = (lado == CAL_LADO_IZQUIERDA) ? cal->desp_adelante_der_um : cal->desp_adelante_izq_um;
+        od = (lado == CAL_LADO_IZQUIERDA) ? cal->desp_derecha_der_um : cal->desp_derecha_izq_um;
+        og = grados_de_prueba((lado == CAL_LADO_IZQUIERDA) ? cal->desp_grados_der : cal->desp_grados_izq);
+        if (a == 0 && d == 0 && (oa != 0 || od != 0)) {
+            a = oa;
+            d = -od;
+            g = og;
+            e = 1;
+        }
+    }
+    *adelante_um = a;
+    *derecha_um = d;
+    *grados_ref = g;
+    *espejo = e;
+}
+
+/* Pasa un vector del marco de mitad de giro (rumbo medio = lado x medio ángulo) al marco inicial del giro (es la rotación contraria de cal_desplazamiento_de_medida). µm. */
+static void de_mitad_a_inicial(int lado, int grados, long long adelante_um, long long derecha_um, long long *f0, long long *r0)
+{
+    int medio = lado * (grados / 2);
+
+    *f0 = dividir_grande(adelante_um * coseno_mil(medio) - derecha_um * seno_mil(medio), 1000);
+    *r0 = dividir_grande(adelante_um * seno_mil(medio) + derecha_um * coseno_mil(medio), 1000);
+}
+
+/* El punto fijo, como el vector del PUNTO FIJO AL CENTRO (v), en µm y en el marco inicial «espejado» a la derecha (r positiva = hacia el lado del giro). Devuelve 1 si se pudo calcular.
+ * Con el desplazamiento medido (df, dr) en `ref` grados: (R - I) v = D, donde R es la rotación horaria de `ref` grados; despejando v = (R - I)^-1 D. */
+static int vector_pivote(const CalibracionCarro *cal, int lado, long long *vf, long long *vr, long long *f0_medido, long long *r0_medido, int *espejo)
+{
+    int a, d, ref, c, s;
+    long long df, dr, det, total;
+
+    vector_del_lado(cal, lado, &a, &d, &ref, espejo);
+    de_mitad_a_inicial(lado, ref, (long long)a * ref, (long long)d * ref, &df, &dr);
+    *f0_medido = df;
+    *r0_medido = dr;
+    dr *= lado;   /* espejo: un giro a la izquierda se calcula como uno a la derecha con el lado cambiado */
+    total = raiz_grande(df * df + dr * dr);
+    if ((a == 0 && d == 0) || ref < CAL_PIVOTE_REF_MIN || ref > CAL_PIVOTE_REF_MAX || total < (long long)CAL_PIVOTE_MIN_MM * 1000) {
+        *vf = 0;
+        *vr = 0;
+        return 0;
+    }
+    c = coseno_mil(ref);
+    s = seno_mil(ref);
+    det = 2000 - 2 * (long long)c;   /* 2 - 2 cos(ref), en milésimas: 4 sen^2(ref/2) */
+    *vf = dividir_grande((long long)(c - 1000) * df + (long long)s * dr, det);
+    *vr = dividir_grande(-(long long)s * df + (long long)(c - 1000) * dr, det);
+    if (raiz_grande(*vf * *vf + *vr * *vr) > (long long)CAL_PIVOTE_RADIO_MAX_MM * 1000) {   /* un punto fijo a más de 60 cm del centro no tiene sentido en este carro: el dato está mal */
+        *vf = 0;
+        *vr = 0;
+        return 0;
+    }
+    return 1;
+}
+
+/* El desplazamiento del centro (µm, marco inicial del giro) en un giro de `grados` hacia `lado`. */
+static void desplazamiento_inicial(const CalibracionCarro *cal, int lado, int grados, long long *f_um, long long *r_um)
+{
+    long long vf, vr, f0, r0;
+    int espejo;
+
+    if (vector_pivote(cal, lado, &vf, &vr, &f0, &r0, &espejo)) {
+        int c = coseno_mil(grados), s = seno_mil(grados);
+
+        /* D(θ) = (R(θ) - I) v: gira el vector del punto fijo al centro y se queda con lo que se movió. */
+        *f_um = dividir_grande((long long)(c - 1000) * vf - (long long)s * vr, 1000);
+        *r_um = lado * dividir_grande((long long)s * vf + (long long)(c - 1000) * vr, 1000);
+    } else {
+        int a, d, ref, e;
+
+        /* Sin punto fijo (casi nulo, o el ángulo de la medida es muy chico o muy grande): modelo lineal, µm por grado en el marco de mitad de giro. */
+        vector_del_lado(cal, lado, &a, &d, &ref, &e);
+        de_mitad_a_inicial(lado, grados, (long long)a * grados, (long long)d * grados, f_um, r_um);
+    }
+}
+
+int cal_poner_desplazamiento_grados(CalibracionCarro *cal, int lado, int grados)
+{
+    if (cal == NULL || !lado_valido(lado)) {
+        return CAL_ERR_ARGUMENTO;
+    }
+    if (!en_rango(grados, 10, 360)) {
+        return CAL_ERR_DATOS;
+    }
+    if (lado == CAL_LADO_IZQUIERDA) {
+        cal->desp_grados_izq = grados;
+    } else {
+        cal->desp_grados_der = grados;
+    }
+    return CAL_OK;
+}
+
+int cal_leer_desplazamiento_grados(const CalibracionCarro *cal, int lado)
+{
+    int a, d, g, e;
+
+    vector_del_lado(cal, lado, &a, &d, &g, &e);
+    if (cal != NULL && lado_valido(lado)) {
+        g = grados_de_prueba((lado == CAL_LADO_IZQUIERDA) ? cal->desp_grados_izq : cal->desp_grados_der);   /* el propio, aunque se use el espejo */
+    }
+    return g;
+}
+
+int cal_desplazamiento_es_espejo(const CalibracionCarro *cal, int lado)
+{
+    int a, d, g, e;
+
+    vector_del_lado(cal, lado, &a, &d, &g, &e);
+    return e;
+}
+
+int cal_pivote_punto(const CalibracionCarro *cal, int lado, int *adelante_mm, int *derecha_mm)
+{
+    long long vf, vr, f0, r0;
+    int espejo, hay;
+
+    hay = vector_pivote(cal, lado, &vf, &vr, &f0, &r0, &espejo);
+    if (adelante_mm != NULL) {
+        *adelante_mm = hay ? (int)dividir_grande(-vf, 1000) : 0;       /* el punto fijo respecto del centro es lo contrario del vector del punto fijo al centro */
+    }
+    if (derecha_mm != NULL) {
+        *derecha_mm = hay ? (int)dividir_grande(-vr * lado, 1000) : 0;
+    }
+    return hay;
+}
+
 void cal_desplazamiento_giro(const CalibracionCarro *cal, int lado, int grados, int rumbo_inicial,
                              int *dx_mm, int *dy_mm, int *adelante_mm, int *derecha_mm)
 {
-    int adelante_um = 0, derecha_um = 0, medio;
-    long f_um, d_um, dx_um, dy_um, a_um, r_um;
+    long long f_um = 0, r_um = 0, dx_um, dy_um;
 
-    cal_leer_desplazamiento(cal, lado, &adelante_um, &derecha_um);
     if (grados < 0) {
         grados = -grados;
     }
-    medio = rumbo_inicial + (lado_valido(lado) ? lado * (grados / 2) : 0);
-    f_um = (long)adelante_um * grados;      /* µm que se movió hacia adelante y hacia la derecha, en el marco del carro a mitad del giro */
-    d_um = (long)derecha_um * grados;
+    if (lado_valido(lado)) {
+        desplazamiento_inicial(cal, lado, grados, &f_um, &r_um);
+    }
     /* Al mapa (x a la derecha, y hacia abajo; rumbo 0 = arriba): adelante = (sen, -cos), derecha = (cos, sen). */
-    dx_um = (f_um * seno_mil(medio) + d_um * coseno_mil(medio)) / 1000;
-    dy_um = (-f_um * coseno_mil(medio) + d_um * seno_mil(medio)) / 1000;
-    /* Y en el marco del carro AL EMPEZAR el giro (rumbo_inicial), que es el que se mide con la cinta. */
-    a_um = (dx_um * seno_mil(rumbo_inicial) - dy_um * coseno_mil(rumbo_inicial)) / 1000;
-    r_um = (dx_um * coseno_mil(rumbo_inicial) + dy_um * seno_mil(rumbo_inicial)) / 1000;
+    dx_um = dividir_grande(f_um * seno_mil(rumbo_inicial) + r_um * coseno_mil(rumbo_inicial), 1000);
+    dy_um = dividir_grande(-f_um * coseno_mil(rumbo_inicial) + r_um * seno_mil(rumbo_inicial), 1000);
     if (dx_mm != NULL) {
-        *dx_mm = (int)dividir_con_signo(dx_um, 1000);
+        *dx_mm = (int)dividir_grande(dx_um, 1000);
     }
     if (dy_mm != NULL) {
-        *dy_mm = (int)dividir_con_signo(dy_um, 1000);
+        *dy_mm = (int)dividir_grande(dy_um, 1000);
     }
     if (adelante_mm != NULL) {
-        *adelante_mm = (int)dividir_con_signo(a_um, 1000);
+        *adelante_mm = (int)dividir_grande(f_um, 1000);
     }
     if (derecha_mm != NULL) {
-        *derecha_mm = (int)dividir_con_signo(r_um, 1000);
+        *derecha_mm = (int)dividir_grande(r_um, 1000);
     }
+}
+
+void cal_pose_tras_giro(const CalibracionCarro *cal, const PoseCarro *antes, int lado, int grados, PoseCarro *despues)
+{
+    int dx = 0, dy = 0, g = (grados < 0) ? -grados : grados;
+    PoseCarro p;
+
+    if (antes == NULL || despues == NULL) {
+        return;
+    }
+    p = *antes;
+    cal_desplazamiento_giro(cal, lado, g, p.rumbo_grados, &dx, &dy, NULL, NULL);
+    p.x_mm += dx;
+    p.y_mm += dy;
+    p.rumbo_grados = (((p.rumbo_grados + (lado_valido(lado) ? lado * g : 0)) % 360) + 360) % 360;
+    *despues = p;
+}
+
+void cal_pose_antes_del_giro(const CalibracionCarro *cal, const PoseCarro *despues, int lado, int grados, PoseCarro *antes)
+{
+    int dx = 0, dy = 0, g = (grados < 0) ? -grados : grados;
+    PoseCarro p;
+
+    if (antes == NULL || despues == NULL) {
+        return;
+    }
+    p = *despues;
+    p.rumbo_grados = (((p.rumbo_grados - (lado_valido(lado) ? lado * g : 0)) % 360) + 360) % 360;   /* el rumbo con el que empezó el giro */
+    cal_desplazamiento_giro(cal, lado, g, p.rumbo_grados, &dx, &dy, NULL, NULL);
+    p.x_mm -= dx;
+    p.y_mm -= dy;
+    *antes = p;
 }

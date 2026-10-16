@@ -2296,10 +2296,239 @@ static void pruebas_ruta_derecha_40cm(void)
          hay_diag("RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=250 hecho=25"));
 }
 
+/* ── Casos: plan con pivote (J8) ──────────────────────────────────────────────────────────────────────────────────────────────
+ * Todos los giros del esquive y de la vuelta a la línea se planean con el desplazamiento del giro (modelo de pivote medido: 15 cm adelante y 16.5 cm a la derecha en un giro de 90 a la
+ * derecha; la izquierda es el espejo mientras no se mida). El carro simulado usa el MISMO modelo. Recorre la ruta LARGA (6 m recta hacia arriba) con un obstáculo al frente. */
+
+/* Lo que se vio en las líneas de diagnóstico de una corrida. */
+typedef struct {
+    int espejo_aviso;      /* TURN_DIAG con aviso=espejo_estimado */
+    int espejo_comenzar;   /* el aviso de «estimada como espejo» al comenzar la ruta */
+    int cambia_de_lado;    /* ESQUIVE_DIAG plan cambia_de_lado */
+    int correcciones;      /* REINC_DIAG correccion n= */
+    int tramo_100;         /* ESQUIVE_DIAG tramo ... tramo_mm=100 */
+    int sin_solucion;      /* REINC_DIAG sin_solucion */
+    int agotada;           /* REINC_DIAG correccion_agotada */
+    int correcciones_rumbo;   /* REINC_DIAG correccion_rumbo (el rumbo quedo a 4 grados o mas de la linea: los giros por tiempo salen de a 5 grados) */
+} MarcasPlan;
+
+static MarcasPlan marcas_plan;
+
+static void vigilar_marcas(void)
+{
+    char linea[NAV_DIAG_LARGO];
+
+    while (navegador_diag_siguiente(&nav, linea, sizeof linea)) {
+        marcas_plan.espejo_aviso += (strstr(linea, "TURN_DIAG lado=") != NULL && strstr(linea, "aviso=espejo_estimado") != NULL);
+        marcas_plan.espejo_comenzar += (strstr(linea, "estimada_como_espejo_de_la_") != NULL);
+        marcas_plan.cambia_de_lado += (strstr(linea, "ESQUIVE_DIAG plan cambia_de_lado") != NULL);
+        marcas_plan.correcciones += (strstr(linea, "REINC_DIAG correccion n=") != NULL);
+        marcas_plan.tramo_100 += (strstr(linea, "ESQUIVE_DIAG tramo") != NULL && strstr(linea, "tramo_mm=100 ") != NULL);
+        marcas_plan.sin_solucion += (strstr(linea, "REINC_DIAG sin_solucion") != NULL);
+        marcas_plan.agotada += (strstr(linea, "REINC_DIAG correccion_agotada") != NULL);
+        marcas_plan.correcciones_rumbo += (strstr(linea, "REINC_DIAG correccion_rumbo") != NULL);
+    }
+}
+
+/* Prepara el carro REAL (simulado) y el navegador con el mismo pivote: la derecha con 15 cm adelante y 16.5 cm a la derecha por `escala_pct` por ciento; la izquierda, si `izq_pct` no es 0,
+ * con el espejo medido por `izq_pct` por ciento (si es 0 queda sin medir: el modelo usa el espejo de la derecha). */
+static void preparar_plan_pivote(const Punto *ruta, int n, int escala_pct, int izq_pct, int ayuda)
+{
+    CalibracionCarro real;
+    int pa, pd, ia, id;
+
+    cal_defecto(&real);
+    if (escala_pct > 0) {
+        cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150 * escala_pct / 100, 165 * escala_pct / 100, 90, &pa, &pd);
+        cal_poner_desplazamiento(&real, CAL_LADO_DERECHA, pa, pd);
+    }
+    if (izq_pct > 0) {
+        cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, 150 * izq_pct / 100, -165 * izq_pct / 100, 90, &ia, &id);
+        cal_poner_desplazamiento(&real, CAL_LADO_IZQUIERDA, ia, id);
+    }
+    memset(&marcas_plan, 0, sizeof marcas_plan);
+    navegador_iniciar(&nav);
+    navegador_poner_calibracion(&nav, &real);
+    navegador_poner_pedir_ayuda(&nav, ayuda);
+    navegador_cargar_ruta(&nav, ruta, n);
+    sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+    sim.real = real;
+    navegador_comenzar(&nav, 0);
+    vigilar_marcas();
+}
+
+/* Rumbo del carro REAL respecto de la línea (hacia arriba = 0): de -180 a 180. */
+static int error_rumbo_real(void)
+{
+    int r = sim_rumbo_grados(&sim);
+
+    return (r > 180) ? r - 360 : r;
+}
+
+/* Corre hasta que el navegador termina, da ERROR o pide AYUDA (o pasa el límite). */
+static void correr_hasta_el_final(uint32_t limite_ms)
+{
+    uint32_t t0 = sim.t_ms;
+
+    while (sim.t_ms - t0 < limite_ms && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && nav.estado != NAV_AYUDA) {
+        correr(NAV_TICK_MS);
+        vigilar_marcas();
+    }
+}
+
+/* Un esquive completo con el obstáculo al centro y, si `zona_extra` es ZONA_IZQUIERDA o ZONA_DERECHA, también en esa zona (para que se aparte al otro lado). Devuelve 1 si terminó
+ * bien: TERMINADO con una esquivada, a 10 cm o menos de la línea y con el rumbo de la línea (+-5 grados). Escribe cuánto quedó de la línea (mm) y de rumbo (grados). */
+static int esquive_con_pivote(int escala_pct, int izq_pct, int zona_extra, int cercania, int *distancia_mm, int *rumbo_error)
+{
+    preparar_plan_pivote(LARGA, N(LARGA), escala_pct, izq_pct, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, cercania);
+    if (zona_extra >= 0) {
+        sim_agregar_obstaculo(&sim, 1500, 2800, zona_extra, 1);
+    }
+    correr_hasta_el_final(170000);
+    *distancia_mm = distancia_a_la_ruta(LARGA, N(LARGA));
+    *rumbo_error = error_rumbo_real();
+    return nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && *distancia_mm <= 100 && valor_absoluto(*rumbo_error) <= 5;
+}
+
+/* Corre hasta el final y, cuando la vuelta a la línea llega a una pausa (termina el giro 1, el avance o el giro 2), le mueve la pose a los dos (la estimada y la real) `dx_mm` hacia la
+ * izquierda: es como si una corrección externa (la cámara) dijera que el carro está ahí. Si `cada_pausa` es 1 lo hace en todas las pausas; si es 0, UNA sola vez, en la de después del avance. */
+static void correr_con_empujon(int dx_mm, int cada_pausa, uint32_t limite_ms)
+{
+    uint32_t t0 = sim.t_ms, ultima = 0xFFFFFFFFu;
+    int empujado = 0;
+
+    while (sim.t_ms - t0 < limite_ms && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && nav.estado != NAV_AYUDA) {
+        correr(NAV_TICK_MS);
+        vigilar_marcas();
+        if (nav.estado == NAV_REINCORPORANDO && ((cada_pausa && (nav.reinc_fase == NAV_RF_PAUSA1 || nav.reinc_fase == NAV_RF_PAUSA2 || nav.reinc_fase == NAV_RF_PAUSA3)) ||
+                                                 (!cada_pausa && nav.reinc_fase == NAV_RF_PAUSA2)) && nav.reinc_t_fase_ms != ultima && nav.ms_fase == 0 && nav.cmd_actual == NAV_CMD_STOP && (cada_pausa || !empujado)) {
+            ultima = nav.reinc_t_fase_ms;
+            empujado = 1;
+            nav.x_mm -= dx_mm;
+            nav.base_x_mm -= dx_mm;
+            sim.x_cmm -= (long)dx_mm * 100;
+        }
+    }
+}
+
+static void pruebas_plan_pivote(void)
+{
+    int dist, rumbo, ok, d_centro, d_izq, d_der, d_cero, d_doble, d_propia;
+
+    /* ── Esquive completo con el pivote real, derecha medida e izquierda = espejo ── */
+    ok = esquive_con_pivote(100, 0, -1, 3, &dist, &rumbo);
+    d_centro = dist;
+    caso("plan con pivote, obstaculo al centro: llega (TERMINADO, 1 esquivada), a 10 cm o menos de la linea y con el rumbo de la linea (+-5 grados)", ok);
+    caso("... la pose estimada coincide con la real (+-3 cm)", valor_absoluto(nav.x_mm - sim_x_mm(&sim)) <= 30 && valor_absoluto(nav.y_mm - sim_y_mm(&sim)) <= 30);
+    caso("... el tramo de lado se planeo con el desplazamiento de los giros: 40 cm de margen - 16.5 (apartarse) - 15 (enderezarse) = 8.5 cm, y el minimo es 10 cm",
+         marcas_plan.tramo_100 >= 1);
+    caso("... y avisa que la izquierda es el espejo de la derecha: al comenzar y en el TURN_DIAG de los giros a la izquierda", marcas_plan.espejo_comenzar == 1 && marcas_plan.espejo_aviso >= 1);
+    printf("      obstaculo al centro (derecha medida, izquierda espejo): %d mm de la linea, rumbo %d (correcciones de rumbo: %d)\n", dist, rumbo, marcas_plan.correcciones_rumbo);
+
+    ok = esquive_con_pivote(100, 0, ZONA_IZQUIERDA, 3, &dist, &rumbo);
+    d_izq = dist;
+    caso("plan con pivote, obstaculo a la izquierda (y al centro): se aparta a la derecha, llega a 10 cm o menos de la linea y con el rumbo de la linea (+-5 grados)", ok && nav.lado == 1);
+    printf("      obstaculo a la izquierda (se aparta a la derecha, medida propia): %d mm de la linea, rumbo %d\n", dist, rumbo);
+
+    ok = esquive_con_pivote(100, 0, ZONA_DERECHA, 3, &dist, &rumbo);
+    d_der = dist;
+    caso("plan con pivote, obstaculo a la derecha (y al centro): se aparta a la izquierda (espejo), llega a 10 cm o menos de la linea y con el rumbo de la linea (+-5 grados)", ok && nav.lado == -1);
+    printf("      obstaculo a la derecha (se aparta a la izquierda, espejo): %d mm de la linea, rumbo %d\n", dist, rumbo);
+
+    ok = esquive_con_pivote(100, 100, -1, 3, &dist, &rumbo);
+    d_propia = dist;
+    caso("... con la izquierda medida (sin espejo) tambien llega bien y NO avisa de espejo", ok && marcas_plan.espejo_comenzar == 0 && marcas_plan.espejo_aviso == 0);
+    printf("      obstaculo al centro (izquierda medida): %d mm de la linea, rumbo %d\n", dist, rumbo);
+
+    ok = esquive_con_pivote(0, 0, -1, 3, &dist, &rumbo);
+    d_cero = dist;
+    caso("plan con desplazamiento 0: el esquive de siempre sigue llegando a 10 cm o menos de la linea con el rumbo de la linea, sin avisos de espejo", ok && marcas_plan.espejo_comenzar == 0);
+    printf("      desplazamiento 0: %d mm de la linea, rumbo %d\n", dist, rumbo);
+
+    ok = esquive_con_pivote(200, 0, -1, 2, &dist, &rumbo);
+    d_doble = dist;
+    caso("plan con el doble de desplazamiento (30 cm adelante y 33 de lado, obstaculo a cercania 2): llega a 10 cm o menos de la linea con el rumbo de la linea (+-5 grados)", ok);
+    printf("      el doble de desplazamiento (30 y 33 cm): %d mm de la linea, rumbo %d\n", dist, rumbo);
+    (void)d_centro; (void)d_izq; (void)d_der; (void)d_cero; (void)d_doble; (void)d_propia;
+
+    /* ── Si no cabe: el otro lado o ayuda ── */
+    preparar_plan_pivote(LARGA, N(LARGA), 200, 0, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr_hasta_el_final(30000);
+    {
+        char texto[300];
+
+        navegador_texto_error(&nav, texto, sizeof texto);
+        caso("no cabe: con el doble de desplazamiento y el obstaculo a cercania 3 (menos de 30 cm) el giro de salida mueve el centro 30 cm adelante y solo hay 20 libres: pide AYUDA (no gira)",
+             nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_ARCO && nav.esquivadas == 0 && strstr(texto, "30 cm hacia adelante") != NULL && strstr(texto, "20 cm libres") != NULL);
+        printf("      texto: %s\n", texto);
+    }
+    caso("... y no se movio mas que el frenado antes de pedirla (menos de 5 cm de giro: el rumbo sigue en 0)", valor_absoluto(error_rumbo_real()) <= 2);
+    preparar_plan_pivote(LARGA, N(LARGA), 200, 0, 0);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr_hasta_el_final(30000);
+    caso("... sin pedir ayuda activada da ERROR con la misma causa", nav.estado == NAV_ERROR && nav.error_causa == NAV_CAUSA_ARCO);
+
+    {   /* La izquierda mide el doble (no cabe) y la derecha lo normal (cabe): con el centro tapado elige la izquierda por costumbre, ve que no cabe y se aparta a la derecha. */
+        preparar_plan_pivote(LARGA, N(LARGA), 100, 200, 1);
+        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        correr_hasta_el_final(170000);
+        dist = distancia_a_la_ruta(LARGA, N(LARGA));
+        caso("no cabe a la izquierda (30 cm adelante) pero si a la derecha (15 cm): cambia de lado, se aparta a la derecha y llega a 10 cm o menos de la linea",
+             marcas_plan.cambia_de_lado == 1 && nav.estado == NAV_TERMINADO && nav.lado == 1 && dist <= 100 && valor_absoluto(error_rumbo_real()) <= 5);
+        printf("      cambia de lado: %d mm de la linea\n", dist);
+    }
+
+    /* ── Red de seguridad ── */
+    preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    nav.sin_red_seguridad = 1;
+    correr_con_empujon(120, 0, 170000);
+    dist = distancia_a_la_ruta(LARGA, N(LARGA));
+    caso("sin red de seguridad, un empujon de 12 cm a la pose en plena vuelta se queda: termina a mas de 10 cm de la linea", nav.estado == NAV_TERMINADO && dist > 100 && marcas_plan.correcciones == 0);
+    printf("      sin red de seguridad, empujon de 12 cm: %d mm de la linea\n", dist);
+    {
+        int sin_red = dist;
+
+        preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
+        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        correr_con_empujon(120, 0, 170000);
+        dist = distancia_a_la_ruta(LARGA, N(LARGA));
+        caso("con red de seguridad el mismo empujon se corrige: vuelve a planear (1 correccion) y termina a 10 cm o menos de la linea con el rumbo de la linea (+-5 grados)",
+             nav.estado == NAV_TERMINADO && marcas_plan.correcciones == 1 && dist <= 100 && valor_absoluto(error_rumbo_real()) <= 5 && dist < sin_red);
+        printf("      con red de seguridad, empujon de 12 cm: %d mm de la linea (1 correccion)\n", dist);
+    }
+    preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr_con_empujon(60, 0, 170000);
+    caso("un empujon de 6 cm (menos de 8) no dispara la red: no vuelve a planear", nav.estado == NAV_TERMINADO && marcas_plan.correcciones == 0);
+
+    preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr_con_empujon(120, 1, 170000);
+    {
+        char texto[300];
+
+        navegador_texto_error(&nav, texto, sizeof texto);
+        caso("si en cada tramo hay un empujon de 12 cm, tras 4 correcciones se agota la red, para y pide AYUDA con la causa", nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_CORRECCIONES &&
+             marcas_plan.correcciones == NAV_PLAN_CORRECCIONES && marcas_plan.agotada == 1 && strstr(texto, "4 veces") != NULL);
+        printf("      texto: %s\n", texto);
+    }
+    caso("... y el carro esta quieto en AYUDA", nav.cmd_actual == NAV_CMD_STOP);
+
+    /* sin_solucion nunca debe aparecer en los esquives que si se planean */
+    preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
+    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    correr_hasta_el_final(170000);
+    caso("los esquives normales nunca terminan en 'sin solucion'", marcas_plan.sin_solucion == 0 && marcas_plan.agotada == 0);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
     pruebas_desplazamiento_al_girar();
+    pruebas_plan_pivote();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

@@ -131,6 +131,25 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PARALELO_FIN_MM        50    /* el tramo paralelo termina al menos esto antes del final de la ruta */
 #define NAV_PARALELO_MIN_MM        50    /* un tramo paralelo más corto que esto no se hace */
 
+/* PLAN CON PIVOTE (J8, ver docs/navegador.md, «Plan con pivote»). El carro gira de pivote: el centro se desplaza al girar (modelo de calibracion.h). Todos los giros del esquive y de la
+ * vuelta a la línea se PLANEAN con ese desplazamiento, no como giros en el sitio:
+ *   - giro hacia el objetivo: el ángulo α tal que, después de girar α y moverse por el pivote, el rumbo apunta al punto objetivo desde la posición nueva (iteración de punto fijo de
+ *     NAV_PLAN_ITERACIONES pasos y, si no converge, barrido de 1 grado); la distancia de avance se cuenta desde la posición posterior al giro;
+ *   - giro final al rumbo de la línea: el avance termina en el punto previo desde el que, tras ese giro con su desplazamiento, el centro cae sobre la línea (la inversa del modelo);
+ *   - tramo de lado del esquive: el margen lateral NAV_ESQ_MARGEN_LATERAL_MM del centro a la línea cuenta lo que se mueve el centro al girar para apartarse y al enderezarse;
+ *   - si no cabe (el giro de salida mueve el centro hacia adelante más de lo que hay libre, o la vuelta no tiene solución) elige el otro lado o pide ayuda;
+ *   - RED DE SEGURIDAD: tras cada tramo de la vuelta compara la pose estimada con la planeada y, si pasa de NAV_PLAN_ERROR_MM, vuelve a planear desde donde está (máximo
+ *     NAV_PLAN_CORRECCIONES veces; si se agotan, para y pide ayuda). */
+#define NAV_PLAN_ITERACIONES        5    /* pasos máximos de la iteración de punto fijo */
+#define NAV_PLAN_ERROR_MM          80    /* error de la pose estimada respecto del punto planeado a partir del cual se vuelve a planear (8 cm) */
+#define NAV_PLAN_CORRECCIONES       4    /* máximo de correcciones (nuevos planes) en una vuelta a la línea */
+#define NAV_PLAN_MAS_MM           200    /* si el punto de la línea no sirve, prueba NAV_PLAN_INTENTOS veces con un punto este tanto más adelante (una celda) */
+#define NAV_REINC_VERTICE_MIN_MM  150    /* el punto al que se vuelve (un centro de celda de la ruta) queda al menos esto por delante del carro */
+#define NAV_PLAN_INTENTOS           5
+#define NAV_ARCO_MARGEN_MM        100    /* colchón entre el desplazamiento hacia adelante del giro de salida y la cara del obstáculo */
+#define NAV_ESQ_MARGEN_LATERAL_MM (NAV_TRAMO_ESQUIVAR_CM * 10)   /* distancia lateral del centro a la línea al pasar el obstáculo (la de siempre: el tramo de lado de 40 cm) */
+#define NAV_ESQ_TRAMO_MIN_MM      100    /* el tramo de lado nunca es más corto que esto */
+
 /* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG y RUTA_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
  * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada).
  *  - RUTA_DIAG: una línea al ENVIAR cada comando de movimiento (FORWARD, REVERSE, LEFT o RIGHT) con lo pedido y la duración planeada, y otra al TERMINARLO con la duración real y lo
@@ -180,6 +199,9 @@ typedef enum {
 #define NAV_CAUSA_REINTENTOS             3   /* se agotaron los reintentos de esquive y el obstáculo seguía en el centro */
 #define NAV_CAUSA_PLAN                   4   /* no se pudo calcular el camino */
 #define NAV_CAUSA_SIN_VIDEO              5   /* la cámara dejó de mandar cuadros */
+#define NAV_CAUSA_ARCO                   6   /* el giro de salida mueve el centro más hacia adelante de lo que hay libre hasta el obstáculo (en los dos lados) */
+#define NAV_CAUSA_CORRECCIONES           7   /* se agotaron las correcciones de la vuelta a la línea y el carro seguía lejos del punto planeado */
+#define NAV_CAUSA_VUELTA                 8   /* la vuelta a la línea no tiene solución con los giros de pivote (el punto de la línea queda detrás o el plan no converge) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -323,6 +345,12 @@ typedef struct {
     int      reinc_antes_x_mm, reinc_antes_y_mm, reinc_antes_rumbo;   /* pose estimada al empezar a volver */
     int      volver_a_reinc;         /* 1 si lo que detuvo al carro ocurrió mientras avanzaba hacia la línea: al liberarse el frente vuelve a calcular la vuelta */
     int      reinc_pasar_primero;    /* 1 = esta vuelta solo endereza y avanza en paralelo hasta pasar el obstáculo; al terminar calcula la vuelta de verdad */
+    int      reinc_plan_x_mm[3], reinc_plan_y_mm[3];   /* posición PLANEADA al terminar el giro 1, el avance y el giro 2 (la red de seguridad la compara con la estimada) */
+    int      reinc_correcciones;     /* cuántas veces se volvió a planear esta vuelta (máximo NAV_PLAN_CORRECCIONES) */
+    int      reinc_rumbo_importa;    /* 1 = al terminar la vuelta el rumbo debe ser el de la línea (0 cuando el punto es el final de la ruta y se llega sin giro final) */
+    int      tramo_mm;               /* lo que avanza de lado esta esquivada (planeado al terminar de mirar, con el desplazamiento de los giros) */
+    int      sin_red_seguridad;      /* 1 = la red de seguridad de la vuelta está apagada (solo para comparar en las pruebas; por defecto 0 = activa) */
+    int      arco_adelante_mm, arco_libre_mm;   /* para el texto de NAV_CAUSA_ARCO: cuánto mueve el giro de salida el centro hacia adelante y cuánto había libre */
 
     /* Registro del comando de movimiento en curso (RUTA_DIAG) y de los giros de la ruta. */
     int cmd_pedido;              /* lo que se pidió al empezar el comando: grados (giros) o mm (avance y retroceso); 0 = no se pidió nada (a mano) */
@@ -391,6 +419,10 @@ int navegador_poner_requiere_camara(Navegador *nav, int activo);
 
 /* Activa (1) o desactiva (0) pedir ayuda en vez de dar ERROR cuando no puede esquivar (ver arriba, punto 7). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
 int navegador_poner_pedir_ayuda(Navegador *nav, int activo);
+
+/* Enciende (1, por defecto) o apaga (0) la red de seguridad de la vuelta a la línea: tras cada tramo compara la pose estimada con la planeada y, si pasa de NAV_PLAN_ERROR_MM, vuelve a planear.
+ * Apagarla sirve para ver en las pruebas qué aporta. Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
+int navegador_poner_red_seguridad(Navegador *nav, int activo);
 
 /* En AYUDA: el comando que el usuario quiere ahora (STOP, FORWARD, REVERSE, LEFT o RIGHT). Devuelve NAV_OK, NAV_ERR_ARGUMENTO o NAV_ERR_ESTADO (no está en AYUDA). */
 int navegador_ayuda_comando(Navegador *nav, ComandoNav comando);
