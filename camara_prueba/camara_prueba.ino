@@ -1608,7 +1608,10 @@ void setup()
   /* Avisa por qué se desconecta el WiFi (código de razón de ESP-IDF; 201 = no se encuentra la red). */
   WiFi.onEvent([](arduino_event_id_t ev, arduino_event_info_t info) {
     if (ev == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
-      razonDesconexion = (int)info.wifi_sta_disconnected.reason;
+      /* Las desconexiones que pedimos nosotros (WiFi.disconnect() en cada reintento) no son una caída de la red: no se anotan, para que /stats guarde la razón real (201, 200...). */
+      const int razon = (int)info.wifi_sta_disconnected.reason;
+      if (razon == WIFI_REASON_STA_LEAVING || razon == WIFI_REASON_ASSOC_LEAVE) return;
+      razonDesconexion = razon;
       desconexionMs = millis() ? millis() : 1;
       Serial.printf("[wifi] desconectado, razon %d (%s)\n", razonDesconexion, WiFi.disconnectReasonName((wifi_err_reason_t)razonDesconexion));
       reconexiones++;
