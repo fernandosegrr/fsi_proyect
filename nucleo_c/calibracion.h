@@ -264,8 +264,16 @@ int cal_validar_para_guardar(const CalibracionCarro *cal, int *lado_malo);
  * MEDIDA. El usuario marca el centro del carro con cinta, lo hace girar y mide cuánto se movió el centro en el marco de la POSICIÓN INICIAL del carro (adelante/atrás y
  * izquierda/derecha, en mm) y el ángulo que giró. cal_desplazamiento_de_medida lo pasa al marco de mitad de giro y lo divide entre los grados. */
 #define CAL_DESP_UM_MAX      2000   /* cada componente: de -2000 a 2000 µm por grado (2 mm por grado = 72 cm en un giro de 360°) */
-#define CAL_DESP_TOLERANCIA_PCT 30  /* dos repeticiones de la misma prueba no deben diferir más de este % (del mayor vector) */
-#define CAL_DESP_TOLERANCIA_UM  60  /* ...salvo que la diferencia sea chica en términos absolutos: 60 µm por grado son 5 mm en un giro de 90°, menos que lo que se puede medir con cinta (0.5 cm) */
+#define CAL_DESP_TOLERANCIA_PCT 30  /* dos repeticiones de la misma prueba se aceptan si difieren este % o menos del mayor desplazamiento... */
+#define CAL_DESP_TOLERANCIA_MM  10  /* ...O si difieren 1 cm o menos (con cinta no se mide mejor): vale la MAYOR de las dos tolerancias */
+
+/* Por qué dos repeticiones no coinciden: las dos que más se alejan, cuánto se movió el centro en cada una, la diferencia y la tolerancia que se aplicó. Todo en décimas de mm
+ * (15 = 1.5 cm) y calculado para el ángulo medio de las dos repeticiones. `i` y `j` son los números de repetición desde 1. */
+typedef struct {
+    int i, j;
+    int mov_i_mm10, mov_j_mm10;
+    int dif_mm10, limite_mm10;
+} CalDifDesp;
 
 /* Pone el vector de un lado (`lado` = CAL_LADO_*). CAL_ERR_RANGO si algún componente pasa de ±CAL_DESP_UM_MAX; CAL_ERR_ARGUMENTO si el lado no existe. */
 int cal_poner_desplazamiento(CalibracionCarro *cal, int lado, int adelante_um, int derecha_um);
@@ -278,9 +286,14 @@ void cal_leer_desplazamiento(const CalibracionCarro *cal, int lado, int *adelant
  * pasa de ±CAL_DESP_UM_MAX. */
 int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int grados, int *adelante_um, int *derecha_um);
 
-/* Promedia `n` repeticiones (de 2 a CAL_MAX_MUESTRAS) de un mismo lado, vector por vector. CAL_ERR_DIFIEREN si dos de ellas se alejan más de CAL_DESP_TOLERANCIA_PCT % del mayor de los dos
- * vectores (y más de CAL_DESP_TOLERANCIA_UM en valor absoluto): hay que repetir la prueba. Si hay error no escribe nada en las salidas. */
-int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um);
+/* Promedia `n` repeticiones (de 2 a CAL_MAX_MUESTRAS) de un mismo lado, vector por vector. `grados` es el ángulo que giró en cada repetición (para pasar la diferencia de µm por grado a cm
+ * en un giro de ese tamaño). Dos repeticiones se aceptan si la distancia entre sus desplazamientos es de CAL_DESP_TOLERANCIA_PCT % o menos del mayor, o de CAL_DESP_TOLERANCIA_MM o menos
+ * (la mayor de las dos tolerancias). Si no, CAL_ERR_DIFIEREN y, si `detalle` no es NULL, se llena con el par que más se aleja (para decirle al usuario el motivo exacto); las salidas no
+ * cambian. Hay que repetir la prueba, o decidir guardar el promedio de todos modos con cal_desplazamiento_promedio. */
+int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, const int *grados, int n, int *prom_adelante_um, int *prom_derecha_um, CalDifDesp *detalle);
+
+/* El promedio de las `n` repeticiones SIN comprobar que coincidan (la opción «guardar de todos modos»: la calibración queda menos confiable). CAL_ERR_ARGUMENTO si n no está entre 1 y CAL_MAX_MUESTRAS. */
+int cal_desplazamiento_promedio(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um);
 
 /* Cuánto se movió el centro durante un giro de `grados` (positivos, hacia `lado`) que empezó con el rumbo `rumbo_inicial` (grados, 0 = arriba, positivo a la derecha). Escribe, si
  * no son NULL: el desplazamiento en el mapa (dx a la derecha, dy hacia abajo, mm) y el desplazamiento en el marco del carro al empezar el giro (adelante y derecha, mm).

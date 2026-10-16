@@ -203,6 +203,17 @@ desplazamiento por grado del modelo; **`mm` el desplazamiento aplicado a este gi
 la cinta); `rumbo` de dónde a dónde. Con desplazamiento 0, `mm=(0,0)`. Para comparar con el carro real: mide con cinta lo que se movió el centro en un giro y compáralo con `carro_mm` de esa línea
 (`adb logcat -d -s TURN_DIAG:I`).
 
+**La calibración del desplazamiento también escribe `TURN_DIAG`** (`origen=calibracion`, una línea por repetición y por decisión) para ver POR QUÉ no avanzó o qué se guardó:
+
+```
+TURN_DIAG lado=DER origen=calibracion perfil=AUTO repeticion=1 resultado=guardada medida_mm=(0,15) grados=90 um_grado=(118,118) giro_ms=724 prueba="Giro de 90° real"
+TURN_DIAG lado=DER origen=calibracion perfil=AUTO resultado=rechazada motivo=difieren_mas_de_30pct_y_1cm rep_a=1 rep_b=2 mov_a_cm=1.5 mov_b_cm=3.5 dif_cm=2.0 tolerancia_cm=1.1
+TURN_DIAG lado=DER origen=calibracion perfil=AUTO resultado=repetir | cancelado | promedio_guardado poca_precision=si promedio_um=(197,197)
+```
+
+`resultado` es `guardada` (una repetición), `medida_rechazada` (la medida no sirve; `motivo=medida_no_valida codigo=...`), `rechazada` (las dos no coinciden: el `motivo` y los cm de cada una, la diferencia y la tolerancia),
+y lo que el usuario eligió: `repetir`, `cancelado` o `promedio_guardado` (con `poca_precision=si` si se guardó de todos modos).
+
 **Registro `RUTA_DIAG`** (J5; una línea al enviar cada comando de movimiento y otra al terminarlo, con la duración planeada y la real; los STOP no se anotan):
 
 ```
@@ -214,7 +225,7 @@ RUTA_DIAG fin cmd=RIGHT origen=ruta pedido=90 plan_ms=900 real_ms=900 hecho=90
 hizo» (contacto eléctrico): ver `docs/calibracion.md`, «Una ruta que no giró». El navegador también guarda los giros de la ruta (`navegador_texto_giros`) y la pantalla de resultado de «Ejecutar ruta» los muestra como
 «Giro pedido / Giro hecho (estimado)».
 
-**Es un promedio, no una constante.** El desplazamiento depende del piso (agarre), de las pilas y varía de un giro a otro (por eso la prueba pide 2 repeticiones por lado y rechaza si difieren más de 30 %). El modelo
+**Es un promedio, no una constante.** El desplazamiento depende del piso (agarre), de las pilas y varía de un giro a otro (por eso la prueba pide 2 repeticiones por lado y las compara y, si difieren más de 30 % Y más de 1 cm, pide decidir: repetir, guardar el promedio de todos modos o cancelar). El modelo
 corrige el promedio, no cada giro: lo que queda de error es el que ya tenía el navegador (a menos de 8 cm de la línea solo corrige el rumbo, `NAV_REINC_DESVIO_MIN_MM`).
 
 **Pruebas** (`pruebas_navegador.c`, `pruebas_desplazamiento_al_girar`): (a) un giro de 90° a la derecha con 1 mm/° hacia adelante deja la pose estimada 64 mm a la derecha y 64 mm arriba (cuenta a mano 90 × 0.707), y el

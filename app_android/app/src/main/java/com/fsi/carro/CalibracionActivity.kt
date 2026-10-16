@@ -111,7 +111,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     /** Lo que se muestra de una parte en la lista. */
-    private class EstadoParte(val medido: Boolean, val valor: String, val fecha: String)
+    private class EstadoParte(val medido: Boolean, val valor: String, val fecha: String, val pocaPrecision: Boolean = false)
 
     private val principal = Handler(Looper.getMainLooper())   // las pruebas con tiempo (se cancelan todas con pararTodo)
     private val reloj = Handler(Looper.getMainLooper())       // solo refresca el chip y el aviso de conexión (no se cancela con pararTodo)
@@ -210,6 +210,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     private var visualActualX10 = 0             // lo que la cámara va viendo en el giro de esta prueba
     private val despAdelanteUm = arrayOf(ArrayList<Int>(), ArrayList<Int>())  // µm por grado de cada repetición del desplazamiento; [0] izquierda, [1] derecha
     private val despDerechaUm = arrayOf(ArrayList<Int>(), ArrayList<Int>())
+    private val despGrados = arrayOf(ArrayList<Int>(), ArrayList<Int>())      // los grados que se anotaron en cada repetición (para comparar en cm)
     private var despAdelanteMm = 0              // lo que el usuario mide en la repetición en curso
     private var despDerechaMm = 0
     private var despAngulo = 90
@@ -557,6 +558,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         fovVisual.clear()
         for (l in despAdelanteUm) l.clear()
         for (l in despDerechaUm) l.clear()
+        for (l in despGrados) l.clear()
         esperandoDato = false
         resultado = null
         resultadoOk = false
@@ -879,7 +881,15 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
                         fechas.add("${perfil.name} ${lineaFecha(p, true, perfil)}")
                     }
                 }
-                if (lineas.isEmpty()) EstadoParte(false, "Sin medir (el carro gira en su sitio)", "nunca") else EstadoParte(true, lineas.joinToString("\n"), fechas.joinToString(" · "))
+                val poca = ArrayList<String>()
+                for (perfil in ControlLogica.Perfil.values()) {
+                    for (lado in intArrayOf(CalibracionNativa.LADO_IZQUIERDA, CalibracionNativa.LADO_DERECHA)) {
+                        if (guardada.desplazamientoPocaPrecision(perfil, lado)) poca.add("${perfil.name} ${nombreLado(lado)}")
+                    }
+                }
+                if (lineas.isEmpty()) EstadoParte(false, "Sin medir (el carro gira en su sitio)", "nunca")
+                else EstadoParte(true, lineas.joinToString("\n") + (if (poca.isEmpty()) "" else "\nCalibrado con poca precisión (${poca.joinToString(", ")}): las repeticiones no coincidían. Repite la medición cuando puedas."),
+                    fechas.joinToString(" · "), poca.isNotEmpty())
             }
             Parte.GIRO_90 -> {
                 val lineas = ArrayList<String>()
@@ -924,7 +934,9 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             val estado = estadoDeParte(p)
             fila.findViewById<TextView>(R.id.parte_titulo).text = nombreParte(p)
             fila.findViewById<ChipEstado>(R.id.parte_chip).apply {
-                if (estado.medido) {
+                if (estado.medido && estado.pocaPrecision) {
+                    poner(Nivel.AVISO, getString(R.string.cal_chip_poca_precision))
+                } else if (estado.medido) {
                     poner(Nivel.OK, getString(R.string.cal_chip_calibrado))
                 } else {
                     poner(if (esObligatoria(p)) Nivel.AVISO else Nivel.NEUTRO, getString(R.string.cal_chip_sin))
@@ -1439,6 +1451,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.DESPLAZ -> {
                 for (l in despAdelanteUm) l.clear()
                 for (l in despDerechaUm) l.clear()
+                for (l in despGrados) l.clear()
             }
             else -> {}
         }
@@ -1532,7 +1545,8 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val sb = StringBuilder()
         val (ga, gd) = guardada.desplazamiento(perfilAjuste, ladoAjuste)
         sb.append("Guardado (${perfilAjuste.name}, ${nombreLado(ladoAjuste)}): " + fmt("%.3f mm por grado adelante, %.3f a la derecha", ga / 1000.0, gd / 1000.0) +
-            "  ·  última vez: ${lineaFecha(Parte.DESPLAZAMIENTO, ga != 0 || gd != 0, perfilAjuste)}\n")
+            "  ·  última vez: ${lineaFecha(Parte.DESPLAZAMIENTO, ga != 0 || gd != 0, perfilAjuste)}" +
+            (if (guardada.desplazamientoPocaPrecision(perfilAjuste, ladoAjuste)) "\nEste lado se guardó con poca precisión (las repeticiones no coincidían)." else "") + "\n")
         for (i in despAdelanteUm[indice].indices) {
             sb.append("Repetición ${i + 1}: " + fmt("%.3f mm por grado adelante, %.3f a la derecha", despAdelanteUm[indice][i] / 1000.0, despDerechaUm[indice][i] / 1000.0) + "\n")
         }
@@ -1579,7 +1593,13 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         mostrarPaso()
     }
 
-    /** Pasa la medida de esta repetición a µm por grado (en C), la anota y, con 2 repeticiones del lado, las promedia (se rechazan si difieren más de 30 %) y guarda. */
+    /** Una línea TURN_DIAG de la calibración del desplazamiento (el mismo registro de los giros de la ruta; origen=calibracion). */
+    private fun diagDesp(texto: String) {
+        Log.i("TURN_DIAG", "TURN_DIAG lado=${if (ladoAjuste < 0) "IZQ" else "DER"} origen=calibracion perfil=${perfilAjuste.name} $texto")
+    }
+
+    /** Pasa la medida de esta repetición a µm por grado (en C), la anota y, con 2 repeticiones del lado, las compara (se aceptan si difieren 30 % o menos, o 1 cm o menos). Si no coinciden NO se
+     *  borra nada en silencio: se dice el motivo exacto y se pregunta (repetir, guardar el promedio de todos modos, o cancelar). */
     private fun guardarRepeticionDesp() {
         if (!esperandoDato) {
             return
@@ -1587,8 +1607,11 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         val indice = indiceLado(ladoAjuste)
         val (codigo, adelante, derecha) = CalibracionNativa.desplazamientoDeMedida(ladoAjuste, despAdelanteMm, despDerechaMm, despAngulo).let { Triple(it[0], it[1], it[2]) }
         if (codigo != CalibracionNativa.OK) {
-            resumenAjuste = "Esa medida no se pudo usar: ${CalibracionNativa.textoError(codigo)}"
-            esperandoDato = false
+            // La medida no sirve: no se pierde nada. Se queda con los contadores para corregirla y volver a guardar.
+            resumenAjuste = "Esa medida no se pudo usar (" + fmt("%.1f cm adelante, %.1f cm de lado, %d°", despAdelanteMm / 10.0, despDerechaMm / 10.0, despAngulo) + "): " + CalibracionNativa.textoError(codigo) +
+                " Corrígela con los contadores y toca «Guardar esta repetición» otra vez."
+            diagDesp("repeticion=${despAdelanteUm[indice].size + 1} resultado=medida_rechazada motivo=medida_no_valida codigo=$codigo medida_mm=($despAdelanteMm,$despDerechaMm) grados=$despAngulo")
+            Log.w(CalibracionGuardada.ETIQUETA, "desplazamiento: medida no valida (codigo $codigo)")
             mostrarPaso()
             return
         }
@@ -1596,34 +1619,82 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             "$adelante um/grado adelante, $derecha um/grado derecha (giro ${despMsUltimo} ms, ${giroPrueba.texto()})")
         despAdelanteUm[indice].add(adelante)
         despDerechaUm[indice].add(derecha)
+        despGrados[indice].add(despAngulo)
+        diagDesp("repeticion=${despAdelanteUm[indice].size} resultado=guardada medida_mm=($despAdelanteMm,$despDerechaMm) grados=$despAngulo um_grado=($adelante,$derecha) giro_ms=$despMsUltimo prueba=\"${giroPrueba.texto()}\"")
         esperandoDato = false
         if (despAdelanteUm[indice].size < REPETICIONES_DESP) {
             resumenAjuste = "Repetición ${despAdelanteUm[indice].size} guardada. Falta ${REPETICIONES_DESP - despAdelanteUm[indice].size}: vuelve a poner el carro en la marca y toca «Girar»."
             mostrarPaso()
             return
         }
-        val (c2, promedioAdelante, promedioDerecha) = CalibracionNativa.desplazamientoPromediar(despAdelanteUm[indice].toIntArray(), despDerechaUm[indice].toIntArray()).let { Triple(it[0], it[1], it[2]) }
-        if (c2 != CalibracionNativa.OK) {
-            despAdelanteUm[indice].clear()
-            despDerechaUm[indice].clear()
-            resumenAjuste = if (c2 == CalibracionNativa.ERR_DIFIEREN) {
-                "Las dos repeticiones difieren más de 30 %: no se guardó nada. El desplazamiento cambia de un giro a otro; revisa que el carro salga siempre de la misma marca, mide con cuidado y repite las dos."
-            } else {
-                "No se pudo promediar: ${CalibracionNativa.textoError(c2)}"
+        val r = CalibracionNativa.desplazamientoPromediar(despAdelanteUm[indice].toIntArray(), despDerechaUm[indice].toIntArray(), despGrados[indice].toIntArray())
+        when (r[0]) {
+            CalibracionNativa.OK -> guardarPromedioDesp(indice, r[1], r[2], false)
+            CalibracionNativa.ERR_DIFIEREN -> preguntarDiferenciaDesp(indice, r)
+            else -> {
+                val motivo = "No se pudo promediar: ${CalibracionNativa.textoError(r[0])}"
+                diagDesp("resultado=rechazada motivo=no_se_pudo_promediar codigo=${r[0]}")
+                despAdelanteUm[indice].clear(); despDerechaUm[indice].clear(); despGrados[indice].clear()
+                resumenAjuste = "$motivo No se guardó nada: se descartaron las repeticiones."
+                mostrarPaso()
             }
-            Log.w(CalibracionGuardada.ETIQUETA, "desplazamiento rechazado (código $c2)")
-            mostrarPaso()
-            return
         }
+    }
+
+    /** El texto exacto de por qué dos repeticiones no coinciden, con los números de C (décimas de mm → cm). */
+    private fun motivoDiferencia(r: IntArray): String =
+        fmt("repetición %d: %.1f cm, repetición %d: %.1f cm, difieren %.1f cm (se acepta hasta %.1f cm: el 30 %% o 1 cm, lo que sea mayor)",
+            r[3], r[5] / 100.0, r[4], r[6] / 100.0, r[7] / 100.0, r[8] / 100.0)
+
+    /** Las dos repeticiones no coinciden: se dice el motivo y se deja elegir. Nada se guarda hasta que el usuario decida. */
+    private fun preguntarDiferenciaDesp(indice: Int, r: IntArray) {
+        val motivo = motivoDiferencia(r)
+        resumenAjuste = "Las repeticiones no coinciden: $motivo. Elige qué hacer."
+        diagDesp("resultado=rechazada motivo=difieren_mas_de_30pct_y_1cm rep_a=${r[3]} rep_b=${r[4]} mov_a_cm=${fmt("%.1f", r[5] / 100.0)} mov_b_cm=${fmt("%.1f", r[6] / 100.0)} " +
+            "dif_cm=${fmt("%.1f", r[7] / 100.0)} tolerancia_cm=${fmt("%.1f", r[8] / 100.0)}")
+        Log.w(CalibracionGuardada.ETIQUETA, "desplazamiento: las repeticiones no coinciden ($motivo)")
+        mostrarPaso()
+        Dialogos.tresOpciones(this, "Las repeticiones no coinciden",
+            motivo.replaceFirstChar { it.uppercase() } + ".\n\nLo mejor es repetir la medición. Si guardas el promedio de todos modos, la calibración será menos confiable.",
+            "Repetir la medición", {
+                despAdelanteUm[indice].clear(); despDerechaUm[indice].clear(); despGrados[indice].clear()
+                resumenAjuste = "Se descartaron las dos repeticiones. ${motivo.replaceFirstChar { it.uppercase() }}. Empieza otra vez con la repetición 1: pon el carro en la marca y toca «Girar»."
+                diagDesp("resultado=repetir")
+                mostrarPaso()
+            },
+            "Guardar el promedio de todos modos", {
+                val p = CalibracionNativa.desplazamientoPromedio(despAdelanteUm[indice].toIntArray(), despDerechaUm[indice].toIntArray())
+                if (p[0] == CalibracionNativa.OK) {
+                    guardarPromedioDesp(indice, p[1], p[2], true)
+                } else {
+                    resumenAjuste = "No se pudo calcular el promedio: ${CalibracionNativa.textoError(p[0])} No se guardó nada."
+                    diagDesp("resultado=rechazada motivo=promedio_no_valido codigo=${p[0]}")
+                    mostrarPaso()
+                }
+            },
+            "Cancelar", {
+                despAdelanteUm[indice].clear(); despDerechaUm[indice].clear(); despGrados[indice].clear()
+                resumenAjuste = "Cancelado: no se guardó nada. ${motivo.replaceFirstChar { it.uppercase() }}. Los valores guardados antes siguen igual."
+                diagDesp("resultado=cancelado")
+                mostrarPaso()
+            })
+    }
+
+    /** Guarda el promedio de las dos repeticiones del lado. `pocaPrecision` = las repeticiones no coincidían y el usuario eligió guardar de todos modos: la lista lo marca. */
+    private fun guardarPromedioDesp(indice: Int, promedioAdelante: Int, promedioDerecha: Int, pocaPrecision: Boolean) {
         val prueba = giroPrueba
-        guardada.guardarDesplazamiento(perfilAjuste, ladoAjuste, promedioAdelante, promedioDerecha)
+        guardada.guardarDesplazamiento(perfilAjuste, ladoAjuste, promedioAdelante, promedioDerecha, pocaPrecision)
         guardada.guardarGiroPruebaDeDesplazamiento(perfilAjuste, ladoAjuste, prueba)
         guardada.marcarCalibrado(Parte.DESPLAZAMIENTO, perfilAjuste)
         guardada.aplicarAlNavegador()
         despAdelanteUm[indice].clear()
         despDerechaUm[indice].clear()
+        despGrados[indice].clear()
+        diagDesp("resultado=promedio_guardado poca_precision=${if (pocaPrecision) "si" else "no"} promedio_um=($promedioAdelante,$promedioDerecha)")
         resumenAjuste = "Guardado para el giro a la ${nombreLado(ladoAjuste)} (${perfilAjuste.name}): " + fmt("%.3f mm por grado adelante y %.3f a la derecha", promedioAdelante / 1000.0, promedioDerecha / 1000.0) +
-            ". En un giro de 90° el centro se mueve " + fmt("%.1f cm adelante y %.1f cm de lado", promedioAdelante * 0.009, promedioDerecha * 0.009) + ". Puedes hacer el otro lado o tocar «Listo»."
+            ". En un giro de 90° el centro se mueve " + fmt("%.1f cm adelante y %.1f cm de lado", promedioAdelante * 0.009, promedioDerecha * 0.009) + "." +
+            (if (pocaPrecision) " OJO: calibrado con poca precisión (las dos repeticiones no coincidían); la calibración es menos confiable, repite la medición cuando puedas." else "") +
+            " Puedes hacer el otro lado o tocar «Listo»."
         mostrarPaso()
     }
 
@@ -1639,7 +1710,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         intentosRecta = 0      // la recta se calibra por perfil: el conteo de intentos empieza otra vez
         rectaLista = false
         if (paso == Paso.DESPLAZ) {
-            despAdelanteUm[0].clear(); despAdelanteUm[1].clear(); despDerechaUm[0].clear(); despDerechaUm[1].clear()
+            despAdelanteUm[0].clear(); despAdelanteUm[1].clear(); despDerechaUm[0].clear(); despDerechaUm[1].clear(); despGrados[0].clear(); despGrados[1].clear()
         }
         mostrarPaso()
     }
@@ -1772,7 +1843,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             Paso.DESPLAZ -> {
                 guardada.restaurarDesplazamiento(perfilAjuste)
                 guardada.aplicarAlNavegador()
-                despAdelanteUm[0].clear(); despAdelanteUm[1].clear(); despDerechaUm[0].clear(); despDerechaUm[1].clear()
+                despAdelanteUm[0].clear(); despAdelanteUm[1].clear(); despDerechaUm[0].clear(); despDerechaUm[1].clear(); despGrados[0].clear(); despGrados[1].clear()
                 resumenAjuste = "Se restauró el valor por defecto del desplazamiento en el perfil ${perfilAjuste.texto}: el carro gira en su sitio."
             }
             else -> {

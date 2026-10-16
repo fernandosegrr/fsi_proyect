@@ -161,6 +161,18 @@ object Dialogos {
             .show()
     }
 
+    /** Una decisión con tres botones (no se cierra tocando fuera: hay que elegir una). `textoSi` es la opción recomendada. */
+    fun tresOpciones(contexto: Context, titulo: String, mensaje: String, textoSi: String, alSi: () -> Unit, textoOtra: String, alOtra: () -> Unit, textoNo: String, alNo: () -> Unit) {
+        MaterialAlertDialogBuilder(contexto)
+            .setTitle(titulo)
+            .setMessage(mensaje)
+            .setCancelable(false)
+            .setPositiveButton(textoSi) { _, _ -> alSi() }
+            .setNeutralButton(textoOtra) { _, _ -> alOtra() }
+            .setNegativeButton(textoNo) { _, _ -> alNo() }
+            .show()
+    }
+
     /** Un aviso con un solo botón "Entendido". */
     fun avisar(contexto: Context, titulo: String, mensaje: String) {
         MaterialAlertDialogBuilder(contexto)

@@ -1694,9 +1694,52 @@ Java_com_fsi_carro_CalibracionNativa_desplazamientoDeMedida(JNIEnv *env, jobject
     return arreglo;
 }
 
-/* Promedia las repeticiones (µm por grado) y rechaza si difieren más de 30 %: devuelve [código, adelante_um, derecha_um]. */
+/* Promedia las repeticiones (µm por grado, con los grados de cada una) y las rechaza si no coinciden (30 % o 1 cm, la mayor tolerancia): devuelve
+ * [código, adelante_um, derecha_um, rep_a, rep_b, mov_a_mm10, mov_b_mm10, dif_mm10, limite_mm10]; los últimos cinco solo valen con CAL_ERR_DIFIEREN (el par que más se aleja, en décimas de mm). */
 JNIEXPORT jintArray JNICALL
-Java_com_fsi_carro_CalibracionNativa_desplazamientoPromediar(JNIEnv *env, jobject objeto, jintArray adelante_um, jintArray derecha_um)
+Java_com_fsi_carro_CalibracionNativa_desplazamientoPromediar(JNIEnv *env, jobject objeto, jintArray adelante_um, jintArray derecha_um, jintArray grados)
+{
+    jint datos_a[CAL_MAX_MUESTRAS], datos_d[CAL_MAX_MUESTRAS], datos_g[CAL_MAX_MUESTRAS];
+    int lista_a[CAL_MAX_MUESTRAS], lista_d[CAL_MAX_MUESTRAS], lista_g[CAL_MAX_MUESTRAS];
+    jint salida[9] = { CAL_ERR_ARGUMENTO, 0, 0, 0, 0, 0, 0, 0, 0 };
+    int promedio_a = 0, promedio_d = 0, i;
+    CalDifDesp detalle;
+    jsize n = 0;
+    jintArray arreglo = (*env)->NewIntArray(env, 9);
+
+    (void)objeto;
+    memset(&detalle, 0, sizeof detalle);
+    if (adelante_um != NULL && derecha_um != NULL && grados != NULL) {
+        n = (*env)->GetArrayLength(env, adelante_um);
+        if (n >= 2 && n <= CAL_MAX_MUESTRAS && (*env)->GetArrayLength(env, derecha_um) == n && (*env)->GetArrayLength(env, grados) == n) {
+            (*env)->GetIntArrayRegion(env, adelante_um, 0, n, datos_a);
+            (*env)->GetIntArrayRegion(env, derecha_um, 0, n, datos_d);
+            (*env)->GetIntArrayRegion(env, grados, 0, n, datos_g);
+            for (i = 0; i < n; i++) {
+                lista_a[i] = (int)datos_a[i];
+                lista_d[i] = (int)datos_d[i];
+                lista_g[i] = (int)datos_g[i];
+            }
+            salida[0] = cal_desplazamiento_promediar(lista_a, lista_d, lista_g, (int)n, &promedio_a, &promedio_d, &detalle);
+            salida[1] = promedio_a;
+            salida[2] = promedio_d;
+            salida[3] = detalle.i;
+            salida[4] = detalle.j;
+            salida[5] = detalle.mov_i_mm10;
+            salida[6] = detalle.mov_j_mm10;
+            salida[7] = detalle.dif_mm10;
+            salida[8] = detalle.limite_mm10;
+        }
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 9, salida);
+    }
+    return arreglo;
+}
+
+/* El promedio de las repeticiones SIN comprobar que coincidan («guardar de todos modos»): devuelve [código, adelante_um, derecha_um]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalibracionNativa_desplazamientoPromedio(JNIEnv *env, jobject objeto, jintArray adelante_um, jintArray derecha_um)
 {
     jint datos_a[CAL_MAX_MUESTRAS], datos_d[CAL_MAX_MUESTRAS];
     int lista_a[CAL_MAX_MUESTRAS], lista_d[CAL_MAX_MUESTRAS];
@@ -1708,14 +1751,14 @@ Java_com_fsi_carro_CalibracionNativa_desplazamientoPromediar(JNIEnv *env, jobjec
     (void)objeto;
     if (adelante_um != NULL && derecha_um != NULL) {
         n = (*env)->GetArrayLength(env, adelante_um);
-        if (n >= 2 && n <= CAL_MAX_MUESTRAS && (*env)->GetArrayLength(env, derecha_um) == n) {
+        if (n >= 1 && n <= CAL_MAX_MUESTRAS && (*env)->GetArrayLength(env, derecha_um) == n) {
             (*env)->GetIntArrayRegion(env, adelante_um, 0, n, datos_a);
             (*env)->GetIntArrayRegion(env, derecha_um, 0, n, datos_d);
             for (i = 0; i < n; i++) {
                 lista_a[i] = (int)datos_a[i];
                 lista_d[i] = (int)datos_d[i];
             }
-            salida[0] = cal_desplazamiento_promediar(lista_a, lista_d, (int)n, &promedio_a, &promedio_d);
+            salida[0] = cal_desplazamiento_promedio(lista_a, lista_d, (int)n, &promedio_a, &promedio_d);
             salida[1] = promedio_a;
             salida[2] = promedio_d;
         }

@@ -168,8 +168,13 @@ es 45°; el centro se mueve 90 mm en esa dirección: 90 × 0.707 = **64 mm a la 
 3. Toca «Girar»: el carro gira y se detiene. Mide cuánto se movió el **centro** (cinta nueva donde quedó) respecto de donde estaba, en el marco de la posición INICIAL del carro: **adelante o atrás** y **izquierda o
    derecha** (con − y +, de 0.5 cm en 0.5 cm), y anota el **ángulo final** que giró (botones de 45° en 45°; las juntas de la loseta sirven de guía).
 4. «Guardar esta repetición». Son **2 repeticiones por lado**. La app calcula los mm por grado de cada una (en C: `cal_desplazamiento_de_medida`, que pasa la medida del marco inicial al marco de mitad de giro y la
-   reparte entre los grados), las **promedia** y **rechaza** las dos si difieren más de **30 %** (la distancia entre los dos vectores contra el mayor de los dos; con valores casi cero, menos de 60 µm/° de
-   diferencia —5 mm en un giro de 90°, menos que lo que se mide con cinta— no se rechaza). Si se rechazan, se borran y se repite.
+   reparte entre los grados), las **compara** y, si coinciden, las **promedia**. Coinciden si la distancia entre los dos desplazamientos es de **30 % o menos del mayor, O de 1 cm o menos** (se aplica la MAYOR de las dos tolerancias:
+   con medidas chicas hechas con cinta manda el 1 cm; con medidas grandes, el 30 %). La comparación se hace en cm, al ángulo medio de las dos repeticiones (en C: `cal_desplazamiento_promediar`).
+   **Si no coinciden NUNCA se borra nada en silencio**: sale un cuadro con el motivo exacto («repetición 1: 1.5 cm, repetición 2: 3.5 cm, difieren 2.0 cm (se acepta hasta 1.1 cm: el 30 % o 1 cm, lo que sea mayor)») y
+   tres opciones: **Repetir la medición** (descarta las dos y empieza otra vez), **Guardar el promedio de todos modos** (avisa que la calibración será menos confiable) y **Cancelar** (no se guarda nada y lo guardado antes sigue igual).
+   El cuadro no se cierra tocando fuera: hay que elegir. Si la medida de UNA repetición no sirve (por ejemplo, sale de rango), tampoco se pierde: se queda con los contadores para corregirla y volver a guardar.
+   Si se elige guardar de todos modos, el ítem «Desplazamiento al girar» de la lista se marca **«Poca precisión»** con el texto «Calibrado con poca precisión (AUTO derecha): las repeticiones no coincidían»; la marca
+   se quita sola la próxima vez que ese lado se calibra con dos repeticiones que sí coinciden, o con «Restaurar valor por defecto». Cada paso queda en el registro `TURN_DIAG` (ver `docs/navegador.md`).
 5. Al aceptarse, se **guarda por lado y perfil** (no hace falta hacer el otro lado). **«Restaurar valor por defecto»** vuelve los dos lados del perfil a 0.
 
 **Dónde se guarda.** No va en `calibracion.txt` (ese archivo trae lo medido del carro): igual que el factor del giro, vive en las preferencias de la app (`desp_adelante_auto_izq`, `desp_derecha_auto_izq`,
@@ -260,7 +265,7 @@ pantalla de control (modo semiautónomo) muestra un aviso con lo que falta: «Ca
   (un carro de 8 ms por grado medido con el «giro de 90° real» queda justo en la siguiente pasada); el frenado de giro imposible se descarta al volver a medir; ms por grado de 3 a 20 al guardar
   (2.9 y 21 se rechazan, 3.0 y 20.0 se aceptan);
 - **desplazamiento (J4)**: un giro de 90° con 1 mm por grado hacia adelante mueve el centro 64 mm a la derecha y 64 mm arriba (cuenta a mano 90 × 0.707); una medida pasada a µm por grado y aplicada al mismo giro
-  vuelve a dar lo medido (±1 mm); dos repeticiones se promedian y se rechazan si difieren más de 30 % (con tolerancia absoluta para valores casi cero).
+  vuelve a dar lo medido (±1 mm); dos repeticiones se promedian si difieren 30 % o menos, o 1 cm o menos (la mayor de las dos tolerancias; 1.0 y 2.0 cm se aceptan, 1.0 y 2.1 no; 10.0 y 12.5 cm se aceptan por el porcentaje, 10.0 y 14.5 no; 1.5 y 3.5 cm se rechazan con el detalle exacto), el promedio «de todos modos» y el flujo de dos repeticiones.
 
 ## PENDIENTE HARDWARE
 

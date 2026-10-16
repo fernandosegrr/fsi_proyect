@@ -946,30 +946,69 @@ int cal_desplazamiento_de_medida(int lado, int adelante_mm, int derecha_mm, int 
     return CAL_OK;
 }
 
-int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um)
+/* µm por grado x grados = µm; entre 100 = décimas de mm. */
+static int um_a_mm10(long um)
+{
+    return (int)dividir_con_signo(um, 100);
+}
+
+int cal_desplazamiento_promediar(const int *adelante_um, const int *derecha_um, const int *grados, int n, int *prom_adelante_um, int *prom_derecha_um, CalDifDesp *detalle)
 {
     int i, j;
+    int hay_malo = 0;
+    long peor_exceso = 0;
+    CalDifDesp peor;
 
-    if (adelante_um == NULL || derecha_um == NULL || prom_adelante_um == NULL || prom_derecha_um == NULL || n < 2 || n > CAL_MAX_MUESTRAS) {
+    if (adelante_um == NULL || derecha_um == NULL || grados == NULL || prom_adelante_um == NULL || prom_derecha_um == NULL || n < 2 || n > CAL_MAX_MUESTRAS) {
         return CAL_ERR_ARGUMENTO;
+    }
+    peor.i = peor.j = peor.mov_i_mm10 = peor.mov_j_mm10 = peor.dif_mm10 = peor.limite_mm10 = 0;
+    for (i = 0; i < n; i++) {
+        if (grados[i] <= 0) {
+            return CAL_ERR_ARGUMENTO;
+        }
     }
     for (i = 0; i < n; i++) {
         for (j = i + 1; j < n; j++) {
-            long df = (long)adelante_um[i] - adelante_um[j];
-            long dr = (long)derecha_um[i] - derecha_um[j];
-            long diferencia = raiz_entera(df * df + dr * dr);
-            long norma_i = raiz_entera((long)adelante_um[i] * adelante_um[i] + (long)derecha_um[i] * derecha_um[i]);
-            long norma_j = raiz_entera((long)adelante_um[j] * adelante_um[j] + (long)derecha_um[j] * derecha_um[j]);
-            long mayor = (norma_i > norma_j) ? norma_i : norma_j;
+            long g = ((long)grados[i] + grados[j]) / 2;   /* el ángulo con el que se comparan: el medio de las dos */
+            long df = ((long)adelante_um[i] - adelante_um[j]) * g;
+            long dr = ((long)derecha_um[i] - derecha_um[j]) * g;
+            long diferencia = raiz_entera(df * df + dr * dr);   /* µm */
+            long mov_i = raiz_entera((long)adelante_um[i] * adelante_um[i] + (long)derecha_um[i] * derecha_um[i]) * g;
+            long mov_j = raiz_entera((long)adelante_um[j] * adelante_um[j] + (long)derecha_um[j] * derecha_um[j]) * g;
+            long mayor = (mov_i > mov_j) ? mov_i : mov_j;
             long limite = mayor * CAL_DESP_TOLERANCIA_PCT / 100;
 
-            if (limite < CAL_DESP_TOLERANCIA_UM) {
-                limite = CAL_DESP_TOLERANCIA_UM;
+            if (limite < (long)CAL_DESP_TOLERANCIA_MM * 1000) {
+                limite = (long)CAL_DESP_TOLERANCIA_MM * 1000;
             }
-            if (diferencia > limite) {
-                return CAL_ERR_DIFIEREN;
+            if (diferencia > limite && (!hay_malo || diferencia - limite > peor_exceso)) {
+                hay_malo = 1;
+                peor_exceso = diferencia - limite;
+                peor.i = i + 1;
+                peor.j = j + 1;
+                peor.mov_i_mm10 = um_a_mm10(mov_i);
+                peor.mov_j_mm10 = um_a_mm10(mov_j);
+                peor.dif_mm10 = um_a_mm10(diferencia);
+                peor.limite_mm10 = um_a_mm10(limite);
             }
         }
+    }
+    if (hay_malo) {
+        if (detalle != NULL) {
+            *detalle = peor;
+        }
+        return CAL_ERR_DIFIEREN;
+    }
+    *prom_adelante_um = cal_promedio(adelante_um, n);
+    *prom_derecha_um = cal_promedio(derecha_um, n);
+    return CAL_OK;
+}
+
+int cal_desplazamiento_promedio(const int *adelante_um, const int *derecha_um, int n, int *prom_adelante_um, int *prom_derecha_um)
+{
+    if (adelante_um == NULL || derecha_um == NULL || prom_adelante_um == NULL || prom_derecha_um == NULL || n < 1 || n > CAL_MAX_MUESTRAS) {
+        return CAL_ERR_ARGUMENTO;
     }
     *prom_adelante_um = cal_promedio(adelante_um, n);
     *prom_derecha_um = cal_promedio(derecha_um, n);

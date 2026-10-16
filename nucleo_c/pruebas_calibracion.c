@@ -825,12 +825,25 @@ static void pruebas_por_partes(void)
 
 /* ── Desplazamiento del centro al girar ────────────────────────────────── */
 
+/* Dos repeticiones medidas con cinta (mm hacia la derecha, en un giro a la derecha de `grados`) pasadas a um por grado y comparadas: devuelve lo que dice cal_desplazamiento_promediar. */
+static int pareja_en_mm(int mm_1, int mm_2, int grados, CalDifDesp *dif)
+{
+    int a[2], d[2], g[2], pa, pd;
+
+    g[0] = g[1] = grados;
+    if (cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, mm_1, grados, &a[0], &d[0]) != CAL_OK || cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, mm_2, grados, &a[1], &d[1]) != CAL_OK) {
+        return CAL_ERR_DATOS;
+    }
+    return cal_desplazamiento_promediar(a, d, g, 2, &pa, &pd, dif);
+}
+
 static void pruebas_desplazamiento(void)
 {
     CalibracionCarro cal, copia;
     int dx = 99, dy = 99, adelante = 99, derecha = 99;
-    int ua, ud, pa, pd;
-    int a2[2], d2[2];
+    int ua, ud, pa, pd, ok_1;
+    int a2[2], d2[2], g2[2];
+    CalDifDesp dif;
     char texto[CAL_LARGO_TEXTO];
 
     cal_defecto(&cal);
@@ -898,22 +911,101 @@ static void pruebas_desplazamiento(void)
     caso("medida: lado inexistente o salidas nulas = CAL_ERR_ARGUMENTO",
          cal_desplazamiento_de_medida(0, 1, 1, 90, &ua, &ud) == CAL_ERR_ARGUMENTO && cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 1, 1, 90, NULL, &ud) == CAL_ERR_ARGUMENTO);
 
-    /* ── Dos repeticiones por lado: se promedian y se rechazan si difieren mas de 30 % ── */
+    /* ── Dos repeticiones por lado: se aceptan si difieren 30 % o menos O 1 cm o menos (la mayor de las dos tolerancias) ── */
+    g2[0] = 90; g2[1] = 90;
     a2[0] = 300; d2[0] = 0; a2[1] = 380; d2[1] = 0;
-    caso("dos repeticiones (300 y 380 um/grado, 21 % de diferencia): se promedian en 340", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == 340 && pd == 0);
+    caso("dos repeticiones (300 y 380 um/grado a 90 grados = 27 y 34.2 mm, 7.2 mm de diferencia): se promedian en 340", cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, &dif) == CAL_OK && pa == 340 && pd == 0);
     a2[1] = 450;
     pa = pd = -7;
-    caso("... 300 y 450 (33 % del mayor) se rechazan: CAL_ERR_DIFIEREN y las salidas no cambian", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_ERR_DIFIEREN && pa == -7 && pd == -7);
+    caso("... 300 y 450 (27 y 40.5 mm: 13.5 mm de diferencia, mas que el 30 % de 40.5 = 12.15 y que 1 cm) se rechazan: CAL_ERR_DIFIEREN y las salidas no cambian",
+         cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, &dif) == CAL_ERR_DIFIEREN && pa == -7 && pd == -7);
+    caso("... y el detalle dice el motivo exacto: repeticion 1 de 27.0 mm, repeticion 2 de 40.5 mm, diferencia 13.5 mm y tolerancia 12.2 mm (12.15 redondeado)",
+         dif.i == 1 && dif.j == 2 && dif.mov_i_mm10 == 270 && dif.mov_j_mm10 == 405 && dif.dif_mm10 == 135 && dif.limite_mm10 == 122);
     a2[0] = 300; d2[0] = 0; a2[1] = 300; d2[1] = 200;
-    caso("... 300 adelante contra 300 adelante y 200 a la derecha tambien difieren demasiado (el lateral cuenta)", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_ERR_DIFIEREN);
+    caso("... 300 adelante contra 300 adelante y 200 a la derecha tambien difieren demasiado (el lateral cuenta)", cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, NULL) == CAL_ERR_DIFIEREN);
     a2[0] = 10; d2[0] = 0; a2[1] = 40; d2[1] = 0;
-    caso("... con valores casi cero (10 y 40 um/grado, menos de lo que se puede medir con cinta) no se rechaza por el porcentaje: promedio 25",
-         cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == 25);
+    caso("... con valores casi cero (10 y 40 um/grado: 2.7 mm de diferencia, menos de 1 cm) no se rechaza: promedio 25",
+         cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, &dif) == CAL_OK && pa == 25);
     a2[0] = -250; d2[0] = 80; a2[1] = -290; d2[1] = 60;
-    caso("... con signos negativos tambien promedia (-270 y 70)", cal_desplazamiento_promediar(a2, d2, 2, &pa, &pd) == CAL_OK && pa == -270 && pd == 70);
-    caso("... una sola repeticion, listas nulas o salidas nulas = CAL_ERR_ARGUMENTO",
-         cal_desplazamiento_promediar(a2, d2, 1, &pa, &pd) == CAL_ERR_ARGUMENTO && cal_desplazamiento_promediar(NULL, d2, 2, &pa, &pd) == CAL_ERR_ARGUMENTO &&
-         cal_desplazamiento_promediar(a2, d2, 2, NULL, &pd) == CAL_ERR_ARGUMENTO);
+    caso("... con signos negativos tambien promedia (-270 y 70)", cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, NULL) == CAL_OK && pa == -270 && pd == 70);
+    caso("... una sola repeticion, listas nulas, salidas nulas, sin grados o grados no positivos = CAL_ERR_ARGUMENTO",
+         cal_desplazamiento_promediar(a2, d2, g2, 1, &pa, &pd, NULL) == CAL_ERR_ARGUMENTO && cal_desplazamiento_promediar(NULL, d2, g2, 2, &pa, &pd, NULL) == CAL_ERR_ARGUMENTO &&
+         cal_desplazamiento_promediar(a2, d2, g2, 2, NULL, &pd, NULL) == CAL_ERR_ARGUMENTO && cal_desplazamiento_promediar(a2, d2, NULL, 2, &pa, &pd, NULL) == CAL_ERR_ARGUMENTO);
+    g2[1] = 0;
+    caso("... y un ángulo de 0 tambien", cal_desplazamiento_promediar(a2, d2, g2, 2, &pa, &pd, NULL) == CAL_ERR_ARGUMENTO);
+    g2[1] = 90;
+
+    /* La tolerancia en cm sobre lo que se mide con cinta (cal_desplazamiento_de_medida, giro de 90 grados a la derecha, todo hacia la derecha): */
+    ok_1 = pareja_en_mm(10, 20, 90, &dif);   /* 1.0 cm contra 2.0 cm: 1.0 cm de diferencia, justo el limite */
+    caso("tolerancia 1 cm: 1.0 cm y 2.0 cm (1.0 cm de diferencia, el 50 %) SE ACEPTAN: pasa por el limite de 1 cm", ok_1 == CAL_OK);
+    ok_1 = pareja_en_mm(10, 21, 90, &dif);
+    caso("tolerancia 1 cm: 1.0 cm y 2.1 cm (1.1 cm de diferencia, mas del 30 % de 2.1 y mas de 1 cm) SE RECHAZAN", ok_1 == CAL_ERR_DIFIEREN);
+    ok_1 = pareja_en_mm(100, 125, 90, &dif);
+    caso("tolerancia 30 %: 10.0 cm y 12.5 cm (2.5 cm, el 20 %) SE ACEPTAN: pasa por el porcentaje aunque pase de 1 cm", ok_1 == CAL_OK);
+    ok_1 = pareja_en_mm(100, 145, 90, &dif);
+    caso("tolerancia 30 %: 10.0 cm y 14.5 cm (4.5 cm, mas del 30 % de 14.5 = 4.35) SE RECHAZAN", ok_1 == CAL_ERR_DIFIEREN);
+    ok_1 = pareja_en_mm(15, 35, 90, &dif);
+    caso("caso del usuario: 1.5 cm y 3.5 cm (2 cm de diferencia) SE RECHAZAN", ok_1 == CAL_ERR_DIFIEREN);
+    caso("... el detalle: repeticion 1 de 1.5 cm, repeticion 2 de 3.5 cm, difieren 2.0 cm (tolerancia 1.1 cm), con una décima de redondeo",
+         dif.i == 1 && dif.j == 2 && valor_absoluto(dif.mov_i_mm10 - 150) <= 2 && valor_absoluto(dif.mov_j_mm10 - 350) <= 2 && valor_absoluto(dif.dif_mm10 - 200) <= 3 && valor_absoluto(dif.limite_mm10 - 105) <= 3);
+    ok_1 = pareja_en_mm(0, 8, 90, &dif);
+    caso("medidas chicas: 0.0 cm y 0.8 cm (0.8 cm) SE ACEPTAN (menos de 1 cm)", ok_1 == CAL_OK);
+    {
+        /* Ángulos distintos: el mismo desplazamiento por grado en un giro de 90 y en uno de 180 coincide (se compara en cm al ángulo medio). */
+        int a3[2] = { 200, 200 }, d3[2] = { 0, 0 }, g3[2] = { 90, 180 };
+        caso("el mismo desplazamiento por grado con giros de 90 y de 180 grados coincide", cal_desplazamiento_promediar(a3, d3, g3, 2, &pa, &pd, NULL) == CAL_OK && pa == 200);
+        a3[1] = 400;
+        caso("... y el doble por grado a 135 grados medios son 13.5 cm de diferencia: se rechaza", cal_desplazamiento_promediar(a3, d3, g3, 2, &pa, &pd, NULL) == CAL_ERR_DIFIEREN);
+    }
+    {
+        /* Tres repeticiones: el detalle trae el par que MAS se aleja. */
+        int a3[3] = { 200, 205, 500 }, d3[3] = { 0, 0, 0 }, g3[3] = { 90, 90, 90 };
+        caso("con tres repeticiones el detalle es el par que mas se aleja (la 1 y la 3, o la 2 y la 3)",
+             cal_desplazamiento_promediar(a3, d3, g3, 3, &pa, &pd, &dif) == CAL_ERR_DIFIEREN && dif.j == 3 && (dif.i == 1 || dif.i == 2));
+    }
+    {
+        /* El promedio sin comprobar (guardar de todos modos). */
+        int a3[2] = { 118, 275 }, d3[2] = { 118, 275 };
+        pa = pd = -7;
+        caso("promedio de todos modos: 118 y 275 dan 197 (con el redondeo de cal_promedio) en los dos componentes",
+             cal_desplazamiento_promedio(a3, d3, 2, &pa, &pd) == CAL_OK && pa == cal_promedio(a3, 2) && pd == cal_promedio(d3, 2) && pa >= 196 && pa <= 197);
+        caso("promedio de todos modos: argumentos malos = CAL_ERR_ARGUMENTO y no escribe",
+             cal_desplazamiento_promedio(NULL, d3, 2, &pa, &pd) == CAL_ERR_ARGUMENTO && cal_desplazamiento_promedio(a3, d3, 0, &pa, &pd) == CAL_ERR_ARGUMENTO &&
+             cal_desplazamiento_promedio(a3, d3, CAL_MAX_MUESTRAS + 1, &pa, &pd) == CAL_ERR_ARGUMENTO && pa >= 196);
+    }
+
+    /* ── El flujo de dos repeticiones (lo que hace la pantalla), en C: medir, promediar, y si no coinciden decidir ── */
+    {
+        int aum[2], dum[2], gr[2] = { 90, 90 }, cod, pa2 = 0, pd2 = 0, dx = 0, dy = 0, ade = 0, der = 0;
+        CalibracionCarro c2;
+        cal_defecto(&c2);
+        /* Repeticion 1 a la derecha: el centro se movio 1.5 cm a la derecha (marco inicial). */
+        cod = cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 15, 90, &aum[0], &dum[0]);
+        caso("flujo: la repeticion 1 (1.5 cm a la derecha, 90 grados) se convierte en um por grado", cod == CAL_OK && (aum[0] != 0 || dum[0] != 0));
+        /* Con una sola repeticion todavia no se puede promediar: la pantalla espera la 2. */
+        caso("flujo: con una sola repeticion promediar da CAL_ERR_ARGUMENTO (la pantalla debe esperar la 2)", cal_desplazamiento_promediar(aum, dum, gr, 1, &pa2, &pd2, NULL) == CAL_ERR_ARGUMENTO);
+        /* Repeticion 2: 1.8 cm: coincide (0.3 cm) y se guarda el promedio. */
+        cod = cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 18, 90, &aum[1], &dum[1]);
+        caso("flujo: la repeticion 2 de 1.8 cm coincide con la 1 y el promedio se puede guardar",
+             cod == CAL_OK && cal_desplazamiento_promediar(aum, dum, gr, 2, &pa2, &pd2, &dif) == CAL_OK &&
+             cal_poner_desplazamiento(&c2, CAL_LADO_DERECHA, pa2, pd2) == CAL_OK);
+        cal_desplazamiento_giro(&c2, CAL_LADO_DERECHA, 90, 0, &dx, &dy, &ade, &der);
+        caso("flujo: un giro de 90 grados con lo guardado mueve el centro entre 15 y 18 mm a la derecha y casi nada hacia adelante (el promedio de 1.5 y 1.8 cm)",
+             valor_absoluto(ade) <= 3 && der >= 15 && der <= 18);
+        /* Repeticion 2 distinta (3.5 cm): se rechaza con el motivo; las dos repeticiones siguen ahi para decidir. */
+        cod = cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 35, 90, &aum[1], &dum[1]);
+        cal_defecto(&c2);
+        caso("flujo: la repeticion 2 de 3.5 cm no coincide con la 1 (1.5 cm): se rechaza con el motivo y NO se guarda nada",
+             cod == CAL_OK && cal_desplazamiento_promediar(aum, dum, gr, 2, &pa2, &pd2, &dif) == CAL_ERR_DIFIEREN && dif.i == 1 && dif.j == 2 &&
+             c2.desp_adelante_der_um == 0 && c2.desp_derecha_der_um == 0);
+        caso("flujo: elegir «guardar el promedio de todos modos» guarda el promedio de las dos (2.5 cm en un giro de 90)",
+             cal_desplazamiento_promedio(aum, dum, 2, &pa2, &pd2) == CAL_OK && cal_poner_desplazamiento(&c2, CAL_LADO_DERECHA, pa2, pd2) == CAL_OK &&
+             c2.desp_adelante_der_um == pa2 && c2.desp_derecha_der_um == pd2 && (pa2 != 0 || pd2 != 0));
+        /* Elegir «repetir»: se empieza de cero con otra pareja y se acepta. */
+        cod = cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 30, 90, &aum[0], &dum[0]);
+        cod |= cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 0, 35, 90, &aum[1], &dum[1]);
+        caso("flujo: elegir «repetir» y medir 3.0 cm y 3.5 cm si coinciden", cod == CAL_OK && cal_desplazamiento_promediar(aum, dum, gr, 2, &pa2, &pd2, NULL) == CAL_OK);
+    }
 
     /* ── Texto: el desplazamiento es por perfil y lo guarda la app aparte; el texto de la calibracion no lo lleva ── */
     cal_defecto(&cal);

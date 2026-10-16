@@ -99,8 +99,12 @@ object CalibracionNativa {
     /** De una medida a µm por grado: el centro se movió `adelanteMm` y `derechaMm` (en el marco de la posición inicial) en un giro de `grados`: [código, adelanteUm, derechaUm]. */
     external fun desplazamientoDeMedida(lado: Int, adelanteMm: Int, derechaMm: Int, grados: Int): IntArray
 
-    /** Promedia las repeticiones (µm por grado) de un lado: [código, adelanteUm, derechaUm]. ERR_DIFIEREN si dos difieren más de 30 %. */
-    external fun desplazamientoPromediar(adelanteUm: IntArray, derechaUm: IntArray): IntArray
+    /** Promedia las repeticiones (µm por grado, con los grados de cada una) de un lado: [código, adelanteUm, derechaUm, repA, repB, movA, movB, dif, limite]. ERR_DIFIEREN si dos
+     *  difieren más de 30 % Y más de 1 cm; entonces los últimos cinco dicen el par que más se aleja (números de repetición desde 1; mov, dif y limite en décimas de mm). */
+    external fun desplazamientoPromediar(adelanteUm: IntArray, derechaUm: IntArray, grados: IntArray): IntArray
+
+    /** El promedio SIN comprobar que coincidan («guardar de todos modos»): [código, adelanteUm, derechaUm]. */
+    external fun desplazamientoPromedio(adelanteUm: IntArray, derechaUm: IntArray): IntArray
 
     /** Qué falta medir (bits MEDIDO_*; 0 = todo). */
     external fun faltantes(calibracion: IntArray): Int
@@ -158,7 +162,7 @@ object CalibracionNativa {
         ERR_RANGO -> "El resultado sale de lo razonable. Revisa los números que anotaste."
         ERR_TEXTO -> "El texto no se puede leer."
         ERR_GIRO_FUERA -> "Un giro sale de 3 a 20 ms por grado, casi seguro se anotó mal un dato. No se guardó nada: repite la prueba."
-        ERR_DIFIEREN -> "Las dos mediciones difieren más de 30 %. Repite la prueba."
+        ERR_DIFIEREN -> "Las dos mediciones no coinciden (difieren más de 30 % y más de 1 cm). Repite la prueba."
         else -> "Datos no válidos (código $codigo)."
     }
 }
