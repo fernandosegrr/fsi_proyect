@@ -1745,6 +1745,30 @@ static void pruebas_ayuda(void)
         caso("sin video sigue siendo ERROR aunque se pida ayuda (no hay con que ver al maniobrar)", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO);
     }
 
+    /* Un cuadro armado a medias (la app solo llena las zonas; el resto con basura) no debe romper al navegador durante la esquivada (esto tumbó la app en la prueba real). */
+    preparar(RECTA, N(RECTA));
+    sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
+    correr(2600);   /* ya esquivando */
+    {
+        ResultadoObstaculos sucio;
+        int i, bien = 1;
+
+        memset(&sucio, 0xAB, sizeof sucio);
+        for (i = 0; i < OBS_ZONAS; i++) {
+            sucio.zona[i].hay_obstaculo = (i == ZONA_CENTRO);
+            sucio.zona[i].cercania = (i == ZONA_CENTRO) ? 3 : 0;
+            sucio.zona[i].celdas = 10;
+            sucio.zona[i].celdas_corredor = 0;
+            sucio.zona[i].fuera_corredor = 0;
+            sucio.zona[i].cercania_corredor = 0;
+        }
+        for (i = 0; i < 20; i++) {
+            navegador_tick(&nav, sim.t_ms + (uint32_t)(i * NAV_TICK_MS), &sucio);   /* si leyera fuera de la cuadrícula, esto revienta */
+            bien = bien && nav.zona_fila_min[ZONA_CENTRO] == -1;
+        }
+        caso("un resultado de obstaculos con campos sin llenar (basura) no hace leer fuera del arreglo y no da filas ni columnas", bien);
+    }
+
     /* Cancelar desde AYUDA. */
     preparar(RECTA, N(RECTA));
     navegador_poner_pedir_ayuda(&nav, 1);

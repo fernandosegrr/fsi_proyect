@@ -1805,6 +1805,7 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
     int z;
 
     (void)objeto;
+    memset(&resultado, 0, sizeof resultado);   /* todo en cero: el navegador también lee el tamaño de la cuadrícula (filas, columnas) y estos campos no se llenan aquí */
     if (hay_cuadro && obs != NULL && (*env)->GetArrayLength(env, obs) >= ENTEROS_RESULTADO_OBSTACULOS) {
         (*env)->GetIntArrayRegion(env, obs, 0, ENTEROS_RESULTADO_OBSTACULOS, datos);
         for (z = 0; z < OBS_ZONAS; z++) {

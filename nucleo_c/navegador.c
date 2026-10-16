@@ -982,7 +982,8 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_fila_min[z] = nav->zona_fila_max[z] = nav->zona_col_min[z] = nav->zona_col_max[z] = -1;
     }
-    if ((nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) && obs->filas > 0 && obs->columnas > 0) {
+    if ((nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) && obs->filas > 0 && obs->filas <= OBS_MAX_FILAS && obs->columnas > 0 && obs->columnas <= OBS_MAX_COLUMNAS &&
+        obs->fila_minima_usada >= 0 && obs->fila_minima_usada < obs->filas) {   /* solo con un tamaño de cuadrícula creíble: un resultado armado a medias no debe hacer leer fuera del arreglo */
         int fila, columna;
 
         for (fila = obs->fila_minima_usada; fila < obs->filas && fila < OBS_MAX_FILAS; fila++) {
