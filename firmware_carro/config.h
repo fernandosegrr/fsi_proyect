@@ -141,5 +141,6 @@
  * Tamaño del buffer para un comando, incluido el '\0' final: se aceptan
  * hasta LARGO_MAX_COMANDO-1 caracteres. Lo usan carro.c y el .ino. */
 #define LARGO_MAX_COMANDO 32
+#define COLA_COMANDOS_MAX  8
 
 #endif /* CONFIG_H */

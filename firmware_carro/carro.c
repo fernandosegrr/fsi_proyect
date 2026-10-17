@@ -38,6 +38,14 @@ static int      escalon_modo        = 0;   /* arranque escalonado: 1 = avanzando
 static uint32_t escalon_hasta_ms    = 0;   /* hora en que arranca el 2.º motor */
 static int      balance_mil[2]      = { PERFIL_MANUAL_BALANCE_DEFECTO, PERFIL_AUTO_BALANCE_DEFECTO };   /* factor del lado izquierdo de cada perfil, en milésimas (índice = perfil) */
 static char     respuesta_balance[LARGO_MAX_COMANDO];   /* el texto de la respuesta a un mensaje de balance */
+static char     cola_comandos[COLA_COMANDOS_MAX][LARGO_MAX_COMANDO];
+static int      cola_inicio         = 0;
+static int      cola_fin            = 0;
+static int      cola_cantidad       = 0;
+static int      en_vigilancia       = 0;
+static int      procesando_cola     = 0;
+static int      hay_cliente_activo  = 0;
+static uint32_t cliente_activo_id   = 0;
 
 /* Lo propio de cada perfil de velocidad (ver config.h). Índice = PERFIL_MANUAL o PERFIL_AUTO. */
 typedef struct {
@@ -192,6 +200,11 @@ static void ejecutar_comando(const char *texto)
 {
     int perfil_balance, valor_balance, balance_valido;
 
+    if (strcmp(texto, "__STOP_AUTO") == 0) {
+        carro_detener();
+        carro_poner_perfil_auto();
+        return;
+    }
     /* Los cambios de perfil no son un movimiento: no se guardan como comando actual (así un FORWARD que ya estaba activo no se ignora). */
     if (strcmp(texto, "MODO_MANUAL") == 0) {
         cambiar_perfil(PERFIL_MANUAL);
@@ -248,6 +261,13 @@ void carro_iniciar(void)
     pleno_modo = 0;
     perfil_actual = PERFIL_AUTO;   /* al arrancar siempre AUTO: la app pide MODO_MANUAL cuando lo necesita */
     escalon_modo = 0;
+    cola_inicio = 0;
+    cola_fin = 0;
+    cola_cantidad = 0;
+    en_vigilancia = 0;
+    procesando_cola = 0;
+    hay_cliente_activo = 0;
+    cliente_activo_id = 0;
     balance_mil[PERFIL_MANUAL] = PERFIL_MANUAL_BALANCE_DEFECTO;   /* el balance guardado en la memoria no volátil, si es válido; si no, el de siempre */
     balance_mil[PERFIL_AUTO] = PERFIL_AUTO_BALANCE_DEFECTO;
     for (int p = 0; p < 2; p++) {
@@ -263,12 +283,108 @@ void carro_iniciar(void)
     keepalive_alto      = 0;
 }
 
+void carro_encolar_comando(const char *texto)
+{
+    int perfil_balance, valor_balance, balance_valido;
+
+    if (texto == NULL) {
+        return;
+    }
+    if (leer_mensaje_balance(texto, &perfil_balance, &valor_balance, &balance_valido) && balance_valido) {
+        balance_mil[perfil_balance] = valor_balance;
+    }
+    if (cola_cantidad >= COLA_COMANDOS_MAX) {
+        /* Si la cola se llena, descarta el más viejo para que un STOP nuevo nunca se pierda. */
+        cola_inicio = (cola_inicio + 1) % COLA_COMANDOS_MAX;
+        cola_cantidad--;
+    }
+    strncpy(cola_comandos[cola_fin], texto, LARGO_MAX_COMANDO - 1);
+    cola_comandos[cola_fin][LARGO_MAX_COMANDO - 1] = '\0';
+    cola_fin = (cola_fin + 1) % COLA_COMANDOS_MAX;
+    cola_cantidad++;
+}
+
+int carro_extraer_comando_cola(char *destino)
+{
+    if (cola_cantidad <= 0 || destino == NULL) {
+        return 0;
+    }
+    strncpy(destino, cola_comandos[cola_inicio], LARGO_MAX_COMANDO - 1);
+    destino[LARGO_MAX_COMANDO - 1] = '\0';
+    cola_inicio = (cola_inicio + 1) % COLA_COMANDOS_MAX;
+    cola_cantidad--;
+    return 1;
+}
+
+void carro_procesar_cola(void)
+{
+    char cmd[LARGO_MAX_COMANDO];
+
+    if (procesando_cola || en_vigilancia) {
+        return;
+    }
+    procesando_cola = 1;
+    while (carro_extraer_comando_cola(cmd)) {
+        carro_recibir_comando(cmd);
+    }
+    procesando_cola = 0;
+}
+
+void carro_conectar_cliente(uint32_t id)
+{
+    hay_cliente_activo = 1;
+    cliente_activo_id = id;
+    cola_inicio = 0;
+    cola_fin = 0;
+    cola_cantidad = 0;
+    if (en_vigilancia) {
+        carro_encolar_comando("__STOP_AUTO");
+    } else {
+        carro_detener();
+        carro_poner_perfil_auto();
+    }
+}
+
+int carro_desconectar_cliente(uint32_t id)
+{
+    if (!hay_cliente_activo || id != cliente_activo_id) {
+        return 0;
+    }
+    hay_cliente_activo = 0;
+    cliente_activo_id = 0;
+    cola_inicio = 0;
+    cola_fin = 0;
+    cola_cantidad = 0;
+    if (en_vigilancia) {
+        carro_encolar_comando("__STOP_AUTO");
+    } else {
+        carro_detener();
+        carro_poner_perfil_auto();
+    }
+    return 1;
+}
+
+uint32_t carro_cliente_activo(void)
+{
+    return hay_cliente_activo ? cliente_activo_id : 0u;
+}
+
 /* Cada mensaje recibido pasa por aquí. PING NO renueva el reloj: si lo
  * hiciera, el carro seguiría moviéndose con el botón suelto, porque la
  * página envía PING cada 800 ms (más rápido que el watchdog de 1000 ms). */
 void carro_recibir_comando(const char *texto)
 {
-    if (strcmp(texto, "PING") != 0) {
+    if (texto == NULL) {
+        return;
+    }
+    if (en_vigilancia) {
+        carro_encolar_comando(texto);
+        return;
+    }
+    if (!procesando_cola && cola_cantidad > 0) {
+        carro_procesar_cola();
+    }
+    if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0) {
         ultimo_comando_ms = hw_millis();
     }
     ejecutar_comando(texto);
@@ -320,6 +436,10 @@ void carro_poner_perfil_auto(void)
  * y los eventos de conexión/desconexión del WebSocket. */
 void carro_detener(void)
 {
+    if (en_vigilancia) {
+        carro_encolar_comando("STOP");
+        return;
+    }
     poner_motores(0, 0, 0, 0);
     pleno_modo = 0;
     escalon_modo = 0;
@@ -330,7 +450,11 @@ void carro_detener(void)
  * el reloj dé la vuelta (desbordamiento). */
 void carro_vigilar_comunicacion(void)
 {
-    uint32_t ahora = hw_millis();
+    uint32_t ahora;
+
+    carro_procesar_cola();
+    en_vigilancia = 1;
+    ahora = hw_millis();
 
     /* Arranque escalonado: ya pasó el tiempo del primer motor, entra el segundo (a plena potencia si todavía dura el arranque a plena potencia; si no, con el ajuste por lado). */
     if (escalon_modo != 0 && (int32_t)(ahora - escalon_hasta_ms) >= 0) {
@@ -356,10 +480,15 @@ void carro_vigilar_comunicacion(void)
     }
 
     if (motores_en_marcha && (uint32_t)(ahora - ultimo_comando_ms) > TIEMPO_WATCHDOG_MS) {
-        carro_detener();
+        poner_motores(0, 0, 0, 0);
+        pleno_modo = 0;
+        escalon_modo = 0;
+        guardar_comando_actual("STOP");
         perfil_actual = PERFIL_AUTO;   /* tras perder la señal vuelve al perfil seguro; la app lo repone con MODO_MANUAL */
         hw_registrar("Watchdog: Freno activado.");
     }
+    en_vigilancia = 0;
+    carro_procesar_cola();
 }
 
 /* Keep-alive: sube el pin cada KEEPALIVE_PERIODO_MS y lo baja tras

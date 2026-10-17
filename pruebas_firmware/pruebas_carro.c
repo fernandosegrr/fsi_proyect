@@ -27,8 +27,18 @@ static int      escrituras_pwm;     /* cuántas veces se llamó a hw_motor_pwm *
 static int      nivel_keepalive;
 static int      mensajes_serie;
 static uint32_t reloj_ms;
+static const char *comando_en_pwm;  /* simula comando WebSocket (async_tcp) que interrumpe a mitad de poner_motores */
 
-void hw_motor_pwm(int pin, int valor) { pwm[pin] = valor; escrituras_pwm++; }
+void hw_motor_pwm(int pin, int valor)
+{
+    pwm[pin] = valor;
+    escrituras_pwm++;
+    if (comando_en_pwm != NULL) {
+        const char *cmd = comando_en_pwm;
+        comando_en_pwm = NULL;
+        carro_recibir_comando(cmd);
+    }
+}
 uint32_t hw_millis(void)              { return reloj_ms; }
 void hw_keepalive(int nivel)          { nivel_keepalive = nivel; }
 void hw_registrar(const char *texto)  { (void)texto; mensajes_serie++; }
@@ -46,6 +56,7 @@ static void reiniciar_mundo(uint32_t reloj_inicial)
     nivel_keepalive = 0;
     mensajes_serie  = 0;
     reloj_ms        = reloj_inicial;
+    comando_en_pwm  = NULL;
     memset(nvs_balance, 0, sizeof nvs_balance);   /* un carro recién salido de fábrica: sin balance guardado */
     nvs_guardados   = 0;
     carro_iniciar();
@@ -855,6 +866,66 @@ static void prueba_direcciones(void)
     caso("la red es 192.168.4.x", IP_RED_BASE_1 == 192 && IP_RED_BASE_2 == 168 && IP_RED_BASE_3 == 4);
 }
 
+static void prueba_cola_y_clientes(void)
+{
+    printf("-- J10: cola de comandos y cliente WebSocket activo --\n");
+
+    /* 1. Cola procesada solo por loop(): encolar no mueve motores hasta vuelta_loop(). */
+    reiniciar_mundo(0);
+    carro_encolar_comando("FORWARD");
+    caso("cola: encolar FORWARD desde async_tcp no toca motores antes de loop()", escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
+    vuelta_loop();
+    caso("cola: vuelta_loop() procesa el FORWARD encolado", pines_son(0, 255, 255, 0));
+
+    /* 2. Condición de carrera entre async_tcp y carro_vigilar_comunicacion (pleno_modo vs STOP). */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS;
+    comando_en_pwm = "STOP";   /* llega STOP a mitad de poner_motores() del fin de pleno_modo */
+    vuelta_loop();
+    caso("carrera: STOP que llega a mitad de pleno_modo en carro_vigilar_comunicacion deja los 4 motores en 0", pines_son(0, 0, 0, 0));
+    reloj_ms += 500;
+    vuelta_loop();
+    caso("carrera: tras el STOP en carrera los motores siguen en 0", pines_son(0, 0, 0, 0));
+
+    /* 3. PING encolado tampoco renueva el reloj del watchdog. */
+    reiniciar_mundo(0);
+    carro_encolar_comando("FORWARD");
+    vuelta_loop();
+    reloj_ms = 500;
+    carro_encolar_comando("PING");
+    vuelta_loop();
+    reloj_ms = 1001;
+    vuelta_loop();
+    caso("cola: PING encolado no renueva el reloj del watchdog (frena a 1001 ms)", pines_son(0, 0, 0, 0));
+
+    /* 4. WS_EVT_DISCONNECT de un cliente que NO es el activo se ignora. */
+    reiniciar_mundo(0);
+    carro_conectar_cliente(1);
+    caso("cliente activo tras conectar #1 es 1", carro_cliente_activo() == 1u);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("FORWARD");
+    reloj_ms = PERFIL_MANUAL_ARRANQUE_PLENO_MS;
+    vuelta_loop();
+    caso("cliente #1 avanzando en MANUAL (252/255)", pines_son(0, 252, 255, 0) && carro_perfil() == PERFIL_MANUAL);
+    caso("WS_EVT_DISCONNECT de cliente #2 (no activo) devuelve 0 y se ignora", carro_desconectar_cliente(2) == 0);
+    caso("... tras desconectar cliente #2 no activo, el carro sigue avanzando en MANUAL y el activo sigue siendo #1",
+         pines_son(0, 252, 255, 0) && carro_perfil() == PERFIL_MANUAL && carro_cliente_activo() == 1u);
+
+    /* 5. Si conecta el cliente #2, pasa a ser el activo y el WS_EVT_DISCONNECT tardío del #1 se ignora. */
+    carro_conectar_cliente(2);
+    caso("al conectar cliente #2, frena, vuelve a AUTO y el activo pasa a #2",
+         pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 2u);
+    carro_recibir_comando("MODO_MANUAL");
+    carro_recibir_comando("FORWARD");
+    caso("WS_EVT_DISCONNECT tardio del antiguo cliente #1 se ignora y no frena al #2",
+         carro_desconectar_cliente(1) == 0 && pines_son(0, 255, 255, 0) && carro_perfil() == PERFIL_MANUAL && carro_cliente_activo() == 2u);
+
+    /* 6. WS_EVT_DISCONNECT del cliente activo (#2) sí frena y vuelve a AUTO. */
+    caso("WS_EVT_DISCONNECT del cliente activo (#2) devuelve 1, frena y vuelve a AUTO",
+         carro_desconectar_cliente(2) == 1 && pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 0u);
+}
+
 /* Todas las pruebas de siempre (con el arranque escalonado apagado). Fuera del main para que, al compilar la prueba escalonada, no sobren funciones sin usar. */
 int pruebas_normales(void);
 int pruebas_normales(void)
@@ -873,6 +944,7 @@ int pruebas_normales(void)
     prueba_keepalive();
     prueba_desbordamiento();
     prueba_direcciones();
+    prueba_cola_y_clientes();
 
     printf("== Parte 2: comparación con el código original ==\n");
     prueba_diferencial(0, "reloj desde 0");

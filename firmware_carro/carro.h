@@ -80,6 +80,18 @@ void carro_vigilar_comunicacion(void);
  * pulso corto cada cierto tiempo en el pin keep-alive. */
 void carro_actualizar_keepalive(void);
 
+/* Cola de comandos entre la tarea del WebSocket (async_tcp) y loop(), para que
+ * solo loop() modifique pleno_modo, comando_actual y motores. */
+void carro_encolar_comando(const char *texto);
+int  carro_extraer_comando_cola(char *destino);
+void carro_procesar_cola(void);
+
+/* Seguimiento del cliente WebSocket activo. carro_desconectar_cliente ignora
+ * (devuelve 0) un WS_EVT_DISCONNECT de un cliente que no es el activo. */
+void     carro_conectar_cliente(uint32_t id);
+int      carro_desconectar_cliente(uint32_t id);
+uint32_t carro_cliente_activo(void);
+
 #ifdef __cplusplus
 }
 #endif

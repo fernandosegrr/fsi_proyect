@@ -165,6 +165,8 @@ static void responder_no_encontrado(AsyncWebServerRequest *request)
 
 /* ── WebSocket ─────────────────────────────────────────────────────────── */
 
+static portMUX_TYPE mux_carro = portMUX_INITIALIZER_UNLOCKED;
+
 /* Eventos del WebSocket: conexión, desconexión y mensajes de texto. */
 static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *client,
                                 AwsEventType type, void *arg, uint8_t *data, size_t len)
@@ -174,15 +176,26 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
     for (auto &c : ws.getClients()) {
       if (c.id() != client->id()) c.close();
     }
-    carro_detener();  /* estado limpio al conectar */
-    carro_poner_perfil_auto();   /* y siempre en el perfil AUTO: la app pide MODO_MANUAL si lo quiere */
+    portENTER_CRITICAL(&mux_carro);
+    carro_conectar_cliente(client->id());
+    carro_encolar_comando("__STOP_AUTO");
+    portEXIT_CRITICAL(&mux_carro);
     client->client()->setNoDelay(true);   /* TCP_NODELAY: el STOP y los comandos salen sin esperar a juntarse con otros datos (algoritmo de Nagle) */
     Serial.printf("WS Cliente conectado: #%u\n", client->id());
 
   } else if (type == WS_EVT_DISCONNECT) {
-    carro_detener();
-    carro_poner_perfil_auto();
-    Serial.println("WS Desconectado — freno de emergencia activado.");
+    int era_activo = 0;
+    portENTER_CRITICAL(&mux_carro);
+    era_activo = carro_desconectar_cliente(client->id());
+    if (era_activo) {
+      carro_encolar_comando("__STOP_AUTO");
+    }
+    portEXIT_CRITICAL(&mux_carro);
+    if (era_activo) {
+      Serial.println("WS Desconectado — freno de emergencia activado.");
+    } else {
+      Serial.printf("WS Desconectado ignorado (cliente #%u no es el activo).\n", client->id());
+    }
 
   } else if (type == WS_EVT_DATA) {
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -192,10 +205,17 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
       size_t n = (len < LARGO_MAX_COMANDO - 1) ? len : (LARGO_MAX_COMANDO - 1);
       memcpy(comando, data, n);
       comando[n] = '\0';
-      carro_recibir_comando(comando);
-      /* PING → PONG (la app mide la latencia con el ida y vuelta) y MODO_MANUAL/MODO_AUTO → ACK_MANUAL/ACK_AUTO: la respuesta la decide carro.c. */
-      const char *respuesta = carro_respuesta(comando);
-      if (respuesta != NULL) {
+      int aceptado = 0;
+      const char *respuesta = NULL;
+      portENTER_CRITICAL(&mux_carro);
+      if (carro_cliente_activo() == 0 || client->id() == carro_cliente_activo()) {
+        carro_encolar_comando(comando);
+        /* PING → PONG (la app mide la latencia con el ida y vuelta) y MODO_MANUAL/MODO_AUTO → ACK_MANUAL/ACK_AUTO: la respuesta la decide carro.c. */
+        respuesta = carro_respuesta(comando);
+        aceptado = 1;
+      }
+      portEXIT_CRITICAL(&mux_carro);
+      if (aceptado && respuesta != NULL) {
         client->text(respuesta);
       }
     }
@@ -234,6 +254,16 @@ void loop()
 {
   esp_task_wdt_reset();
   ws.cleanupClients();
+
+  char comando[LARGO_MAX_COMANDO];
+  while (true) {
+    int hay = 0;
+    portENTER_CRITICAL(&mux_carro);
+    hay = carro_extraer_comando_cola(comando);
+    portEXIT_CRITICAL(&mux_carro);
+    if (!hay) break;
+    carro_recibir_comando(comando);
+  }
 
   carro_vigilar_comunicacion();
   carro_actualizar_keepalive();
