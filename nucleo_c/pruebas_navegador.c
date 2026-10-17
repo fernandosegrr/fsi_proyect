@@ -2708,20 +2708,93 @@ static void preparar_arranque(void)
 
 static void pruebas_arranque_y_sondeo(void)
 {
-    /* 1. Artefacto fijo: zona izquierda, cercanía 3, 40 celdas, siempre igual (no crece al acercarse). El carro avanza 4 cm, ve que no crece y lo ignora: llega sin esquivar. */
+    /* 1. Artefacto fijo: zona izquierda, cercanía 3, 10 celdas (dentro del tope de 12), siempre igual (no crece al acercarse). El carro avanza 4 cm, ve que no crece y lo ignora: llega sin esquivar. */
     preparar_arranque();
-    sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 40);
+    sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 10);
     correr_arranque(30000);
-    caso("obstaculo fantasma fijo a la izquierda (cercania 3, 40 celdas, desde el primer cuadro): el carro lo sondea, ve que no crece y llega SIN esquivar (TERMINADO, 0 esquivadas)",
+    caso("obstaculo fantasma fijo a la izquierda (cercania 3, 10 celdas, desde el primer cuadro): el carro lo sondea, ve que no crece y llega SIN esquivar (TERMINADO, 0 esquivadas)",
          nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && marcas_arr.inicio == 1 && marcas_arr.fijo == 1 && marcas_arr.real == 0);
     caso("... no se movio hasta tener 4 cuadros iguales (200 ms) y el sondeo avanzo solo ~4 cm antes de seguir: el primer FORWARD sale a los 200 ms",
          sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) >= 150 && sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) <= 300);
     printf("      primer FORWARD a los %ld ms; arranque=%d inicio=%d fijo=%d hex_valido=%d\n", sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0), marcas_arr.arranque, marcas_arr.inicio, marcas_arr.fijo, marcas_arr.hex_valido);
     caso("... y se loguea con OBS_DIAG: arranque, inicio del sondeo y sospechoso fijo, con las tres mascaras de 25 cifras hexadecimales, la cercania y la franja",
          marcas_arr.arranque == 1 && marcas_arr.hex_valido >= 3);
-    caso("... y esa zona queda ignorada en esta corrida (fijo_ignorar) mientras sus celdas no crezcan", nav.fijo_ignorar[ZONA_IZQUIERDA] == 1 && nav.fijo_ignorar[ZONA_CENTRO] == 0);
+    caso("... y esa zona queda ignorada en esta corrida (fijo_ignorar) mientras sus celdas no crezcan, con zona_celdas en 0",
+         nav.fijo_ignorar[ZONA_IZQUIERDA] == 1 && nav.fijo_ignorar[ZONA_CENTRO] == 0 && nav.zona_celdas[ZONA_IZQUIERDA] == 0);
 
-    /* 2. Obstáculo real al lado: crece al acercarse (6 celdas por cada 10 cm → 2.4 celdas en 4 cm de 40: no alcanza el 15 %...) por eso se da un crecimiento fuerte: 40 celdas más cada 10 cm. */
+    /* 1b. J10 Punto 3(a): Al ignorar la zona izquierda por sospechoso_fijo, zona_celdas[ZONA_IZQUIERDA] queda en 0 y elegir_lado no sesga a la derecha cuando aparece un obstáculo en el centro. */
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 10);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 3500, ZONA_CENTRO, 3, 25);
+    correr_arranque(60000);
+    caso("J10 3(a): con fantasma fijo ignorado a la izquierda y obstaculo real en el centro a los 1500 ms, zona_celdas[IZQ] es 0 y elegir_lado no sesga a la derecha (elige izquierda, lado == -1)",
+         nav.esquivadas >= 1 && nav.lado == -1 && nav.zona_celdas[ZONA_IZQUIERDA] == 0);
+    /* Y en comparación, tras reincorporar el fantasma fijo sigue ignorado durante toda la corrida mientras su firma hexadecimal siga igual (J10 3(c)). */
+    caso("J10 3(c): tras esquivar y reincorporar, el fantasma fijo a la izquierda sigue ignorado toda la corrida (no vuelve a detener el carro: TERMINADO con 1 sola esquivada)",
+         nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && nav.fijo_ignorar[ZONA_IZQUIERDA] == 1);
+
+    /* 1c. J10 Punto 3(b): tick_sondeo no declara obstáculo real si no llegaron al menos 2 cuadros; espera hasta 2 cuadros o 1500 ms y, si no hay, repite sin declarar nada. */
+    {
+        ResultadoObstaculos obs_fijo;
+        int f;
+
+        memset(&obs_fijo, 0, sizeof obs_fijo);
+        obs_fijo.columnas = 10;
+        obs_fijo.filas = 10;
+        obs_fijo.fila_minima_usada = 4;
+        for (f = 7; f <= 9; f++) {
+            obs_fijo.no_piso[f][1] = 1;
+            obs_fijo.no_piso[f][2] = 1;
+        }
+        obs_fijo.zona[ZONA_IZQUIERDA].hay_obstaculo = 1;
+        obs_fijo.zona[ZONA_IZQUIERDA].cercania = 3;
+        obs_fijo.zona[ZONA_IZQUIERDA].celdas = 6;
+
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        /* 4 cuadros iguales al arrancar -> inicia sondeo en t = 150 ms */
+        navegador_tick(&nav, 0, &obs_fijo);
+        navegador_tick(&nav, 50, &obs_fijo);
+        navegador_tick(&nav, 100, &obs_fijo);
+        navegador_tick(&nav, 150, &obs_fijo);
+        caso("J10 3(b): tras 4 cuadros entra en sondeo_fase=1 avanzando", nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 1);
+        /* Avanza los ~200 ms del sondeo con cuadros para no disparar hueco de video, y entra a sondeo_fase = 2 en t = 400 ms (sondeo_listo_ms = 700) */
+        navegador_tick(&nav, 200, &obs_fijo);
+        navegador_tick(&nav, 300, &obs_fijo);
+        navegador_tick(&nav, 400, &obs_fijo);
+        caso("J10 3(b): al terminar los 4 cm pasa a sondeo_fase=2 con sondeo_n=0", nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2 && nav.sondeo_n == 0);
+        /* Pasan 300 ms desde sondeo_listo_ms=700 (t=1000 > 700+250) pero SIN cuadros nuevos (sondeo_n == 0): NO declara obstáculo real, sigue esperando */
+        nav.t_ultimo_cuadro_ms = 900;
+        navegador_tick(&nav, 1000, NULL);
+        caso("J10 3(b): tras >250 ms mirando con 0 cuadros (sondeo_n==0), NO declara obstaculo real ni sale de sondeo_fase=2",
+             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2);
+        /* Llega 1 solo cuadro en t = 1100 ms (sondeo_n == 1 < 2): todavía espera al segundo cuadro o a los 1500 ms */
+        navegador_tick(&nav, 1100, &obs_fijo);
+        caso("J10 3(b): con 1 solo cuadro en sondeo (sondeo_n==1 < 2), sigue esperando",
+             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2 && nav.sondeo_n == 1);
+        /* En t = 2250 ms (>= sondeo_listo_ms(700) + 1500 = 2200) sin llegar un segundo cuadro: repite el sondeo (sondeo_fase=1, FORWARD) sin declarar obstáculo real */
+        nav.t_ultimo_cuadro_ms = 2100;
+        navegador_tick(&nav, 2250, NULL);
+        caso("J10 3(b): al cumplirse 1500 ms sin reunir 2 cuadros, repite el sondeo (sondeo_fase vuelve a 1, cmd=FORWARD) sin declarar obstaculo real",
+             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 1 && nav.cmd_actual == NAV_CMD_FORWARD);
+    }
+
+    /* 1d. J10 Punto 3(c): tope de 12 celdas por zona (con 15 celdas no se ignora) y cancelación si crece más de 30 % o cambia la firma hexadecimal. */
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 15);
+    correr_arranque(30000);
+    caso("J10 3(c): con 15 celdas (mas del tope de 12 celdas por zona) NO se ignora como fantasma fijo: esquiva",
+         nav.fijo_ignorar[ZONA_IZQUIERDA] == 0 && marcas_arr.fijo == 0 && marcas_arr.real == 1 && nav.esquivadas >= 1);
+
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 0, 1500, ZONA_IZQUIERDA, 3, 8);    /* se ignora con 8 celdas */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 11); /* crece de 8 a 11 (> 10 = +37.5 % > 30 %) */
+    correr_arranque(30000);
+    caso("J10 3(c): fantasma fijo de 8 celdas ignorado al arrancar; si luego crece mas de 30 % (a 11 celdas) se cancela fijo_ignorar y esquiva",
+         marcas_arr.fijo == 1 && nav.fijo_ignorar[ZONA_IZQUIERDA] == 0 && nav.esquivadas >= 1);
+
+    /* 2. Obstáculo real al lado: crece al acercarse. */
     preparar_arranque();
     sim_agregar_obstaculo_creciente(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 40, 100);
     correr_arranque(30000);
@@ -2839,10 +2912,11 @@ static void pruebas_arranque_y_sondeo(void)
         caso("OBS_DIAG al detenerse: la mascara hexadecimal de la zona central tiene celdas (y la de la izquierda y la derecha no), con cercania (0,3,0), celdas (0,49,0) y la franja tapada 45 %", visto);
     }
 
-    /* 7. Hueco de video: 700 ms. */
+    /* 7. Hueco de video: 700 ms en SIGUIENDO, ESQUIVANDO y REINCORPORANDO (J10 Punto 5: no reproducido, ir_a_error pasa directo a NAV_ERROR con STOP sin alternar FORWARD). */
     preparar(RECTA, N(RECTA));
     {
         ResultadoObstaculos libre;
+        ComandoNav c1, c2;
 
         memset(&libre, 0, sizeof libre);
         correr(1500);
@@ -2851,6 +2925,177 @@ static void pruebas_arranque_y_sondeo(void)
         caso("hueco de video de 650 ms: sigue (NAV_MAX_HUECO_VIDEO_MS = 700)", nav.estado != NAV_ERROR && NAV_MAX_HUECO_VIDEO_MS == 700);
         navegador_tick(&nav, sim.t_ms + 760, NULL);
         caso("hueco de video de 760 ms: ERROR sin video", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO);
+
+        /* J10 Punto 5: comprobar en ESQUIVANDO y REINCORPORANDO con pedir_ayuda=1 que un hueco > 700 ms pone STOP y pasa a NAV_ERROR sin volver a ordenar FORWARD. */
+        preparar(RECTA, N(RECTA));
+        navegador_poner_pedir_ayuda(&nav, 1);
+        sim_agregar_obstaculo(&sim, 500, 2000, ZONA_CENTRO, 3);
+        while (nav.estado != NAV_ESQUIVANDO && sim.t_ms < 5000) {
+            correr(NAV_TICK_MS);
+        }
+        navegador_tick(&nav, sim.t_ms, &libre);
+        c1 = navegador_tick(&nav, sim.t_ms + 750, NULL);
+        c2 = navegador_tick(&nav, sim.t_ms + 800, NULL);
+        caso("J10 5 (no reproducido): hueco de video > 700 ms en ESQUIVANDO pasa a NAV_ERROR con STOP y nunca vuelve a ordenar FORWARD",
+             nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO && c1 == NAV_CMD_STOP && c2 == NAV_CMD_STOP);
+
+        preparar(RECTA, N(RECTA));
+        navegador_poner_pedir_ayuda(&nav, 1);
+        sim_agregar_obstaculo(&sim, 500, 1500, ZONA_CENTRO, 3);
+        while (nav.estado != NAV_REINCORPORANDO && sim.t_ms < 15000) {
+            correr(NAV_TICK_MS);
+        }
+        navegador_tick(&nav, sim.t_ms, &libre);
+        c1 = navegador_tick(&nav, sim.t_ms + 750, NULL);
+        c2 = navegador_tick(&nav, sim.t_ms + 800, NULL);
+        caso("J10 5 (no reproducido): hueco de video > 700 ms en REINCORPORANDO pasa a NAV_ERROR con STOP y nunca vuelve a ordenar FORWARD",
+             nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_SIN_VIDEO && c1 == NAV_CMD_STOP && c2 == NAV_CMD_STOP);
+    }
+}
+
+/* ── J10 Puntos 7 y 8: Ruta en L sin obstáculos con calibración real/espejo, y pose tras parar ───────────────────────────────── */
+static int error_pose_mm(int x1, int y1, int x2, int y2)
+{
+    long dx = (long)x1 - x2;
+    long dy = (long)y1 - y2;
+    long d2 = dx * dx + dy * dy;
+    long r = 0;
+
+    while ((r + 1) * (r + 1) <= d2) {
+        r++;
+    }
+    return (int)r;
+}
+
+static int correr_ruta_en_l(const Punto *ruta, int n, int usar_espejo_izq, int sin_compensar, int *err_plan_mm, int *err_est_mm)
+{
+    CalibracionCarro cal;
+    int pa_der, pd_der, pa_izq, pd_izq;
+    int dest_x = ruta[n - 1].columna * MM;
+    int dest_y = ruta[n - 1].fila * MM;
+
+    cal_defecto(&cal);
+    /* Calibración real: derecha 15 cm adelante y 16.5 cm de lado a 90°; izquierda radio 9 cm (90 mm adelante, -90 mm a la derecha a 90°) o espejo */
+    cal_desplazamiento_de_medida(CAL_LADO_DERECHA, 150, 165, 90, &pa_der, &pd_der);
+    cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, pa_der, pd_der);
+    if (!usar_espejo_izq) {
+        cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, 90, -90, 90, &pa_izq, &pd_izq);
+        cal_poner_desplazamiento(&cal, CAL_LADO_IZQUIERDA, pa_izq, pd_izq);
+    }
+
+    navegador_iniciar(&nav);
+    nav.sin_compensar_giro = sin_compensar;
+    navegador_poner_calibracion(&nav, &cal);
+    navegador_cargar_ruta(&nav, ruta, n);
+    sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+    sim.real = cal;
+    navegador_comenzar(&nav, 0);
+    while (nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR && sim.t_ms < 60000) {
+        correr(NAV_TICK_MS);
+    }
+    *err_plan_mm = error_pose_mm(sim_x_mm(&sim), sim_y_mm(&sim), dest_x, dest_y);
+    *err_est_mm = error_pose_mm(sim_x_mm(&sim), sim_y_mm(&sim), nav.x_mm, nav.y_mm);
+    return nav.estado == NAV_TERMINADO;
+}
+
+static void pruebas_j10_ruta_l_y_frenado(void)
+{
+    /* Ruta en L de 60 cm + 60 cm hacia la derecha: (0,600) -> (0,0) -> (600,0) en coordenadas de mapa (en celdas: (0,3)->(0,2)->(0,1)->(0,0)->(1,0)->(2,0)->(3,0))
+     * y en espejo hacia la izquierda: (600,600) -> (600,0) -> (0,0) (en celdas: (3,3)->(3,2)->(3,1)->(3,0)->(2,0)->(1,0)->(0,0)). */
+    static const Punto RUTA_L_DER[] = { {0, 3}, {0, 2}, {0, 1}, {0, 0}, {1, 0}, {2, 0}, {3, 0} };
+    static const Punto RUTA_L_IZQ[] = { {3, 3}, {3, 2}, {3, 1}, {3, 0}, {2, 0}, {1, 0}, {0, 0} };
+    static const Punto RUTA_1M[]    = { {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2} };   /* 5 celdas = 1000 mm (1 m) */
+    int err_antes_der = 0, err_despues_der = 0, est_der = 0;
+    int err_antes_izq = 0, err_despues_izq = 0, est_izq = 0;
+    int err_antes_esp = 0, err_despues_esp = 0, est_esp = 0;
+
+    correr_ruta_en_l(RUTA_L_DER, N(RUTA_L_DER), 0, 1, &err_antes_der, &est_der);
+    correr_ruta_en_l(RUTA_L_DER, N(RUTA_L_DER), 0, 0, &err_despues_der, &est_der);
+    printf("      J10 7 ruta en L derecha (15 cm adelante, 16.5 cm lado): error antes = %d mm, despues = %d mm (real vs estimada = %d mm)\n",
+           err_antes_der, err_despues_der, est_der);
+    caso("J10 7: ruta en L derecha (60 cm + 60 cm): sin compensar el desplazamiento del giro el error pasa de 5 cm (~22.3 cm); compensando queda en <= 5 cm (<= 1 cm)",
+         err_antes_der > 50 && err_despues_der <= 50 && est_der <= 10);
+
+    correr_ruta_en_l(RUTA_L_IZQ, N(RUTA_L_IZQ), 0, 1, &err_antes_izq, &est_izq);
+    correr_ruta_en_l(RUTA_L_IZQ, N(RUTA_L_IZQ), 0, 0, &err_despues_izq, &est_izq);
+    printf("      J10 7 ruta en L izquierda (radio 9 cm): error antes = %d mm, despues = %d mm (real vs estimada = %d mm)\n",
+           err_antes_izq, err_despues_izq, est_izq);
+    caso("J10 7: ruta en L izquierda con radio 9 cm: sin compensar el error pasa de 5 cm (~12.7 cm); compensando queda en <= 5 cm (<= 1 cm)",
+         err_antes_izq > 50 && err_despues_izq <= 50 && est_izq <= 10);
+
+    correr_ruta_en_l(RUTA_L_IZQ, N(RUTA_L_IZQ), 1, 1, &err_antes_esp, &est_esp);
+    correr_ruta_en_l(RUTA_L_IZQ, N(RUTA_L_IZQ), 1, 0, &err_despues_esp, &est_esp);
+    printf("      J10 7 ruta en L izquierda en espejo (espejo de derecha): error antes = %d mm, despues = %d mm (real vs estimada = %d mm)\n",
+           err_antes_esp, err_despues_esp, est_esp);
+    caso("J10 7: ruta en L en espejo: sin compensar el error pasa de 5 cm (~22.3 cm); compensando queda en <= 5 cm (<= 1 cm)",
+         err_antes_esp > 50 && err_despues_esp <= 50 && est_esp <= 10);
+
+    /* Comprobar que planificar() no sobrescribe el rumbo real y corrige con un giro si difiere más de 4° */
+    {
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RUTA_1M, N(RUTA_1M));
+        navegador_comenzar(&nav, 0);
+        /* Si el rumbo real difiere 3° (<= 4°), planificar() no lo sobrescribe con 0° ni mete giro */
+        nav.rumbo_grados = 3;
+        nav.base_rumbo_grados = 3;
+        navegador_tick(&nav, 1000, NULL);   /* completa el primer tramo de 200 mm (1000 ms) y llama a planificar() */
+        caso("J10 7: planificar() no sobrescribe rumbo_grados cuando difiere <= 4 grados (queda en 3, sin PASO_GIRAR)",
+             nav.rumbo_grados == 3 && nav.pasos[0].tipo == PASO_AVANZAR);
+        /* Si el rumbo real difiere 6° (> 4°), planificar() emite un giro corrector de -6° */
+        nav.rumbo_grados = 6;
+        nav.base_rumbo_grados = 6;
+        navegador_tick(&nav, 2000, NULL);   /* completa el siguiente tramo y llama a planificar() */
+        caso("J10 7: planificar() emite un giro corrector cuando el rumbo difiere mas de 4 grados (6 grados -> giro a la izquierda)",
+             nav.pasos[0].tipo == PASO_GIRAR && nav.pasos[0].valor == -6);
+    }
+
+    /* J10 Punto 8: tick_detenido acota ms_paso a 0 y cuenta el frenado una sola vez; sondeo de 4 cm + ruta de 1 m termina a <= 1 cm de lo planeado. */
+    {
+        CalibracionCarro cal;
+        int err_1m;
+
+        cal_defecto(&cal);
+        cal.arranque_ms = 80;
+        cal.frenado_mm = 6;    /* a 50 ms/cm son 30 ms: frenado(30) - arranque(80) = -50 ms */
+        memset(&marcas_arr, 0, sizeof marcas_arr);
+        navegador_iniciar(&nav);
+        navegador_poner_calibracion(&nav, &cal);
+        navegador_cargar_ruta(&nav, RUTA_1M, N(RUTA_1M));
+        sim_iniciar(&sim, RUTA_1M[0].columna, RUTA_1M[0].fila, 0);
+        sim.real = cal;
+        /* Fantasma fijo de 10 celdas al arrancar -> dispara sondeo de 4 cm al inicio de la ruta de 1 m */
+        sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 10);
+        navegador_comenzar(&nav, 0);
+        correr_arranque(30000);
+        err_1m = error_pose_mm(sim_x_mm(&sim), sim_y_mm(&sim), RUTA_1M[N(RUTA_1M) - 1].columna * MM, RUTA_1M[N(RUTA_1M) - 1].fila * MM);
+        printf("      J10 8 sondeo 4 cm + ruta 1 m: pose final real (%d, %d) vs planeada (%d, %d), error = %d mm\n",
+               sim_x_mm(&sim), sim_y_mm(&sim), RUTA_1M[N(RUTA_1M) - 1].columna * MM, RUTA_1M[N(RUTA_1M) - 1].fila * MM, err_1m);
+        caso("J10 8: sondeo de 4 cm mas ruta de 1 m termina a 1 cm o menos de lo planeado (error <= 10 mm)",
+             nav.estado == NAV_TERMINADO && marcas_arr.fijo == 1 && err_1m <= 10);
+
+        /* Además, verificar directamente que ms_paso nunca queda negativo y el frenado se suma una sola vez al parar en tick_detenido */
+        navegador_iniciar(&nav);
+        navegador_poner_calibracion(&nav, &cal);
+        navegador_cargar_ruta(&nav, RUTA_1M, N(RUTA_1M));
+        navegador_comenzar(&nav, 0);
+        /* Avanza solo 20 ms y entra en NAV_DETENIDO_OBSTACULO: 20 + 30 - 80 = -30 -> se acota a 0 */
+        navegador_tick(&nav, 20, NULL);
+        nav.estado = NAV_DETENIDO_OBSTACULO;
+        nav.cmd_actual = NAV_CMD_STOP;
+        nav.frenado_pendiente = 1;
+        navegador_tick(&nav, 40, NULL);
+        caso("J10 8: cuando ms_paso + frenado - arranque < 0, ms_paso se acota a 0 (no queda negativo)",
+             nav.ms_paso == 0 && nav.frenado_pendiente == 0);
+        /* Y cuando ms_paso es 200 ms con frenado=60 ms (12 mm) y arranque=20 ms (+40 ms), dos ticks seguidos en detenido lo aplican UNA sola vez (240, no 280) */
+        cal.arranque_ms = 20;
+        cal.frenado_mm = 12;   /* 12 mm * 50 ms/cm = 60 ms */
+        nav.cal = cal;
+        nav.ms_paso = 200;
+        nav.frenado_pendiente = 1;
+        navegador_tick(&nav, 60, NULL);
+        navegador_tick(&nav, 80, NULL);
+        caso("J10 8: el ajuste de frenado - arranque se aplica una sola vez al detenerse (200 + 40 = 240 ms, no dos veces)",
+             nav.ms_paso == 240);
     }
 }
 
@@ -2862,6 +3107,7 @@ int main(void)
     pruebas_final_de_ruta();
     pruebas_frenos_anti_locura();
     pruebas_arranque_y_sondeo();
+    pruebas_j10_ruta_l_y_frenado();
     pruebas_sin_obstaculos();
     pruebas_rutas_raras();
     pruebas_antirrebote();

@@ -393,10 +393,27 @@ static void sumar_frenado(Navegador *nav)
 static void registrar_fin_comando(Navegador *nav);                      /* se definen más abajo, junto a la cola de diagnóstico */
 static void registrar_inicio_comando(Navegador *nav, ComandoNav nuevo);
 
+/* Ajusta el tiempo ya ejecutado del paso cuando el carro frena de FORWARD a STOP y luego reanuda: el frenado cuenta una sola vez y ms_paso nunca queda negativo. */
+static void ajustar_paso_tras_parar(Navegador *nav)
+{
+    if (!nav->frenado_pendiente) {
+        return;
+    }
+    nav->frenado_pendiente = 0;
+    nav->ms_paso += (int)((long)nav->cal.frenado_mm * nav->cal.ms_por_cm_x10 / 100) - nav->cal.arranque_ms;
+    if (nav->ms_paso < 0) {
+        nav->ms_paso = 0;
+    }
+}
+
 /* Cambia el comando actual (si es distinto) cerrando el tramo anterior. */
 static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
 {
     if (nuevo != nav->cmd_actual) {
+        if (nav->cmd_actual == NAV_CMD_FORWARD && nuevo == NAV_CMD_STOP &&
+            (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO)) {
+            nav->frenado_pendiente = 1;
+        }
         sumar_frenado(nav);
         registrar_fin_comando(nav);   /* antes de fijar_pose: necesita la pose de antes y de después del comando */
         fijar_pose(nav);
@@ -861,23 +878,103 @@ static void ajustar_tramos_continuos(Navegador *nav, const Punto *camino, int n)
     }
 }
 
-/* Calcula los pasos desde la celda más cercana a la posición estimada hasta el punto de la
- * ruta al que se dirige (indice_objetivo), mirando hacia el rumbo actual (ajustado al
- * múltiplo de 45 grados más cercano, para no arrastrar errores de giro).
- * El camino entre celdas avanza en diagonal mientras puede y luego recto. */
+/* Calcula los pasos hacia el punto de la ruta al que se dirige (indice_objetivo), sin sobrescribir el rumbo real (si difiere más de 4° del tramo, lo corrige con un giro)
+ * y compensando el desplazamiento del giro de pivote en los tramos de toda la ruta. */
 static int planificar(Navegador *nav)
 {
     Punto camino[MAX_PUNTOS];
     const Punto *meta = &nav->ruta[nav->indice_objetivo];
     int orientacion, columna, fila, n, indice_error;
+    int k = nav->indice_objetivo;
 
     if (nav->cmd_actual != NAV_CMD_STOP) {
         registrar_fin_comando(nav);   /* el comando sigue (avanzar al siguiente punto sin parar), pero se cierra el registro del tramo que terminó */
     }
     fijar_pose(nav);
+    nav->frenado_pendiente = 0;
+
+    if (!nav->sin_compensar_giro && k >= 1 && k < nav->n_puntos) {
+        int rumbo_tramo = rumbo_del_tramo(nav, k - 1);
+        int u1x = dir_x_mil(rumbo_tramo), u1y = dir_y_mil(rumbo_tramo);
+        long kx = punto_ruta_x(nav, k), ky = punto_ruta_y(nav, k);
+        long dist_actual = ((kx - nav->x_mm) * (long)u1x + (ky - nav->y_mm) * (long)u1y) / 1000;
+        long lat_actual = valor_absoluto_largo(((kx - nav->x_mm) * (long)(-u1y) + (ky - nav->y_mm) * (long)u1x) / 1000);
+
+        if (dist_actual >= -MM_POR_CELDA / 2 && lat_actual <= MM_POR_CELDA) {
+            int k_esq = k;
+            long d_antes = 0;
+            int giro = giro_minimo(nav->rumbo_grados, rumbo_tramo);
+            PoseCarro p_ini;
+            long ex, ey, dist_esq, dist_k, avance_mm;
+            int cm, continua, sigue_recto;
+
+            while (k_esq + 1 < nav->n_puntos && rumbo_del_tramo(nav, k_esq) == rumbo_tramo) {
+                k_esq++;
+            }
+            if (k_esq + 1 < nav->n_puntos) {
+                int rumbo_sig = rumbo_del_tramo(nav, k_esq);
+                int u2x = dir_x_mil(rumbo_sig), u2y = dir_y_mil(rumbo_sig);
+                int giro_esq = giro_minimo(rumbo_tramo, rumbo_sig);
+                int lado_esq = (giro_esq < 0) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
+                int grados_esq = (giro_esq < 0) ? -giro_esq : giro_esq;
+                int dx_esq = 0, dy_esq = 0;
+                long det = (long)u1x * u2y - (long)u1y * u2x;
+
+                cal_desplazamiento_giro(&nav->cal, lado_esq, grados_esq, rumbo_tramo, &dx_esq, &dy_esq, NULL, NULL);
+                if (det != 0) {
+                    d_antes = ((long)dx_esq * u2y - (long)dy_esq * u2x) * 1000 / det;
+                }
+            }
+            p_ini.x_mm = nav->x_mm;
+            p_ini.y_mm = nav->y_mm;
+            p_ini.rumbo_grados = nav->rumbo_grados;
+            nav->n_pasos = 0;
+            nav->indice_paso = 0;
+            nav->ms_paso = 0;
+            nav->codigo_trayectoria = TRAY_OK;
+            if ((giro < -4 || giro > 4)) {
+                int lado_g = (giro < 0) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
+                int grados_g = (giro < 0) ? -giro : giro;
+
+                nav->pasos[nav->n_pasos].tipo = PASO_GIRAR;
+                nav->pasos[nav->n_pasos].valor = giro;
+                nav->pasos[nav->n_pasos].tiempo_ms = cal_grados_a_ms(&nav->cal, giro);
+                nav->n_pasos++;
+                cal_pose_tras_giro(&nav->cal, &p_ini, lado_g, grados_g, &p_ini);
+            }
+            ex = punto_ruta_x(nav, k_esq);
+            ey = punto_ruta_y(nav, k_esq);
+            dist_esq = ((ex - p_ini.x_mm) * (long)u1x + (ey - p_ini.y_mm) * (long)u1y) / 1000 - d_antes;
+            dist_k = ((kx - p_ini.x_mm) * (long)u1x + (ky - p_ini.y_mm) * (long)u1y) / 1000;
+            avance_mm = (k == k_esq || dist_k > dist_esq) ? dist_esq : dist_k;
+            cm = (int)((avance_mm + 5) / 10);
+            continua = (nav->cmd_actual == NAV_CMD_FORWARD && nav->n_pasos == 0);
+            sigue_recto = (k < k_esq && dist_esq - avance_mm >= 10);
+            if (cm > 0) {
+                nav->pasos[nav->n_pasos].tipo = PASO_AVANZAR;
+                nav->pasos[nav->n_pasos].valor = cm;
+                nav->pasos[nav->n_pasos].tiempo_ms = cal_cm_a_ms_tramo(&nav->cal, cm, !continua, !sigue_recto);
+                nav->n_pasos++;
+            }
+            if (continua && nav->n_pasos > 0) {
+                nav->seg_ms = nav->cal.arranque_ms;
+            }
+            if (nav->cmd_actual != NAV_CMD_STOP) {
+                if (nav->n_pasos > 0 && nav->cmd_actual == comando_de_paso(&nav->pasos[0])) {
+                    registrar_inicio_comando(nav, nav->cmd_actual);
+                } else {
+                    nav->cmd_plan_ms = -1;
+                }
+            }
+            return NAV_OK;
+        }
+    }
+
     orientacion = indice_direccion(nav->rumbo_grados);
-    nav->rumbo_grados = orientacion * 45;
-    nav->base_rumbo_grados = nav->rumbo_grados;
+    if (nav->sin_compensar_giro) {
+        nav->rumbo_grados = orientacion * 45;
+        nav->base_rumbo_grados = nav->rumbo_grados;
+    }
 
     columna = celda_mas_cercana(nav->x_mm);
     fila = celda_mas_cercana(nav->y_mm);
@@ -1081,9 +1178,13 @@ void navegador_iniciar(Navegador *nav)
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->fijo_ignorar[z] = 0;
         nav->fijo_celdas[z] = 0;
+        memset(nav->fijo_hex[z], '0', MASC_HEX_LARGO);
+        nav->fijo_hex[z][MASC_HEX_LARGO] = '\0';
         memset(nav->obs_hex[z], '0', MASC_HEX_LARGO);
         nav->obs_hex[z][MASC_HEX_LARGO] = '\0';
     }
+    nav->frenado_pendiente = 0;
+    nav->sin_compensar_giro = 0;
     nav->indice_max = 0;
     nav->recorrido_mm = 0;
     nav->prev_x_mm = nav->prev_y_mm = 0;
@@ -1209,9 +1310,12 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
         nav->bloqueo_cerc3 = 0;
         nav->sondeo_hecho = 0;
         nav->sondeo_fase = 0;
+        nav->frenado_pendiente = 0;
         for (z = 0; z < OBS_ZONAS; z++) {
             nav->fijo_ignorar[z] = 0;
             nav->fijo_celdas[z] = 0;
+            memset(nav->fijo_hex[z], '0', MASC_HEX_LARGO);
+            nav->fijo_hex[z][MASC_HEX_LARGO] = '\0';
         }
         nav->indice_max = nav->indice_objetivo;
         nav->recorrido_mm = 0;
@@ -1275,16 +1379,36 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
 {
     int z, bloqueado = 0, inmediato = 0, cerc3_chico = 0, causa_normal = 0, firma = 0;
 
+    /* Para el registro OBS_DIAG y la firma de celdas del fantasma fijo: la máscara de cada zona y la franja de referencia de lo último que se vio. */
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (masc_zona_a_hex(obs, z, nav->obs_hex[z], (int)sizeof nav->obs_hex[z]) != MASC_OK) {
+            memset(nav->obs_hex[z], '0', MASC_HEX_LARGO);
+            nav->obs_hex[z][MASC_HEX_LARGO] = '\0';
+        }
+    }
+    nav->obs_franja_tapada = (obs->franja_contaminada || obs->franja_ignorada) ? 1 : 0;
+    nav->obs_franja_pct = obs->franja_tapada_pct;
+
     for (z = 0; z < OBS_ZONAS; z++) {
         int hay = obs->zona[z].hay_obstaculo;
+        int celdas = obs->zona[z].celdas;
 
-        /* «Sospechoso fijo» (sondeo del arranque): mientras sus celdas no crezcan, esa zona se ignora en esta corrida. */
-        if (hay && nav->fijo_ignorar[z] && obs->zona[z].celdas <= nav->fijo_celdas[z] * NAV_SONDEO_IGNORAR_PCT / 100 + NAV_SONDEO_IGNORAR_MAS) {
-            hay = 0;
+        /* «Sospechoso fijo» (sondeo del arranque): vale toda la corrida mientras la firma de celdas siga igual, con tope de NAV_SONDEO_TOPE_CELDAS celdas por zona,
+         * y se cancela si crece más del 30 %. Al ignorar una zona, su zona_celdas también se pone en 0 para no sesgar elegir_lado. */
+        if (hay && nav->fijo_ignorar[z]) {
+            int limite_celdas = nav->fijo_celdas[z] * NAV_SONDEO_IGNORAR_PCT / 100 + NAV_SONDEO_IGNORAR_MAS;
+
+            if (nav->estado == NAV_SIGUIENDO && (celdas > limite_celdas || celdas > NAV_SONDEO_TOPE_CELDAS)) {
+                nav->fijo_ignorar[z] = 0;
+            } else if (celdas <= limite_celdas && celdas <= NAV_SONDEO_TOPE_CELDAS &&
+                       strcmp(nav->obs_hex[z], nav->fijo_hex[z]) == 0) {
+                hay = 0;
+                celdas = 0;
+            }
         }
         nav->zona_hay[z] = hay;
         nav->zona_cercania[z] = hay ? obs->zona[z].cercania : 0;
-        nav->zona_celdas[z] = obs->zona[z].celdas;
+        nav->zona_celdas[z] = celdas;
         firma |= (hay ? (obs->zona[z].cercania & 3) : 0) << (2 * z);
         /* Corredor (corredor.h): un obstáculo FUERA del corredor se sigue viendo (zona_hay, para elegir lado) pero no frena. */
         nav->zona_frena[z] = hay && !obs->zona[z].fuera_corredor;
@@ -1353,15 +1477,6 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->sondeo_suma += celdas_sondeo;
         nav->sondeo_n++;
     }
-    /* Para el registro OBS_DIAG: la máscara de cada zona y la franja de referencia de lo último que se vio. */
-    for (z = 0; z < OBS_ZONAS; z++) {
-        if (masc_zona_a_hex(obs, z, nav->obs_hex[z], (int)sizeof nav->obs_hex[z]) != MASC_OK) {
-            memset(nav->obs_hex[z], '0', MASC_HEX_LARGO);
-            nav->obs_hex[z][MASC_HEX_LARGO] = '\0';
-        }
-    }
-    nav->obs_franja_tapada = (obs->franja_contaminada || obs->franja_ignorada) ? 1 : 0;
-    nav->obs_franja_pct = obs->franja_tapada_pct;
     /* Filas y columnas de las celdas de obstáculo de cada zona (solo se calculan durante la esquivada, para el registro ESQUIVE_DIAG y las columnas 0 y 9). */
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_fila_min[z] = nav->zona_fila_max[z] = nav->zona_col_min[z] = nav->zona_col_max[z] = -1;
@@ -1722,33 +1837,54 @@ static ComandoNav tick_sondeo(Navegador *nav, uint32_t ahora_ms)
         }
         return NAV_CMD_FORWARD;
     }
-    /* Fase 2: quieto; los cuadros que llegan después de asentarse se suman (registrar_cuadro). */
-    if ((uint32_t)(ahora_ms - nav->sondeo_listo_ms) >= 0x80000000u || ahora_ms - nav->sondeo_listo_ms < (uint32_t)NAV_SONDEO_MIRAR_MS) {
+    /* Fase 2: quieto; espera al menos 2 cuadros (y NAV_SONDEO_MIRAR_MS) o hasta NAV_SONDEO_MAX_ESPERA_MS (1500 ms). */
+    if ((uint32_t)(ahora_ms - nav->sondeo_listo_ms) >= 0x80000000u ||
+        ahora_ms - nav->sondeo_listo_ms < (uint32_t)NAV_SONDEO_MIRAR_MS ||
+        (nav->sondeo_n < 2 && ahora_ms - nav->sondeo_listo_ms < (uint32_t)NAV_SONDEO_MAX_ESPERA_MS)) {
         return NAV_CMD_STOP;
     }
+    if (nav->sondeo_n < 2) {   /* no llegaron 2 cuadros en 1500 ms: repite el sondeo sin declarar nada */
+        ajustar_paso_tras_parar(nav);
+        iniciar_sondeo(nav, ahora_ms);
+        return NAV_CMD_FORWARD;
+    }
     {
-        int antes = nav->sondeo_ref, despues = (nav->sondeo_n > 0) ? (int)(nav->sondeo_suma / nav->sondeo_n) : -1;
+        int antes = nav->sondeo_ref, despues = (int)(nav->sondeo_suma / nav->sondeo_n);
         int crece = antes * NAV_SONDEO_CRECE_PCT / 100;
-        int z;
+        int z, excede_tope = (antes > NAV_SONDEO_TOPE_CELDAS || despues > NAV_SONDEO_TOPE_CELDAS);
 
         if (crece < NAV_SONDEO_CRECE_MIN) {
             crece = NAV_SONDEO_CRECE_MIN;
+        }
+        for (z = 0; z < OBS_ZONAS; z++) {
+            if ((nav->sondeo_zonas & (1 << z)) && nav->zona_celdas[z] > NAV_SONDEO_TOPE_CELDAS) {
+                excede_tope = 1;
+            }
         }
         nav->sondeo_fase = 0;
         nav->frames_bloqueado = 0;
         nav->frames_libre = 0;
         nav->bloqueo_inmediato = 0;
         nav->bloqueo_cerc3 = 0;
-        if (despues < 0 || despues >= antes + crece) {   /* sin cuadros para comparar, o crecieron: es real (en la duda, se frena) */
+        if (excede_tope || despues >= antes + crece) {   /* pasa del tope de 12 celdas o creció: es real */
             diag_escribir(nav, "OBS_DIAG sondeo=real celdas_antes=%d celdas_despues=%d zonas=%d", antes, despues, nav->sondeo_zonas);
             diag_obs(nav, "sondeo_real");
             entrar_detenido(nav, ahora_ms);
             return NAV_CMD_STOP;
         }
+        ajustar_paso_tras_parar(nav);
         for (z = 0; z < OBS_ZONAS; z++) {
             if (nav->sondeo_zonas & (1 << z)) {
+                int c = (nav->zona_celdas[z] > antes) ? nav->zona_celdas[z] : antes;
+
                 nav->fijo_ignorar[z] = 1;
-                nav->fijo_celdas[z] = (nav->zona_celdas[z] > antes) ? nav->zona_celdas[z] : antes;
+                nav->fijo_celdas[z] = (c > NAV_SONDEO_TOPE_CELDAS) ? NAV_SONDEO_TOPE_CELDAS : c;
+                memcpy(nav->fijo_hex[z], nav->obs_hex[z], sizeof nav->fijo_hex[z]);
+                nav->zona_hay[z] = 0;
+                nav->zona_frena[z] = 0;
+                nav->zona_cercania[z] = 0;
+                nav->zona_cerc_frena[z] = 0;
+                nav->zona_celdas[z] = 0;
             }
         }
         diag_escribir(nav, "OBS_DIAG sondeo=sospechoso_fijo celdas_antes=%d celdas_despues=%d zonas=%d: se ignora en esta corrida y no se reaprende el piso con el", antes, despues, nav->sondeo_zonas);
@@ -1797,6 +1933,7 @@ static ComandoNav tick_siguiendo(Navegador *nav, uint32_t ahora_ms)
         if (paso_terminado(nav)) {
             nav->indice_paso++;
             nav->ms_paso = 0;
+            nav->frenado_pendiente = 0;
             continue;
         }
         comando = comando_de_paso(&nav->pasos[nav->indice_paso]);
@@ -2481,6 +2618,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
 {
     uint32_t espera = ahora_ms - nav->t_detenido_ms;
 
+    ajustar_paso_tras_parar(nav);
     if (libre_confirmado(nav, ahora_ms) && nav->volver_a_reinc) {
         /* Se detuvo mientras volvía a la línea y el frente ya está libre: vuelve a calcular la vuelta desde donde quedó. */
         nav->volver_a_reinc = 0;
@@ -2492,9 +2630,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
     }
     if (libre_confirmado(nav, ahora_ms)) {
         nav->estado = NAV_SIGUIENDO;   /* el obstáculo se fue: continuar donde iba */
-        /* El carro siguió un poco al frenar (se gana tiempo de ese paso) y tendrá que arrancar otra vez
-         * (se pierde): se ajusta el tiempo ya ejecutado del paso. */
-        nav->ms_paso += (int)((long)nav->cal.frenado_mm * nav->cal.ms_por_cm_x10 / 100) - nav->cal.arranque_ms;
+        ajustar_paso_tras_parar(nav);
         nav->frames_bloqueado = 0;
         nav->bloqueo_inmediato = 0;
         nav->bloqueo_cerc3 = 0;

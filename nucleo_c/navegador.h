@@ -168,9 +168,11 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_SONDEO_QUIETO_MM       30    /* «el carro no se ha movido»: ha recorrido menos de esto */
 #define NAV_SONDEO_CRECE_PCT       15    /* las celdas crecieron si pasaron de las de antes + este % (y al menos NAV_SONDEO_CRECE_MIN celdas) */
 #define NAV_SONDEO_CRECE_MIN        3
-#define NAV_SONDEO_IGNORAR_PCT    130    /* un sospechoso fijo se ignora mientras sus celdas no pasen de este % de las que tenía (+ NAV_SONDEO_IGNORAR_MAS) */
-#define NAV_SONDEO_IGNORAR_MAS      3
+#define NAV_SONDEO_TOPE_CELDAS     12    /* tope de celdas por zona para ignorar como sospechoso fijo */
+#define NAV_SONDEO_IGNORAR_PCT    130    /* un sospechoso fijo se ignora mientras no crezca más del 30 % y su firma de celdas siga igual */
+#define NAV_SONDEO_IGNORAR_MAS      0
 #define NAV_SONDEO_MIRAR_MS       250    /* cuánto se miran los cuadros después de asentarse, antes de comparar */
+#define NAV_SONDEO_MAX_ESPERA_MS 1500    /* espera máxima de al menos 2 cuadros tras el sondeo; si no llegan, repite sin declarar nada */
 #define NAV_LOCURA_GIRO_MAX       150    /* un giro planeado de más de estos grados que no está en la ruta frena */
 #define NAV_LOCURA_RECORRIDO_X10   25    /* distancia recorrida máxima: 2.5 veces la de la ruta... */
 #define NAV_LOCURA_RECORRIDO_MIN_MM 600  /* ...tomando la ruta como de al menos 60 cm (con una ruta de 20 cm una sola esquivada ya pasa 2.5 veces) */
@@ -400,8 +402,11 @@ typedef struct {
     long     sondeo_suma;            /* suma de las celdas vistas después (para el promedio) */
     int      sondeo_n;
     uint32_t sondeo_listo_ms;        /* desde esta hora cuentan los cuadros de después del sondeo */
-    int      fijo_ignorar[OBS_ZONAS];   /* 1 = esa zona tiene un «sospechoso fijo»: se ignora mientras sus celdas no crezcan */
+    int      fijo_ignorar[OBS_ZONAS];   /* 1 = esa zona tiene un «sospechoso fijo»: se ignora mientras sus celdas no crezcan ni cambie su firma */
     int      fijo_celdas[OBS_ZONAS];
+    char     fijo_hex[OBS_ZONAS][26];   /* firma hexadecimal (10 x 10) de las celdas del sospechoso fijo en cada zona */
+    int      frenado_pendiente;         /* 1 = el paso actual frenó de FORWARD a STOP y su ajuste aún no se ha aplicado */
+    int      sin_compensar_giro;        /* 1 = planificar() no compensa el desplazamiento del giro (solo para medir el antes/después en pruebas) */
     int      indice_max;             /* el mayor índice de punto de la ruta visto (si el índice baja de aquí, frena) */
     long     recorrido_mm;           /* distancia total que el centro ha recorrido en esta ruta (estimada) */
     int      prev_x_mm, prev_y_mm;
