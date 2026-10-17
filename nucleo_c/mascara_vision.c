@@ -136,7 +136,12 @@ int masc_calcular(const LugarMascara lugares[MASC_LUGARES], MascaraVision *masca
 
 void masc_aplicar_a_config(const MascaraVision *mascara, ConfigObstaculos *config)
 {
-    if (mascara == NULL || config == NULL) {
+    if (config == NULL) {
+        return;
+    }
+    if (mascara == NULL) {
+        memset(config->mascara, 0, sizeof config->mascara);
+        config->mascara_activa = 0;
         return;
     }
     memcpy(config->mascara, mascara->celda, sizeof config->mascara);

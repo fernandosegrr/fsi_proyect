@@ -1260,11 +1260,12 @@ void navegador_cancelar(Navegador *nav)
 
 /* ── Cuadros de obstáculos ─────────────────────────────────────────────── */
 
-/* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3) en cualquier
- * zona, o a media distancia (2) en la zona central. */
+/* ¿Este cuadro, por sí solo, ya justifica detenerse? Sí si el obstáculo está muy cerca (3) con al menos
+ * NAV_CERC3_AREA_INMEDIATA celdas; cercanía 2 en el centro exige 2 cuadros seguidos. */
 static int cuadro_es_inmediato(int zona, int cercania, int celdas)
 {
-    return (cercania >= 3 && celdas >= NAV_CERC3_AREA_INMEDIATA) || (cercania == 2 && zona == ZONA_CENTRO);
+    (void)zona;
+    return cercania >= 3 && celdas >= NAV_CERC3_AREA_INMEDIATA;
 }
 
 /* Guarda lo que se vio en el último cuadro y lleva la cuenta de la RACHA actual: cuántos cuadros
@@ -1299,8 +1300,8 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             causa_normal = 1;
             if (cuadro_es_inmediato(z, nav->zona_cerc_frena[z], nav->zona_celdas[z])) {
                 inmediato = 1;
-            } else if (nav->zona_cerc_frena[z] >= 3) {
-                cerc3_chico = 1;                 /* cercanía 3 con pocas celdas: frena con 2 cuadros seguidos */
+            } else if (nav->zona_cerc_frena[z] >= 3 || (nav->zona_cerc_frena[z] == 2 && z == ZONA_CENTRO)) {
+                cerc3_chico = 1;                 /* cercanía 3 con pocas celdas o cercanía 2 en el centro: frena con 2 cuadros seguidos */
             }
         }
     }
@@ -1361,18 +1362,23 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
     }
     nav->obs_franja_tapada = (obs->franja_contaminada || obs->franja_ignorada) ? 1 : 0;
     nav->obs_franja_pct = obs->franja_tapada_pct;
-    /* Filas y columnas de las celdas de obstáculo de cada zona (solo se calculan durante la esquivada, para el registro ESQUIVE_DIAG). */
+    /* Filas y columnas de las celdas de obstáculo de cada zona (solo se calculan durante la esquivada, para el registro ESQUIVE_DIAG y las columnas 0 y 9). */
     for (z = 0; z < OBS_ZONAS; z++) {
         nav->zona_fila_min[z] = nav->zona_fila_max[z] = nav->zona_col_min[z] = nav->zona_col_max[z] = -1;
+        nav->zona_borde_cerca[z] = 0;
     }
     if ((nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) && obs->filas > 0 && obs->filas <= OBS_MAX_FILAS && obs->columnas > 0 && obs->columnas <= OBS_MAX_COLUMNAS &&
         obs->fila_minima_usada >= 0 && obs->fila_minima_usada < obs->filas) {   /* solo con un tamaño de cuadrícula creíble: un resultado armado a medias no debe hacer leer fuera del arreglo */
         int fila, columna;
+        unsigned char borde_izq[3] = { 0, 0, 0 }, borde_der[3] = { 0, 0, 0 };
 
         for (fila = obs->fila_minima_usada; fila < obs->filas && fila < OBS_MAX_FILAS; fila++) {
+            int fg = fila * OBS_MASC_FILAS / obs->filas;
+
             for (columna = 0; columna < obs->columnas && columna < OBS_MAX_COLUMNAS; columna++) {
                 if (obs->no_piso[fila][columna]) {
                     int zona = columna * OBS_ZONAS / obs->columnas;
+                    int cg = columna * OBS_MASC_COLUMNAS / obs->columnas;
 
                     if (nav->zona_fila_min[zona] < 0 || fila < nav->zona_fila_min[zona]) {
                         nav->zona_fila_min[zona] = fila;
@@ -1386,7 +1392,37 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                     if (columna > nav->zona_col_max[zona]) {
                         nav->zona_col_max[zona] = columna;
                     }
+                    if (fg >= 7 && fg < OBS_MASC_FILAS) {
+                        if (cg == 0) {
+                            borde_izq[fg - 7] = 1;
+                        } else if (cg == OBS_MASC_COLUMNAS - 1) {
+                            borde_der[fg - 7] = 1;
+                        }
+                    }
                 }
+            }
+        }
+        /* Las columnas 0 y 9 en las filas 7 a 9 se evalúan solo durante esquive y reincorporación (si esa zona no está ignorada como fantasma fijo). */
+        if (!nav->fijo_ignorar[ZONA_IZQUIERDA] && (borde_izq[0] + borde_izq[1] + borde_izq[2] >= 2)) {
+            nav->zona_borde_cerca[ZONA_IZQUIERDA] = 1;
+            nav->zona_hay[ZONA_IZQUIERDA] = 1;
+            nav->zona_frena[ZONA_IZQUIERDA] = 1;
+            if (nav->zona_cercania[ZONA_IZQUIERDA] < 3) {
+                nav->zona_cercania[ZONA_IZQUIERDA] = 3;
+            }
+            if (nav->zona_cerc_frena[ZONA_IZQUIERDA] < 3) {
+                nav->zona_cerc_frena[ZONA_IZQUIERDA] = 3;
+            }
+        }
+        if (!nav->fijo_ignorar[ZONA_DERECHA] && (borde_der[0] + borde_der[1] + borde_der[2] >= 2)) {
+            nav->zona_borde_cerca[ZONA_DERECHA] = 1;
+            nav->zona_hay[ZONA_DERECHA] = 1;
+            nav->zona_frena[ZONA_DERECHA] = 1;
+            if (nav->zona_cercania[ZONA_DERECHA] < 3) {
+                nav->zona_cercania[ZONA_DERECHA] = 3;
+            }
+            if (nav->zona_cerc_frena[ZONA_DERECHA] < 3) {
+                nav->zona_cerc_frena[ZONA_DERECHA] = 3;
             }
         }
     }
@@ -1483,15 +1519,21 @@ static int esq_ignorando(const Navegador *nav, uint32_t ahora_ms)
     return nav->esq_cuadros_tras_giro < NAV_ESQ_CUADROS_ESTABLES && desde_fin - (uint32_t)nav->latencia_visual_ms < (uint32_t)NAV_ESQ_MS_ESTABLE;
 }
 
-/* Lo que bloquea durante la esquivada: el CENTRO con cercanía NAV_ESQ_CERCANIA_BLOQUEA o más; y mientras VUELVE a la línea (REINCORPORANDO, avanza en diagonal),
- * también un LADO con cercanía NAV_ESQ_CERCANIA_LADO que el CORREDOR dice que está en el camino del carro: muy cerca y de lado es justo donde queda la esquina de
- * lo que acaba de pasar. Sin corredor (apagado por defecto) un lado no cuenta nunca: la cámara no distingue "al lado del camino" de "en el camino" y frenaría
- * cada vuelta junto al obstáculo (el simulador lo mostró). Al avanzar de lado o en paralelo tampoco: ahí el obstáculo queda de lado a propósito.
+/* Lo que bloquea durante la esquivada: el CENTRO con cercanía NAV_ESQ_CERCANIA_BLOQUEA o más; las columnas 0 y 9 en las filas 7 a 9 durante esquive y reincorporación;
+ * y mientras VUELVE a la línea (REINCORPORANDO, avanza en diagonal), también un LADO con cercanía NAV_ESQ_CERCANIA_LADO que el CORREDOR dice que está en el camino del carro.
  * Devuelve la zona que bloquea o -1. */
 static int esq_zona_que_bloquea(const Navegador *nav)
 {
     if (nav->zona_frena[ZONA_CENTRO] && nav->zona_cerc_frena[ZONA_CENTRO] >= NAV_ESQ_CERCANIA_BLOQUEA) {
         return ZONA_CENTRO;
+    }
+    if (nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) {
+        if (nav->zona_borde_cerca[ZONA_IZQUIERDA]) {
+            return ZONA_IZQUIERDA;
+        }
+        if (nav->zona_borde_cerca[ZONA_DERECHA]) {
+            return ZONA_DERECHA;
+        }
     }
     if (nav->estado != NAV_REINCORPORANDO) {
         return -1;

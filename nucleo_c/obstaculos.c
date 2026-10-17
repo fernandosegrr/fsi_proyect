@@ -1425,10 +1425,11 @@ int obstaculos_aprender_cuadro(AcumuladorPiso *acumulador, const ConfigObstaculo
 int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe)
 {
     static unsigned char muestras[MAX_CELDAS][3];   /* el color promedio de cada celda de la zona (promediado entre los cuadros) */
+    static unsigned char en_inmediata[MAX_CELDAS];  /* 1 si la celda cae en la franja inmediata (filas gruesas 8 y 9) */
     Rejilla rejilla;
-    GruposPiso grupos;
+    GruposPiso grupos, filtrados;
     long suma_brillo = 0;
-    int n = 0, fila, columna, c, g, intrusos = 0, codigo;
+    int n = 0, i, fila, columna, c, g, intrusos = 0, codigo;
 
     if (acumulador == NULL || config == NULL || modelo == NULL || informe == NULL) {
         return OBS_ERR_IMAGEN_NULA;
@@ -1444,25 +1445,53 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
         return codigo;
     }
     for (fila = acumulador->fila_minima; fila < rejilla.filas; fila++) {
+        int es_abajo = (fila * OBS_MASC_FILAS / rejilla.filas >= 8) ? 1 : 0;
+
         for (columna = 0; columna < rejilla.columnas; columna++) {
             for (c = 0; c < 3; c++) {
                 muestras[n][c] = (unsigned char)(acumulador->suma[fila][columna][c] / acumulador->cuadros);
                 suma_brillo += muestras[n][c];
             }
+            en_inmediata[n] = (unsigned char)es_abajo;
             n++;
         }
     }
     if (n < 1) {
         return OBS_ERR_TAMANO;
     }
-    agrupar_franja(muestras, n, config->grupos_piso, OBS_APOYO_MIN_PCT, &grupos, &intrusos);
+    agrupar_franja(muestras, n, config->grupos_piso, 10, &grupos, &intrusos);
+    /* Un color solo es piso si aparece en la franja inmediata (filas gruesas 8 y 9); los grupos que solo están arriba se descartan. */
+    memset(&filtrados, 0, sizeof filtrados);
+    for (g = 0; g < grupos.grupos; g++) {
+        int en_abajo = 0;
+
+        for (i = 0; i < n; i++) {
+            if (en_inmediata[i] && centro_mas_cercano(muestras[i], grupos.color, grupos.grupos) == g) {
+                int col_i[3] = { muestras[i][0], muestras[i][1], muestras[i][2] };
+
+                if (es_piso(col_i, grupos.color[g], config->umbral_color, config->mejoras_piso)) {
+                    en_abajo++;
+                }
+            }
+        }
+        if (en_abajo > 0) {
+            for (c = 0; c < 3; c++) {
+                filtrados.color[filtrados.grupos][c] = grupos.color[g][c];
+            }
+            filtrados.peso[filtrados.grupos] = grupos.peso[g];
+            filtrados.grupos++;
+        } else {
+            intrusos += grupos.peso[g];
+        }
+    }
+    grupos = filtrados;
     modelo_desde_grupos(modelo, &grupos);
     informe->grupos = grupos.grupos;
     informe->cuadros = acumulador->cuadros;
     informe->brillo_medio = (int)(suma_brillo / (3L * n));
     informe->muy_oscuro = (informe->brillo_medio * 3 < BRILLO_OSCURO) ? 1 : 0;
     informe->descartado_pct = intrusos * 100 / n;
-    informe->muy_variado = (informe->descartado_pct > 20 || grupos.grupos >= OBS_MAX_GRUPOS) ? 1 : 0;
+    informe->muy_variado = (informe->descartado_pct > 5 || grupos.grupos >= OBS_MAX_GRUPOS || grupos.grupos == 0) ? 1 : 0;
     for (g = 0; g < OBS_MAX_GRUPOS; g++) {
         for (c = 0; c < 3; c++) {
             informe->color[g][c] = (g < grupos.grupos) ? grupos.color[g][c] : 0;

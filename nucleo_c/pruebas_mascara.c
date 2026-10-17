@@ -161,6 +161,15 @@ int main(void)
     caso("... y avisa «visión sospechosa» por el centro, mientras el artefacto de la esquina sí se enmascara", (informe.sospechosa & MASC_SOSP_CENTRO) != 0 && mascara.celda[9][0]);
     masc_texto_informe(&mascara, &informe, texto, (int)sizeof texto);
     caso("... el texto dice «VISIÓN SOSPECHOSA»", strstr(texto, "VISIÓN SOSPECHOSA") != NULL);
+    {
+        ConfigObstaculos cfg_sosp;
+
+        obstaculos_config_defecto(&cfg_sosp);
+        masc_aplicar_a_config(&mascara, &cfg_sosp);
+        masc_aplicar_a_config(informe.sospechosa ? NULL : &mascara, &cfg_sosp);
+        caso("si la calibración de visión sale sospechosa NO se activa la máscara en la configuración (mascara_activa = 0)",
+             informe.sospechosa != 0 && cfg_sosp.mascara_activa == 0 && !cfg_sosp.mascara[9][0]);
+    }
 
     /* ── 4. Más de 20 % de las celdas: visión sospechosa y no se enmascara nada ── */
     {

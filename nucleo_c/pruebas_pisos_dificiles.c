@@ -360,11 +360,125 @@ static void pruebas_aprender(void)
         codigo = obstaculos_aprender_terminar(&acumulador, &cfg, &modelo, &informe);
         printf("     %-8s: codigo %d, colores %d, brillo medio %3d, muy_oscuro %d, muy_variado %d, descartado %d %%\n", ps_nombre_piso(pisos[p]), codigo,
                informe.grupos, informe.brillo_medio, informe.muy_oscuro, informe.muy_variado, informe.descartado_pct);
-        if (codigo != OBS_OK || !modelo.valido) {
+        if (codigo != OBS_OK || !modelo.valido || informe.muy_variado != 0) {
             bien = 0;
         }
     }
-    caso("aprender piso: los 5 pisos se aprenden sin error y dejan un modelo valido", bien);
+    caso("aprender piso: los 5 pisos se aprenden sin error, sin muy_variado y dejan un modelo valido", bien);
+
+    /* J10 Punto 1: caja de otro color a 40 cm (filas gruesas 5 a 7, cubre >= 15 % de la zona) y a 60 cm (filas gruesas 4 a 6, cubre >= 10 % de la zona):
+     * como no aparece en la franja inmediata (filas 8 y 9), su grupo se descarta, descartado_pct > 5, muy_variado = 1 ("Hay algo frente al carro, despéjalo")
+     * y el color de la caja NO entra al modelo del piso. */
+    {
+        static AcumuladorPiso ac40, ac60;
+        InformePiso inf40, inf60;
+        ModeloPiso mod40, mod60;
+        ResultadoObstaculos r40, r60;
+        int i, x, y;
+
+        obstaculos_aprender_iniciar(&ac40);
+        obstaculos_aprender_iniciar(&ac60);
+        for (i = 0; i < 6; i++) {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = (unsigned long)(i + 1) * 41UL;
+            ps_dibujar(&e, imagen);
+            /* Caja roja a ~40 cm: filas 90..136 de 176 (filas gruesas 5..7, arriba de la 8), columnas 60..180 (~26 % de la zona de avance). */
+            for (y = 90; y < 136; y++) {
+                for (x = 60; x < 180; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 210;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 40;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 35;
+                }
+            }
+            obstaculos_aprender_cuadro(&ac40, &cfg, imagen, PS_ANCHO, PS_ALTO);
+
+            ps_dibujar(&e, imagen);
+            /* Caja azul a ~60 cm: filas 72..105 de 176 (filas gruesas 4..5, arriba de la 8), columnas 70..170 (~14 % de la zona de avance, >= 10 %). */
+            for (y = 72; y < 105; y++) {
+                for (x = 70; x < 170; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 30;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 65;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 215;
+                }
+            }
+            obstaculos_aprender_cuadro(&ac60, &cfg, imagen, PS_ANCHO, PS_ALTO);
+        }
+        obstaculos_modelo_iniciar(&mod40);
+        obstaculos_aprender_terminar(&ac40, &cfg, &mod40, &inf40);
+        obstaculos_modelo_iniciar(&mod60);
+        obstaculos_aprender_terminar(&ac60, &cfg, &mod60, &inf60);
+        printf("     caja a 40 cm: grupos=%d descartado=%d %% muy_variado=%d; caja a 60 cm: grupos=%d descartado=%d %% muy_variado=%d\n",
+               inf40.grupos, inf40.descartado_pct, inf40.muy_variado, inf60.grupos, inf60.descartado_pct, inf60.muy_variado);
+        caso("aprender piso con caja de otro color a 40 cm (>= 10 % de la zona, solo arriba de filas 8-9): se descarta (> 5 %), muy_variado = 1 y no se guarda como piso",
+             inf40.grupos == 1 && inf40.descartado_pct > 5 && inf40.muy_variado == 1 && inf40.color[0][0] < 195);
+        caso("aprender piso con caja de otro color a 60 cm (>= 10 % de la zona, solo arriba de filas 8-9): se descarta (> 5 %), muy_variado = 1 y no se guarda como piso",
+             inf60.grupos == 1 && inf60.descartado_pct > 5 && inf60.muy_variado == 1 && inf60.color[0][2] < 180);
+        /* Y el modelo aprendido sigue viendo ambas cajas como obstáculo en el centro. */
+        {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = 99UL;
+            ps_dibujar(&e, imagen);
+            for (y = 90; y < 136; y++) {
+                for (x = 60; x < 180; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 210;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 40;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 35;
+                }
+            }
+            obstaculos_analizar_modelo(&cfg, &mod40, imagen, PS_ANCHO, PS_ALTO, 0, 100, &r40);
+            ps_dibujar(&e, imagen);
+            for (y = 72; y < 105; y++) {
+                for (x = 70; x < 170; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 30;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 65;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 215;
+                }
+            }
+            obstaculos_analizar_modelo(&cfg, &mod60, imagen, PS_ANCHO, PS_ALTO, 0, 100, &r60);
+            caso("... y el detector sigue marcando como obstaculo central la caja a 40 cm y la caja a 60 cm",
+                 r40.zona[ZONA_CENTRO].hay_obstaculo == 1 && r60.zona[ZONA_CENTRO].hay_obstaculo == 1);
+        }
+    }
+
+    /* J10 Punto 2: tras terminar el aprendizaje (en CONFIRMAR y CUENTA), con piso_fijo = 1 una pared o caja uniforme durante > 1 s NO sobrescribe el piso. */
+    {
+        static AcumuladorPiso ac;
+        InformePiso inf;
+        ModeloPiso mod_sin_fijo, mod_con_fijo;
+        ConfigObstaculos cfg_sin = cfg, cfg_con = cfg;
+        ResultadoObstaculos r_sin, r_con;
+        int i;
+
+        obstaculos_aprender_iniciar(&ac);
+        for (i = 0; i < 6; i++) {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = (unsigned long)(i + 1) * 19UL;
+            ps_dibujar(&e, imagen);
+            obstaculos_aprender_cuadro(&ac, &cfg, imagen, PS_ANCHO, PS_ALTO);
+        }
+        obstaculos_modelo_iniciar(&mod_sin_fijo);
+        obstaculos_aprender_terminar(&ac, &cfg, &mod_sin_fijo, &inf);
+        mod_con_fijo = mod_sin_fijo;
+        cfg_sin.piso_fijo = 0;
+        cfg_con.piso_fijo = 1;
+        /* Durante 1.5 s (CONFIRMAR / CUENTA) una caja o pared uniforme tapa toda la vista (franja incluida). */
+        for (i = 1; i <= 15; i++) {
+            int k;
+
+            for (k = 0; k < PS_ANCHO * PS_ALTO; k++) {
+                imagen[k * 3] = 200;
+                imagen[k * 3 + 1] = 45;
+                imagen[k * 3 + 2] = 40;
+            }
+            obstaculos_analizar_modelo(&cfg_sin, &mod_sin_fijo, imagen, PS_ANCHO, PS_ALTO, 0, (unsigned int)(i * 100), &r_sin);
+            obstaculos_analizar_modelo(&cfg_con, &mod_con_fijo, imagen, PS_ANCHO, PS_ALTO, 0, (unsigned int)(i * 100), &r_con);
+        }
+        caso("tras aprender el piso (CONFIRMAR y CUENTA): sin piso_fijo una pared uniforme sobrescribe el piso en 1 s; con piso_fijo = 1 NO lo sobrescribe y sigue viendo obstaculo",
+             mod_sin_fijo.reaprendidos >= 1 && mod_con_fijo.reaprendidos == 0 && r_con.zona[ZONA_CENTRO].hay_obstaculo == 1);
+    }
 }
 
 

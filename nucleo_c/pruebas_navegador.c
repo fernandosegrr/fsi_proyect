@@ -275,11 +275,11 @@ static void pruebas_antirrebote_en_ms(void)
     caso("cuadros cada 120 ms, cercania 3: STOP con el primer cuadro con obstaculo (1 cuadro)",
          hora_del_stop(120, 1560, ZONA_CENTRO, 3, 5000) == 1560);
 
-    /* Cercania 2 en el centro: tambien inmediato. */
-    caso("cuadros cada 80 ms, cercania 2 en el centro: STOP inmediato con 1 cuadro",
-         hora_del_stop(80, 1600, ZONA_CENTRO, 2, 5000) == 1600);
-    caso("cuadros cada 120 ms, cercania 2 en el centro: STOP inmediato con 1 cuadro",
-         hora_del_stop(120, 1560, ZONA_CENTRO, 2, 5000) == 1560);
+    /* Cercania 2 en el centro: exige 2 cuadros seguidos (segundo cuadro a 1680 ms con 80 ms y a 1680 ms con 120 ms). */
+    caso("cuadros cada 80 ms, cercania 2 en el centro: exige 2 cuadros (STOP en el segundo cuadro, 1680 ms)",
+         hora_del_stop(80, 1600, ZONA_CENTRO, 2, 5000) == 1680);
+    caso("cuadros cada 120 ms, cercania 2 en el centro: exige 2 cuadros (STOP en el segundo cuadro, 1680 ms)",
+         hora_del_stop(120, 1560, ZONA_CENTRO, 2, 5000) == 1680);
 
     /* Lejos (cercania 1): hay que verlo 150 ms y en al menos 2 cuadros.
      * Cuadros cada 80 ms: el primero a 1600, el segundo a 1680 (80 ms < 150), el tercero a 1760 (160 ms >= 150). */
@@ -2748,24 +2748,60 @@ static void pruebas_arranque_y_sondeo(void)
     correr_arranque(30000);
     caso("4 cuadros seguidos iguales con obstaculo cerca al centro al arrancar SI deciden: se detiene (evento arranque + detiene en el registro)", marcas_arr.arranque == 1 && marcas_arr.detiene >= 1 && nav.esquivadas >= 1);
 
-    /* 5. Cercanía 3: 2 cuadros seguidos, o 1 si el área es de 60 celdas o más. Ya en marcha (a los 1500 ms), con el centro. */
+    /* 5. Cercanía 3: 2 cuadros seguidos, o 1 si el área es de 6 celdas o más (NAV_CERC3_AREA_INMEDIATA = 6). Ya en marcha (a los 1500 ms), con el centro. */
     preparar_arranque();
-    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 59);   /* 1 cuadro, 59 celdas */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 5);   /* 1 cuadro, 5 celdas */
     correr_arranque(4000);
-    caso("cercania 3 con 59 celdas en UN solo cuadro: NO frena (hacen falta 2 cuadros seguidos)", marcas_arr.detiene == 0 && nav.esquivadas == 0);
+    caso("cercania 3 con 5 celdas en UN solo cuadro: NO frena (hacen falta 6 celdas o 2 cuadros seguidos)", marcas_arr.detiene == 0 && nav.esquivadas == 0);
     preparar_arranque();
-    sim_agregar_obstaculo_celdas(&sim, 1500, 1600, ZONA_CENTRO, 3, 59);   /* 2 cuadros */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1600, ZONA_CENTRO, 3, 5);   /* 2 cuadros */
     correr_arranque(4000);
-    caso("cercania 3 con 59 celdas en DOS cuadros seguidos: frena en el segundo (1550 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1550);
+    caso("cercania 3 con 5 celdas en DOS cuadros seguidos: frena en el segundo (1550 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1550);
     preparar_arranque();
-    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 60);   /* 1 cuadro, 60 celdas */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 3, 6);   /* 1 cuadro, 6 celdas */
     correr_arranque(4000);
-    caso("cercania 3 con 60 celdas en UN solo cuadro: frena al instante (1500 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1500);
+    caso("cercania 3 con 6 celdas en UN solo cuadro: frena al instante (1500 ms)", marcas_arr.detiene >= 1 && sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000) == 1500);
     preparar_arranque();
-    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_IZQUIERDA, 3, 30);
-    sim_agregar_obstaculo_celdas(&sim, 1650, 1700, ZONA_IZQUIERDA, 3, 30);   /* dos cuadros sueltos, separados: no son seguidos */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_IZQUIERDA, 3, 5);
+    sim_agregar_obstaculo_celdas(&sim, 1650, 1700, ZONA_IZQUIERDA, 3, 5);   /* dos cuadros sueltos, separados: no son seguidos */
     correr_arranque(8000);
     caso("dos cuadros de cercania 3 con pocas celdas pero NO seguidos no frenan", marcas_arr.detiene == 0);
+    preparar_arranque();
+    sim_agregar_obstaculo_celdas(&sim, 1500, 1550, ZONA_CENTRO, 2, 20);   /* cercanía 2 en el centro: 1 cuadro no frena */
+    correr_arranque(4000);
+    caso("cercania 2 en el centro en UN solo cuadro: NO frena (exige 2 cuadros)", marcas_arr.detiene == 0 && nav.esquivadas == 0);
+    /* Columnas 0 y 9 en filas 7 a 9: se evalúan solo durante esquive y reincorporación (bloquean aunque el corredor las deje fuera). */
+    {
+        ResultadoObstaculos obs_borde;
+        int f;
+
+        memset(&obs_borde, 0, sizeof obs_borde);
+        obs_borde.columnas = 10;
+        obs_borde.filas = 10;
+        obs_borde.fila_minima_usada = 4;
+        for (f = 7; f <= 9; f++) {
+            obs_borde.no_piso[f][0] = 1;   /* columna 0 en filas 7 a 9 */
+        }
+        obs_borde.zona[ZONA_IZQUIERDA].hay_obstaculo = 1;
+        obs_borde.zona[ZONA_IZQUIERDA].cercania = 3;
+        obs_borde.zona[ZONA_IZQUIERDA].celdas = 3;
+        obs_borde.zona[ZONA_IZQUIERDA].fuera_corredor = 1;   /* el corredor normal (80 %) ignora las columnas 0 y 9 */
+        navegador_iniciar(&nav);
+        navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+        navegador_comenzar(&nav, 0);
+        navegador_tick(&nav, 50, &obs_borde);
+        caso("columna 0 en filas 7-9 fuera del corredor: en SIGUIENDO no activa zona_borde_cerca ni frena (sin falsos positivos)",
+             nav.zona_borde_cerca[ZONA_IZQUIERDA] == 0 && nav.zona_frena[ZONA_IZQUIERDA] == 0);
+        nav.estado = NAV_ESQUIVANDO;
+        nav.fase = NAV_FASE_AVANZAR;
+        nav.esq_en_giro = 0;
+        nav.esq_t_giro_fin_ms = 0;
+        nav.esq_cuadros_tras_giro = 10;
+        navegador_tick(&nav, 500, &obs_borde);
+        navegador_tick(&nav, 700, &obs_borde);
+        caso("columna 0 en filas 7-9 durante ESQUIVANDO (y REINCORPORANDO): si se evalua y bloquea tras confirmarse",
+             nav.zona_borde_cerca[ZONA_IZQUIERDA] == 1 && nav.reintentos >= 1);
+    }
 
     /* 6. Registro con la mascara de lo que se ve: un cuadro con celdas marcadas en la zona izquierda y la franja tapada. */
     {

@@ -2541,7 +2541,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         principal.postDelayed(tarea, 80)
     }
 
-    /** Con los tres lugares capturados: calcula la máscara, la guarda con fecha y muestra el informe (números, sin imagen). */
+    /** Con los tres lugares capturados: calcula la máscara, la guarda con fecha y muestra el informe (números, sin imagen). Si sale sospechosa NO se activa. */
     private fun terminarCalibracionVision() {
         val texto = ObstaculosNativa.mascaraCalcular(visionLugares[0], visionLugares[1], visionLugares[2])
         val primera = texto.substringBefore('\n')
@@ -2550,11 +2550,19 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         if (partes.size >= 4 && partes[0] == "OK") {
             val celdas = partes[2].toIntOrNull() ?: 0
             val sospechosa = partes[3].toIntOrNull() ?: 0
-            guardada.guardarVision(partes[1], informe, celdas, sospechosa)
-            guardada.aplicarAlNavegador()   // la máscara nueva ya vale (y el modelo del piso se reaprende con ella)
-            ObstaculosNativa.reiniciarModelo()
-            visionInforme = (if (sospechosa != 0) "VISIÓN SOSPECHOSA (revisa el informe). " else "") + "Guardado: $celdas celdas enmascaradas.\n" + informe
-            Toast.makeText(this, if (sospechosa != 0) "Visión sospechosa: revisa el informe" else "Visión calibrada: $celdas celdas ignoradas", Toast.LENGTH_LONG).show()
+            if (sospechosa != 0) {
+                guardada.guardarVision("", informe, 0, sospechosa)
+                guardada.aplicarAlNavegador()   // sospechosa: NO se activa la máscara (se guarda solo el informe)
+                ObstaculosNativa.reiniciarModelo()
+                visionInforme = "VISIÓN SOSPECHOSA: no se activó la máscara. Revisa el informe y toca «Repetir».\n" + informe
+                Toast.makeText(this, "Visión sospechosa: no se activó la máscara, repite la calibración", Toast.LENGTH_LONG).show()
+            } else {
+                guardada.guardarVision(partes[1], informe, celdas, 0)
+                guardada.aplicarAlNavegador()   // la máscara nueva ya vale (y el modelo del piso se reaprende con ella)
+                ObstaculosNativa.reiniciarModelo()
+                visionInforme = "Guardado: $celdas celdas enmascaradas.\n" + informe
+                Toast.makeText(this, "Visión calibrada: $celdas celdas ignoradas", Toast.LENGTH_LONG).show()
+            }
         } else {
             visionInforme = "No se pudo calcular la máscara (" + primera + "): hacen falta al menos 10 cuadros en cada lugar. Toca «Repetir»."
         }

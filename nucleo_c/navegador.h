@@ -162,7 +162,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  *   - el final de la ruta no deja el carro girado más de NAV_RUMBO_FINAL_TOL grados del último tramo. */
 #define NAV_ARRANQUE_CUADROS        4    /* cuadros seguidos iguales antes de decidir al arrancar */
 #define NAV_ARRANQUE_MAX_MS      1500    /* ...o este tiempo, lo que ocurra primero */
-#define NAV_CERC3_AREA_INMEDIATA   60    /* con cercanía 3 y al menos tantas celdas, un solo cuadro frena; con menos hacen falta 2 cuadros seguidos */
+#define NAV_CERC3_AREA_INMEDIATA    6    /* con cercanía 3 y al menos tantas celdas, un solo cuadro frena; con menos hacen falta 2 cuadros seguidos */
 #define NAV_SONDEO_CM               4    /* cuánto avanza el sondeo */
 #define NAV_SONDEO_CERC_MAX         2    /* el sondeo se hace si el obstáculo es de esta cercanía o menos (o está solo en los lados, con el centro libre) */
 #define NAV_SONDEO_QUIETO_MM       30    /* «el carro no se ha movido»: ha recorrido menos de esto */
@@ -347,6 +347,7 @@ typedef struct {
     uint32_t centro_t_ms;            /* hora del primer cuadro de esa racha */
     int      zona_fila_min[OBS_ZONAS], zona_fila_max[OBS_ZONAS];   /* filas y columnas de las celdas de obstáculo de cada zona en el último cuadro (-1 = no se sabe) */
     int      zona_col_min[OBS_ZONAS], zona_col_max[OBS_ZONAS];
+    int      zona_borde_cerca[OBS_ZONAS];                          /* 1 si durante esquive/reincorporación las columnas 0 o 9 tienen obstáculo en filas 7 a 9 */
 
     /* Pedir ayuda (modo «toma el control»). */
     int            pedir_ayuda;      /* 1 = en vez de ERROR por no poder esquivar, pasa a AYUDA */

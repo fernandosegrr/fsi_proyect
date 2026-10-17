@@ -301,8 +301,8 @@ typedef struct {
     int grupos;              /* cuántos colores quedaron */
     int brillo_medio;        /* brillo medio de la zona de avance (0 a 255 por canal) */
     int muy_oscuro;          /* 1 si el piso es muy oscuro (brillo medio bajo BRILLO_OSCURO / 3) */
-    int muy_variado;         /* 1 si más del 20 % de las celdas quedó en colores de poco apoyo (descartados) o hace falta el máximo de colores */
-    int descartado_pct;      /* % de las celdas de la zona en grupos descartados por poco apoyo */
+    int muy_variado;         /* 1 si más del 5 % de las celdas quedó descartado (o solo arriba de las filas 8 y 9) o hace falta el máximo de colores */
+    int descartado_pct;      /* % de las celdas de la zona en grupos descartados por poco apoyo o por no aparecer en las filas 8 y 9 */
     int cuadros;             /* cuántos cuadros se usaron */
     int color[OBS_MAX_GRUPOS][3];
     int peso_pct[OBS_MAX_GRUPOS];   /* % de las celdas que respaldan cada color */

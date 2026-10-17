@@ -93,7 +93,7 @@
     <string name="ejecutar_confirmar">Confirmar y salir</string>
     <string name="ejecutar_comprobando_boton">Comprobando…</string>
     <string name="ejecutar_cancelar_salida">Cancelar la salida</string>
-    <string name="ejecutar_piso_variado">Despeja el frente del carro</string>
+    <string name="ejecutar_piso_variado">Hay algo frente al carro, despéjalo</string>
     <string name="ejecutar_piso_variado_hacer">El piso se ve muy variado: quita los objetos que haya delante del carro y las sombras fuertes, y toca «Iniciar ruta» otra vez.</string>
     <string name="ejecutar_piso_error">No se pudo aprender el piso</string>
     <string name="ejecutar_piso_error_hacer">Revisa que la cámara muestre imagen y que el carro esté quieto, y toca «Iniciar ruta» otra vez.</string>

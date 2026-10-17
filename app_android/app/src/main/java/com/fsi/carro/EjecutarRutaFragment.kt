@@ -93,6 +93,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     private var avisoDelFlujo = false  // true mientras el aviso en banda es de la preparación (el reloj de la pantalla no lo oculta)
 
     private var estabaActiva = false
+    private var pisoFijoRuta = false   // 1 desde que termina el aprendizaje del piso hasta que acaba o se cancela la ruta
     private var inicioMs = 0L
     private var ultimaEsquivadas = 0
     private var terminada = false
@@ -246,7 +247,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         SesionVideo.entrar(ctx, SesionNativa.USUARIO_RUTA, visor)
 
         val config = ConfigVision(ctx)
-        camara = CamaraObstaculos(requireActivity(), { config.comoArreglo().also { it[ObstaculosNativa.CFG_PISO_FIJO] = if (semi.activo) 1 else 0 } },
+        camara = CamaraObstaculos(requireActivity(), { config.comoArreglo().also { it[ObstaculosNativa.CFG_PISO_FIJO] = if (pisoFijoRuta || semi.activo || semi.esperandoPerfil || fase == Fase.CONFIRMAR || fase == Fase.CUENTA) 1 else 0 } },
             { intArrayOf(config.anchoCuadro, config.altoCuadro) }, { semi.avanzando }, { config.usarModelo }, { config.corredorComoArreglo() },
             { config.cualquieraComoArreglo() }, { config.flujoComoArreglo() })
         camara.forzarVideoCarro = true
@@ -262,6 +263,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     }
 
     override fun onStop() {
+        pisoFijoRuta = false
         cancelarSalida()
         principal.removeCallbacks(reloj)
         SesionCarro.dejarDeEscuchar(alCambiar)
@@ -286,10 +288,12 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         val semi = SesionCarro.semi
         if (semi.activo || semi.esperandoPerfil) {
             Dialogos.confirmar(requireContext(), getString(R.string.ejecutar_salir_titulo), getString(R.string.ejecutar_salir_texto), getString(R.string.ejecutar_salir_si)) {
+                pisoFijoRuta = false
                 SesionCarro.pararTodo("Salida de la pantalla")
                 (activity as? MainActivity)?.volver()
             }
         } else {
+            pisoFijoRuta = false
             (activity as? MainActivity)?.volver()
         }
     }
@@ -320,11 +324,13 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
                 confirmarSalida()
                 return
             }
+            pisoFijoRuta = false
             fase = Fase.OCIOSA   // pasó mucho tiempo desde la comprobación: se repite entera antes de salir
         }
         if (fase != Fase.OCIOSA) {
             return
         }
+        pisoFijoRuta = false
         terminada = false
         resumen.visibility = View.GONE
         aviso.ocultar()
@@ -356,18 +362,22 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             }
             subpaso = 2
             faseDesdeMs = SystemClock.elapsedRealtime()
+            pisoFijoRuta = false
             camara.aprenderPiso()   // con el carro quieto, ~1 s
         }
     }
 
-    /** El piso ya se aprendió: si salió bien pasa a «Listo para salir»; si se ve muy variado o falló, dice qué hacer en vez de seguir con un piso mal aprendido. */
+    /** El piso ya se aprendió: si salió bien pasa a «Listo para salir»; si se descartó más del 5 % o falló, dice qué hacer en vez de seguir con un piso mal aprendido. */
     private fun evaluarPiso() {
         val informe = camara.informePiso
         if (camara.errorAprender.isNotEmpty() || informe == null) {
+            pisoFijoRuta = false
             fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_error), getString(R.string.ejecutar_piso_error_hacer)))
-        } else if (informe.muyVariado) {
+        } else if (informe.muyVariado || informe.descartadoPct > 5) {
+            pisoFijoRuta = false
             fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_variado), getString(R.string.ejecutar_piso_variado_hacer)))
         } else {
+            pisoFijoRuta = true
             fase = Fase.CONFIRMAR
             faseDesdeMs = SystemClock.elapsedRealtime()   // desde aquí cuenta CONFIRMAR_MAX_MS
             Haptica.corta(requireContext())
@@ -376,6 +386,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     }
 
     private fun fallarPreparacion(m: Mensaje, textoAccion: String? = null, accion: (() -> Unit)? = null) {
+        pisoFijoRuta = false
         fase = Fase.OCIOSA
         principal.removeCallbacks(vigilarPreparacion)
         SesionCarro.logica.cancelarConfirmacion()
@@ -389,6 +400,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     }
 
     private fun confirmarSalida() {
+        pisoFijoRuta = true
         fase = Fase.CUENTA
         cuenta = 3
         avisoDelFlujo = false
@@ -401,6 +413,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
     /** Cancela la comprobación, la espera de confirmación o la cuenta regresiva (no sale). */
     private fun cancelarSalida() {
+        pisoFijoRuta = false
         if (fase == Fase.OCIOSA) {
             return
         }
@@ -420,6 +433,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         } else if (semi.activo) {
             aviso.mostrar(Nivel.AVISO, "No se puede aprender el piso con la ruta en marcha", "Detén la ruta y vuelve a intentarlo.")
         } else {
+            pisoFijoRuta = false
             aviso.ocultar()
             camara.aprenderPiso()
         }
@@ -543,6 +557,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
 
     /** Cierra la ejecución: resultado, resumen, historial y vibración. */
     private fun anotarFinal() {
+        pisoFijoRuta = false
         if (terminada) {
             return
         }

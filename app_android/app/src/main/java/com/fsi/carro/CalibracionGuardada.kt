@@ -344,9 +344,11 @@ class CalibracionGuardada(contexto: Context) {
     fun hayVision(): Boolean = fecha(Parte.VISION) > 0L || mascaraVisionHex().isNotEmpty()
 
     fun guardarVision(hex: String, informe: String, celdas: Int, sospechosa: Int) {
-        preferencias.edit().putString("vision_mascara_hex", hex).putString("vision_informe", informe).putInt("vision_celdas", celdas).putInt("vision_sospechosa", sospechosa).apply()
+        val hexEfectivo = if (sospechosa != 0) "" else hex
+        val celdasEfectivas = if (sospechosa != 0) 0 else celdas
+        preferencias.edit().putString("vision_mascara_hex", hexEfectivo).putString("vision_informe", informe).putInt("vision_celdas", celdasEfectivas).putInt("vision_sospechosa", sospechosa).apply()
         marcarCalibrado(Parte.VISION)
-        Log.i(ETIQUETA, "visión calibrada: $celdas celdas enmascaradas, sospechosa=$sospechosa, máscara=$hex")
+        Log.i(ETIQUETA, "visión calibrada: $celdasEfectivas celdas enmascaradas, sospechosa=$sospechosa, máscara=$hexEfectivo")
     }
 
     /** «Restaurar»: la visión vuelve a no tener máscara. */
@@ -355,9 +357,9 @@ class CalibracionGuardada(contexto: Context) {
         Log.i(ETIQUETA, "visión restaurada: sin máscara")
     }
 
-    /** Pone la máscara guardada en el detector (la pantalla de calibración de la visión la apaga mientras captura). */
+    /** Pone la máscara guardada en el detector (la pantalla de calibración de la visión la apaga mientras captura). Si salió sospechosa, no la activa. */
     fun aplicarMascaraAlDetector() {
-        val codigo = ObstaculosNativa.ponerMascara(mascaraVisionHex())
+        val codigo = ObstaculosNativa.ponerMascara(if (visionSospechosa()) "" else mascaraVisionHex())
         if (codigo != 0) {
             Log.w(ETIQUETA, "la máscara guardada no es válida (código $codigo): se usa sin máscara")
             ObstaculosNativa.ponerMascara("")
