@@ -317,3 +317,39 @@
   - **Punto 12 (Crear `docs/limites_conocidos.md` con los 10 límites conocidos):** `corregido` (`docs/limites_conocidos.md`).
   - **Punto 13 (No tocar redondeo de `cal_ms_a_grados`, `cal_frenado_grados` ni modo UDP `"celdas"`):** `corregido` (verificado intacto).
   - **Punto 14 (Reinstalar app con `scripts/instalar_app_adb.py`, correr todas las pruebas de `nucleo_c`, firmware y app, `git push` y bitácora):** `corregido` (`nucleo_c` 19 suites / 0 fallos, `pruebas_firmware` 137 + 15 + 34 / 0 fallos, `cargar.ps1 nuevo -SoloCompilar` OK, app compilada y reinstalada por ADB conservando calibraciones guardadas).
+
+- REVISIÓN INDEPENDIENTE DEL J10 (17 oct 2026, auditoría y corrección sobre commit `5433134..HEAD`):
+  - **Firmware / Cola de comandos (`firmware_carro/carro.c`, `firmware_carro/carro.h`, `firmware_carro/config.h`, `firmware_carro/firmware_carro.ino`, `pruebas_firmware/pruebas_carro.c`):**
+    - *Defectos detectados:*
+      1. `firmware_carro/carro.c:319-331, 455, 491`: `carro_procesar_cola()` extraía elementos de la cola dentro de `carro_vigilar_comunicacion()` en `loop()` SIN protección de mutex mientras la tarea de WebSocket (`async_tcp`) encolaba con `portMUX`. Además `carro_recibir_comando()` también llamaba a `carro_procesar_cola()`, produciendo doble punto de extracción concurrente.
+      2. Variables de estado compartidas entre hilos/tareas (`balance_mil`, `cola_inicio`, `cola_fin`, `cola_cantidad`, `en_vigilancia`, `procesando_cola`, `hay_cliente_activo`, `cliente_activo_id`) no estaban marcadas como `volatile`.
+      3. Conexión y desconexión de clientes en WebSocket llamaban directamente a `carro_detener()` mutando PWM y estado de motores desde el hilo de red asíncrono en colisión con `loop()`.
+    - *Solución implementada:*
+      - Declaración de variables compartidas como `volatile`.
+      - Abstracción de bloqueo portátil: ganchos `hw_bloquear()` y `hw_desbloquear()` con `carro_poner_bloqueo()` / `carro_bloquear()` / `carro_desbloquear()`. En ESP32 usan `portMUX` (`portENTER_CRITICAL` / `portEXIT_CRITICAL`), y en PC usan `pthread_mutex_t`.
+      - Un solo punto de extracción: `loop()` en `firmware_carro.ino` vacía la cola bajo el cerrojo invocando `carro_procesar_cola()` y luego llama a `carro_vigilar_comunicacion()` sin que éste extraiga nada.
+      - Ampliación de cola a 32 comandos con descarte inteligente: ante saturación descarta primero `PING`, luego el comando no-`STOP` más antiguo, garantizando que `STOP` nunca se pierda.
+      - Desconexión y conexión encolan `__STOP_AUTO` en lugar de llamar a `carro_detener()` directamente.
+      - Prueba de estrés con 2 hilos en PC (`pthread`, 100 000 comandos aleatorios: STOP, FORWARD, LEFT, PING): 24 914 STOPs enviados == 24 914 ejecutados (0 perdidos), coherencia estricta de `cola_cantidad` (rango 0..32, 0 al finalizar), y estado final de motores idéntico al último comando.
+      - Casos de reconexión rápida: cliente anterior desconecta después de conectar el nuevo, sin pérdida de control ni desconexión espuria.
+      - Pruebas firmware: 149 casos en `pruebas_carro`, 15 en `pruebas_escalonado`, 34 en `pruebas_camara` (100 % pasando). Compilación limpia con `scripts\cargar.ps1 nuevo -SoloCompilar` (74 % de flash).
+  - **Navegador (`nucleo_c/navegador.c`, `nucleo_c/navegador.h`, `nucleo_c/pruebas_navegador.c`):**
+    - *Defectos detectados:*
+      1. `nucleo_c/navegador.c:900-944`: En tramos $\ge 3$ celdas con radios de giro grandes (6 a 20 cm) y error de giro ($\pm 10$ %), el desplazamiento de pivote provocaba desplazamiento lateral no compensado respecto a la celda objetivo (`lat_actual > MM_POR_CELDA`).
+      2. No existía límite por vértice para correcciones de rumbo ($> 4^\circ$), lo que ante ruido sistemático podía causar oscilación/bucle de correcciones.
+    - *Solución implementada:*
+      - Límite estricto de máximo 2 correcciones de rumbo por vértice (`NAV_MAX_CORR_RUMBO_VERTICE 2`, `corr_rumbo_cuenta`), previniendo cualquier bucle.
+      - Compensación de desviación lateral en planificación hacia el punto de parada del vértice.
+      - Prueba Monte Carlo de 400 rutas en L (200 normales `(0,0)-(0,600)-(600,600)` y 200 espejo) con radios aleatorios izquierdo/derecho entre 6 y 20 cm y error de giro $\pm 10$ %: 400/400 rutas completadas sin error. Error final medio: 153 mm; percentil 95: 378 mm; máximo de correcciones de rumbo por vértice: 1 ($\le 2$).
+      - Comportamiento de rectas y esquives verificado intacto con respecto a `5433134` (311 pruebas en `pruebas_navegador.c`).
+  - **Visión / Pisos de dos colores (`nucleo_c/obstaculos.c`, `nucleo_c/pruebas_pisos_dificiles.c`):**
+    - *Defectos detectados:*
+      1. `nucleo_c/obstaculos.c:1463-1487`: `obstaculos_aprender_terminar` descartaba grupos de color del piso que no tuvieran presencia en las filas 8 y 9 (`en_abajo == 0`). En pisos reales con un segundo tono que solo aparece más adelante (tapete, loseta diferente en filas 4 a 7), el segundo color se descartaba con `descartado_pct > 5 %` y `muy_variado = 1`, marcando falsos obstáculos en toda la trayectoria.
+    - *Solución implementada:*
+      - Se permite el aprendizaje de un segundo color de piso si forma una franja horizontal continua que abarca el ancho de la imagen (`max_racha >= rejilla.columnas - 2 && col_primera <= 1 && col_ultima >= rejilla.columnas - 2`). Objetos reales aislados (como una caja a 40 o 60 cm) no cubren el ancho completo y siguen descartándose (`muy_variado = 1`).
+      - Pruebas comparativas en `nucleo_c/pruebas_pisos_dificiles.c`: piso de dos colores con tapete lejano pasa de marcar falsos positivos a `0 %` falsos obstáculos (`inf_tapete.grupos >= 2`, `descartado_pct = 0 %`, `muy_variado = 0`). Las cajas a 40 cm y 60 cm siguen siendo rechazadas en aprendizaje (`descartado_pct > 5 %`, `muy_variado = 1`) y detectadas correctamente en navegación como obstáculo central.
+      - 30 pruebas en `pruebas_pisos_dificiles.c` pasando al 100 %.
+  - **Reglas y estado:**
+    - `original_backup/` intacto.
+    - Sin secretos expuestos.
+    - Listo para cargar con `scripts\cargar.ps1 nuevo` en placa DevKit (sin flashear durante la auditoría).

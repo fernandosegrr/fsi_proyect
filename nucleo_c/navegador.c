@@ -878,6 +878,32 @@ static void ajustar_tramos_continuos(Navegador *nav, const Punto *camino, int n)
     }
 }
 
+#define NAV_LAT_TOL_MM              25   /* si tras el giro paralelo al tramo el carro queda a menos de esto de la recta, se usa ese giro de siempre */
+#define NAV_LAT_PLAN_MAX_MM        (2 * MM_POR_CELDA)   /* distancia máxima a la recta con la que todavía se planea apuntando (un giro de 180° con pivote de 20 cm desplaza hasta 40 cm) */
+#define NAV_MAX_CORR_RUMBO_VERTICE   2   /* tope de giros de corrección de rumbo (más de 4°) por vértice de la ruta */
+#define NAV_TRAMO_APUNTAR_CELDAS     3   /* solo los tramos rectos de al menos 3 celdas (60 cm) se planean apuntando: en uno más corto un giro de pivote no se puede compensar de lado */
+
+/* Con el giro `giro` (grados, con signo; de 4° o menos no se gira) desde la pose estimada: a cuántos mm del punto (tx, ty) pasaría el carro si luego avanza recto. *ok = 1 si el punto
+ * queda por delante. */
+static long lateral_apuntando(const Navegador *nav, int giro, long tx, long ty, int *ok)
+{
+    PoseCarro p;
+    long ux, uy, a_lo_largo, lateral;
+
+    p.x_mm = nav->x_mm;
+    p.y_mm = nav->y_mm;
+    p.rumbo_grados = nav->rumbo_grados;
+    if (giro < -4 || giro > 4) {
+        cal_pose_tras_giro(&nav->cal, &p, (giro < 0) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA, (giro < 0) ? -giro : giro, &p);
+    }
+    ux = dir_x_mil(p.rumbo_grados);
+    uy = dir_y_mil(p.rumbo_grados);
+    a_lo_largo = ((tx - p.x_mm) * ux + (ty - p.y_mm) * uy) / 1000;
+    lateral = valor_absoluto_largo(((tx - p.x_mm) * (-uy) + (ty - p.y_mm) * ux) / 1000);
+    *ok = (a_lo_largo > 0);
+    return lateral;
+}
+
 /* Calcula los pasos hacia el punto de la ruta al que se dirige (indice_objetivo), sin sobrescribir el rumbo real (si difiere más de 4° del tramo, lo corrige con un giro)
  * y compensando el desplazamiento del giro de pivote en los tramos de toda la ruta. */
 static int planificar(Navegador *nav)
@@ -899,13 +925,24 @@ static int planificar(Navegador *nav)
         long kx = punto_ruta_x(nav, k), ky = punto_ruta_y(nav, k);
         long dist_actual = ((kx - nav->x_mm) * (long)u1x + (ky - nav->y_mm) * (long)u1y) / 1000;
         long lat_actual = valor_absoluto_largo(((kx - nav->x_mm) * (long)(-u1y) + (ky - nav->y_mm) * (long)u1x) / 1000);
+        int celdas_del_tramo = 1, j_tramo;   /* celdas del tramo recto completo que contiene este paso */
+        int limite_lateral;
 
-        if (dist_actual >= -MM_POR_CELDA / 2 && lat_actual <= MM_POR_CELDA) {
+        for (j_tramo = k - 1; j_tramo >= 1 && rumbo_del_tramo(nav, j_tramo - 1) == rumbo_tramo; j_tramo--) {
+            celdas_del_tramo++;
+        }
+        for (j_tramo = k; j_tramo + 1 < nav->n_puntos && rumbo_del_tramo(nav, j_tramo) == rumbo_tramo; j_tramo++) {
+            celdas_del_tramo++;
+        }
+        limite_lateral = (celdas_del_tramo >= NAV_TRAMO_APUNTAR_CELDAS) ? NAV_LAT_PLAN_MAX_MM : MM_POR_CELDA;   /* los tramos cortos siguen con el límite de siempre */
+
+        if (dist_actual >= -MM_POR_CELDA / 2 && lat_actual <= limite_lateral) {
             int k_esq = k;
             long d_antes = 0;
             int giro = giro_minimo(nav->rumbo_grados, rumbo_tramo);
+            int apunta = 0, uhx = u1x, uhy = u1y;
             PoseCarro p_ini;
-            long ex, ey, dist_esq, dist_k, avance_mm;
+            long ex, ey, dist_esq, dist_k, avance_mm, tx, ty;
             int cm, continua, sigue_recto;
 
             while (k_esq + 1 < nav->n_puntos && rumbo_del_tramo(nav, k_esq) == rumbo_tramo) {
@@ -925,6 +962,60 @@ static int planificar(Navegador *nav)
                     d_antes = ((long)dx_esq * u2y - (long)dy_esq * u2x) * 1000 / det;
                 }
             }
+            ex = punto_ruta_x(nav, k_esq);
+            ey = punto_ruta_y(nav, k_esq);
+            tx = ex - d_antes * (long)u1x / 1000;   /* el punto de la recta donde hay que parar para que el giro de la esquina deje al carro en el vértice */
+            ty = ey - d_antes * (long)u1y / 1000;
+            /* Un giro de pivote desplaza el centro del carro hacia un lado (hasta 2 x el radio en un giro de 180°). Si tras el giro "paralelo al tramo" el carro queda fuera de la recta, avanzar en paralelo
+             * nunca lo corrige: se elige el giro que deja al carro APUNTANDO al punto de parada (entre 6 y 20 cm de radio, esto era el peor error de las rutas en L). Con el carro sobre la recta
+             * (lo de siempre: rectas y esquives) el giro es el de antes, sin cambios. */
+            {
+                int lat_ok = 0;
+                long lat_nominal = lateral_apuntando(nav, giro, tx, ty, &lat_ok);
+
+                /* Solo se apunta tras un giro grande de verdad (45° o más: ahí el desplazamiento de pivote es de decenas de cm) o mientras se sigue en el tramo que ya se venía apuntando. Un empujón o
+                 * una vuelta de esquive con el rumbo casi igual al del tramo no entran aquí: se planean como siempre. */
+                int giro_grande = (giro >= 45 || giro <= -45);
+
+                if (celdas_del_tramo >= NAV_TRAMO_APUNTAR_CELDAS && (giro_grande || nav->apunte_k_esq == k_esq) && (!lat_ok || lat_nominal > NAV_LAT_TOL_MM)) {   /* en un tramo corto no hay espacio para corregir de lado: se queda como antes */
+                    int g, mejor_g = giro, hay = 0;
+                    long mejor_cubo = 0;
+
+                    for (g = -180; g <= 180; g++) {
+                        int ok = 0;
+                        long lat = lateral_apuntando(nav, g, tx, ty, &ok);
+                        long cubo = lat / 10;
+                        int ag = (g < 0) ? -g : g;
+
+                        if (!ok) {
+                            continue;
+                        }
+                        if (!hay || cubo < mejor_cubo || (cubo == mejor_cubo && ag < ((mejor_g < 0) ? -mejor_g : mejor_g))) {
+                            hay = 1;
+                            mejor_cubo = cubo;
+                            mejor_g = g;
+                        }
+                    }
+                    if (hay && lat_nominal / 10 > mejor_cubo) {
+                        giro = mejor_g;
+                        apunta = 1;
+                        nav->apunte_k_esq = k_esq;
+                    }
+                }
+            }
+            /* Tope de NAV_MAX_CORR_RUMBO_VERTICE giros de corrección (más de 4°) por vértice: la corrección no puede entrar en bucle aunque se vuelva a planear el mismo vértice. */
+            if (giro < -4 || giro > 4) {
+                if (nav->corr_rumbo_vertice != k) {
+                    nav->corr_rumbo_vertice = k;
+                    nav->corr_rumbo_cuenta = 0;
+                }
+                if (nav->corr_rumbo_cuenta >= NAV_MAX_CORR_RUMBO_VERTICE) {
+                    giro = 0;
+                    apunta = 0;
+                } else {
+                    nav->corr_rumbo_cuenta++;
+                }
+            }
             p_ini.x_mm = nav->x_mm;
             p_ini.y_mm = nav->y_mm;
             p_ini.rumbo_grados = nav->rumbo_grados;
@@ -942,10 +1033,14 @@ static int planificar(Navegador *nav)
                 nav->n_pasos++;
                 cal_pose_tras_giro(&nav->cal, &p_ini, lado_g, grados_g, &p_ini);
             }
-            ex = punto_ruta_x(nav, k_esq);
-            ey = punto_ruta_y(nav, k_esq);
-            dist_esq = ((ex - p_ini.x_mm) * (long)u1x + (ey - p_ini.y_mm) * (long)u1y) / 1000 - d_antes;
-            dist_k = ((kx - p_ini.x_mm) * (long)u1x + (ky - p_ini.y_mm) * (long)u1y) / 1000;
+            if (apunta) {
+                uhx = dir_x_mil(p_ini.rumbo_grados);
+                uhy = dir_y_mil(p_ini.rumbo_grados);
+                dist_esq = ((tx - p_ini.x_mm) * (long)uhx + (ty - p_ini.y_mm) * (long)uhy) / 1000;
+            } else {
+                dist_esq = ((ex - p_ini.x_mm) * (long)u1x + (ey - p_ini.y_mm) * (long)u1y) / 1000 - d_antes;
+            }
+            dist_k = ((kx - p_ini.x_mm) * (long)uhx + (ky - p_ini.y_mm) * (long)uhy) / 1000;
             avance_mm = (k == k_esq || dist_k > dist_esq) ? dist_esq : dist_k;
             cm = (int)((avance_mm + 5) / 10);
             continua = (nav->cmd_actual == NAV_CMD_FORWARD && nav->n_pasos == 0);
@@ -1162,6 +1257,9 @@ void navegador_iniciar(Navegador *nav)
     nav->reinc_plan_x_mm[0] = nav->reinc_plan_x_mm[1] = nav->reinc_plan_x_mm[2] = 0;
     nav->reinc_plan_y_mm[0] = nav->reinc_plan_y_mm[1] = nav->reinc_plan_y_mm[2] = 0;
     nav->reinc_correcciones = 0;
+    nav->corr_rumbo_vertice = -1;
+    nav->corr_rumbo_cuenta = 0;
+    nav->apunte_k_esq = -1;
     nav->reinc_rumbo_importa = 1;
     nav->tramo_mm = NAV_TRAMO_ESQUIVAR_CM * 10;
     nav->sin_red_seguridad = 0;
@@ -1253,6 +1351,9 @@ int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
     }
     nav->n_puntos = n_puntos;
     nav->indice_objetivo = 1;
+    nav->corr_rumbo_vertice = -1;
+    nav->corr_rumbo_cuenta = 0;
+    nav->apunte_k_esq = -1;
     nav->indice_paso = 0;
     nav->ms_paso = 0;
     nav->estado = NAV_ESPERANDO;

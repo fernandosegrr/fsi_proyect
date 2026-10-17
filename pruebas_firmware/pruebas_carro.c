@@ -17,6 +17,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <sched.h>
 #include "carro.h"
 #include "config.h"
 
@@ -24,15 +26,24 @@
 
 static int      pwm[64];            /* último PWM escrito en cada pin */
 static int      escrituras_pwm;     /* cuántas veces se llamó a hw_motor_pwm */
+static int      stops_pwm;          /* cuántas veces poner_motores dejó los 4 pines en 0 */
 static int      nivel_keepalive;
 static int      mensajes_serie;
 static uint32_t reloj_ms;
 static const char *comando_en_pwm;  /* simula comando WebSocket (async_tcp) que interrumpe a mitad de poner_motores */
+static pthread_mutex_t mux_carro = PTHREAD_MUTEX_INITIALIZER;
+
+void hw_bloquear(void)    { pthread_mutex_lock(&mux_carro); }
+void hw_desbloquear(void) { pthread_mutex_unlock(&mux_carro); }
 
 void hw_motor_pwm(int pin, int valor)
 {
     pwm[pin] = valor;
     escrituras_pwm++;
+    if (pin == PIN_MOTOR_DER_B && valor == 0 &&
+        pwm[PIN_MOTOR_IZQ_A] == 0 && pwm[PIN_MOTOR_IZQ_B] == 0 && pwm[PIN_MOTOR_DER_A] == 0) {
+        stops_pwm++;
+    }
     if (comando_en_pwm != NULL) {
         const char *cmd = comando_en_pwm;
         comando_en_pwm = NULL;
@@ -53,14 +64,17 @@ static void reiniciar_mundo(uint32_t reloj_inicial)
 {
     memset(pwm, 0, sizeof pwm);
     escrituras_pwm  = 0;
+    stops_pwm       = 0;
     nivel_keepalive = 0;
     mensajes_serie  = 0;
     reloj_ms        = reloj_inicial;
     comando_en_pwm  = NULL;
     memset(nvs_balance, 0, sizeof nvs_balance);   /* un carro recién salido de fábrica: sin balance guardado */
     nvs_guardados   = 0;
+    carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
     carro_iniciar();
     escrituras_pwm  = 0;   /* no contar las escrituras de carro_iniciar */
+    stops_pwm       = 0;
 }
 
 /* ── Utilidades de prueba ──────────────────────────────────────────────── */
@@ -82,9 +96,10 @@ static int pines_son(int ia, int ib, int da, int db)
            pwm[PIN_MOTOR_DER_A] == da && pwm[PIN_MOTOR_DER_B] == db;
 }
 
-/* Un "ciclo de loop()": mismo orden que en el .ino. */
+/* Un "ciclo de loop()": mismo orden que en el .ino (vacía cola bajo mutex y luego vigila). */
 static void vuelta_loop(void)
 {
+    carro_procesar_cola();
     carro_vigilar_comunicacion();
     carro_actualizar_keepalive();
 }
@@ -866,29 +881,203 @@ static void prueba_direcciones(void)
     caso("la red es 192.168.4.x", IP_RED_BASE_1 == 192 && IP_RED_BASE_2 == 168 && IP_RED_BASE_3 == 4);
 }
 
+#define ESTRES_N_COMANDOS 100000
+
+typedef struct {
+    volatile int      productor_terminado;
+    volatile int      stops_enviados;
+    volatile int      cola_coherente;
+    const char       *ultimo_movimiento;
+    const char       *comando_cierre;
+} ContextoEstres;
+
+static void *hilo_productor_estres(void *arg)
+{
+    static const char * const cmds[4] = { "STOP", "FORWARD", "LEFT", "PING" };
+    ContextoEstres *ctx = (ContextoEstres *)arg;
+    uint32_t rng = 0x9E3779B9u;
+    int i;
+
+    for (i = 0; i < ESTRES_N_COMANDOS; i++) {
+        const char *cmd;
+        uint32_t espera;
+        int lleno;
+
+        rng ^= rng << 13;
+        rng ^= rng >> 17;
+        rng ^= rng << 5;
+        cmd = (i == ESTRES_N_COMANDOS - 1 && ctx->comando_cierre != NULL)
+              ? ctx->comando_cierre
+              : cmds[rng & 3u];
+
+        /* Si la cola está casi llena porque el sistema operativo pausó al consumidor, cede turno antes de encolar. */
+        for (;;) {
+            carro_bloquear();
+            lleno = (carro_cola_cantidad() >= COLA_COMANDOS_MAX - 1);
+            if (!lleno) {
+                carro_encolar_comando(cmd);
+                if (strcmp(cmd, "STOP") == 0) {
+                    ctx->stops_enviados++;
+                }
+                if (strcmp(cmd, "PING") != 0) {
+                    ctx->ultimo_movimiento = cmd;
+                }
+            }
+            carro_desbloquear();
+            if (!lleno) {
+                break;
+            }
+            sched_yield();
+        }
+
+        espera = (rng >> 2) & 7u;
+        if (espera == 0u) {
+            sched_yield();
+        } else {
+            volatile uint32_t k;
+            for (k = 0; k < espera * 25u; k++) {}
+        }
+    }
+    ctx->productor_terminado = 1;
+    return NULL;
+}
+
+static void *hilo_consumidor_estres(void *arg)
+{
+    ContextoEstres *ctx = (ContextoEstres *)arg;
+
+    for (;;) {
+        int q, terminado;
+
+        carro_bloquear();
+        q = carro_cola_cantidad();
+        terminado = ctx->productor_terminado;
+        carro_desbloquear();
+
+        if (q < 0 || q > COLA_COMANDOS_MAX) {
+            ctx->cola_coherente = 0;
+        }
+        vuelta_loop();
+
+        carro_bloquear();
+        q = carro_cola_cantidad();
+        carro_desbloquear();
+        if (q < 0 || q > COLA_COMANDOS_MAX) {
+            ctx->cola_coherente = 0;
+        }
+
+        if (terminado && q == 0) {
+            break;
+        }
+        if (q == 0) {
+            sched_yield();
+        }
+    }
+    return NULL;
+}
+
+static int estado_coincide_con_comando(const char *cmd)
+{
+    if (strcmp(cmd, "STOP") == 0) {
+        return pines_son(0, 0, 0, 0);
+    }
+    if (strcmp(cmd, "FORWARD") == 0) {
+        return pines_son(0, 255, 255, 0) || pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0);
+    }
+    if (strcmp(cmd, "LEFT") == 0) {
+        return pines_son(0, 0, 255, 0);
+    }
+    return 0;
+}
+
+static void prueba_estres_dos_hilos(void)
+{
+    static const char * const cierres[3] = { "FORWARD", "LEFT", "STOP" };
+    int c;
+
+    for (c = 0; c < 3; c++) {
+        ContextoEstres ctx;
+        pthread_t th_prod, th_cons;
+        char nombre[160];
+
+        reiniciar_mundo(0);
+        ctx.productor_terminado = 0;
+        ctx.stops_enviados = 0;
+        ctx.cola_coherente = 1;
+        ctx.ultimo_movimiento = "STOP";
+        ctx.comando_cierre = cierres[c];
+
+        pthread_create(&th_prod, NULL, hilo_productor_estres, &ctx);
+        pthread_create(&th_cons, NULL, hilo_consumidor_estres, &ctx);
+        pthread_join(th_prod, NULL);
+        pthread_join(th_cons, NULL);
+
+        if ( c == 0 ) {
+            snprintf(nombre, sizeof nombre,
+                     "estres 2 hilos (%d cmds): ningun STOP perdido (%d enviados == %d ejecutados)",
+                     ESTRES_N_COMANDOS, ctx.stops_enviados, stops_pwm);
+            caso(nombre, ctx.stops_enviados > 20000 && stops_pwm == ctx.stops_enviados);
+            caso("estres 2 hilos: cola_cantidad siempre coherente (0..COLA_COMANDOS_MAX y 0 al final)",
+                 ctx.cola_coherente == 1 && carro_cola_cantidad() == 0);
+        }
+        snprintf(nombre, sizeof nombre,
+                 "estres 2 hilos (%d cmds, ultimo=%s): estado final de motores igual al ultimo comando",
+                 ESTRES_N_COMANDOS, ctx.ultimo_movimiento);
+        caso(nombre, ctx.stops_enviados == stops_pwm && ctx.cola_coherente == 1 &&
+             carro_cola_cantidad() == 0 && estado_coincide_con_comando(ctx.ultimo_movimiento));
+    }
+}
+
 static void prueba_cola_y_clientes(void)
 {
-    printf("-- J10: cola de comandos y cliente WebSocket activo --\n");
+    int i;
 
-    /* 1. Cola procesada solo por loop(): encolar no mueve motores hasta vuelta_loop(). */
+    printf("-- J10: cola de comandos, reconexion rapida y estres con 2 hilos --\n");
+
+    /* 1. Único punto de extracción: carro_vigilar_comunicacion NO extrae de la cola; solo carro_procesar_cola en loop(). */
     reiniciar_mundo(0);
+    carro_bloquear();
     carro_encolar_comando("FORWARD");
+    carro_desbloquear();
     caso("cola: encolar FORWARD desde async_tcp no toca motores antes de loop()", escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
+    carro_vigilar_comunicacion();
+    caso("cola: carro_vigilar_comunicacion NO extrae de la cola (unico punto en loop)",
+         carro_cola_cantidad() == 1 && escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
     vuelta_loop();
-    caso("cola: vuelta_loop() procesa el FORWARD encolado", pines_son(0, 255, 255, 0));
+    caso("cola: vuelta_loop() vacia la cola bajo mutex y ejecuta el FORWARD",
+         carro_cola_cantidad() == 0 && pines_son(0, 255, 255, 0));
 
     /* 2. Condición de carrera entre async_tcp y carro_vigilar_comunicacion (pleno_modo vs STOP). */
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
     reloj_ms = PERFIL_AUTO_ARRANQUE_PLENO_MS;
-    comando_en_pwm = "STOP";   /* llega STOP a mitad de poner_motores() del fin de pleno_modo */
+    comando_en_pwm = "STOP";   /* llega STOP a mitad de poner_motores() del fin de pleno_modo: se encola sin pisar poner_motores */
     vuelta_loop();
-    caso("carrera: STOP que llega a mitad de pleno_modo en carro_vigilar_comunicacion deja los 4 motores en 0", pines_son(0, 0, 0, 0));
+    caso("carrera: STOP a mitad de carro_vigilar_comunicacion queda encolado sin extraccion en vigilar",
+         carro_cola_cantidad() == 1);
+    vuelta_loop();
+    caso("carrera: en la siguiente vuelta de loop() se extrae el STOP y deja los 4 motores en 0",
+         carro_cola_cantidad() == 0 && pines_son(0, 0, 0, 0));
     reloj_ms += 500;
     vuelta_loop();
     caso("carrera: tras el STOP en carrera los motores siguen en 0", pines_son(0, 0, 0, 0));
 
-    /* 3. PING encolado tampoco renueva el reloj del watchdog. */
+    /* 3. Prioridad de STOP cuando la cola se llena: una ráfaga de FORWARD/LEFT/PING no descarta un STOP encolado. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    stops_pwm = 0;
+    carro_bloquear();
+    carro_encolar_comando("STOP");
+    for (i = 0; i < COLA_COMANDOS_MAX * 2; i++) {
+        carro_encolar_comando((i & 1) ? "PING" : "FORWARD");
+    }
+    carro_encolar_comando("LEFT");
+    carro_desbloquear();
+    vuelta_loop();
+    caso("cola llena: STOP encolado no se pierde ante rafaga de FORWARD/PING y el estado final es el ultimo comando (LEFT)",
+         stops_pwm == 1 && carro_cola_cantidad() == 0 && pines_son(0, 0, 255, 0));
+
+    /* 4. PING encolado tampoco renueva el reloj del watchdog. */
     reiniciar_mundo(0);
     carro_encolar_comando("FORWARD");
     vuelta_loop();
@@ -899,9 +1088,10 @@ static void prueba_cola_y_clientes(void)
     vuelta_loop();
     caso("cola: PING encolado no renueva el reloj del watchdog (frena a 1001 ms)", pines_son(0, 0, 0, 0));
 
-    /* 4. WS_EVT_DISCONNECT de un cliente que NO es el activo se ignora. */
+    /* 5. Reconexión rápida: cliente viejo cierra después de conectar el nuevo. */
     reiniciar_mundo(0);
     carro_conectar_cliente(1);
+    vuelta_loop();
     caso("cliente activo tras conectar #1 es 1", carro_cliente_activo() == 1u);
     carro_recibir_comando("MODO_MANUAL");
     carro_recibir_comando("FORWARD");
@@ -909,21 +1099,43 @@ static void prueba_cola_y_clientes(void)
     vuelta_loop();
     caso("cliente #1 avanzando en MANUAL (252/255)", pines_son(0, 252, 255, 0) && carro_perfil() == PERFIL_MANUAL);
     caso("WS_EVT_DISCONNECT de cliente #2 (no activo) devuelve 0 y se ignora", carro_desconectar_cliente(2) == 0);
+    vuelta_loop();
     caso("... tras desconectar cliente #2 no activo, el carro sigue avanzando en MANUAL y el activo sigue siendo #1",
          pines_son(0, 252, 255, 0) && carro_perfil() == PERFIL_MANUAL && carro_cliente_activo() == 1u);
 
-    /* 5. Si conecta el cliente #2, pasa a ser el activo y el WS_EVT_DISCONNECT tardío del #1 se ignora. */
-    carro_conectar_cliente(2);
-    caso("al conectar cliente #2, frena, vuelve a AUTO y el activo pasa a #2",
-         pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 2u);
-    carro_recibir_comando("MODO_MANUAL");
-    carro_recibir_comando("FORWARD");
-    caso("WS_EVT_DISCONNECT tardio del antiguo cliente #1 se ignora y no frena al #2",
-         carro_desconectar_cliente(1) == 0 && pines_son(0, 255, 255, 0) && carro_perfil() == PERFIL_MANUAL && carro_cliente_activo() == 2u);
+    /* Reconexión rápida con comandos en vuelo: conecta #2, encola comandos de #2 y ANTES de loop() llega el cierre tardío de #1. */
+    carro_encolar_comando("LEFT");   /* comando viejo de #1 aún en cola cuando entra #2 */
+    carro_conectar_cliente(2);       /* limpia la cola de #1 y encola __STOP_AUTO */
+    carro_encolar_comando("MODO_MANUAL");
+    carro_encolar_comando("RIGHT");
+    caso("reconexion rapida: cierre tardio de #1 antes de loop() devuelve 0 y NO borra la cola de #2",
+         carro_desconectar_cliente(1) == 0 && carro_cliente_activo() == 2u && carro_cola_cantidad() == 3);
+    vuelta_loop();
+    caso("reconexion rapida: loop() aplica __STOP_AUTO de la conexion y luego MODO_MANUAL + RIGHT de #2",
+         pines_son(0, 255, 0, 0) && carro_perfil() == PERFIL_MANUAL && carro_cliente_activo() == 2u);
 
-    /* 6. WS_EVT_DISCONNECT del cliente activo (#2) sí frena y vuelve a AUTO. */
-    caso("WS_EVT_DISCONNECT del cliente activo (#2) devuelve 1, frena y vuelve a AUTO",
-         carro_desconectar_cliente(2) == 1 && pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 0u);
+    /* Ráfaga de reconexiones rápidas (#2 -> #3 -> #4) con cierres desordenados (#2 y #3 cierran tarde). */
+    carro_conectar_cliente(3);
+    carro_encolar_comando("FORWARD");
+    carro_conectar_cliente(4);
+    vuelta_loop();
+    caso("rafaga de reconexiones (#2->#3->#4): al conectar #4 frena, vuelve a AUTO y el activo es #4",
+         pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 4u);
+    carro_encolar_comando("LEFT");
+    caso("rafaga de reconexiones: cierres tardios de #2 y #3 se ignoran y no frenan a #4",
+         carro_desconectar_cliente(2) == 0 && carro_desconectar_cliente(3) == 0 && carro_cliente_activo() == 4u);
+    vuelta_loop();
+    caso("rafaga de reconexiones: #4 ejecuta su LEFT sin interferencia",
+         pines_son(0, 0, 255, 0) && carro_cliente_activo() == 4u);
+
+    /* 6. WS_EVT_DISCONNECT del cliente activo (#4) sí frena y vuelve a AUTO. */
+    caso("WS_EVT_DISCONNECT del cliente activo (#4) devuelve 1", carro_desconectar_cliente(4) == 1);
+    vuelta_loop();
+    caso("... y loop() frena y vuelve a AUTO con cliente activo 0",
+         pines_son(0, 0, 0, 0) && carro_perfil() == PERFIL_AUTO && carro_cliente_activo() == 0u);
+
+    /* 7. Prueba de estrés con 2 hilos (100000 comandos por corrida). */
+    prueba_estres_dos_hilos();
 }
 
 /* Todas las pruebas de siempre (con el arranque escalonado apagado). Fuera del main para que, al compilar la prueba escalonada, no sobren funciones sin usar. */

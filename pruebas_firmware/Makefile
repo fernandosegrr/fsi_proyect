@@ -11,10 +11,10 @@ CFLAGS  = -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro
 FUENTES = pruebas_carro.c ../firmware_carro/carro.c
 
 pruebas_carro: $(FUENTES) ../firmware_carro/carro.h ../firmware_carro/config.h
-	$(CC) $(CFLAGS) -o $@ $(FUENTES)
+	$(CC) $(CFLAGS) -o $@ $(FUENTES) -lpthread
 
 pruebas_escalonado: $(FUENTES) ../firmware_carro/carro.h ../firmware_carro/config.h
-	$(CC) $(CFLAGS) -DARRANQUE_ESCALONADO_MS=40 -o $@ $(FUENTES)
+	$(CC) $(CFLAGS) -DARRANQUE_ESCALONADO_MS=40 -o $@ $(FUENTES) -lpthread
 
 pruebas_camara: pruebas_camara.c ../camara_prueba/recuperacion.c ../camara_prueba/recuperacion.h
 	$(CC) $(CFLAGS) -I../camara_prueba -o $@ pruebas_camara.c ../camara_prueba/recuperacion.c

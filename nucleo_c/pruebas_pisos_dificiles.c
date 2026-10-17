@@ -442,6 +442,60 @@ static void pruebas_aprender(void)
         }
     }
 
+    /* Piso de 2 colores donde el segundo color solo se ve lejos (filas gruesas 4..7, arriba de filas 8 y 9: tapete o loseta de otro tono).
+     * Si no se acepta como franja continua, se descarta (> 5 %), muy_variado = 1 y luego da falsos positivos en todos los cuadros.
+     * Al aceptarse como franja continua: descartado_pct <= 5 %, muy_variado = 0, y 0 falsos positivos al analizar el piso. */
+    {
+        static AcumuladorPiso ac_tapete;
+        InformePiso inf_tapete;
+        ModeloPiso mod_tapete;
+        ResultadoObstaculos r_tapete;
+        int i, x, y, falsos_tapete = 0;
+
+        obstaculos_aprender_iniciar(&ac_tapete);
+        for (i = 0; i < 6; i++) {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = (unsigned long)(i + 1) * 73UL;
+            ps_dibujar(&e, imagen);
+            /* Tapete / segunda loseta que abarca todo el ancho (x = 0..PS_ANCHO) solo en filas 70..115 (arriba de filas 8 y 9). */
+            for (y = 70; y < 115; y++) {
+                for (x = 0; x < PS_ANCHO; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 60;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 95;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 140;
+                }
+            }
+            obstaculos_aprender_cuadro(&ac_tapete, &cfg, imagen, PS_ANCHO, PS_ALTO);
+        }
+        obstaculos_modelo_iniciar(&mod_tapete);
+        obstaculos_aprender_terminar(&ac_tapete, &cfg, &mod_tapete, &inf_tapete);
+        printf("     tapete lejos (todo el ancho): grupos=%d descartado=%d %% muy_variado=%d\n",
+               inf_tapete.grupos, inf_tapete.descartado_pct, inf_tapete.muy_variado);
+        caso("piso de 2 colores con segundo color lejos en franja continua: se acepta en el modelo (grupos >= 2), descartado_pct <= 5 % y muy_variado = 0",
+             inf_tapete.grupos >= 2 && inf_tapete.descartado_pct <= 5 && inf_tapete.muy_variado == 0);
+
+        /* Comprobar falsos positivos al analizar el piso con el tapete lejos: con el modelo aprendido no debe marcar obstáculo. */
+        for (i = 0; i < 10; i++) {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = (unsigned long)(i + 50) * 37UL;
+            ps_dibujar(&e, imagen);
+            for (y = 70; y < 115; y++) {
+                for (x = 0; x < PS_ANCHO; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 60;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 95;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 140;
+                }
+            }
+            obstaculos_analizar_modelo(&cfg, &mod_tapete, imagen, PS_ANCHO, PS_ALTO, 0, (unsigned int)(i * 80), &r_tapete);
+            if (r_tapete.zona[ZONA_IZQUIERDA].hay_obstaculo || r_tapete.zona[ZONA_CENTRO].hay_obstaculo || r_tapete.zona[ZONA_DERECHA].hay_obstaculo) {
+                falsos_tapete++;
+            }
+        }
+        caso("... y al recorrer ese piso de 2 colores: 0 falsos positivos (el tapete no se marca como obstaculo)", falsos_tapete == 0);
+    }
+
     /* J10 Punto 2: tras terminar el aprendizaje (en CONFIRMAR y CUENTA), con piso_fijo = 1 una pared o caja uniforme durante > 1 s NO sobrescribe el piso. */
     {
         static AcumuladorPiso ac;

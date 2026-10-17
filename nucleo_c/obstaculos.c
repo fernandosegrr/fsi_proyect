@@ -1481,7 +1481,43 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
             filtrados.peso[filtrados.grupos] = grupos.peso[g];
             filtrados.grupos++;
         } else {
-            intrusos += grupos.peso[g];
+            /* Si no aparece en la franja inmediata, solo se acepta si abarca una franja continua a lo ancho de la imagen (un segundo color de piso real: tapete, loseta de otro tono) y no una mancha aislada (como una caja u obstáculo). */
+            int es_franja_continua = 0;
+
+            for (fila = acumulador->fila_minima; fila < rejilla.filas; fila++) {
+                int racha_actual = 0, max_racha = 0;
+                int col_primera = -1, col_ultima = -1;
+
+                for (columna = 0; columna < rejilla.columnas; columna++) {
+                    int idx = (fila - acumulador->fila_minima) * rejilla.columnas + columna;
+
+                    if (centro_mas_cercano(muestras[idx], grupos.color, grupos.grupos) == g) {
+                        if (col_primera < 0) {
+                            col_primera = columna;
+                        }
+                        col_ultima = columna;
+                        racha_actual++;
+                        if (racha_actual > max_racha) {
+                            max_racha = racha_actual;
+                        }
+                    } else {
+                        racha_actual = 0;
+                    }
+                }
+                if (max_racha >= rejilla.columnas - 2 && col_primera <= 1 && col_ultima >= rejilla.columnas - 2) {
+                    es_franja_continua = 1;
+                    break;
+                }
+            }
+            if (es_franja_continua && filtrados.grupos < OBS_MAX_GRUPOS) {
+                for (c = 0; c < 3; c++) {
+                    filtrados.color[filtrados.grupos][c] = grupos.color[g][c];
+                }
+                filtrados.peso[filtrados.grupos] = grupos.peso[g];
+                filtrados.grupos++;
+            } else {
+                intrusos += grupos.peso[g];
+            }
         }
     }
     grupos = filtrados;

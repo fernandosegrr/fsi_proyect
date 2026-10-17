@@ -381,6 +381,9 @@ typedef struct {
     int      reinc_pasar_primero;    /* 1 = esta vuelta solo endereza y avanza en paralelo hasta pasar el obstáculo; al terminar calcula la vuelta de verdad */
     int      reinc_plan_x_mm[3], reinc_plan_y_mm[3];   /* posición PLANEADA al terminar el giro 1, el avance y el giro 2 (la red de seguridad la compara con la estimada) */
     int      reinc_correcciones;     /* cuántas veces se volvió a planear esta vuelta (máximo NAV_PLAN_CORRECCIONES) */
+    int      corr_rumbo_vertice;     /* vértice de la ruta (indice_objetivo) al que corresponde corr_rumbo_cuenta; -1 = ninguno */
+    int      corr_rumbo_cuenta;      /* giros de corrección de rumbo (más de 4°) ya planeados para ese vértice (tope 2, ver navegador.c) */
+    int      apunte_k_esq;           /* vértice de esquina del tramo que se está planeando apuntando al punto de parada (por el desplazamiento de un giro grande); -1 = ninguno */
     int      reinc_rumbo_importa;    /* 1 = al terminar la vuelta el rumbo debe ser el de la línea (0 cuando el punto es el final de la ruta y se llega sin giro final) */
     int      tramo_mm;               /* lo que avanza de lado esta esquivada (planeado al terminar de mirar, con el desplazamiento de los giros) */
     int      sin_red_seguridad;      /* 1 = la red de seguridad de la vuelta está apagada (solo para comparar en las pruebas; por defecto 0 = activa) */

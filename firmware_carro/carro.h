@@ -36,6 +36,16 @@ void hw_registrar(const char *texto);
 int hw_balance_leer(int perfil);
 void hw_balance_guardar(int perfil, int milesimas);
 
+/* Bloqueo de exclusión mutua para la cola de comandos y el cliente activo:
+ * portMUX en el ESP32 y pthread_mutex_t en las pruebas de PC. */
+void hw_bloquear(void);
+void hw_desbloquear(void);
+
+typedef void (*carro_bloqueo_fn)(void);
+void carro_poner_bloqueo(carro_bloqueo_fn bloquear, carro_bloqueo_fn desbloquear);
+void carro_bloquear(void);
+void carro_desbloquear(void);
+
 /* ── Funciones de la lógica del carro ──────────────────────────────────── */
 
 /* Deja el carro parado y el estado en "STOP". Se llama una vez en setup(),
@@ -84,6 +94,7 @@ void carro_actualizar_keepalive(void);
  * solo loop() modifique pleno_modo, comando_actual y motores. */
 void carro_encolar_comando(const char *texto);
 int  carro_extraer_comando_cola(char *destino);
+int  carro_cola_cantidad(void);
 void carro_procesar_cola(void);
 
 /* Seguimiento del cliente WebSocket activo. carro_desconectar_cliente ignora

@@ -167,6 +167,16 @@ static void responder_no_encontrado(AsyncWebServerRequest *request)
 
 static portMUX_TYPE mux_carro = portMUX_INITIALIZER_UNLOCKED;
 
+void hw_bloquear(void)
+{
+  portENTER_CRITICAL(&mux_carro);
+}
+
+void hw_desbloquear(void)
+{
+  portEXIT_CRITICAL(&mux_carro);
+}
+
 /* Eventos del WebSocket: conexión, desconexión y mensajes de texto. */
 static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *client,
                                 AwsEventType type, void *arg, uint8_t *data, size_t len)
@@ -176,21 +186,17 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
     for (auto &c : ws.getClients()) {
       if (c.id() != client->id()) c.close();
     }
-    portENTER_CRITICAL(&mux_carro);
+    carro_bloquear();
     carro_conectar_cliente(client->id());
-    carro_encolar_comando("__STOP_AUTO");
-    portEXIT_CRITICAL(&mux_carro);
+    carro_desbloquear();
     client->client()->setNoDelay(true);   /* TCP_NODELAY: el STOP y los comandos salen sin esperar a juntarse con otros datos (algoritmo de Nagle) */
     Serial.printf("WS Cliente conectado: #%u\n", client->id());
 
   } else if (type == WS_EVT_DISCONNECT) {
     int era_activo = 0;
-    portENTER_CRITICAL(&mux_carro);
+    carro_bloquear();
     era_activo = carro_desconectar_cliente(client->id());
-    if (era_activo) {
-      carro_encolar_comando("__STOP_AUTO");
-    }
-    portEXIT_CRITICAL(&mux_carro);
+    carro_desbloquear();
     if (era_activo) {
       Serial.println("WS Desconectado — freno de emergencia activado.");
     } else {
@@ -207,14 +213,14 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
       comando[n] = '\0';
       int aceptado = 0;
       const char *respuesta = NULL;
-      portENTER_CRITICAL(&mux_carro);
+      carro_bloquear();
       if (carro_cliente_activo() == 0 || client->id() == carro_cliente_activo()) {
         carro_encolar_comando(comando);
         /* PING → PONG (la app mide la latencia con el ida y vuelta) y MODO_MANUAL/MODO_AUTO → ACK_MANUAL/ACK_AUTO: la respuesta la decide carro.c. */
         respuesta = carro_respuesta(comando);
         aceptado = 1;
       }
-      portEXIT_CRITICAL(&mux_carro);
+      carro_desbloquear();
       if (aceptado && respuesta != NULL) {
         client->text(respuesta);
       }
@@ -231,6 +237,7 @@ void setup()
   Serial.println("CPU: 160 MHz");
 
   hw_iniciar_pwm();
+  carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
   carro_iniciar();   /* motores a 0 y estado "STOP" */
 
   iniciar_watchdog_hardware();
@@ -255,16 +262,7 @@ void loop()
   esp_task_wdt_reset();
   ws.cleanupClients();
 
-  char comando[LARGO_MAX_COMANDO];
-  while (true) {
-    int hay = 0;
-    portENTER_CRITICAL(&mux_carro);
-    hay = carro_extraer_comando_cola(comando);
-    portEXIT_CRITICAL(&mux_carro);
-    if (!hay) break;
-    carro_recibir_comando(comando);
-  }
-
+  carro_procesar_cola();
   carro_vigilar_comunicacion();
   carro_actualizar_keepalive();
 }

@@ -3099,6 +3099,98 @@ static void pruebas_j10_ruta_l_y_frenado(void)
     }
 }
 
+#include <stdlib.h>
+
+/* ── Revisión independiente de J10: rutas en L con calibraciones y errores de giro al azar ───────────────────── */
+
+static uint32_t azar_mc = 20260101u;
+static int azar_entre(int minimo, int maximo)
+{
+    azar_mc = azar_mc * 1664525u + 1013904223u;
+    return minimo + (int)((azar_mc >> 8) % (uint32_t)(maximo - minimo + 1));
+}
+
+/* Carro con pivote de radio `radio_der_mm` (derecha) y `radio_izq_mm` (izquierda). */
+static CalibracionCarro carro_con_radios(int radio_izq_mm, int radio_der_mm)
+{
+    CalibracionCarro c;
+    int a, d;
+
+    cal_defecto(&c);
+    cal_desplazamiento_de_medida(CAL_LADO_DERECHA, radio_der_mm, radio_der_mm, 90, &a, &d);
+    cal_poner_desplazamiento(&c, CAL_LADO_DERECHA, a, d);
+    cal_poner_desplazamiento_grados(&c, CAL_LADO_DERECHA, 90);
+    cal_desplazamiento_de_medida(CAL_LADO_IZQUIERDA, radio_izq_mm, -radio_izq_mm, 90, &a, &d);
+    cal_poner_desplazamiento(&c, CAL_LADO_IZQUIERDA, a, d);
+    cal_poner_desplazamiento_grados(&c, CAL_LADO_IZQUIERDA, 90);
+    return c;
+}
+
+static int comparar_enteros(const void *a, const void *b)
+{
+    return *(const int *)a - *(const int *)b;
+}
+
+static int raiz_entera_mc(long v)
+{
+    long r = 0;
+    while ((r + 1) * (r + 1) <= v) {
+        r++;
+    }
+    return (int)r;
+}
+
+#define MC_RUTAS 200
+
+static void pruebas_monte_carlo_ruta_l(void)
+{
+    static const Punto L_NORMAL[] = { {0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}, {3, 3} };
+    static const Punto L_ESPEJO[] = { {3, 0}, {3, 1}, {3, 2}, {3, 3}, {2, 3}, {1, 3}, {0, 3} };
+    int errores[2 * MC_RUTAS];
+    int n = 0, i, v, no_termino = 0, max_correcciones = 0;
+    long suma = 0;
+
+    for (v = 0; v < 2; v++) {
+        const Punto *ruta = (v == 0) ? L_NORMAL : L_ESPEJO;
+
+        for (i = 0; i < MC_RUTAS; i++) {
+            CalibracionCarro real = carro_con_radios(azar_entre(60, 200), azar_entre(60, 200));
+            long dx, dy;
+            int error;
+
+            navegador_iniciar(&nav);
+            navegador_poner_calibracion(&nav, &real);
+            navegador_cargar_ruta(&nav, ruta, 7);
+            sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+            sim.real = real;
+            sim.pct_giro = azar_entre(90, 110);
+            navegador_comenzar(&nav, 0);
+            while (sim.t_ms < 120000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR) {
+                correr(200);
+                if (nav.corr_rumbo_cuenta > max_correcciones) {
+                    max_correcciones = nav.corr_rumbo_cuenta;
+                }
+            }
+            correr(1500);
+            if (nav.estado != NAV_TERMINADO) {
+                no_termino++;
+            }
+            dx = sim_x_mm(&sim) - ruta[6].columna * MM;
+            dy = sim_y_mm(&sim) - ruta[6].fila * MM;
+            error = raiz_entera_mc(dx * dx + dy * dy);
+            errores[n++] = error;
+            suma += error;
+        }
+    }
+    qsort(errores, (size_t)n, sizeof errores[0], comparar_enteros);
+    printf("      MC rutas en L (200 normal + 200 espejo, radios 6-20 cm, giro +-10%%): error final media=%d mm, p95=%d mm (no termino=%d, max giros corr/vertice=%d)\n",
+           (int)(suma / n), errores[(n * 95) / 100], no_termino, max_correcciones);
+    caso("MC rutas en L: todas las 400 corridas terminan en NAV_TERMINADO (ninguna en ERROR ni bucle)", no_termino == 0);
+    caso("MC rutas en L: error final con media menor que 200 mm y percentil 95 menor que 450 mm",
+         (suma / n) < 200 && errores[(n * 95) / 100] < 450);
+    caso("MC rutas en L: la correccion de rumbo no supera el tope de 2 correcciones por vertice", max_correcciones <= 2);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -3128,6 +3220,7 @@ int main(void)
     pruebas_auditoria();
     pruebas_corredor_en_navegador();
     pruebas_textos();
+    pruebas_monte_carlo_ruta_l();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

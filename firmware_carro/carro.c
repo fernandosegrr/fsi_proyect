@@ -36,16 +36,38 @@ static uint32_t pleno_hasta_ms      = 0;   /* hora en que termina el arranque a 
 static int      perfil_actual       = PERFIL_AUTO;   /* PERFIL_MANUAL o PERFIL_AUTO; siempre arranca en AUTO */
 static int      escalon_modo        = 0;   /* arranque escalonado: 1 = avanzando y 2 = retrocediendo con el 2.º motor todavía sin arrancar; 0 = no */
 static uint32_t escalon_hasta_ms    = 0;   /* hora en que arranca el 2.º motor */
-static int      balance_mil[2]      = { PERFIL_MANUAL_BALANCE_DEFECTO, PERFIL_AUTO_BALANCE_DEFECTO };   /* factor del lado izquierdo de cada perfil, en milésimas (índice = perfil) */
-static char     respuesta_balance[LARGO_MAX_COMANDO];   /* el texto de la respuesta a un mensaje de balance */
-static char     cola_comandos[COLA_COMANDOS_MAX][LARGO_MAX_COMANDO];
-static int      cola_inicio         = 0;
-static int      cola_fin            = 0;
-static int      cola_cantidad       = 0;
-static int      en_vigilancia       = 0;
-static int      procesando_cola     = 0;
-static int      hay_cliente_activo  = 0;
-static uint32_t cliente_activo_id   = 0;
+static volatile int      balance_mil[2]      = { PERFIL_MANUAL_BALANCE_DEFECTO, PERFIL_AUTO_BALANCE_DEFECTO };   /* factor del lado izquierdo de cada perfil, en milésimas (índice = perfil) */
+static char              respuesta_balance[LARGO_MAX_COMANDO];   /* el texto de la respuesta a un mensaje de balance */
+static char              cola_comandos[COLA_COMANDOS_MAX][LARGO_MAX_COMANDO];
+static volatile int      cola_inicio         = 0;
+static volatile int      cola_fin            = 0;
+static volatile int      cola_cantidad       = 0;
+static volatile int      en_vigilancia       = 0;
+static volatile int      procesando_cola     = 0;
+static volatile int      hay_cliente_activo  = 0;
+static volatile uint32_t cliente_activo_id   = 0;
+static carro_bloqueo_fn  fn_bloquear         = hw_bloquear;
+static carro_bloqueo_fn  fn_desbloquear      = hw_desbloquear;
+
+void carro_poner_bloqueo(carro_bloqueo_fn bloquear, carro_bloqueo_fn desbloquear)
+{
+    fn_bloquear = (bloquear != NULL) ? bloquear : hw_bloquear;
+    fn_desbloquear = (desbloquear != NULL) ? desbloquear : hw_desbloquear;
+}
+
+void carro_bloquear(void)
+{
+    if (fn_bloquear != NULL) {
+        fn_bloquear();
+    }
+}
+
+void carro_desbloquear(void)
+{
+    if (fn_desbloquear != NULL) {
+        fn_desbloquear();
+    }
+}
 
 /* Lo propio de cada perfil de velocidad (ver config.h). Índice = PERFIL_MANUAL o PERFIL_AUTO. */
 typedef struct {
@@ -283,6 +305,25 @@ void carro_iniciar(void)
     keepalive_alto      = 0;
 }
 
+static int es_stop_prioritario(const char *texto)
+{
+    return strcmp(texto, "STOP") == 0 || strcmp(texto, "EBRAKE") == 0 || strcmp(texto, "__STOP_AUTO") == 0;
+}
+
+static void descartar_ranura_cola(int desplazamiento)
+{
+    int i;
+
+    for (i = desplazamiento; i < cola_cantidad - 1; i++) {
+        int dst = (cola_inicio + i) % COLA_COMANDOS_MAX;
+        int src = (cola_inicio + i + 1) % COLA_COMANDOS_MAX;
+
+        memcpy(cola_comandos[dst], cola_comandos[src], LARGO_MAX_COMANDO);
+    }
+    cola_fin = (cola_fin + COLA_COMANDOS_MAX - 1) % COLA_COMANDOS_MAX;
+    cola_cantidad--;
+}
+
 void carro_encolar_comando(const char *texto)
 {
     int perfil_balance, valor_balance, balance_valido;
@@ -294,9 +335,35 @@ void carro_encolar_comando(const char *texto)
         balance_mil[perfil_balance] = valor_balance;
     }
     if (cola_cantidad >= COLA_COMANDOS_MAX) {
-        /* Si la cola se llena, descarta el más viejo para que un STOP nuevo nunca se pierda. */
-        cola_inicio = (cola_inicio + 1) % COLA_COMANDOS_MAX;
-        cola_cantidad--;
+        int i, victima = -1;
+
+        /* Si la cola está llena, PING no desplaza ningún comando real. */
+        if (strcmp(texto, "PING") == 0) {
+            return;
+        }
+        /* Primero se descarta un PING viejo; si no hay, el comando más viejo que NO sea STOP, para no perder nunca un STOP. */
+        for (i = 0; i < cola_cantidad; i++) {
+            int idx = (cola_inicio + i) % COLA_COMANDOS_MAX;
+
+            if (strcmp(cola_comandos[idx], "PING") == 0) {
+                victima = i;
+                break;
+            }
+        }
+        if (victima < 0) {
+            for (i = 0; i < cola_cantidad; i++) {
+                int idx = (cola_inicio + i) % COLA_COMANDOS_MAX;
+
+                if (!es_stop_prioritario(cola_comandos[idx])) {
+                    victima = i;
+                    break;
+                }
+            }
+        }
+        if (victima < 0) {
+            victima = 0;
+        }
+        descartar_ranura_cola(victima);
     }
     strncpy(cola_comandos[cola_fin], texto, LARGO_MAX_COMANDO - 1);
     cola_comandos[cola_fin][LARGO_MAX_COMANDO - 1] = '\0';
@@ -316,6 +383,13 @@ int carro_extraer_comando_cola(char *destino)
     return 1;
 }
 
+int carro_cola_cantidad(void)
+{
+    return cola_cantidad;
+}
+
+/* Único punto de extracción de la cola: loop() vacía la cola bajo el bloqueo
+ * antes de llamar a carro_vigilar_comunicacion(). */
 void carro_procesar_cola(void)
 {
     char cmd[LARGO_MAX_COMANDO];
@@ -324,7 +398,15 @@ void carro_procesar_cola(void)
         return;
     }
     procesando_cola = 1;
-    while (carro_extraer_comando_cola(cmd)) {
+    for (;;) {
+        int hay;
+
+        carro_bloquear();
+        hay = carro_extraer_comando_cola(cmd);
+        carro_desbloquear();
+        if (!hay) {
+            break;
+        }
         carro_recibir_comando(cmd);
     }
     procesando_cola = 0;
@@ -337,12 +419,7 @@ void carro_conectar_cliente(uint32_t id)
     cola_inicio = 0;
     cola_fin = 0;
     cola_cantidad = 0;
-    if (en_vigilancia) {
-        carro_encolar_comando("__STOP_AUTO");
-    } else {
-        carro_detener();
-        carro_poner_perfil_auto();
-    }
+    carro_encolar_comando("__STOP_AUTO");
 }
 
 int carro_desconectar_cliente(uint32_t id)
@@ -355,12 +432,7 @@ int carro_desconectar_cliente(uint32_t id)
     cola_inicio = 0;
     cola_fin = 0;
     cola_cantidad = 0;
-    if (en_vigilancia) {
-        carro_encolar_comando("__STOP_AUTO");
-    } else {
-        carro_detener();
-        carro_poner_perfil_auto();
-    }
+    carro_encolar_comando("__STOP_AUTO");
     return 1;
 }
 
@@ -378,11 +450,10 @@ void carro_recibir_comando(const char *texto)
         return;
     }
     if (en_vigilancia) {
+        carro_bloquear();
         carro_encolar_comando(texto);
+        carro_desbloquear();
         return;
-    }
-    if (!procesando_cola && cola_cantidad > 0) {
-        carro_procesar_cola();
     }
     if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0) {
         ultimo_comando_ms = hw_millis();
@@ -437,7 +508,9 @@ void carro_poner_perfil_auto(void)
 void carro_detener(void)
 {
     if (en_vigilancia) {
+        carro_bloquear();
         carro_encolar_comando("STOP");
+        carro_desbloquear();
         return;
     }
     poner_motores(0, 0, 0, 0);
@@ -447,12 +520,12 @@ void carro_detener(void)
 }
 
 /* Watchdog de software. La resta sin signo en uint32_t funciona bien aunque
- * el reloj dé la vuelta (desbordamiento). */
+ * el reloj dé la vuelta (desbordamiento). No extrae nada de la cola: eso lo
+ * hace únicamente carro_procesar_cola() en loop() bajo el mutex. */
 void carro_vigilar_comunicacion(void)
 {
     uint32_t ahora;
 
-    carro_procesar_cola();
     en_vigilancia = 1;
     ahora = hw_millis();
 
@@ -488,7 +561,6 @@ void carro_vigilar_comunicacion(void)
         hw_registrar("Watchdog: Freno activado.");
     }
     en_vigilancia = 0;
-    carro_procesar_cola();
 }
 
 /* Keep-alive: sube el pin cada KEEPALIVE_PERIODO_MS y lo baja tras
