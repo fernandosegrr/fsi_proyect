@@ -205,18 +205,25 @@ class CalibracionGuardada(contexto: Context) {
         a != 0 || d != 0
     }
 
-    /** La calibración con el factor de giro y el desplazamiento del perfil aplicados (AUTO por defecto: es la que usan las rutas y el simulador). Si el factor deja la calibración fuera de rango, la medida. */
-    fun leerAjustada(perfil: ControlLogica.Perfil = ControlLogica.Perfil.AUTO): IntArray {
-        val medida = leer()
-        val (codigo, ajustada) = CalibracionNativa.desempaquetar(CalibracionNativa.conFactorGiro(
-            medida, factorGiro(perfil, CalibracionNativa.LADO_IZQUIERDA), factorGiro(perfil, CalibracionNativa.LADO_DERECHA)))
-        var resultado = if (codigo == CalibracionNativa.OK) ajustada else medida
+    /** true si algún lado del desplazamiento (izquierda o derecha) está sin medir (estimado) en ese perfil. */
+    fun algunLadoDesplazamientoSinMedir(perfil: ControlLogica.Perfil = ControlLogica.Perfil.AUTO): Boolean =
+        listOf(CalibracionNativa.LADO_IZQUIERDA, CalibracionNativa.LADO_DERECHA).any {
+            val (a, d) = desplazamiento(perfil, it)
+            a == 0 && d == 0
+        }
+
+    /** Aviso antes de ejecutar una ruta si algún lado del desplazamiento está estimado, o null si los dos lados están medidos. */
+    fun avisoDesplazamientoSinMedir(perfil: ControlLogica.Perfil = ControlLogica.Perfil.AUTO): String? =
+        if (algunLadoDesplazamientoSinMedir(perfil)) "Izquierda/derecha sin medir: el esquive puede fallar" else null
+
+    /** Pone los 6 campos desp_* del perfil en una calibración dada. */
+    private fun aplicarDesplazamiento(base: IntArray, perfil: ControlLogica.Perfil): IntArray {
+        var resultado = base
         for (lado in intArrayOf(CalibracionNativa.LADO_IZQUIERDA, CalibracionNativa.LADO_DERECHA)) {
             val (adelante, derecha) = desplazamiento(perfil, lado)
             val (c, conDesp) = CalibracionNativa.desempaquetar(CalibracionNativa.ponerDesplazamiento(resultado, lado, adelante, derecha))
             if (c == CalibracionNativa.OK) {
                 resultado = conDesp
-                // Las calibraciones guardadas antes de anotar el ángulo se convierten al cargarlas suponiendo 90 grados (desplazamientoGrados da 90 si no hay nada guardado).
                 val (cg, conGrados) = CalibracionNativa.desempaquetar(CalibracionNativa.ponerDesplazamientoGrados(resultado, lado, desplazamientoGrados(perfil, lado)))
                 if (cg == CalibracionNativa.OK) {
                     resultado = conGrados
@@ -224,6 +231,31 @@ class CalibracionGuardada(contexto: Context) {
             }
         }
         return resultado
+    }
+
+    /** La calibración medida con los 6 campos desp_* del perfil (AUTO por defecto). */
+    fun leerConDesplazamiento(perfil: ControlLogica.Perfil = ControlLogica.Perfil.AUTO): IntArray =
+        aplicarDesplazamiento(leer(), perfil)
+
+    /** Texto completo para «Copiar» y calibracion.txt: incluye los 6 campos desp_* de AUTO en cal_a_texto (y los de MANUAL como comentario compatible con cal_de_texto). */
+    fun textoParaCopiar(base: IntArray = leer()): String {
+        val conAuto = aplicarDesplazamiento(base, ControlLogica.Perfil.AUTO)
+        val texto = CalibracionNativa.aTexto(conAuto)
+        if (texto.isEmpty()) return ""
+        val (aiM, diM) = desplazamiento(ControlLogica.Perfil.MANUAL, CalibracionNativa.LADO_IZQUIERDA)
+        val (adM, ddM) = desplazamiento(ControlLogica.Perfil.MANUAL, CalibracionNativa.LADO_DERECHA)
+        val giM = desplazamientoGrados(ControlLogica.Perfil.MANUAL, CalibracionNativa.LADO_IZQUIERDA)
+        val gdM = desplazamientoGrados(ControlLogica.Perfil.MANUAL, CalibracionNativa.LADO_DERECHA)
+        return texto + "# desp_manual: desp_adelante_izq_um=$aiM desp_derecha_izq_um=$diM desp_adelante_der_um=$adM desp_derecha_der_um=$ddM desp_grados_izq=$giM desp_grados_der=$gdM\n"
+    }
+
+    /** La calibración con el factor de giro y el desplazamiento del perfil aplicados (AUTO por defecto: es la que usan las rutas y el simulador). Si el factor deja la calibración fuera de rango, la medida. */
+    fun leerAjustada(perfil: ControlLogica.Perfil = ControlLogica.Perfil.AUTO): IntArray {
+        val medida = leer()
+        val (codigo, ajustada) = CalibracionNativa.desempaquetar(CalibracionNativa.conFactorGiro(
+            medida, factorGiro(perfil, CalibracionNativa.LADO_IZQUIERDA), factorGiro(perfil, CalibracionNativa.LADO_DERECHA)))
+        val resultado = if (codigo == CalibracionNativa.OK) ajustada else medida
+        return aplicarDesplazamiento(resultado, perfil)
     }
 
     // ── Ajuste fino de la recta (balance de los lados) ──

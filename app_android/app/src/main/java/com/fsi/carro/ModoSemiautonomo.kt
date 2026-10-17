@@ -208,9 +208,17 @@ class ModoSemiautonomo(
         mensaje = ""
         // El retroceso de los reintentos de esquive es CIEGO (no hay cámara atrás): se avisa siempre, y si no se calibró, que usa el del avance.
         val calAtras = leerCalibracion()
+        val sinDesp = calAtras.size >= CalibracionNativa.ENTEROS &&
+            ((calAtras[CalibracionNativa.CAL_DESP_ADELANTE_IZQ_UM] == 0 && calAtras[CalibracionNativa.CAL_DESP_DERECHA_IZQ_UM] == 0) ||
+             (calAtras[CalibracionNativa.CAL_DESP_ADELANTE_DER_UM] == 0 && calAtras[CalibracionNativa.CAL_DESP_DERECHA_DER_UM] == 0))
+        if (sinDesp) {
+            Log.w(ETIQUETA, "desplazamiento al girar con algun lado sin medir (estimado)")
+            mensaje = "Aviso: Izquierda/derecha sin medir: el esquive puede fallar"
+        }
         if (calAtras.size > CalibracionNativa.CAL_MEDIDOS && calAtras[CalibracionNativa.CAL_MEDIDOS] and CalibracionNativa.MEDIDO_ATRAS == 0) {
             Log.w(ETIQUETA, "retroceso SIN calibrar: los reintentos de esquive retroceden con los ms por cm del avance")
-            mensaje = "Aviso: retroceso sin calibrar (usa el valor del avance). Si hay que esquivar un objeto grande el carro puede retroceder hasta 15 cm: deja libre el espacio de atrás."
+            mensaje = if (mensaje.isEmpty()) "Aviso: retroceso sin calibrar (usa el valor del avance). Si hay que esquivar un objeto grande el carro puede retroceder hasta 15 cm: deja libre el espacio de atrás."
+                      else "$mensaje · Retroceso sin calibrar (usa el valor del avance)."
         }
         ultimaFaseLog = -1
         ultimosReintentosLog = -1

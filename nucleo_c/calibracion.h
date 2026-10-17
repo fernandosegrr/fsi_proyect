@@ -90,7 +90,7 @@ typedef struct {
 #define CAL_ATIPICO_PCT      30
 
 /* Tamaño sobrado del texto exportado (cal_a_texto). */
-#define CAL_LARGO_TEXTO     400
+#define CAL_LARGO_TEXTO     600
 
 /* ── Estadística ───────────────────────────────────────────────────────── */
 
@@ -334,6 +334,7 @@ int cal_leer_desplazamiento_grados(const CalibracionCarro *cal, int lado);
 
 /* 1 si el desplazamiento de ese lado es el ESPEJO del otro (el lado no tiene medida propia y el otro sí); 0 si es propio o no hay ninguno. */
 int cal_desplazamiento_es_espejo(const CalibracionCarro *cal, int lado);
+int cal_desplazamiento_sin_medir(const CalibracionCarro *cal);
 
 /* El punto fijo del chasis en milímetros respecto del centro del carro, en el marco del carro (adelante, derecha), para el giro hacia `lado`. Devuelve 1 si el modelo de pivote
  * se pudo calcular y 0 si se usa el modelo lineal (entonces escribe 0 y 0). Con la medida real (15 cm adelante y 16.5 de lado en 90° a la derecha) da ~(-7, 157): sobre las ruedas

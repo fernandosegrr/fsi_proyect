@@ -380,6 +380,11 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             pisoFijoRuta = true
             fase = Fase.CONFIRMAR
             faseDesdeMs = SystemClock.elapsedRealtime()   // desde aquí cuenta CONFIRMAR_MAX_MS
+            val avisoDesp = calibracion.avisoDesplazamientoSinMedir()
+            if (avisoDesp != null) {
+                aviso.mostrar(Nivel.AVISO, avisoDesp, "Puedes continuar de todos modos o medirlo en Calibración → Desplazamiento al girar.")
+                avisoDelFlujo = true
+            }
             Haptica.corta(requireContext())
             actualizar()
         }

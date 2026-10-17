@@ -2464,7 +2464,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     private fun copiarTexto() {
-        val texto = CalibracionNativa.aTexto(guardada.leer())
+        val texto = guardada.textoParaCopiar()
         if (texto.isEmpty()) {
             Toast.makeText(this, "Los valores no son válidos", Toast.LENGTH_SHORT).show()
             return

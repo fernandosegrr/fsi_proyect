@@ -194,6 +194,9 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
         if (celdas >= 2 && cal == null) {
             avisos.add("El tiempo usa valores de ejemplo: calibra el carro en Más → Calibración.")
         }
+        if (celdas >= 2) {
+            CalibracionGuardada(requireContext()).avisoDesplazamientoSinMedir()?.let { avisos.add(it) }
+        }
         advertencia.visibility = if (avisos.isEmpty()) View.GONE else View.VISIBLE
         advertencia.text = avisos.joinToString("\n")
     }

@@ -285,6 +285,50 @@ static void pruebas_texto(void)
     cal_defecto(&cal);
     caso("buffer chico: cal_a_texto da CAL_ERR_ARGUMENTO y deja texto vacio", cal_a_texto(&cal, chico, sizeof chico) == CAL_ERR_ARGUMENTO && chico[0] == '\0');
     caso("buffer nulo: CAL_ERR_ARGUMENTO", cal_a_texto(&cal, NULL, 100) == CAL_ERR_ARGUMENTO && cal_a_texto(NULL, texto, 100) == CAL_ERR_ARGUMENTO);
+
+    /* J10 Punto 11: cal_a_texto y cal_de_texto incluyen los 6 campos desp_* con compatibilidad hacia atrás. */
+    cal_defecto(&cal);
+    cal.medidos = CAL_MEDIDO_TODO | CAL_MEDIDO_FOV | CAL_MEDIDO_ATRAS;
+    cal.arranque_ms = 120;
+    cal.ms_por_cm_x10 = 517;
+    cal.frenado_mm = 90;
+    cal.ms_por_grado_izq_x10 = 78;
+    cal.ms_por_grado_der_x10 = 82;
+    cal.frenado_grados_izq_x10 = 40;
+    cal.frenado_grados_der_x10 = 45;
+    cal.fov_grados_x10 = 580;
+    cal.ms_por_cm_atras_x10 = 540;
+    cal.desp_adelante_izq_um = -489;
+    cal.desp_derecha_izq_um = -822;
+    cal.desp_adelante_der_um = 2461;
+    cal.desp_derecha_der_um = 118;
+    cal.desp_grados_izq = 180;
+    cal.desp_grados_der = 90;
+    largo = cal_a_texto(&cal, texto, sizeof texto);
+    caso("J10 11: cal_a_texto incluye los 6 campos desp_* (adelante/derecha izq/der y grados izq/der)",
+         largo > 0 &&
+         strstr(texto, "desp_adelante_izq_um=-489\n") != NULL &&
+         strstr(texto, "desp_derecha_izq_um=-822\n") != NULL &&
+         strstr(texto, "desp_adelante_der_um=2461\n") != NULL &&
+         strstr(texto, "desp_derecha_der_um=118\n") != NULL &&
+         strstr(texto, "desp_grados_izq=180\n") != NULL &&
+         strstr(texto, "desp_grados_der=90\n") != NULL);
+    cal_defecto(&leida);
+    caso("J10 11: cal_de_texto restaura los 6 campos desp_* sin perder ningun valor",
+         cal_de_texto(texto, &leida) == CAL_OK && memcmp(&cal, &leida, sizeof cal) == 0);
+    caso("J10 11: compatibilidad hacia atras: un texto antiguo sin claves desp_* se lee bien con desp_* en 0 y grados en 90",
+         cal_de_texto("medidos=15\narranque_ms=120\nms_por_cm_x10=517\nfrenado_mm=90\n"
+                      "ms_por_grado_izq_x10=78\nms_por_grado_der_x10=82\nfrenado_grados_izq_x10=40\nfrenado_grados_der_x10=45\n", &leida) == CAL_OK &&
+         leida.desp_adelante_izq_um == 0 && leida.desp_derecha_der_um == 0 &&
+         leida.desp_grados_izq == CAL_DESP_GRADOS_REF && leida.desp_grados_der == CAL_DESP_GRADOS_REF);
+
+    /* J10 Punto 9: cal_desplazamiento_sin_medir detecta cuando algún lado del desplazamiento está estimado (sin medir). */
+    caso("J10 9: con los dos lados del desplazamiento medidos, cal_desplazamiento_sin_medir devuelve 0",
+         cal_desplazamiento_sin_medir(&cal) == 0);
+    cal.desp_adelante_izq_um = 0;
+    cal.desp_derecha_izq_um = 0;
+    caso("J10 9: con la izquierda sin medir (estimada como espejo), cal_desplazamiento_sin_medir devuelve 1",
+         cal_desplazamiento_sin_medir(&cal) == 1);
 }
 
 /* ── 6. Datos simulados con ruido de +-10 % ────────────────────────────── */
@@ -1220,11 +1264,11 @@ static void pruebas_desplazamiento(void)
         caso("flujo: elegir «repetir» y medir 3.0 cm y 3.5 cm si coinciden", cod == CAL_OK && cal_desplazamiento_promediar(aum, dum, gr, 2, &pa2, &pd2, NULL) == CAL_OK);
     }
 
-    /* ── Texto: el desplazamiento es por perfil y lo guarda la app aparte; el texto de la calibracion no lo lleva ── */
+    /* ── Texto: el texto de la calibración incluye los 6 campos desp_* para respaldar la calibración completa ── */
     cal_defecto(&cal);
     cal_poner_desplazamiento(&cal, CAL_LADO_DERECHA, 300, -50);
-    caso("el texto de la calibracion no incluye el desplazamiento: al leerlo vuelve a 0 (la app lo guarda por perfil)",
-         cal_a_texto(&cal, texto, sizeof texto) > 0 && cal_de_texto(texto, &copia) == CAL_OK && copia.desp_adelante_der_um == 0 && copia.desp_derecha_der_um == 0);
+    caso("el texto de la calibracion incluye el desplazamiento: al leerlo se conserva",
+         cal_a_texto(&cal, texto, sizeof texto) > 0 && cal_de_texto(texto, &copia) == CAL_OK && copia.desp_adelante_der_um == 300 && copia.desp_derecha_der_um == -50);
     caso("cal_con_factor_giro conserva el desplazamiento",
          cal_con_factor_giro(&cal, 900, 900, &copia) == CAL_OK && copia.desp_adelante_der_um == 300 && copia.desp_derecha_der_um == -50);
 }

@@ -438,13 +438,16 @@ int cal_frenado_grados(const CalibracionCarro *cal, int lado)
 /* ── Texto ─────────────────────────────────────────────────────────────── */
 
 /* Nombres de las claves, en el orden en que se escriben. */
-#define CLAVES 10                /* las 8 primeras son obligatorias; la 9 (campo de visión) y la 10 (ms por cm hacia atrás) son opcionales */
+#define CLAVES 16                /* las 8 primeras son obligatorias; de la 9 a la 16 (campo de visión, retroceso y los 6 campos desp_*) son opcionales por compatibilidad hacia atrás */
 #define CLAVES_OBLIGATORIAS 8
 static const char *const NOMBRES[CLAVES] = {
     "medidos", "arranque_ms", "ms_por_cm_x10", "frenado_mm",
     "ms_por_grado_izq_x10", "ms_por_grado_der_x10",
     "frenado_grados_izq_x10", "frenado_grados_der_x10",
-    "fov_grados_x10", "ms_por_cm_atras_x10"
+    "fov_grados_x10", "ms_por_cm_atras_x10",
+    "desp_adelante_izq_um", "desp_derecha_izq_um",
+    "desp_adelante_der_um", "desp_derecha_der_um",
+    "desp_grados_izq", "desp_grados_der"
 };
 
 /* Apunta a cada campo de la estructura en el mismo orden que NOMBRES. */
@@ -460,7 +463,13 @@ static int *campo(CalibracionCarro *cal, int indice)
     case 6: return &cal->frenado_grados_izq_x10;
     case 7: return &cal->frenado_grados_der_x10;
     case 8: return &cal->fov_grados_x10;
-    default: return &cal->ms_por_cm_atras_x10;
+    case 9: return &cal->ms_por_cm_atras_x10;
+    case 10: return &cal->desp_adelante_izq_um;
+    case 11: return &cal->desp_derecha_izq_um;
+    case 12: return &cal->desp_adelante_der_um;
+    case 13: return &cal->desp_derecha_der_um;
+    case 14: return &cal->desp_grados_izq;
+    default: return &cal->desp_grados_der;
     }
 }
 
@@ -569,7 +578,7 @@ static int leer_entero(const char **s, int *valor)
 int cal_de_texto(const char *texto, CalibracionCarro *cal)
 {
     CalibracionCarro nueva;
-    int vistas[CLAVES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    int vistas[CLAVES] = { 0 };
     const char *p = texto;
     int i;
 
@@ -1196,6 +1205,15 @@ int cal_desplazamiento_es_espejo(const CalibracionCarro *cal, int lado)
 
     vector_del_lado(cal, lado, &a, &d, &g, &e);
     return e;
+}
+
+int cal_desplazamiento_sin_medir(const CalibracionCarro *cal)
+{
+    if (cal == NULL) {
+        return 1;
+    }
+    return (cal->desp_adelante_izq_um == 0 && cal->desp_derecha_izq_um == 0) ||
+           (cal->desp_adelante_der_um == 0 && cal->desp_derecha_der_um == 0);
 }
 
 int cal_pivote_punto(const CalibracionCarro *cal, int lado, int *adelante_mm, int *derecha_mm)
