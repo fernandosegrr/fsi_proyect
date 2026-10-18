@@ -988,6 +988,24 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             }
             listaPartes.addView(fila)
         }
+        // Tarjeta de los SENSORES (giroscopio y láser): no es una parte que se mida, abre su propia pantalla.
+        val filaSensores = layoutInflater.inflate(R.layout.item_calibracion_parte, listaPartes, false)
+        filaSensores.findViewById<TextView>(R.id.parte_titulo).setText(R.string.sens_titulo)
+        filaSensores.findViewById<ChipEstado>(R.id.parte_chip).apply {
+            when {
+                logica.capsGiroscopio == null -> poner(Nivel.NEUTRO, getString(R.string.sens_chip_ninguno))
+                logica.capsGiroscopio == true && logica.capsLaser == true -> poner(Nivel.OK, getString(R.string.sens_chip_ok))
+                else -> poner(Nivel.AVISO, getString(R.string.sens_chip_parcial))
+            }
+        }
+        filaSensores.findViewById<TextView>(R.id.parte_valor).setText(R.string.sens_en_lista_detalle)
+        filaSensores.findViewById<View>(R.id.parte_fecha).visibility = View.GONE
+        filaSensores.findViewById<View>(R.id.parte_pilas).visibility = View.GONE
+        filaSensores.findViewById<MaterialButton>(R.id.parte_boton).apply {
+            setText(R.string.sens_abrir)
+            setOnClickListener { startActivity(android.content.Intent(this@CalibracionActivity, SensoresActivity::class.java)) }
+        }
+        listaPartes.addView(filaSensores)
     }
 
     // ── Mostrar el paso ───────────────────────────────────────────────────

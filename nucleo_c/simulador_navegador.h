@@ -29,8 +29,10 @@ typedef struct {
     int zona;        /* ZONA_IZQUIERDA, ZONA_CENTRO o ZONA_DERECHA */
     int cercania;    /* 1 a 3 */
     int crece_por_10cm;   /* un obstáculo REAL crece al acercarse: cuántas celdas se agregan por cada 10 cm que el carro avanza desde que el evento se ve por primera vez (0 = fijo: un artefacto de la imagen) */
+    long base_rumbo_cgrados;   /* J11: rumbo del carro cuando el láser vio el obstáculo por primera vez: solo lo sigue viendo mientras el carro apunte hacia allá (±15 grados) */
     long base_recorrido_cmm;   /* lo que había avanzado el carro cuando el evento se vio por primera vez (lo llena el simulador) */
     int visto;                 /* 1 si el evento ya se vio alguna vez (lo llena el simulador) */
+    int laser_mm;    /* J11: a qué distancia ve el láser este obstáculo la primera vez que se ve (baja con lo que avanza el carro); 0 = el láser no lo ve (un artefacto de la imagen, o fuera de su haz) */
     int celdas;      /* cuántas celdas de obstáculo ve el detector en esa zona (por defecto NAV_CERC3_AREA_INMEDIATA = 60: un solo cuadro en cercanía 3 frena) */
 } EventoObstaculo;
 
@@ -79,6 +81,35 @@ typedef struct {
     long desp_x_cmm, desp_y_cmm;   /* cuánto se ha movido ya el centro por ese giro */
     long recorrido_cmm;            /* cuánto ha avanzado el carro hacia adelante en total (centésimas de mm): hace crecer los obstáculos reales */
 
+    /* Giroscopio y láser (J11). El simulador hace de firmware: si `fw_giroscopio` = 1 contesta a los giros por ángulo (navegador_tomar_giro_fw) como el firmware real: el carro gira con SU giroscopio
+     * (con error de escala `fw_escala_pct`, sesgo `fw_sesgo_x100` y ruido `fw_ruido_x10`), frena adelantándose por la anticipación (que se corrige sola, como en giro.c) y informa el ángulo
+     * medido 200 ms después. Con `tof_activo` = 1 manda SENS cada 100 ms y hace la parada de emergencia del láser (2 lecturas seguidas menores de 120 mm avanzando). */
+    int fw_giroscopio;
+    int fw_escala_pct;         /* error de escala del giroscopio: +2 = mide 2 % de más */
+    int fw_sesgo_x100;         /* sesgo sin corregir, en centésimas de grado por segundo */
+    int fw_ruido_x10;          /* ruido de la medida de cada giro: ± décimas de grado */
+    int fw_sin_respuesta;      /* 1 = el firmware nunca contesta a los giros */
+    int fw_falla_desde;        /* a partir de este giro (1, 2, ...) el giroscopio falla; 0 = nunca */
+    int fw_falla_codigo;       /* NAV_GIRO_TIMEOUT, NAV_GIRO_ERROR_CON_DATOS o NAV_GIRO_ERROR_SIN_DATOS */
+    int fw_anticipacion_ms[2]; /* [0] derecha, [1] izquierda: se corrige sola */
+    int fw_activo;             /* hay un giro del firmware en curso */
+    int fw_lado;               /* CAL_LADO_IZQUIERDA o CAL_LADO_DERECHA */
+    long fw_total_cgrados;     /* lo que girará de verdad en total (valor absoluto, con lo que sigue girando al frenar) */
+    long fw_aplicado_cgrados;  /* lo que ya se aplicó al carro */
+    int fw_ms, fw_dur_ms;      /* tiempo transcurrido y duración total (hasta que contesta) */
+    int fw_codigo;             /* NAV_GIRO_* con el que contestará */
+    int fw_medido_x10;         /* lo que contestará: grados por 10 medidos (valor absoluto) */
+    int fw_manejo_ms;          /* tiempo que estuvo el motor encendido (lo que informa) */
+    int fw_n_giros;            /* giros por ángulo pedidos */
+    int fw_cerrado;            /* 1 = el último giro lo hizo el firmware: al soltar el comando no se suma el frenado de tiempo */
+    int fw_sin_motor;          /* 1 = este giro no mueve el carro (el firmware ni lo empezó) */
+    int tof_activo;
+    int tof_perdido;           /* 1 = el láser está caído (SENS con láser muerto) */
+    int tof_paro_hecho;        /* cuántas paradas de emergencia hizo el láser */
+    int tof_parado;            /* 1 mientras el firmware mantiene el carro frenado por TOF_PARO (hasta que el navegador cambia de comando) */
+    int tof_cerca_seguidas;
+    uint32_t proximo_sens_ms;
+
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];
     int n_eventos;
@@ -108,6 +139,9 @@ int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_f
 
 /* Corre el ciclo durante `duracion_ms`. Devuelve el último comando. */
 ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms);
+
+/* Obstáculo programado igual que sim_agregar_obstaculo_creciente (sin crecer) pero que el láser ve a `laser_mm` mm cuando aparece (0 = el láser no lo ve). */
+int sim_agregar_obstaculo_laser(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int laser_mm);
 
 /* Posición real del carro simulado en milímetros y rumbo en grados. */
 int sim_x_mm(const Simulador *sim);

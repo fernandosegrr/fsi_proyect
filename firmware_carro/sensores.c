@@ -37,6 +37,7 @@ static int      sens_serie = 0;             /* 1 = mandar SENS también por el p
 static uint32_t ultimo_sens_ms = 0;
 static uint32_t ultimo_sens_serie_ms = 0;
 static int      destino_cal = SENSORES_DESTINO_WS;
+static int      tof_uso = 1;                /* 1 = la parada de emergencia del láser está encendida (TOF_USO:0 la apaga: el interruptor «Usar sensor de distancia» de la app); por defecto encendida */
 static int      paro_enviado = 0;           /* 1 desde que se pidió la parada hasta que el carro deja de avanzar */
 static uint32_t paros_tof = 0;
 static uint32_t loop_max_us = 0;
@@ -90,6 +91,7 @@ void sensores_reiniciar_estado(void)
     ultimo_sens_serie_ms = 0;
     destino_cal = SENSORES_DESTINO_WS;
     paro_enviado = 0;
+    tof_uso = 1;
     paros_tof = 0;
     loop_max_us = 0;
     loop_excesos = 0;
@@ -165,7 +167,7 @@ static void revisar_paro_tof(void)
         paro_enviado = 0;                       /* ya no avanza: la próxima vez que avance se puede volver a frenar */
         return;
     }
-    if (paro_enviado || carro_perfil() != PERFIL_AUTO) {
+    if (paro_enviado || !tof_uso || carro_perfil() != PERFIL_AUTO) {
         return;
     }
     mm = tof_cerca_confirmada();
@@ -239,7 +241,7 @@ uint32_t sensores_paros_tof(void)    { return paros_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "SENS_SERIE:", "I2C?", "REG:", NULL };
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
 
 int sensores_es_comando(const char *texto)
 {
@@ -300,6 +302,10 @@ static void ejecutar(const char *texto, int donde)
     } else if (strcmp(texto, "ANT?") == 0) {
         snprintf(respuesta, sizeof respuesta, "ANT:%d,%d", giro_anticipacion_ms(1), giro_anticipacion_ms(-1));
         sensores_enviar(donde, respuesta);
+    } else if (strncmp(texto, "TOF_USO:", 8) == 0) {
+        tof_uso = (texto[8] != '0');
+        paro_enviado = 0;
+        sensores_enviar(donde, tof_uso ? "ACK_TOF_USO:1" : "ACK_TOF_USO:0");
     } else if (strcmp(texto, "I2C?") == 0) {
         /* Diagnóstico de cableado: qué direcciones contestan en el bus (126 preguntas seguidas; solo por serie, nunca en una ruta). */
         int dir, n = 0;

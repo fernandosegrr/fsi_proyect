@@ -179,6 +179,31 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_LOCURA_DESVIO_MM     1000    /* la pose a más de esto (1 m) de la ruta frena */
 #define NAV_RUMBO_FINAL_TOL        20    /* al terminar la ruta el rumbo queda a lo más a esto del último tramo */
 
+/* GIROSCOPIO Y SENSOR LÁSER (J11, ver docs/sensores.md). Con el giroscopio encendido (navegador_poner_giroscopio) cada giro de entre NAV_GIRO_FW_MIN_GRADOS y NAV_GIRO_FW_MAX_GRADOS se le pide al
+ * firmware como GIRAR:<grados> (la app lo manda al ver navegador_tomar_giro_fw); el firmware gira hasta el ángulo MEDIDO y contesta con el ángulo REAL (navegador_aporte_giro): la pose usa ese
+ * ángulo (con el desplazamiento del pivote calculado con él). Si el giro termina mal (GIRO_TIMEOUT / GIRO_ERROR) se usa el ángulo real que informó, si lo hay, y los giros siguientes de la ruta
+ * vuelven al método por tiempo (con aviso SENS_DIAG). Un giro sin respuesta en la espera máxima también cae al tiempo.
+ * El láser (navegador_poner_sensor_distancia) hace dos cosas: (1) TOF_PARO, el freno de emergencia del firmware, entra como obstáculo confirmado SIN información lateral: espera hasta
+ * NAV_TOF_ESPERA_LADO_MS a que la cámara aporte el lado libre y si no llega esquiva hacia el lado con más espacio de la última rejilla (o a la izquierda); (2) confirma o corrige a la cámara: con
+ * cercanía 2 en el centro y el láser libre (más de NAV_TOF_LIBRE_MM en NAV_TOF_LIBRE_LECTURAS lecturas) se pide UN cuadro más de la cámara antes de frenar; con el láser a menos de
+ * NAV_TOF_CONFIRMA_MM se frena con un solo cuadro. Con cercanía 3 no hay confirmación que valga. La cámara nunca se ignora por más de ese cuadro. */
+#define NAV_GIRO_FW_MIN_GRADOS       5    /* un giro de menos de esto no se pide al firmware (no se hace) */
+#define NAV_GIRO_FW_MAX_GRADOS     200    /* el firmware no gira más de esto de una vez; uno mayor se hace por tiempo */
+#define NAV_GIRO_FW_BASE_MS        500    /* tiempo máximo propio del firmware: base + por grado (igual que GIRO_TIEMPO_BASE_MS y GIRO_TIEMPO_POR_GRADO_MS de config.h) */
+#define NAV_GIRO_FW_POR_GRADO_MS    15
+#define NAV_GIRO_FW_ESPERA_EXTRA_MS 1500  /* margen sobre ese máximo para que llegue la respuesta; si no llega, el giro cae al método por tiempo */
+#define NAV_TOF_ESPERA_LADO_MS     700    /* tras TOF_PARO se espera tanto (como máximo) a que la cámara dé el lado libre */
+#define NAV_TOF_LIBRE_MM           800    /* el láser «ve libre» si mide más de esto (o no tiene eco) */
+#define NAV_TOF_LIBRE_LECTURAS       3
+#define NAV_TOF_CONFIRMA_MM        500    /* el láser «confirma» el obstáculo si mide menos de esto */
+#define NAV_TOF_FRESCO_MS          400    /* una lectura del láser más vieja que esto ya no sirve */
+
+/* Resultado de un giro por ángulo (navegador_aporte_giro). */
+#define NAV_GIRO_OK                  0
+#define NAV_GIRO_TIMEOUT             1    /* GIRO_TIMEOUT: se acabó el tiempo del firmware (informa el ángulo real) */
+#define NAV_GIRO_ERROR_CON_DATOS     2    /* GIRO_ERROR:abortado o sin_imu con el ángulo parcial */
+#define NAV_GIRO_ERROR_SIN_DATOS     3    /* GIRO_ERROR:sin_imu, ocupado o angulo: el giro no empezó */
+
 /* Diagnóstico: el navegador escribe líneas de texto (REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG y RUTA_DIAG) en una cola chica que la app lee con navegador_diag_siguiente()
  * y copia al log. Si la app no las lee, las más viejas se pierden (no pasa nada).
  *  - RUTA_DIAG: una línea al ENVIAR cada comando de movimiento (FORWARD, REVERSE, LEFT o RIGHT) con lo pedido y la duración planeada, y otra al TERMINARLO con la duración real y lo
@@ -275,6 +300,7 @@ typedef struct {
     int real_ms;               /* duración real */
     int desp_adelante_mm;      /* desplazamiento del centro durante el giro, en el marco del carro al empezar el giro */
     int desp_derecha_mm;
+    int por_angulo;            /* 1 si el giro lo midió el giroscopio del firmware (hecho_grados es el ángulo REAL medido); 0 si fue por tiempo */
 } NavGiro;
 
 typedef struct {
@@ -427,6 +453,31 @@ typedef struct {
     int     n_giros;             /* giros anotados (como máximo NAV_MAX_GIROS) */
     int     giros_perdidos;      /* giros que ya no cupieron */
 
+    /* Giroscopio y láser (J11). */
+    int      usa_giroscopio;         /* 1 = los giros se piden al firmware por ángulo (configuración; por defecto 0 = por tiempo como siempre) */
+    int      usa_tof;                /* 1 = se hace caso al láser: TOF_PARO y la confirmación de la cámara (configuración; por defecto 0) */
+    int      giro_fw_caido;          /* 1 = en esta ruta el giro por ángulo falló: el resto de los giros va por tiempo */
+    int      giro_fw;                /* 1 mientras el giro actual lo hace el firmware */
+    int      giro_fw_estado;         /* 0 = esperando la respuesta, 1 = ya llegó el ángulo real */
+    int      giro_fw_pedir;          /* 1 = falta mandar GIRAR (la app lo toma con navegador_tomar_giro_fw) */
+    int      giro_fw_grados;         /* grados pedidos con la convención del navegador (+ derecha) */
+    int      giro_fw_real_x10;       /* grados por 10 que giró de verdad, en la dirección del comando */
+    int      giro_fw_ms;             /* lo que tardó el firmware */
+    uint32_t giro_fw_t_ms;           /* hora en que se pidió */
+    int      n_giros_angulo, n_giros_tiempo;   /* cuántos giros de la ruta fueron por ángulo y cuántos por tiempo (para el resumen final) */
+    int      tof_vivo;               /* 1 si el láser funciona (según SENS) */
+    int      tof_mm;                 /* última lectura (1200 = libre) */
+    int      tof_valida;             /* 1 si esa lectura fue una medida real */
+    int      tof_libre_lecturas;     /* lecturas seguidas «libres» (más de NAV_TOF_LIBRE_MM o sin eco) */
+    int      tof_cerca_lecturas;     /* lecturas seguidas con una medida real menor de NAV_TOF_CONFIRMA_MM */
+    uint32_t tof_t_ms;               /* hora de la última lectura */
+    int      tof_paro_activo;        /* 1 desde TOF_PARO hasta que empieza a esquivar */
+    int      tof_pendiente;          /* 1 = TOF_PARO llegó mientras esquivaba o volvía a la línea: lo atiende el siguiente tick */
+    int      tof_paros;              /* TOF_PARO recibidos en esta ruta */
+    int      tof_dist_mm;            /* distancia al obstáculo que midió el láser al detenerse (0 = no se sabe) */
+    int      racha_solo_centro2;     /* 1 si la racha de bloqueo actual es SOLO cercanía 2 en el centro */
+    int      tof_racha_nota;         /* 0 nada, 1 veto anotado, 2 confirmación anotada (para escribir SENS_DIAG una vez por racha) */
+
     /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG, TURN_DIAG, RUTA_DIAG): ver navegador_diag_siguiente. */
     char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
     int  diag_escritas, diag_leidas;
@@ -497,6 +548,20 @@ int navegador_ayuda_comando(Navegador *nav, ComandoNav comando);
 /* En AYUDA: el usuario terminó de maniobrar. El carro se queda quieto un momento, calcula con su posición estimada cómo volver a la línea (igual que tras esquivar) y sigue la ruta
  * (las esquivadas se cuentan de nuevo desde cero). Devuelve NAV_OK o NAV_ERR_ESTADO (no está en AYUDA). */
 int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
+
+/* GIROSCOPIO (J11). poner_giroscopio / poner_sensor_distancia encienden (1) o apagan (0) cada uno (por defecto apagados: el navegador se comporta como siempre). Devuelven NAV_OK o NAV_ERR_ARGUMENTO.
+ * navegador_tomar_giro_fw: si hay un giro por ángulo que todavía no se pidió al firmware devuelve 1 y deja en *grados_izq_positivo los grados con la convención del firmware (POSITIVO = izquierda)
+ * para mandar GIRAR:<grados>; solo devuelve 1 una vez por giro. navegador_giro_fw_en_curso: 1 mientras el firmware hace el giro (la app NO manda LEFT ni RIGHT en ese tiempo).
+ * navegador_aporte_giro: llegó la respuesta del firmware: `codigo` es NAV_GIRO_*, `real_x10_fw` los grados por 10 que giró (POSITIVO = izquierda) y `ms` lo que tardó.
+ * navegador_aporte_sens: llegó un SENS del firmware (cada ~100 ms): distancia del láser, si el láser funciona y si la medida es válida (no «libre»).
+ * navegador_aporte_tof_paro: el firmware frenó por algo muy cerca al frente (TOF_PARO:<mm>). */
+int  navegador_poner_giroscopio(Navegador *nav, int activo);
+int  navegador_poner_sensor_distancia(Navegador *nav, int activo);
+int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
+int  navegador_giro_fw_en_curso(const Navegador *nav);
+void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, uint32_t ahora_ms);
+void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, uint32_t ahora_ms);
+void navegador_aporte_tof_paro(Navegador *nav, int mm, uint32_t ahora_ms);
 
 /* Saca la siguiente línea de diagnóstico que el navegador escribió y la copia a `texto` (capacidad `capacidad`, termina en '\0'). Devuelve 1 si había una
  * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG o RUTA_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick

@@ -92,6 +92,33 @@ object NavegadorNativa {
      */
     external fun aporteVisual(giroX10: Int, dtMs: Int, confiable: Boolean)
 
+    // ── Giroscopio y láser (J11) ──
+    const val GIRO_OK = 0
+    const val GIRO_TIMEOUT = 1
+    const val GIRO_ERROR_CON_DATOS = 2
+    const val GIRO_ERROR_SIN_DATOS = 3
+
+    /** Enciende (1) o apaga (0) los giros por ángulo (giroscopio) para las rutas que se carguen después. Apagado = giros por tiempo como siempre. */
+    external fun ponerGiroscopio(activo: Int): Int
+
+    /** Enciende (1) o apaga (0) el sensor láser (TOF_PARO y confirmación de la cámara) para las rutas que se carguen después. */
+    external fun ponerSensorDistancia(activo: Int): Int
+
+    /** Si el navegador pide un giro por ángulo que todavía no se mandó, devuelve los grados con signo del firmware (POSITIVO = izquierda) para mandar GIRAR:<grados>; 0 si no hay. Devuelve distinto de 0 una sola vez por giro. */
+    external fun tomarGiroFw(): Int
+
+    /** 1 mientras el giro actual lo hace el firmware: NO hay que mandar LEFT ni RIGHT. */
+    external fun giroFwActivo(): Int
+
+    /** La respuesta del firmware a un giro: `codigo` es GIRO_*, `realX10Fw` los grados por 10 que giró (POSITIVO = izquierda), `ms` lo que tardó, `ahoraMs` el reloj de tick(). */
+    external fun aporteGiro(codigo: Int, realX10Fw: Int, ms: Int, ahoraMs: Long)
+
+    /** Un SENS del firmware: distancia del láser en mm, si el láser funciona y si la medida es válida (no «libre»). */
+    external fun aporteSens(mm: Int, tofVivo: Boolean, tofValida: Boolean, ahoraMs: Long)
+
+    /** TOF_PARO:<mm>: el firmware frenó por algo muy cerca al frente. */
+    external fun aporteTofParo(mm: Int, ahoraMs: Long)
+
     /** Estado para mostrar en pantalla (ver los índices E_*). */
     external fun estado(): IntArray
 

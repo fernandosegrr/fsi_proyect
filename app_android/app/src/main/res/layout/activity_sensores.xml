@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: pantalla SENSORES (se abre desde la lista de Calibración), en vertical.
+   - Arriba: barra de título con la flecha de volver.
+   - En medio (se desplaza): tres tarjetas.
+       1. INTERRUPTORES: «Usar giroscopio» y «Usar sensor de distancia». Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona.
+          Apagados, el carro se comporta como antes (giros por tiempo y sin freno del láser).
+       2. ESTADO: giroscopio (ok/mal, ángulo, sesgo) y láser (distancia en mm, ok/mal) en vivo, y los botones «Recalibrar giroscopio» (carro quieto) y «Ángulo en cero».
+       3. PRUEBA DE GIRO: «por ángulo (giroscopio)» o «por tiempo (calibración)» y los botones de 90° a la izquierda y a la derecha. El resultado (ángulo medido y ms) queda en el log como SENS_DIAG.
+   - Abajo, SIEMPRE visible: el botón PARO.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fondo"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_barra_titulo" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/fondo"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingBottom="@dimen/e2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/margen_pantalla"
+            android:paddingTop="@dimen/e2"
+            android:paddingEnd="@dimen/margen_pantalla">
+
+            <!-- Interruptores -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_interruptores" />
+
+                    <LinearLayout
+                        android:id="@+id/sens_fila_giro"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/toque_minimo"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Texto.Cuerpo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/sens_usar_giroscopio" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/sens_switch_giro"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/sens_usar_giroscopio" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/sens_fila_laser"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/toque_minimo"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Texto.Cuerpo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/sens_usar_laser" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/sens_switch_laser"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/sens_usar_laser" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/sens_interruptores_ayuda" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Estado -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Texto.Subtitulo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="@dimen/e1"
+                            android:layout_weight="1"
+                            android:text="@string/sens_estado" />
+
+                        <com.fsi.carro.ChipEstado
+                            android:id="@+id/sens_chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/sens_texto_giro"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <TextView
+                        android:id="@+id/sens_texto_laser"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <TextView
+                        android:id="@+id/sens_texto_aviso"
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/sens_recalibrar"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e2"
+                        android:text="@string/sens_recalibrar" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/sens_cero"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:text="@string/sens_cero" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Prueba de giro -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_prueba" />
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_prueba_ayuda" />
+
+                    <RadioGroup
+                        android:id="@+id/sens_grupo_metodo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/sens_metodo_angulo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/sens_por_angulo"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/sens_metodo_tiempo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="@dimen/toque_minimo"
+                            android:paddingStart="@dimen/e1"
+                            android:text="@string/sens_por_tiempo"
+                            android:textAppearance="@style/Texto.Cuerpo" />
+                    </RadioGroup>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/sens_girar_izq"
+                            style="@style/Boton.Primario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginEnd="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/sens_girar_izq" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/sens_girar_der"
+                            style="@style/Boton.Primario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginStart="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/sens_girar_der" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/sens_resultado"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e2" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/sens_paro"
+        style="@style/Boton.Paro"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/toque_manejo"
+        android:layout_marginStart="@dimen/e2"
+        android:layout_marginTop="@dimen/e1"
+        android:layout_marginEnd="@dimen/e2"
+        android:layout_marginBottom="@dimen/e1"
+        android:text="@string/paro"
+        app:icon="@drawable/ic_stop"
+        app:iconGravity="textStart" />
+</LinearLayout>

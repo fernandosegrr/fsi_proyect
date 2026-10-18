@@ -53,6 +53,7 @@ class ModoSemiautonomo(
 
     private val manejador = Handler(Looper.getMainLooper())
     private var ultimoComando = NavegadorNativa.CMD_STOP
+    private var giroPorAnguloAntes = false   // el giro del tick anterior lo hacía el firmware (J11)
 
     /** Obstáculos simulados (se usan si `camara` es null): izquierda, centro, derecha. */
     val obstaculoSimulado = BooleanArray(3)
@@ -189,6 +190,12 @@ class ModoSemiautonomo(
         // Con el video del carro (retraso + 38 cm/s) el STOP llega ~17 cm tarde: se frena también con un obstáculo lejano al centro.
         NavegadorNativa.frenarLejosCentro(if (fuente?.esVideoCarro == true) 1 else 0)
         NavegadorNativa.requiereCamara(if (fuente != null) 1 else 0)   // con cámara no se mueve hasta su primer cuadro (antes, sin cuadros, recorría la ruta a ciegas)
+        NavegadorNativa.ponerGiroscopio(if (logica.giroscopioActivo) 1 else 0)   // J11: giros por ángulo medido solo si el interruptor está encendido y el firmware dice que el giroscopio funciona
+        NavegadorNativa.ponerSensorDistancia(if (logica.laserActivo) 1 else 0)
+        Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo}")
+        logica.alGiro = { codigo, _, real, ms -> NavegadorNativa.aporteGiro(codigo, real, ms, SystemClock.elapsedRealtime()) }
+        logica.alSens = { _, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, SystemClock.elapsedRealtime()) }
+        logica.alTofParo = { mm -> NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime()) }
         NavegadorNativa.pedirAyuda(if (modoPruebaObstaculo) 0 else 1)   // si no puede esquivar, pide que tomes el control en vez de rendirse (la prueba de obstáculo no)
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
         if (codigoRuta != 0) {
@@ -314,14 +321,22 @@ class ModoSemiautonomo(
         registrarEsquive()
         registrarDiagnostico()
 
-        if (comando != ultimoComando) {
+        // J11: un giro por ángulo se le pide al firmware una sola vez (GIRAR:<grados>) y no se manda LEFT ni RIGHT mientras lo hace; si el giro cae al método por tiempo hay que mandar el LEFT/RIGHT que faltaba.
+        val girarGrados = NavegadorNativa.tomarGiroFw()
+        if (girarGrados != 0) {
+            logica.girar(girarGrados)
+        }
+        val porAngulo = NavegadorNativa.giroFwActivo() == 1
+        val reenviar = giroPorAnguloAntes && !porAngulo && (comando == NavegadorNativa.CMD_LEFT || comando == NavegadorNativa.CMD_RIGHT)
+        giroPorAnguloAntes = porAngulo
+        if (comando != ultimoComando || reenviar) {
             ultimoComando = comando
             avanzando = (comando == NavegadorNativa.CMD_FORWARD)
             val texto = NavegadorNativa.textoComando(comando)
             Log.i(ETIQUETA, "comando=$texto estado=${NavegadorNativa.textoEstado(estado)}")
             if (comando == NavegadorNativa.CMD_STOP && estado == NavegadorNativa.DETENIDO_OBSTACULO && fuente != null && bloqueoMarcaMs != 0L) {
                 frenarPorObstaculo(fuente)
-            } else {
+            } else if (!porAngulo) {
                 logica.ordenAutomatica(texto)
             }
         }

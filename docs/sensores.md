@@ -5,9 +5,9 @@
 - **Código y pruebas de PC: hechos** (Fase A). `imu.c`, `tof.c`, `giro.c`, `sensores.c` son C puro; el `.ino` solo pone el bus I2C.
 - **Hardware: los dos módulos funcionan** (comprobado por USB con el DevKit en COM6, tras corregir el cableado):
   - Escaneo del bus: `0x29` (láser) y `0x68` (giroscopio).
-  - **MPU6050:** WHO_AM_I = `0x68` (original, no clon), sesgo medido −0.44 a −0.46 °/s (igual en 5 arranques), deriva del ángulo con el carro quieto 60 s: 0.8° como máximo (límite 1°; se hizo mientras se reconectaba un cable, hay que repetirla sin tocar nada).
+  - **MPU6050:** WHO_AM_I = `0x68` (original, no clon), sesgo medido −0.44 a −0.46 °/s (igual en 5 arranques), deriva del ángulo con el carro quieto 60 s: **0.0°** (repetida sin tocar nada; dos medidas anteriores, 0.8° y 25°, eran manos moviendo el carro: el ángulo se quedaba en -0.1° y saltaba de golpe).
   - **VL53L0X:** 8 de 8 arranques iniciaron bien (con 5 reintentos de `init()`; sin reintentos fallaba 1 de cada 3 aunque aparecía en el escaneo). Lecturas con algo delante: 66 a 77 mm, estables (sin comparar todavía con una regla).
-  - **Tiempo de `loop()`: NO cumple todavía.** `LOOP?` informó un máximo de 92 ms con 2 vueltas sobre 5 ms desde el arranque. Causa sin identificar (puede ser el arranque o una impresión por serie); queda por investigar antes de dar por buena la Fase A.
+  - **Tiempo de `loop()`: cumple.** En arranques limpios `LOOP?` informa un máximo de **1.8 ms** y 0 vueltas sobre 5 ms (también durante 60 s transmitiendo `SENS` por USB: 1.7 ms). El 92 ms que se vio una vez fue en un arranque donde se había corrido `PRUEBAI2C?`, un comando de diagnóstico que escanea 4 veces las 126 direcciones (nunca se usa en una ruta).
 - Causas del problema de cableado que hubo: el cable SCL del GY-521 no llegaba al DevKit (con el láser desconectado, SCL no subía). Sirvió el comando `PINES?` (nivel eléctrico de SDA/SCL) y `PRUEBAI2C?` (escaneo cruzado y a 100/400 kHz).
 
 ## Cableado y pines
@@ -57,3 +57,12 @@ Láser: una lectura cada ~33 ms sin bloquear `loop()`; 8190, 65535 o más de 120
 ## Licencia
 
 Láser: librería VL53L0X de Pololu 1.3.1 (MIT), copia de la licencia en `docs/licencias/VL53L0X-Pololu-MIT.txt`. El MPU6050 va con registros directos, sin librería.
+
+## Fase B: app y navegador (J11, 18 oct)
+
+- **Mensajes en la app** (`ControlLogica.kt`): al conectar manda `CAPS?` y `TOF_USO:<0|1>`; lee `CAPS`, `SENS`, `GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR`, `TOF_PARO`, `IMU_CAL_OK / FALLO` e `IMU:`. Un firmware viejo no contesta `CAPS?`: la app lo toma como «sin sensores» y todo queda como antes. `girar(grados)` manda `GIRAR` una sola vez (no hay heartbeat; el watchdog de 1 s no corre durante el giro).
+- **Pantalla Sensores** (Calibración → «Sensores (giroscopio y láser)»): interruptores «Usar giroscopio» y «Usar sensor de distancia» (guardados en `Ajustes`), estado en vivo, «Recalibrar giroscopio», «Poner el ángulo en cero» y prueba de giro de 90° por ángulo o por tiempo que registra en el log `SENS_DIAG prueba_giro ... medido_x10 ... ms`.
+- **Navegador** (`nucleo_c/navegador.c`): giros por ángulo, `TOF_PARO` y confirmación de la cámara, con respaldos; ver `docs/navegador.md` («Giroscopio y sensor láser»).
+- **Firmware:** se agregó `TOF_USO:<0|1>` (apaga/enciende el freno de emergencia con el interruptor de la app).
+- **Servidor falso de la app:** `pruebas_firmware/servidor_falso.py` entiende `CAPS?`, `SENS`, `GIRAR`, `GIRO_*`, `TOF_PARO`, `IMU_CAL`, `IMU_CERO` y `TOF_USO` para probar las pantallas sin el carro.
+- **Monte Carlo (simulación, no el carro real):** 400 rutas en L, sin giroscopio error medio 153 mm / p95 378 mm; con giroscopio 45 mm / p95 116 mm. Detalle y límites en `docs/limites_conocidos.md` §11.

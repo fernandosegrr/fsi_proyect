@@ -3191,6 +3191,302 @@ static void pruebas_monte_carlo_ruta_l(void)
     caso("MC rutas en L: la correccion de rumbo no supera el tope de 2 correcciones por vertice", max_correcciones <= 2);
 }
 
+/* ── J11: giroscopio (giros por ángulo medido) y láser ───────────────────────────────────────────────── */
+
+/* Deja todo listo con el giroscopio encendido o no. El carro REAL gira `pct_giro` % de lo que cree el navegador y, al soltar, sigue girando 6 grados que el navegador no conoce
+ * (la calibración del navegador es la de ejemplo, sin frenado). El firmware simulado tiene un giroscopio con +1 % de escala, 0.1 grados/s de sesgo y ruido de ±0.5 grados por giro. */
+static void preparar_giro(const Punto *ruta, int n, int giroscopio, int pct_giro)
+{
+    navegador_iniciar(&nav);
+    navegador_poner_giroscopio(&nav, giroscopio);
+    navegador_cargar_ruta(&nav, ruta, n);
+    sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+    sim.pct_giro = pct_giro;
+    sim.real.frenado_grados_izq_x10 = 60;
+    sim.real.frenado_grados_der_x10 = 60;
+    sim.fw_giroscopio = giroscopio;
+    sim.fw_escala_pct = 1;
+    sim.fw_sesgo_x100 = 10;
+    sim.fw_ruido_x10 = 5;
+    n_lineas_diag = 0;
+    navegador_comenzar(&nav, 0);
+}
+
+/* Corre `ms` milisegundos y guarda las líneas de diagnóstico que van saliendo (la cola solo guarda 16). */
+static void correr_leyendo(uint32_t ms)
+{
+    uint32_t hecho;
+
+    for (hecho = 0; hecho < ms; hecho += 100) {
+        correr(100);
+        leer_diag();
+    }
+}
+
+static int distancia_a(int columna, int fila)
+{
+    long dx = sim_x_mm(&sim) - columna * MM, dy = sim_y_mm(&sim) - fila * MM;
+
+    return raiz_entera_mc(dx * dx + dy * dy);
+}
+
+static void pruebas_j11_giroscopio(void)
+{
+    int sin_gyro, con_gyro;
+    char texto[600];
+
+    printf("-- J11: giros por angulo medido (giroscopio) --\n");
+
+    /* 1. El cuadrado con un carro que gira 12 % de menos y sigue 6 grados al frenar: por tiempo se desvia; con giroscopio no. */
+    preparar_giro(CUADRADO, N(CUADRADO), 0, 88);
+    correr_leyendo(40000);
+    sin_gyro = distancia_a(1, 4);
+    caso("sin giroscopio no se pide ningun giro por angulo (todo como antes)", nav.n_giros_angulo == 0 && !navegador_giro_fw_en_curso(&nav));
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 88);
+    correr_leyendo(40000);
+    con_gyro = distancia_a(1, 4);
+    printf("      cuadrado, carro que gira 12 %% de menos: error final sin giroscopio %d mm, con giroscopio %d mm (giros por angulo %d, por tiempo %d)\n", sin_gyro, con_gyro,
+           nav.n_giros_angulo, nav.n_giros_tiempo);
+    caso("cuadrado con giroscopio: TERMINADO", nav.estado == NAV_TERMINADO);
+    caso("cuadrado con giroscopio: los 3 giros de la ruta se hicieron por angulo y ninguno por tiempo", nav.n_giros_angulo == 3 && nav.n_giros_tiempo == 0);
+    caso("cuadrado con giroscopio: queda mucho mas cerca del punto de partida que sin giroscopio", con_gyro < sin_gyro && con_gyro <= 120);
+    caso("la pose estimada coincide con la real (el navegador usa el angulo REAL que informa el firmware)", pose_estimada_coincide(270));
+    caso("hubo lineas SENS_DIAG con el objetivo y el angulo real de cada giro", hay_diag("SENS_DIAG giro por=angulo objetivo=90 real_x10=") && cuenta_diag("SENS_DIAG giro por=angulo") == 3);
+    caso("las lineas TURN_DIAG dicen por=angulo", hay_diag("TURN_DIAG") && hay_diag("por=angulo fw_real_x10="));
+    navegador_texto_giros(&nav, texto, sizeof texto);
+    caso("el resumen final dice cuantos giros fueron por angulo y por tiempo", strstr(texto, "Giros por ángulo (giroscopio): 3, por tiempo: 0") != NULL);
+    caso("los giros anotados marcan por_angulo", nav.giros[0].por_angulo == 1 && nav.n_giros == 3);
+
+    /* 2. Durante un giro por angulo el navegador no manda el giro otra vez ni pide mas de uno a la vez. */
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    {
+        int pedidos = 0, ms;
+
+        for (ms = 0; ms < 40000 && nav.estado != NAV_TERMINADO; ms += 50) {
+            sim_correr(&sim, &nav, 50);
+            if (nav.giro_fw_pedir) {
+                pedidos++;   /* nadie lo tomo: el simulador lo toma en el mismo ciclo, asi que esto no debe pasar */
+            }
+        }
+        caso("cada giro por angulo se pide una sola vez (el simulador lo toma de inmediato)", pedidos == 0 && sim.fw_n_giros == 3);
+    }
+
+    /* 3. Un giro de menos de 5 grados o de mas de 200 no se pide al firmware. */
+    {
+        int g;
+
+        preparar_giro(RECTA, N(RECTA), 1, 100);
+        nav.cmd_pedido = 4;
+        nav.giro_fw = 0;
+        nav.usa_giroscopio = 1;
+        g = 0;
+        caso("tomar_giro_fw sin giro pendiente devuelve 0", navegador_tomar_giro_fw(&nav, &g) == 0);
+    }
+
+    /* 4. Fallos: el firmware responde TIMEOUT / ERROR con datos / ERROR sin datos desde el 2.o giro, o no responde. */
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 90);
+    sim.fw_falla_desde = 2;
+    sim.fw_falla_codigo = NAV_GIRO_ERROR_SIN_DATOS;
+    correr_leyendo(60000);
+    printf("      fallo SIN datos desde el 2.o giro: estado=%s, por angulo %d, por tiempo %d, distancia al inicio %d mm\n", navegador_texto_estado(nav.estado), nav.n_giros_angulo, nav.n_giros_tiempo, distancia_a(1, 4));
+    caso("fallo sin datos: el primer giro fue por angulo, el resto por tiempo, y la ruta termina", nav.estado == NAV_TERMINADO && nav.n_giros_angulo == 1 && nav.n_giros_tiempo >= 2);
+    caso("fallo sin datos: avisa en el log (SENS_DIAG giro_a_tiempo) y marca el giroscopio caido en la ruta", hay_diag("SENS_DIAG giro_a_tiempo motivo=el_firmware_no_pudo_girar") && nav.giro_fw_caido);
+    caso("fallo sin datos: el carro no se queda trabado ni se aleja (termina a menos de 40 cm del inicio)", distancia_a(1, 4) < 400);
+
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_falla_desde = 2;
+    sim.fw_falla_codigo = NAV_GIRO_TIMEOUT;
+    correr_leyendo(60000);
+    caso("GIRO_TIMEOUT: usa el angulo real que informo, avisa y los giros siguientes van por tiempo", nav.estado == NAV_TERMINADO && nav.n_giros_angulo >= 2 && nav.n_giros_tiempo >= 1 &&
+         hay_diag("SENS_DIAG giro aviso=GIRO_TIMEOUT"));
+
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_falla_desde = 3;
+    sim.fw_falla_codigo = NAV_GIRO_ERROR_CON_DATOS;
+    correr_leyendo(60000);
+    caso("GIRO_ERROR con angulo parcial: lo usa, avisa y sigue por tiempo", nav.estado == NAV_TERMINADO && hay_diag("SENS_DIAG giro aviso=GIRO_ERROR") && nav.n_giros_tiempo >= 1);
+
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_sin_respuesta = 1;
+    correr_leyendo(80000);
+    caso("el firmware nunca contesta: tras la espera maxima el giro cae al metodo por tiempo y la ruta termina", nav.estado == NAV_TERMINADO && hay_diag("motivo=sin_respuesta") && nav.n_giros_tiempo >= 2);
+
+    /* 5. Cancelar a mitad de un giro por angulo no deja nada colgado. */
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    correr_leyendo(2000);
+    navegador_cancelar(&nav);
+    sim_correr(&sim, &nav, 100);
+    caso("cancelar durante un giro por angulo: STOP y ESPERANDO", nav.estado == NAV_ESPERANDO && nav.cmd_actual == NAV_CMD_STOP && !navegador_giro_fw_en_curso(&nav));
+}
+
+/* Prepara una RECTA con el láser encendido y SENS de 100 ms. */
+static void preparar_tof(const Punto *ruta, int n, int usa_tof, int periodo_camara_ms)
+{
+    navegador_iniciar(&nav);
+    navegador_poner_sensor_distancia(&nav, usa_tof);
+    navegador_cargar_ruta(&nav, ruta, n);
+    sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+    sim.tof_activo = usa_tof;
+    sim.periodo_cuadro_ms = periodo_camara_ms;
+    n_lineas_diag = 0;
+    navegador_comenzar(&nav, 0);
+}
+
+static void pruebas_j11_laser(void)
+{
+    long t_base, t_base_c2, t_veto, t_confirma, t_c3_sin, t_c3_con;
+
+    printf("-- J11: TOF_PARO y confirmacion del laser --\n");
+
+    /* 1. TOF_PARO con la camara sin ver nada: se detiene, espera la camara, esquiva y termina la ruta. */
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);   /* solo lo ve el laser: a 60 cm */
+    correr_leyendo(30000);
+    printf("      TOF_PARO sin camara: paros=%d esquivadas=%d estado=%s distancia al destino %d mm\n", sim.tof_paro_hecho, nav.esquivadas, navegador_texto_estado(nav.estado), distancia_a(2, 3));
+    caso("el laser frena (TOF_PARO) y el navegador lo toma como obstaculo", sim.tof_paro_hecho == 1 && nav.tof_paros == 1 && hay_diag("SENS_DIAG tof_paro mm="));
+    caso("esquiva (1 vez) y termina la ruta sin chocar", nav.esquivadas == 1 && nav.estado == NAV_TERMINADO);
+    caso("sin ayuda de la camara los lados se deciden sin dato: va a la IZQUIERDA", hay_diag("SENS_DIAG tof_paro decide lado=izquierda"));
+    caso("el navegador no se mueve mientras el firmware lo mantiene frenado (nunca hubo violacion de seguridad)", violaciones_totales == 0);
+
+    /* 2. La camara aporta el lado: con la zona izquierda ocupada va a la derecha. */
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);
+    sim_agregar_obstaculo_celdas(&sim, 0, 40000, ZONA_IZQUIERDA, 1, 30);   /* cercania 1: lejos, solo informa (no frena) pero ocupa el lado */
+    correr_leyendo(30000);
+    caso("con la camara viendo ocupado el lado izquierdo, TOF_PARO esquiva hacia la derecha", hay_diag("SENS_DIAG tof_paro decide lado=derecha") && nav.esquivadas >= 1);
+
+    /* 3. Sin cuadros de camara: espera los 700 ms y usa la ultima rejilla (izquierda por defecto). */
+    preparar_tof(RECTA, N(RECTA), 1, 0);
+    sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);
+    correr_leyendo(5000);
+    caso("sin ningun cuadro de camara, TOF_PARO decide a la izquierda sin dato despues de esperar", hay_diag("SENS_DIAG tof_paro decide lado=izquierda") && hay_diag("ultima_rejilla_o_izquierda"));
+
+    /* 4. Laser apagado: el firmware del simulador no avisa TOF_PARO al navegador (apagado = como antes). */
+    preparar_tof(RECTA, N(RECTA), 0, 50);
+    sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);
+    correr_leyendo(5000);
+    caso("con el interruptor del laser apagado, TOF_PARO se ignora (el navegador sigue como antes)", nav.tof_paros == 0 && nav.estado == NAV_SIGUIENDO);
+
+    /* 5. Confirmacion: camara con cercania 2 en el centro (2 cuadros) contra el laser. */
+    preparar_tof(RECTA, N(RECTA), 0, 50);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_CENTRO, 2, 12);
+    correr_leyendo(3000);
+    t_base = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    t_base_c2 = t_base;
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_CENTRO, 2, 12);   /* el laser lo ve libre */
+    correr_leyendo(3000);
+    t_veto = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    printf("      cercania 2 en el centro: frena a los %ld ms sin laser, %ld ms con el laser libre\n", t_base, t_veto);
+    caso("laser libre (3 lecturas): se exige UN cuadro mas de la camara antes de frenar", t_base > 0 && t_veto == t_base + 50);
+    caso("el veto queda registrado y la camara termina frenando", hay_diag("SENS_DIAG veto_tof") && hay_diag("SENS_DIAG camara_confirma"));
+
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo_laser(&sim, 0, 6000, ZONA_CENTRO, 0, 0, 520);   /* el laser ve algo que se acerca, a 22 cm cuando llega el primer cuadro de la camara */
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_CENTRO, 2, 12);
+    correr_leyendo(3000);
+    t_confirma = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    printf("      cercania 2 en el centro con el laser viendo algo cerca: frena a los %ld ms\n", t_confirma);
+    caso("laser cerca (menos de 50 cm, 3 lecturas): la camara frena con un solo cuadro (antes que sin laser)", t_confirma > 0 && t_confirma < t_base_c2);
+
+    /* 6. Con cercania 3 no hay confirmacion que valga: el laser libre no retrasa nada. */
+    preparar_tof(RECTA, N(RECTA), 0, 50);
+    sim_agregar_obstaculo(&sim, 1500, 6000, ZONA_CENTRO, 3);
+    correr_leyendo(3000);
+    t_c3_sin = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo(&sim, 1500, 6000, ZONA_CENTRO, 3);
+    correr_leyendo(3000);
+    t_c3_con = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    caso("cercania 3 con el laser libre: frena igual que sin laser (no hay veto)", t_c3_sin > 0 && t_c3_sin == t_c3_con);
+
+    /* 7. Cercania 2 en un LADO no la toca el laser. */
+    preparar_tof(RECTA, N(RECTA), 0, 50);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_DERECHA, 2, 12);
+    correr_leyendo(3000);
+    t_base = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_DERECHA, 2, 12);
+    correr_leyendo(3000);
+    caso("cercania 2 en un lado: el laser no retrasa nada", t_base == sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500));
+
+    /* 8. Laser caido a mitad de ruta: el navegador sigue solo con la camara. */
+    preparar_tof(RECTA, N(RECTA), 1, 50);
+    sim.tof_perdido = 1;
+    sim_agregar_obstaculo_celdas(&sim, 1500, 6000, ZONA_CENTRO, 2, 12);
+    correr_leyendo(3000);
+    caso("laser caido (SENS dice que no funciona): la camara frena como siempre, sin veto", sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500) == t_base_c2);
+    caso("... y no hay veto registrado", !hay_diag("SENS_DIAG veto_tof"));
+}
+
+/* Monte Carlo con y sin giroscopio: las 400 rutas en L de siempre (radios de 6 a 20 cm, giro del carro +-10 %), con las MISMAS semillas en las dos vueltas. */
+static void mc_rutas_l(int con_giroscopio, int *media, int *p95, int *no_termino, int *giros_angulo)
+{
+    static const Punto L_NORMAL[] = { {0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}, {3, 3} };
+    static const Punto L_ESPEJO[] = { {3, 0}, {3, 1}, {3, 2}, {3, 3}, {2, 3}, {1, 3}, {0, 3} };
+    int errores[2 * MC_RUTAS];
+    int n = 0, i, v;
+    long suma = 0;
+
+    azar_mc = 20260101u;
+    *no_termino = 0;
+    *giros_angulo = 0;
+    for (v = 0; v < 2; v++) {
+        const Punto *ruta = (v == 0) ? L_NORMAL : L_ESPEJO;
+
+        for (i = 0; i < MC_RUTAS; i++) {
+            CalibracionCarro real = carro_con_radios(azar_entre(60, 200), azar_entre(60, 200));
+            long dx, dy;
+            int error;
+
+            navegador_iniciar(&nav);
+            navegador_poner_calibracion(&nav, &real);
+            navegador_poner_giroscopio(&nav, con_giroscopio);
+            navegador_cargar_ruta(&nav, ruta, 7);
+            sim_iniciar(&sim, ruta[0].columna, ruta[0].fila, 0);
+            sim.real = real;
+            sim.pct_giro = azar_entre(90, 110);
+            if (con_giroscopio) {   /* un giroscopio de verdad: error de escala de +-2 %, sesgo de +-0.3 grados/s sin corregir y ruido de +-1 grado por giro */
+                sim.fw_giroscopio = 1;
+                sim.fw_escala_pct = azar_entre(-2, 2);
+                sim.fw_sesgo_x100 = azar_entre(-30, 30);
+                sim.fw_ruido_x10 = 10;
+            }
+            navegador_comenzar(&nav, 0);
+            while (sim.t_ms < 120000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR) {
+                correr(200);
+            }
+            correr(1500);
+            if (nav.estado != NAV_TERMINADO) {
+                (*no_termino)++;
+            }
+            *giros_angulo += nav.n_giros_angulo;
+            dx = sim_x_mm(&sim) - ruta[6].columna * MM;
+            dy = sim_y_mm(&sim) - ruta[6].fila * MM;
+            error = raiz_entera_mc(dx * dx + dy * dy);
+            errores[n++] = error;
+            suma += error;
+        }
+    }
+    qsort(errores, (size_t)n, sizeof errores[0], comparar_enteros);
+    *media = (int)(suma / n);
+    *p95 = errores[(n * 95) / 100];
+}
+
+static void pruebas_j11_monte_carlo(void)
+{
+    int media_sin, p95_sin, no_sin, ang_sin, media_con, p95_con, no_con, ang_con;
+
+    printf("-- J11: Monte Carlo de las 400 rutas en L, con y sin giroscopio --\n");
+    mc_rutas_l(0, &media_sin, &p95_sin, &no_sin, &ang_sin);
+    mc_rutas_l(1, &media_con, &p95_con, &no_con, &ang_con);
+    printf("      MC 400 rutas en L (radios 6-20 cm, giro del carro +-10%%):\n");
+    printf("        SIN giroscopio: error final medio %d mm, p95 %d mm (no termino %d)\n", media_sin, p95_sin, no_sin);
+    printf("        CON giroscopio: error final medio %d mm, p95 %d mm (no termino %d, giros por angulo %d)\n", media_con, p95_con, no_con, ang_con);
+    caso("MC con giroscopio: las 400 corridas terminan y se hicieron giros por angulo", no_con == 0 && ang_con > 0);
+    caso("MC: con giroscopio el error medio y el p95 son menores que sin giroscopio", media_con < media_sin && p95_con < p95_sin);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -3221,6 +3517,9 @@ int main(void)
     pruebas_corredor_en_navegador();
     pruebas_textos();
     pruebas_monte_carlo_ruta_l();
+    pruebas_j11_giroscopio();
+    pruebas_j11_laser();
+    pruebas_j11_monte_carlo();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

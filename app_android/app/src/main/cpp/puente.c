@@ -1332,6 +1332,8 @@ static int corredor_cercania_global[3] = { 0, 0, 0 };   /* cercanía de lo que e
 static int frenar_lejos_centro_global = 0;   /* 1 = también frena con un obstáculo LEJANO en el centro: se aplica en cada ruta nueva */
 static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se aplica en cada ruta nueva */
 static int requiere_camara_global = 0;   /* 1 = la ruta usa la cámara de obstáculos: el carro no se mueve hasta el primer cuadro (ver navegador_poner_requiere_camara) */
+static int usa_giroscopio_global = 0;   /* J11: 1 = los giros de la ruta se piden al firmware por ángulo (se aplica en cada ruta nueva) */
+static int usa_tof_global = 0;          /* J11: 1 = se hace caso al láser (TOF_PARO y confirmación de la cámara) */
 static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
@@ -2001,6 +2003,8 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_latencia_visual(&navegador_global, latencia_visual_global);   /* el retraso de la cámara */
     navegador_poner_pedir_ayuda(&navegador_global, pedir_ayuda_global);
     navegador_poner_requiere_camara(&navegador_global, requiere_camara_global);
+    navegador_poner_giroscopio(&navegador_global, usa_giroscopio_global);
+    navegador_poner_sensor_distancia(&navegador_global, usa_tof_global);
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -2314,6 +2318,81 @@ Java_com_fsi_carro_NavegadorNativa_pedirAyuda(JNIEnv *env, jobject objeto, jint 
     }
     pedir_ayuda_global = (int)activo;
     return navegador_poner_pedir_ayuda(obtener_navegador(), (int)activo);
+}
+
+/* ── Giroscopio y láser (J11) ───────────────────────────────────────────────────────────────────────────── */
+
+/* Enciende (1) o apaga (0) los giros por ángulo del giroscopio para las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerGiroscopio(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    usa_giroscopio_global = (int)activo;
+    return navegador_poner_giroscopio(obtener_navegador(), (int)activo);
+}
+
+/* Enciende (1) o apaga (0) el sensor láser (TOF_PARO y confirmación de la cámara) para las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerSensorDistancia(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    usa_tof_global = (int)activo;
+    return navegador_poner_sensor_distancia(obtener_navegador(), (int)activo);
+}
+
+/* Si hay un giro por ángulo que todavía no se pidió al firmware devuelve los grados con la convención del firmware (POSITIVO = izquierda) para mandar GIRAR:<grados>; 0 si no hay. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_tomarGiroFw(JNIEnv *env, jobject objeto)
+{
+    int grados = 0;
+
+    (void)env;
+    (void)objeto;
+    return navegador_tomar_giro_fw(obtener_navegador(), &grados) ? (jint)grados : 0;
+}
+
+/* 1 mientras el giro actual lo hace el firmware (esperando o ya con su respuesta); la app NO manda LEFT ni RIGHT en ese tiempo. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_giroFwActivo(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return obtener_navegador()->giro_fw ? 1 : 0;
+}
+
+/* Llegó la respuesta del firmware a un giro: codigo 0 OK, 1 TIMEOUT, 2 ERROR con ángulo, 3 ERROR sin datos; `real_x10_fw` los grados por 10 (POSITIVO = izquierda). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteGiro(JNIEnv *env, jobject objeto, jint codigo, jint real_x10_fw, jint ms, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_giro(obtener_navegador(), (int)codigo, (int)real_x10_fw, (int)ms, (uint32_t)ahora_ms);
+}
+
+/* Llegó un SENS del firmware. */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteSens(JNIEnv *env, jobject objeto, jint mm, jboolean tof_vivo, jboolean tof_valida, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_sens(obtener_navegador(), (int)mm, tof_vivo ? 1 : 0, tof_valida ? 1 : 0, (uint32_t)ahora_ms);
+}
+
+/* Llegó TOF_PARO:<mm>: el firmware frenó por algo muy cerca al frente. */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteTofParo(JNIEnv *env, jobject objeto, jint mm, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_tof_paro(obtener_navegador(), (int)mm, (uint32_t)ahora_ms);
 }
 
 /* En AYUDA: el comando que el usuario manda con la cruceta (0 STOP, 1 FORWARD, 2 REVERSE, 3 LEFT, 4 RIGHT). Devuelve 0 o un código de error. */

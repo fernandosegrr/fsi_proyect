@@ -93,6 +93,93 @@ async def hablar():
         await asyncio.wait_for(ws.recv(), 2)
 
 
+PUERTO_SENSORES = 8098
+
+
+async def siguiente(ws, prefijo, espera=3.0):
+    """Lee mensajes hasta uno que empiece con `prefijo` (ignora los SENS que llegan solos); None si no llega en `espera` s."""
+    fin = time.monotonic() + espera
+    while time.monotonic() < fin:
+        try:
+            m = await asyncio.wait_for(ws.recv(), max(0.05, fin - time.monotonic()))
+        except asyncio.TimeoutError:
+            return None
+        if m.startswith(prefijo):
+            return m
+    return None
+
+
+async def probar_sensores():
+    """El servidor con --sensores (giroscopio y laser, J11) y sin ellos (firmware viejo)."""
+    sensores = subprocess.Popen([sys.executable, "-u", "servidor_falso.py", "--puerto", str(PUERTO_SENSORES), "--sensores"],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+    time.sleep(1.0)
+    try:
+        async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
+            await ws.send("CAPS?")
+            caso("sensores: CAPS? se contesta CAPS:IMU=1,TOF=1", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1")
+            sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]
+            caso("sensores: SENS llega solo, cada ~100 ms, con perfil AUTO (8 en menos de 3.2 s)", len(sens) == 8 and sens[-1].count(",") == 2)
+            await ws.send("GIRAR:90")
+            ok = await siguiente(ws, "GIRO_", 3)
+            caso("sensores: GIRAR:90 termina con GIRO_OK:90:<real x10>:<ms>", ok is not None and ok.startswith("GIRO_OK:90:") and 880 <= int(ok.split(":")[2]) <= 930)
+            for malo in ("GIRAR:4", "GIRAR:201", "GIRAR:abc"):
+                await ws.send(malo)
+                caso("sensores: %s -> GIRO_ERROR:angulo" % malo, await siguiente(ws, "GIRO_") == "GIRO_ERROR:angulo")
+            await ws.send("GIRAR:-180")
+            await asyncio.sleep(0.4)
+            await ws.send("GIRAR:45")
+            caso("sensores: un GIRAR con otro en curso -> GIRO_ERROR:ocupado", await siguiente(ws, "GIRO_") == "GIRO_ERROR:ocupado")
+            await ws.send("STOP")
+            abortado = await siguiente(ws, "GIRO_")
+            caso("sensores: STOP a mitad de un giro lo aborta con GIRO_ERROR:abortado:-180:<real>:<ms>", abortado is not None and abortado.startswith("GIRO_ERROR:abortado:-180:"))
+            await ws.send("IMU_CERO")
+            caso("sensores: IMU_CERO -> ACK_IMU_CERO", await siguiente(ws, "ACK_IMU_CERO") == "ACK_IMU_CERO")
+            await ws.send("IMU_CAL")
+            caso("sensores: IMU_CAL -> ACK_IMU_CAL y despues IMU_CAL_OK:-47", await siguiente(ws, "ACK_IMU_CAL") == "ACK_IMU_CAL" and await siguiente(ws, "IMU_CAL_OK:") == "IMU_CAL_OK:-47")
+            # Laser: TOF_PARO con FORWARD en AUTO y menos de 120 mm; con TOF_USO:0 no.
+            await ws.send("MODO_AUTO")
+            await siguiente(ws, "ACK_AUTO")
+            await ws.send("SIM_TOF:80")
+            await ws.send("FORWARD")
+            paro = None
+            for _ in range(6):
+                await ws.send("FORWARD")
+                paro = await siguiente(ws, "TOF_PARO:", 0.3)
+                if paro:
+                    break
+            caso("sensores: FORWARD con algo a 80 mm -> TOF_PARO:80", paro == "TOF_PARO:80")
+            await ws.send("STOP")
+            await ws.send("TOF_USO:0")
+            caso("sensores: TOF_USO:0 -> ACK_TOF_USO:0", await siguiente(ws, "ACK_TOF_USO") == "ACK_TOF_USO:0")
+            paro = None
+            for _ in range(6):
+                await ws.send("FORWARD")
+                paro = await siguiente(ws, "TOF_PARO:", 0.3)
+            caso("sensores: con TOF_USO:0 el laser ya no frena", paro is None)
+            await ws.send("STOP")
+            await ws.send("TOF?")
+            caso("sensores: TOF? informa la distancia (80 mm, medida valida)", await siguiente(ws, "TOF:") == "TOF:80,3")
+            await ws.send("MODO_MANUAL")
+            await siguiente(ws, "ACK_MANUAL")
+            viejo = await siguiente(ws, "SENS:", 0.6)
+            caso("sensores: en perfil MANUAL no se manda SENS", viejo is None)
+    finally:
+        sensores.terminate()
+        sensores.communicate(timeout=5)
+    # Firmware viejo: sin --sensores no contesta a CAPS?
+    sin = subprocess.Popen([sys.executable, "-u", "servidor_falso.py", "--puerto", str(PUERTO_SENSORES)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+    time.sleep(1.0)
+    try:
+        async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
+            await ws.send("CAPS?")
+            await ws.send("PING")
+            caso("firmware viejo (sin --sensores): CAPS? no se contesta (el siguiente mensaje es el PONG)", await asyncio.wait_for(ws.recv(), 2) == "PONG")
+    finally:
+        sin.terminate()
+        sin.communicate(timeout=5)
+
+
 async def principal():
     servidor = subprocess.Popen([sys.executable, "-u", "servidor_falso.py", "--puerto", str(PUERTO)],
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
@@ -115,6 +202,7 @@ async def principal():
         servidor.terminate()
         salida = servidor.communicate(timeout=5)[0]
 
+    await probar_sensores()
     caso("el watchdog salta tras FORWARD + solo PING (y otra vez tras el FORWARD sin heartbeat de los perfiles)", salida.count("WATCHDOG: motores detenidos") == 2)
     caso("se imprime el comando desconocido y se ignora", "DESCONOCIDO (ignorado): 'HOLA'" in salida)
     caso("MOVE:FWD:50 se trata como desconocido", "DESCONOCIDO (ignorado): 'MOVE:FWD:50'" in salida)

@@ -9,6 +9,7 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - `firmware_carro/` — el sketch de Arduino (la carpeta se llama igual que el `.ino`).
   - `firmware_carro.ino`: único C++; WiFi, servidor, WebSocket, `setup()` y `loop()`.
   - `carro.c` / `carro.h`: la lógica en C estándar (comandos, motores, parada automática, keep-alive).
+  - `imu.c`, `tof.c`, `giro.c`, `sensores.c` (+ `hw_sensores.h`): giroscopio MPU6050, sensor láser VL53L0X y giro por ángulo medido, también en C puro (J11, ver `docs/sensores.md`).
   - `config.h`: pines, tiempos y velocidad. El nombre y la contraseña del WiFi están en `secretos.h`
     (no se sube a GitHub; se crea copiando `secretos.ejemplo.h`).
   - `pagina.h`: la página web de control (HTML/JS), sin cambios respecto al original.
@@ -89,3 +90,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
 `FORWARD`, `REVERSE`, `LEFT`, `RIGHT`, `STOP`, `EBRAKE` y `PING`. Velocidad
 fija al máximo. Si pasan 1000 ms sin un comando real, el carro se detiene.
+
+Con el giroscopio y el láser (J11, `docs/sensores.md`) hay mensajes nuevos, con parámetros: `GIRAR:<grados>` (positivo = izquierda, 5 a 200; contesta `GIRO_OK`, `GIRO_TIMEOUT` o `GIRO_ERROR`),
+`CAPS?`, `IMU?`, `TOF?`, `IMU_CAL`, `IMU_CERO`, `TOF_USO:<0|1>`, `LOOP?` y `ANT?`; el carro manda `SENS:<ángulo x10>,<mm>,<banderas>` cada 100 ms y `TOF_PARO:<mm>` cuando el láser lo frena.
+Un firmware viejo no entiende estos mensajes: la app lo toma como «sin sensores» y todo sigue por tiempo como antes.

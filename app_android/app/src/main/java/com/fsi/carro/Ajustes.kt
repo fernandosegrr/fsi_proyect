@@ -12,6 +12,7 @@
  *  6. verDeteccion: dibujar encima del video los números de la detección (zona, corredor y cercanía), sin tocar la imagen.
  *  7. asistenteVisto: el asistente de primera vez ya se mostró (o se saltó).
  *  8. pruebaFinal: qué pasos de la prueba final ya se marcaron como hechos (una cadena con los números separados por coma).
+ *  9. usarGiroscopio / usarSensorDistancia (J11): los interruptores de la pantalla Sensores. Encendidos por defecto; solo valen si el carro avisa que el sensor funciona.
  */
 package com.fsi.carro
 
@@ -57,6 +58,14 @@ class Ajustes(contexto: Context) {
     var verDeteccion: Boolean
         get() = preferencias.getBoolean("ver_deteccion", false)
         set(valor) = preferencias.edit().putBoolean("ver_deteccion", valor).apply()
+
+    var usarGiroscopio: Boolean
+        get() = preferencias.getBoolean("usar_giroscopio", true)
+        set(valor) = preferencias.edit().putBoolean("usar_giroscopio", valor).apply()
+
+    var usarSensorDistancia: Boolean
+        get() = preferencias.getBoolean("usar_sensor_distancia", true)
+        set(valor) = preferencias.edit().putBoolean("usar_sensor_distancia", valor).apply()
 
     var vibracion: Boolean
         get() = preferencias.getBoolean("vibracion", true)

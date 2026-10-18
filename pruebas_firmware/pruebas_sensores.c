@@ -945,6 +945,23 @@ static void prueba_laser_paro(void)
     caso("en un giro por angulo el laser no lo interrumpe", giro_activo() && sensores_paros_tof() == 0);
     avanzar_ms(4000);
 
+    /* TOF_USO:0 apaga la parada de emergencia (interruptor de la app); TOF_USO:1 la vuelve a encender. */
+    avanzando_en_auto();
+    n_msg = 0;
+    orden("TOF_USO:0");
+    avanzar_ms(20);
+    caso("TOF_USO:0 se confirma con ACK_TOF_USO:0", ultimo_mensaje("ACK_TOF_USO:0") != NULL);
+    falso_tof_mm = 100;
+    for (i = 0; i < 6; i++) {
+        avanzar_ms(100);
+        orden("FORWARD");
+    }
+    caso("con TOF_USO:0 el laser ya no frena aunque haya algo a 10 cm (apagado = como antes)", carro_avanzando() && sensores_paros_tof() == 0);
+    caso("... pero sigue midiendo (SENS/TOF? informan 100 mm)", tof_mm() == 100);
+    orden("TOF_USO:1");
+    avanzar_ms(150);
+    caso("TOF_USO:1 la vuelve a encender y frena", motores_parados() && sensores_paros_tof() == 1);
+
     /* Obstáculo aún delante: FORWARD otra vez frena de inmediato; sin obstáculo sigue. */
     avanzando_en_auto();
     falso_tof_mm = 100;
@@ -1181,7 +1198,7 @@ static void prueba_mensajes(void)
 
     /* Qué es un mensaje de sensores. */
     caso("sensores_es_comando: los mensajes validos", sensores_es_comando("CAPS?") && sensores_es_comando("IMU?") && sensores_es_comando("TOF?") && sensores_es_comando("GIRAR:90") &&
-         sensores_es_comando("IMU_CAL") && sensores_es_comando("IMU_CERO") && sensores_es_comando("LOOP?") && sensores_es_comando("ANT?") && sensores_es_comando("SENS_SERIE:1"));
+         sensores_es_comando("IMU_CAL") && sensores_es_comando("IMU_CERO") && sensores_es_comando("LOOP?") && sensores_es_comando("ANT?") && sensores_es_comando("SENS_SERIE:1") && sensores_es_comando("TOF_USO:0"));
     caso("sensores_es_comando: IMU_CALX, CAPS, IMU, GIRAR (sin :), FORWARD y vacio no lo son", !sensores_es_comando("IMU_CALX") && !sensores_es_comando("CAPS") && !sensores_es_comando("IMU") &&
          !sensores_es_comando("GIRAR") && !sensores_es_comando("FORWARD") && !sensores_es_comando("") && !sensores_es_comando("TOF"));
 

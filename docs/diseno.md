@@ -215,3 +215,18 @@ Cada pantalla se capturó en el teléfono (`scripts/qa_captura.py`, con la cáma
 | Inter (tipografía) | SIL Open Font License 1.1 | `docs/licencias/Inter-OFL-1.1.txt` |
 | Material Symbols (iconos) | Apache License 2.0 | `docs/licencias/Material-Symbols-Apache-2.0.txt` |
 | Material Components para Android | Apache License 2.0 | dependencia de Gradle (`com.google.android.material:material:1.12.0`) |
+
+## 10. Fusión de sensores: la cámara decide, el sensor confirma (J11)
+
+Reglas de diseño del giroscopio MPU6050 y del láser VL53L0X (detalle técnico en `docs/sensores.md` y `docs/navegador.md`):
+
+- **La cámara sigue siendo quien detecta obstáculos y decide hacia qué lado esquivar.** El láser no sustituye a la cámara: hace solo dos cosas.
+  1. **Freno de emergencia en el firmware** (`TOF_PARO`): si algo aparece a menos de 12 cm al frente (2 lecturas seguidas), el propio firmware frena sin esperar a la app. Solo en perfil AUTO y solo avanzando.
+  2. **Confirmación de la cámara**: con cercanía 2 en el centro y el láser viendo libre (más de 80 cm, 3 lecturas) se pide UN cuadro más de la cámara antes de frenar (corrige un falso positivo); con el láser a menos de 50 cm se frena con un solo cuadro (confirma un positivo). Con cercanía 3 no hay confirmación que valga. **La cámara nunca se ignora por más de ese cuadro.**
+- **El giroscopio solo mide los giros.** Con él, cada giro se pide al firmware como `GIRAR:<grados>` y el carro frena cuando MIDE ese ángulo (lazo cerrado); la distancia sigue siendo por tiempo. Si falla, el sistema cae solo al método por tiempo.
+- **Todo se puede apagar** (pantalla Sensores: «Usar giroscopio», «Usar sensor de distancia»), por defecto encendidos si el carro avisa que el sensor funciona. Apagados el sistema se comporta como antes; sirve para comparar en la defensa.
+- **Un sensor caído nunca deja el sistema trabado ni lo mueve a ciegas**: 3 errores seguidos del bus o lecturas locas lo marcan como caído, el firmware avisa (`CAPS`) y el navegador vuelve al método anterior con un aviso en el log.
+
+### Pantalla Sensores (se abre desde la lista de Calibración)
+
+Tres tarjetas: **Qué sensores se usan** (dos interruptores con su ayuda), **Estado** (chip «Los dos funcionan / Falla uno / Sin sensores», giroscopio ok/mal con ángulo y sesgo, láser ok/mal con distancia o «libre», y los botones «Recalibrar giroscopio (carro quieto)» y «Poner el ángulo en cero») y **Prueba de giro de 90°** (selector «Por ángulo (giroscopio)» / «Por tiempo (calibración)» y los botones 90° izquierda / derecha, con el resultado en pantalla y en el log). El botón PARO queda siempre abajo. Mismos estilos, tarjetas y tamaños de toque (48 dp) que el resto de la app.

@@ -72,6 +72,8 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->periodo_cuadro_ms = NAV_TICK_MS;
     sim->t_cancelar_ms = 0xFFFFFFFFu;
     sim->recorrido_cmm = 0;
+    sim->fw_anticipacion_ms[0] = sim->fw_anticipacion_ms[1] = 20;   /* GIRO_ANTICIPACION_MS de config.h */
+    sim->fw_falla_codigo = NAV_GIRO_ERROR_SIN_DATOS;
 }
 
 int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas)
@@ -90,7 +92,18 @@ int sim_agregar_obstaculo_celdas(Simulador *sim, uint32_t t_ini_ms, uint32_t t_f
     e->crece_por_10cm = 0;
     e->base_recorrido_cmm = 0;
     e->visto = 0;
+    e->laser_mm = 0;
     return 0;
+}
+
+int sim_agregar_obstaculo_laser(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int laser_mm)
+{
+    int codigo = sim_agregar_obstaculo_celdas(sim, t_ini_ms, t_fin_ms, zona, cercania, celdas);
+
+    if (codigo == 0) {
+        sim->eventos[sim->n_eventos - 1].laser_mm = laser_mm;
+    }
+    return codigo;
 }
 
 int sim_agregar_obstaculo_creciente(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int crece_por_10cm)
@@ -192,12 +205,13 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
     for (i = 0; i < sim->n_eventos; i++) {
         EventoObstaculo *e = &sim->eventos[i];
 
-        if (t_ms >= e->t_ini_ms && t_ms < e->t_fin_ms) {
+        if (t_ms >= e->t_ini_ms && t_ms < e->t_fin_ms && e->cercania > 0) {   /* cercanía 0 = lo ve solo el láser (la cámara no) */
             int celdas = e->celdas;
 
             if (!e->visto) {
                 e->visto = 1;
                 e->base_recorrido_cmm = sim->recorrido_cmm;
+                e->base_rumbo_cgrados = sim->rumbo_cgrados;
             }
             celdas += (int)((sim->recorrido_cmm - e->base_recorrido_cmm) * e->crece_por_10cm / 10000);   /* un obstáculo real crece al acercarse */
             cuadro->zona[e->zona].hay_obstaculo = 1;
@@ -240,6 +254,145 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
     default:
         break;
     }
+}
+
+/* ── Firmware simulado: giro por ángulo y láser (J11) ─────────────────────────────────────────────── */
+
+static unsigned azar_fw = 12345u;
+static int azar_fw_entre(int minimo, int maximo)
+{
+    azar_fw = azar_fw * 1664525u + 1013904223u;
+    return minimo + (int)((azar_fw >> 8) % (unsigned)(maximo - minimo + 1));
+}
+
+/* Arranca un giro del firmware: `grados_izq_positivo` es lo que pidió el navegador (GIRAR:<grados>). Calcula de una vez qué pasará: en cuántos ms frena el firmware con SU giroscopio, cuánto gira
+ * el carro de verdad en total (con lo que sigue girando al frenar) y qué ángulo informará; el simulador lo va aplicando poco a poco en fw_avanzar. */
+static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
+{
+    int izquierda = grados_izq_positivo > 0;
+    int lado = izquierda ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
+    int magnitud = izquierda ? grados_izq_positivo : -grados_izq_positivo;
+    int x10 = izquierda ? sim->real.ms_por_grado_izq_x10 : sim->real.ms_por_grado_der_x10;
+    long mdeg_por_ms = 10000L / x10 * sim->pct_giro / 100;   /* velocidad REAL del giro: milésimas de grado por ms */
+    long objetivo_mdeg = (long)magnitud * 1000;
+    int max_ms = 500 + 15 * magnitud;
+    int arranque = sim->real.arranque_ms;
+    long coast_mdeg = (long)(izquierda ? sim->real.frenado_grados_izq_x10 : sim->real.frenado_grados_der_x10) * 100 * sim->pct_giro / 100;
+    int ant = sim->fw_anticipacion_ms[izquierda ? 1 : 0];
+    long real_mdeg = 0, medido_mdeg = 0;
+    int t = 0, codigo = NAV_GIRO_OK;
+    long total_mdeg, medido_final;
+
+    sim->fw_n_giros++;
+    sim->fw_lado = lado;
+    sim->fw_ms = 0;
+    sim->fw_aplicado_cgrados = 0;
+    sim->fw_sin_motor = 0;
+    if (sim->fw_falla_desde > 0 && sim->fw_n_giros >= sim->fw_falla_desde) {
+        codigo = sim->fw_falla_codigo;
+        if (codigo == NAV_GIRO_ERROR_SIN_DATOS) {
+            sim->fw_sin_motor = 1;                       /* el firmware ni lo empezó: el carro no se mueve */
+            sim->fw_total_cgrados = 0;
+            sim->fw_medido_x10 = 0;
+            sim->fw_manejo_ms = 0;
+            sim->fw_dur_ms = NAV_TICK_MS;
+            sim->fw_codigo = codigo;
+            sim->fw_activo = 1;
+            return;
+        }
+    }
+    for (t = 1; t < max_ms; t++) {   /* el motor está encendido t ms */
+        long paso = (t > arranque) ? mdeg_por_ms : 0;
+
+        real_mdeg += paso;
+        medido_mdeg += paso * (100 + sim->fw_escala_pct) / 100 + sim->fw_sesgo_x100 / 100;
+        if (codigo != NAV_GIRO_OK && real_mdeg >= objetivo_mdeg / 2) {
+            break;                                       /* falla a mitad del giro: se corta ahí e informa el ángulo parcial */
+        }
+        if (medido_mdeg + mdeg_por_ms * (100 + sim->fw_escala_pct) / 100 * ant >= objetivo_mdeg) {
+            break;
+        }
+    }
+    if (codigo == NAV_GIRO_OK && t >= max_ms) {
+        codigo = NAV_GIRO_TIMEOUT;
+    }
+    total_mdeg = real_mdeg + ((codigo == NAV_GIRO_OK || codigo == NAV_GIRO_TIMEOUT) ? coast_mdeg : 0);
+    medido_final = medido_mdeg + ((codigo == NAV_GIRO_OK || codigo == NAV_GIRO_TIMEOUT) ? coast_mdeg * (100 + sim->fw_escala_pct) / 100 : 0);
+    if (codigo == NAV_GIRO_OK && mdeg_por_ms > 0) {   /* la anticipación se corrige sola (igual que giro.c) */
+        long ideal = coast_mdeg / mdeg_por_ms;
+
+        if (ideal > 150) {
+            ideal = 150;
+        }
+        sim->fw_anticipacion_ms[izquierda ? 1 : 0] = ant + (int)((ideal - ant) / 2);
+    }
+    sim->fw_total_cgrados = total_mdeg / 10;
+    sim->fw_manejo_ms = t;
+    sim->fw_medido_x10 = (int)((medido_final + 50) / 100) + (sim->fw_ruido_x10 > 0 ? azar_fw_entre(-sim->fw_ruido_x10, sim->fw_ruido_x10) : 0);
+    sim->fw_codigo = codigo;
+    sim->fw_dur_ms = t + 200 + NAV_TICK_MS;           /* lo que gira + los 200 ms de asentamiento + el viaje de la respuesta */
+    sim->fw_activo = 1;
+}
+
+/* Aplica al carro la parte del giro del firmware que toca en estos `dt` ms y, al terminar, contesta. */
+static void fw_avanzar(Simulador *sim, Navegador *nav, int dt)
+{
+    long nuevo_total, paso;
+
+    if (!sim->fw_activo) {
+        return;
+    }
+    sim->fw_ms += dt;
+    nuevo_total = (sim->fw_ms >= sim->fw_dur_ms) ? sim->fw_total_cgrados : sim->fw_total_cgrados * sim->fw_ms / sim->fw_dur_ms;
+    paso = nuevo_total - sim->fw_aplicado_cgrados;
+    if (paso > 0 && !sim->fw_sin_motor) {
+        desplazar_al_girar(sim, sim->fw_lado, paso);
+        sim->rumbo_cgrados += (sim->fw_lado == CAL_LADO_DERECHA) ? paso : -paso;
+        sim->fw_aplicado_cgrados = nuevo_total;
+    }
+    if (sim->fw_ms >= sim->fw_dur_ms) {
+        sim->fw_activo = 0;
+        sim->fw_cerrado = 1;
+        if (!sim->fw_sin_respuesta) {
+            /* el firmware cuenta + a la izquierda */
+            navegador_aporte_giro(nav, sim->fw_codigo, (sim->fw_lado == CAL_LADO_IZQUIERDA) ? sim->fw_medido_x10 : -sim->fw_medido_x10, sim->fw_manejo_ms, sim->t_ms);
+        }
+    }
+}
+
+/* Distancia que ve el láser: la del obstáculo más cercano que tenga `laser_mm` y esté visible; TOF_LIBRE (1200) si no ve nada. */
+static int laser_ve(Simulador *sim)
+{
+    int i, mm = 1200;
+
+    for (i = 0; i < sim->n_eventos; i++) {
+        EventoObstaculo *e = &sim->eventos[i];
+
+        if (e->laser_mm > 0 && sim->t_ms >= e->t_ini_ms && sim->t_ms < e->t_fin_ms) {
+            int d;
+
+            long dif;
+
+            if (!e->visto) {
+                e->visto = 1;
+                e->base_recorrido_cmm = sim->recorrido_cmm;
+                e->base_rumbo_cgrados = sim->rumbo_cgrados;
+            }
+            dif = ((sim->rumbo_cgrados - e->base_rumbo_cgrados) % 36000 + 54000) % 36000 - 18000;
+            if (dif > 1500 || dif < -1500) {
+                continue;   /* el carro ya no apunta hacia el obstáculo: el láser no lo ve */
+            }
+            d = e->laser_mm - (int)((sim->recorrido_cmm - e->base_recorrido_cmm) / 100);
+
+            if (d < 8) {
+                d = 8;
+            }
+            if (d < mm) {
+                mm = d;
+            }
+        }
+    }
+    return mm;
 }
 
 static int es_estado_sin_movimiento(EstadoNav estado)
@@ -292,7 +445,34 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
             sim->n_pendientes--;
         }
+        if (sim->tof_activo && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms; el láser mira lo que había en el cuadro anterior */
+            int mm = laser_ve(sim);
+
+            sim->proximo_sens_ms = sim->t_ms + 100;
+            navegador_aporte_sens(nav, mm, sim->tof_perdido ? 0 : 1, mm < 1200, sim->t_ms);
+            if (!sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
+                sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
+                if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */
+                    sim->tof_parado = 1;
+                    sim->tof_paro_hecho++;
+                    sim->tof_cerca_seguidas = 0;
+                    navegador_aporte_tof_paro(nav, mm, sim->t_ms);
+                }
+            } else if (sim->cmd_previo != NAV_CMD_FORWARD) {
+                sim->tof_cerca_seguidas = 0;
+            }
+        }
         comando = navegador_tick(nav, sim->t_ms, obs);
+        if (sim->fw_giroscopio) {   /* si el navegador pide un giro por ángulo, el firmware simulado lo toma */
+            int grados_fw;
+
+            if (navegador_tomar_giro_fw(nav, &grados_fw)) {
+                fw_iniciar(sim, grados_fw);
+            }
+        }
+        if (comando != NAV_CMD_FORWARD) {
+            sim->tof_parado = 0;   /* el firmware suelta el freno cuando llega otro comando */
+        }
 
         if (es_estado_sin_movimiento(nav->estado) && comando != NAV_CMD_STOP) {
             sim->violaciones_seguridad++;
@@ -309,7 +489,11 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         /* El comando se mantiene hasta el siguiente tick. Si cambió, el anterior se suelta (y el carro
          * desliza el frenado); durante el arranque del nuevo comando el carro no se mueve. */
         if (comando != sim->cmd_previo) {
-            deslizar_al_frenar(sim, sim->cmd_previo);
+            if (sim->fw_cerrado) {
+                sim->fw_cerrado = 0;   /* el firmware ya incluyó lo que siguió girando al frenar */
+            } else {
+                deslizar_al_frenar(sim, sim->cmd_previo);
+            }
             sim->cmd_previo = comando;
             sim->ms_en_comando = 0;
             sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* un comando nuevo: el giro (y su desplazamiento) se cuentan desde cero */
@@ -323,7 +507,11 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             int desde = (antes > sim->real.arranque_ms) ? antes : sim->real.arranque_ms;
             int efectivo = (despues > desde) ? despues - desde : 0;
 
-            mover_carro(sim, comando, efectivo);
+            if (nav->giro_fw) {
+                fw_avanzar(sim, nav, NAV_TICK_MS);   /* este giro lo hace el firmware con su giroscopio */
+            } else if (!(sim->tof_parado && comando == NAV_CMD_FORWARD)) {
+                mover_carro(sim, comando, efectivo);
+            }
             sim->ms_en_comando = despues;
         }
         sim->t_ms += NAV_TICK_MS;

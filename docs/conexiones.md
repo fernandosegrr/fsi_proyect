@@ -171,3 +171,19 @@ Si algo se calienta o huele a quemado:
 - Si el módulo trae sus propios condensadores de filtro.
 - En qué hilera de la DevKit queda cada GPIO (depende del fabricante).
 - La corriente máxima de un GPIO del ESP32 (para dimensionar la carga de GPIO 2): está en la hoja de datos del ESP32, fuera del repositorio.
+
+## 8. Sensores I2C: giroscopio MPU6050 y láser VL53L0X (J11)
+
+Los dos módulos van en el MISMO bus I2C de la DevKit, alimentados con 3V3 (cada módulo trae sus propias resistencias de pull-up):
+
+| Señal | GPIO de la DevKit | GY-521 (MPU6050) | VL53LXX-V2 (VL53L0X) |
+|---|---|---|---|
+| SDA | **21** | SDA | SDA |
+| SCL | **22** | SCL | SCL |
+| 3V3 | 3V3 | VCC | VIN |
+| GND | GND | GND | GND |
+
+- Direcciones: **0x68** el MPU6050 (AD0 libre o a GND; a 3V3 sería 0x69) y **0x29** el láser. Los GPIO 21 y 22 estaban libres; los demás pines no cambian.
+- **Empalmes soldados** (o una regleta): un nudo atado a mano da mal contacto y el láser aparece y desaparece. Hay que revisar de verdad que SDA y SCL del GY-521 lleguen a la DevKit (el 18 oct un SCL sin contacto dejó al giroscopio invisible aunque el LED del módulo encendía; el LED solo prueba que le llega energía).
+- Montaje: giroscopio plano sobre la caja de pilas, flecha X al frente, eje Z hacia arriba; láser al frente, a 6-8 cm del piso, inclinado 5-8° hacia arriba. Detalle, parámetros y errores típicos en `docs/sensores.md`.
+- Diagnóstico del bus por USB: `I2C?` (qué direcciones contestan), `PINES?` (nivel eléctrico de SDA/SCL) y `PRUEBAI2C?` (escaneo cruzado y a 100/400 kHz); ver `scripts/verificar_sensores.py`.

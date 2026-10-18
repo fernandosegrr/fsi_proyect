@@ -61,3 +61,20 @@ Este documento resume las limitaciones físicas, de sensores y de diseño del ca
 - **Causa:** El módulo ESP32-WROVER con sensor GC0308 entrega imágenes JPEG 240×176 con una dominante cálida/rosada en interiores, oscurecimiento pronunciado en las esquinas (viñeteo, especialmente en la zona izquierda) y saturación por reflejos especulares en pisos de loseta clara.
 - **Efecto:** El viñeteo y los artefactos fijos de la lente pueden hacer que ciertas celdas de borde o esquina difieran siempre del color central del piso y aparezcan como un «obstáculo fantasma» fijo desde el primer cuadro; a la inversa, un reflejo intenso puede romper el color de una baldosa.
 - **Mitigación actual:** Calibración de máscara de visión en 3 lugares distintos (`nucleo_c/mascara_vision.c`, que rechaza activarse si sale sospechosa), detección de fantasma fijo al arrancar más sondeo de 4 cm con firma hexadecimal persistente durante toda la corrida (tope de 12 celdas por zona y cancelación si crece más de 30 %) y tolerancia ampliada al brillo en `obstaculos.c`.
+
+## 11. Giroscopio y láser: qué corrigen y qué no (J11)
+
+- **Error esperado con y sin giroscopio** (simulación, 400 rutas en L de Monte Carlo, radios de pivote de 6 a 20 cm, el carro gira ±10 % de lo que cree el navegador; mismas semillas en las dos vueltas):
+
+  | | error final medio | percentil 95 |
+  |---|---|---|
+  | **Sin giroscopio** (giros por tiempo) | **153 mm** | **378 mm** |
+  | **Con giroscopio** (giros por ángulo medido) | **45 mm** | **116 mm** |
+
+  Es un simulador con un modelo mío del firmware: el giroscopio simulado tiene error de escala de ±2 %, sesgo de ±0.3 °/s sin corregir y ruido de ±1° por giro, y el carro simulado frena sin inercia desconocida. **No son medidas del carro real**: la prueba 6 de `docs/validacion_sensores.md` dará los números reales. La mejora viene de que el rumbo ya no depende del tiempo de cada giro; la distancia sigue siendo por tiempo (y eso no cambia).
+- **El giroscopio no corrige la distancia** ni lo que el carro se corre de lado por el pivote: se compensa con el modelo de pivote, igual que antes (ahora calculado con el ángulo REAL). Un patinazo (rueda que resbala) hace que el giroscopio mida un giro que no movió el carro.
+- **Giros que no van por ángulo**: menos de 5° (no se hacen con giroscopio; los de 4° del plan se hacen por tiempo), más de 200° (el firmware no los acepta; el de deshacer una esquivada de 225° va por tiempo) y los manuales («toma el control»).
+- **Si el firmware no contesta a un giro** (más de 500 ms + 15 ms por grado + 1.5 s), el navegador lo repite por tiempo desde la pose de antes: si el firmware sí giró y solo se perdió el mensaje, ese giro se haría dos veces. Es una decisión de seguridad ambigua.
+- **El láser ve un punto, no un plano**: solo mira recto al frente, a unos 6-8 cm del piso. Un obstáculo bajo (menos de ~6 cm), alto desplazado a un lado o un objeto muy delgado (pata de silla) puede pasar sin que lo vea; la cámara sigue siendo la que decide. Un piso brillante o un objeto negro/transparente puede dar lecturas raras (de ahí el filtro de 2 lecturas y el valor «libre»).
+- **Freno de emergencia a 12 cm**: con el frenado medido del carro (9 a 14 cm en AUTO) un obstáculo que aparece de golpe a 12 cm igual se toca; el freno reduce el golpe, no lo elimina.
+- **Con el interruptor del láser apagado el firmware también deja de frenar** (`TOF_USO:0`): es el comportamiento de antes.

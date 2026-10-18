@@ -56,6 +56,12 @@
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait" />
 
+        <!-- Sensores del carro: giroscopio y láser (interruptores, estado y prueba de giro); ver SensoresActivity.kt. -->
+        <activity
+            android:name=".SensoresActivity"
+            android:exported="true"
+            android:screenOrientation="portrait" />
+
         <!-- Benchmark del detector de objetos; se puede abrir con adb (ver BenchmarkActivity.kt). -->
         <activity
             android:name=".BenchmarkActivity"

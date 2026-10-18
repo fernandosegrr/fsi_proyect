@@ -19,6 +19,10 @@
  *  4c. BALANCE DE LOS LADOS (recta): el carro guarda en su memoria un factor del lado izquierdo por perfil. Al abrir la conexión esta clase manda los que la app tiene
  *     guardados (proveedorBalances) y enviarBalance() manda uno y espera su ACK_BAL_AUTO:NNN / ACK_BAL_MANUAL:NNN (o NAK_BAL). Un carro con el firmware viejo no
  *     contesta: el aviso sale en false. Ver docs/perfiles_velocidad.md.
+ *  4d. GIROSCOPIO Y LÁSER (J11, docs/sensores.md): al abrir la conexión se manda CAPS? y se lee CAPS:IMU=<0|1>,TOF=<0|1> (lo que el firmware dice que funciona; sin respuesta = firmware viejo = sin sensores,
+ *     todo como antes). Los interruptores usarGiroscopio / usarSensorDistancia (los pone la pantalla de Calibración) valen solo si el firmware dijo que el sensor funciona (giroscopioActivo / laserActivo).
+ *     El firmware manda SENS:<ángulo x10>,<mm>,<banderas> cada 100 ms con la app conectada y perfil AUTO, GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR al terminar un giro por ángulo y TOF_PARO:<mm> cuando el láser
+ *     lo frena; aquí se leen y se avisan por alSens / alGiro / alTofParo. girar() manda GIRAR:<grados> (positivo = izquierda); un giro por ángulo NO se repite como heartbeat: el firmware lo hace solo.
  *  5. La latencia es el tiempo entre enviar PING y recibir PONG. El carro real todavía no
  *     contesta PONG (solo el servidor falso), así que con el carro real se verá "—".
  *  Todo ocurre en el hilo principal (los avisos del Enlace ya llegan ahí).
@@ -60,7 +64,7 @@ class ControlLogica(
         private set
 
     /** true mientras hay un botón de movimiento sostenido o una orden automática distinta de STOP (la cabecera muestra el PARO y la pantalla no se apaga). */
-    val moviendo: Boolean get() = comandoActivo != null
+    val moviendo: Boolean get() = comandoActivo != null || girandoPorAngulo
 
     /** El comando que se está repitiendo ahora (null = ninguno). */
     val comandoEnMarcha: String? get() = comandoActivo
@@ -73,6 +77,51 @@ class ControlLogica(
 
     /** Si no es null, se llama con cada medida de PONG (ms): la usa el registro MANUAL_VIDEO y la prueba de latencia con y sin video. */
     var alPong: ((Long) -> Unit)? = null
+
+    // ── Sensores (J11) ──
+
+    /** Lo que el firmware dijo que funciona (CAPS:IMU=,TOF=); null = no ha contestado (firmware viejo o conexión recién abierta). */
+    var capsGiroscopio: Boolean? = null
+        private set
+    var capsLaser: Boolean? = null
+        private set
+
+    /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
+    var usarGiroscopio = true
+    var usarSensorDistancia = true
+
+    /** true si los giros de la ruta deben ir por ángulo medido: interruptor encendido Y el firmware dice que el giroscopio funciona. */
+    val giroscopioActivo: Boolean get() = usarGiroscopio && capsGiroscopio == true
+
+    /** true si se hace caso al láser (TOF_PARO y confirmación de la cámara): interruptor encendido Y el firmware dice que el láser funciona. */
+    val laserActivo: Boolean get() = usarSensorDistancia && capsLaser == true
+
+    /** Lo último que dijo SENS: ángulo del giroscopio en décimas de grado, distancia del láser en mm y las banderas (1 IMU lista, 2 láser vivo, 4 medida válida, 8 IMU calibrando, 16 giro en curso). */
+    var anguloX10 = 0
+        private set
+    var distanciaMm = 0
+        private set
+    var banderasSens = 0
+        private set
+    var ultimoSensMs = 0L
+        private set
+
+    /** El sesgo del giroscopio (centésimas de grado/s) que dijo IMU_CAL_OK o IMU?; null = no se sabe. */
+    var sesgoX100: Int? = null
+        private set
+
+    /** Texto de la última respuesta de un giro por ángulo o de la recalibración (para la pantalla de sensores). */
+    var ultimoAvisoSensores = ""
+        private set
+
+    /** true entre el GIRAR y su respuesta: el carro se está moviendo aunque no haya un botón presionado. */
+    var girandoPorAngulo = false
+        private set
+
+    /** Avisos de los sensores: SENS (ángulo x10, mm, banderas), respuesta de un giro (código NavegadorNativa.GIRO_*, objetivo en grados, real x10 con signo del firmware, ms) y TOF_PARO (mm). */
+    var alSens: ((Int, Int, Int) -> Unit)? = null
+    var alGiro: ((Int, Int, Int, Int) -> Unit)? = null
+    var alTofParo: ((Int) -> Unit)? = null
 
     /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
     val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
@@ -269,9 +318,37 @@ class ControlLogica(
         aviso?.invoke(exito)
     }
 
+    /** Pide un giro por ángulo MEDIDO: positivo = izquierda, de 5 a 200 grados. El firmware lo hace solo (no hay heartbeat) y contesta GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR. */
+    fun girar(gradosIzquierdaPositivo: Int) {
+        manejador.removeCallbacks(tareaHeartbeat)
+        comandoActivo = null
+        girandoPorAngulo = true
+        enviar("GIRAR:$gradosIzquierdaPositivo")
+        alCambiar()
+    }
+
+    /** Recalibra el sesgo del giroscopio (IMU_CAL): solo con el carro quieto. El resultado llega en ultimoAvisoSensores. */
+    fun recalibrarGiroscopio() {
+        ultimoAvisoSensores = "Recalibrando el giroscopio (2.5 s, no muevas el carro)…"
+        enviar("IMU_CAL")
+        alCambiar()
+    }
+
+    /** Pone el ángulo del giroscopio en cero (IMU_CERO). */
+    fun ponerAnguloCero() {
+        enviar("IMU_CERO")
+    }
+
+    /** Pregunta qué sensores funcionan (CAPS?), y le dice al firmware si hay que hacer caso al láser (TOF_USO). */
+    fun pedirCapacidades() {
+        enviar("CAPS?")
+        enviar("TOF_USO:${if (usarSensorDistancia) 1 else 0}")
+    }
+
     /** Dejar de repetir el comando y enviar STOP. */
     fun parar() {
         comandoActivo = null
+        girandoPorAngulo = false
         manejador.removeCallbacks(tareaHeartbeat)
         enviar("STOP")
     }
@@ -290,6 +367,10 @@ class ControlLogica(
         pingsDesdePerfil = 0
         cambiarEstado(Conexion.CONECTADO)
         enviar(perfilDeseado.comando)    // el perfil que se quiere, antes que cualquier otro comando
+        capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
+        capsLaser = null
+        girandoPorAngulo = false
+        pedirCapacidades()
         balanceConfirmado[0] = 0
         balanceConfirmado[1] = 0
         proveedorBalances?.invoke()?.let { b ->   // el balance de los lados que la app tiene guardado (el carro también lo guarda; esto lo deja igual en los dos)
@@ -328,6 +409,7 @@ class ControlLogica(
             Log.w(EnlaceOkHttp.ETIQUETA, "el carro rechazó el balance (NAK_BAL)")
             terminarBalance(false)
         }
+        alMensajeSensores(texto)
         if (texto == "PONG") {
             pongsRecibidos++
             val aviso = alRespuestaStop
@@ -349,6 +431,9 @@ class ControlLogica(
         manejador.removeCallbacks(tareaPing)
         manejador.removeCallbacks(tareaHeartbeat)
         comandoActivo = null
+        girandoPorAngulo = false
+        capsGiroscopio = null
+        capsLaser = null
         esperandoPong = false
         latenciaMs = null
         perfilConfirmado = null
@@ -361,6 +446,82 @@ class ControlLogica(
             manejador.postDelayed(tareaReintento, REINTENTO_MS)
         } else {
             cambiarEstado(Conexion.DESCONECTADO)
+        }
+    }
+
+    /** Lee los mensajes de los sensores (J11): CAPS, SENS, GIRO_*, TOF_PARO, IMU_CAL_*, IMU. Lo que no entiende lo ignora. */
+    private fun alMensajeSensores(texto: String) {
+        try {
+            when {
+                texto.startsWith("SENS:") -> {
+                    val p = texto.substring(5).split(",")
+                    if (p.size == 3) {
+                        anguloX10 = p[0].toInt()
+                        distanciaMm = p[1].toInt()
+                        banderasSens = p[2].toInt()
+                        ultimoSensMs = android.os.SystemClock.elapsedRealtime()
+                        alSens?.invoke(anguloX10, distanciaMm, banderasSens)
+                        alCambiar()
+                    }
+                }
+                texto.startsWith("CAPS:") -> {
+                    val imu = texto.contains("IMU=1")
+                    val tof = texto.contains("TOF=1")
+                    capsGiroscopio = imu
+                    capsLaser = tof
+                    Log.i("SENS_DIAG", "capacidades del firmware: giroscopio=$imu laser=$tof (interruptores: giroscopio=$usarGiroscopio laser=$usarSensorDistancia)")
+                    alCambiar()
+                }
+                texto.startsWith("GIRO_OK:") || texto.startsWith("GIRO_TIMEOUT:") || texto.startsWith("GIRO_ERROR:") -> {
+                    val codigo: Int
+                    val numeros: List<String>
+                    when {
+                        texto.startsWith("GIRO_OK:") -> { codigo = NavegadorNativa.GIRO_OK; numeros = texto.substring(8).split(":") }
+                        texto.startsWith("GIRO_TIMEOUT:") -> { codigo = NavegadorNativa.GIRO_TIMEOUT; numeros = texto.substring(13).split(":") }
+                        else -> {
+                            val resto = texto.substring(11).split(":")   // motivo[:objetivo:real:ms]
+                            codigo = if (resto.size >= 4) NavegadorNativa.GIRO_ERROR_CON_DATOS else NavegadorNativa.GIRO_ERROR_SIN_DATOS
+                            numeros = if (resto.size >= 4) resto.drop(1) else emptyList()
+                        }
+                    }
+                    val objetivo = numeros.getOrNull(0)?.toIntOrNull() ?: 0
+                    val real = numeros.getOrNull(1)?.toIntOrNull() ?: 0
+                    val ms = numeros.getOrNull(2)?.toIntOrNull() ?: 0
+                    girandoPorAngulo = false
+                    ultimoAvisoSensores = "Giro pedido ${objetivo}°, medido ${real / 10.0}° en $ms ms" + if (codigo == NavegadorNativa.GIRO_OK) "" else " ($texto)"
+                    Log.i("SENS_DIAG", "firmware: $texto")
+                    alGiro?.invoke(codigo, objetivo, real, ms)
+                    alCambiar()
+                }
+                texto.startsWith("TOF_PARO:") -> {
+                    val mm = texto.substring(9).toIntOrNull() ?: 0
+                    Log.i("SENS_DIAG", "TOF_PARO: el laser freno el carro con algo a $mm mm")
+                    alTofParo?.invoke(mm)
+                    alCambiar()
+                }
+                texto.startsWith("IMU_CAL_OK:") -> {
+                    sesgoX100 = texto.substring(11).toIntOrNull()
+                    ultimoAvisoSensores = "Giroscopio recalibrado: sesgo ${(sesgoX100 ?: 0) / 100.0} °/s"
+                    alCambiar()
+                }
+                texto == "IMU_CAL_FALLO" -> {
+                    ultimoAvisoSensores = "No se pudo recalibrar (¿se movió el carro?). Sigue el sesgo anterior."
+                    alCambiar()
+                }
+                texto == "NAK_IMU_CAL" -> {
+                    ultimoAvisoSensores = "El carro no está quieto: espera unos segundos sin moverlo y vuelve a probar."
+                    alCambiar()
+                }
+                texto.startsWith("IMU:") -> {
+                    val p = texto.substring(4).split(",")
+                    if (p.size >= 2) {
+                        sesgoX100 = p[1].toIntOrNull()
+                        alCambiar()
+                    }
+                }
+            }
+        } catch (e: NumberFormatException) {
+            Log.w("SENS_DIAG", "mensaje de sensores mal formado: $texto")
         }
     }
 

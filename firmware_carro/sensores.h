@@ -20,6 +20,7 @@
  *   TOF_PARO:<mm>               (lo manda el firmware solo) frenó por algo muy cerca al frente
  *   LOOP?        → LOOP:<el loop() más largo en µs>,<cuántos pasaron de LOOP_MAX_US>        LOOP_CERO → ACK_LOOP_CERO
  *   ANT?         → ANT:<anticipación izquierda ms>,<derecha ms>
+ *   TOF_USO:<0|1> → ACK_TOF_USO:<n>   enciende (1, por defecto) o apaga (0) la parada de emergencia del láser (el interruptor «Usar sensor de distancia» de la app); el láser sigue midiendo y mandando SENS
  */
 #ifndef SENSORES_H
 #define SENSORES_H
