@@ -1,0 +1,32 @@
+# Sanitizadores en Linux (esta PC con Windows no tiene ThreadSanitizer): corre las pruebas del firmware con
+#  - ThreadSanitizer sobre carro.c + imu.c + tof.c + giro.c + sensores.c (el estrés de 2 hilos con GIRAR mezclado con STOP),
+#  - AddressSanitizer + UndefinedBehaviorSanitizer sobre las pruebas de los sensores y del navegador.
+name: sanitizadores
+on:
+  push:
+    paths: ['firmware_carro/**', 'pruebas_firmware/**', 'nucleo_c/**', '.github/workflows/sanitizadores.yml']
+  workflow_dispatch:
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ThreadSanitizer (estres de 2 hilos con GIRAR mezclado con STOP)
+        working-directory: pruebas_firmware
+        run: |
+          FUENTES="pruebas_carro.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c sensores_falsos.c"
+          gcc -std=c99 -g -O1 -fsanitize=thread -I../firmware_carro -I. -o pruebas_carro_tsan $FUENTES -lpthread
+          ./pruebas_carro_tsan | tail -5
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (sensores y carro)
+        working-directory: pruebas_firmware
+        run: |
+          SENS="../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c sensores_falsos.c"
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -I. -o pruebas_sensores_asan pruebas_sensores.c $SENS -lm
+          ./pruebas_sensores_asan | tail -3
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -I. -o pruebas_carro_asan pruebas_carro.c $SENS -lpthread
+          ./pruebas_carro_asan | tail -3
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (navegador)
+        working-directory: nucleo_c
+        run: |
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_navegador_asan pruebas_navegador.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
+          ./pruebas_navegador_asan | tail -3
