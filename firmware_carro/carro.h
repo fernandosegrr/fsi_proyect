@@ -90,6 +90,12 @@ void carro_vigilar_comunicacion(void);
  * pulso corto cada cierto tiempo en el pin keep-alive. */
 void carro_actualizar_keepalive(void);
 
+/* Para los sensores (J11): pivote del giro por ángulo (+1 izquierda, -1 derecha, 0 parar), si el carro va avanzando, si hay motores en marcha y cuántos ms lleva quieto. */
+void     carro_pivote(int sentido);
+int      carro_avanzando(void);
+int      carro_motores_en_marcha(void);
+uint32_t carro_quieto_ms(void);
+
 /* Cola de comandos entre la tarea del WebSocket (async_tcp) y loop(), para que
  * solo loop() modifique pleno_modo, comando_actual y motores. */
 void carro_encolar_comando(const char *texto);

@@ -21,6 +21,10 @@
 #include <sched.h>
 #include "carro.h"
 #include "config.h"
+#include "sensores.h"
+#include "imu.h"
+#include "giro.h"
+#include "sensores_falsos.h"
 
 /* ── Hardware falso ────────────────────────────────────────────────────── */
 
@@ -52,7 +56,14 @@ void hw_motor_pwm(int pin, int valor)
 }
 uint32_t hw_millis(void)              { return reloj_ms; }
 void hw_keepalive(int nivel)          { nivel_keepalive = nivel; }
-void hw_registrar(const char *texto)  { (void)texto; mensajes_serie++; }
+static int      watchdogs_registrados;   /* cuántas veces el watchdog frenó (cada una deja los 4 pines en 0 sin que nadie mande STOP) */
+void hw_registrar(const char *texto)
+{
+    mensajes_serie++;
+    if (strncmp(texto, "Watchdog:", 9) == 0) {
+        watchdogs_registrados++;
+    }
+}
 
 /* Memoria no volátil falsa: el balance guardado de cada perfil (0 = nada guardado) y cuántas veces se guardó. */
 static int      nvs_balance[2];
@@ -67,11 +78,14 @@ static void reiniciar_mundo(uint32_t reloj_inicial)
     stops_pwm       = 0;
     nivel_keepalive = 0;
     mensajes_serie  = 0;
+    watchdogs_registrados = 0;
     reloj_ms        = reloj_inicial;
     comando_en_pwm  = NULL;
     memset(nvs_balance, 0, sizeof nvs_balance);   /* un carro recién salido de fábrica: sin balance guardado */
     nvs_guardados   = 0;
     carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
+    falso_sensores_reiniciar();   /* los sensores falsos (J11) también empiezan de cero */
+    sensores_reiniciar_estado();
     carro_iniciar();
     escrituras_pwm  = 0;   /* no contar las escrituras de carro_iniciar */
     stops_pwm       = 0;
@@ -887,13 +901,20 @@ typedef struct {
     volatile int      productor_terminado;
     volatile int      stops_enviados;
     volatile int      cola_coherente;
+    volatile int      giros_naturales;   /* giros que terminaron solos (GIRO_OK o GIRO_TIMEOUT): cada uno apaga los motores sin que nadie mande STOP */
+    volatile int      giros_pedidos;
     const char       *ultimo_movimiento;
     const char       *comando_cierre;
+    const char * const *mezcla;       /* los 8 comandos entre los que sortea el productor */
+    int               paso_a_paso;    /* 1 = el productor espera a que el consumidor vacíe la cola antes del siguiente comando (una orden por vuelta de loop(): así los giros alcanzan a terminar) */
 } ContextoEstres;
+
+/* Mezcla "dura": muchos cortes (STOP, FORWARD, LEFT) entre los GIRAR. Mezcla "suave": casi sin cortes, para que los giros lleguen a terminar solos. */
+static const char * const MEZCLA_DURA[8]  = { "STOP", "FORWARD", "LEFT", "PING", "GIRAR:90", "GIRAR:-45", "IMU?", "GIRAR:200" };
+static const char * const MEZCLA_SUAVE[8] = { "STOP", "GIRAR:90", "GIRAR:-45", "PING", "GIRAR:200", "IMU?", "PING", "GIRAR:30" };
 
 static void *hilo_productor_estres(void *arg)
 {
-    static const char * const cmds[4] = { "STOP", "FORWARD", "LEFT", "PING" };
     ContextoEstres *ctx = (ContextoEstres *)arg;
     uint32_t rng = 0x9E3779B9u;
     int i;
@@ -908,7 +929,7 @@ static void *hilo_productor_estres(void *arg)
         rng ^= rng << 5;
         cmd = (i == ESTRES_N_COMANDOS - 1 && ctx->comando_cierre != NULL)
               ? ctx->comando_cierre
-              : cmds[rng & 3u];
+              : ctx->mezcla[rng & 7u];
 
         /* Si la cola está casi llena porque el sistema operativo pausó al consumidor, cede turno antes de encolar. */
         for (;;) {
@@ -919,7 +940,10 @@ static void *hilo_productor_estres(void *arg)
                 if (strcmp(cmd, "STOP") == 0) {
                     ctx->stops_enviados++;
                 }
-                if (strcmp(cmd, "PING") != 0) {
+                if (strncmp(cmd, "GIRAR:", 6) == 0) {
+                    ctx->giros_pedidos++;
+                }
+                if (strcmp(cmd, "PING") != 0 && strcmp(cmd, "IMU?") != 0) {
                     ctx->ultimo_movimiento = cmd;
                 }
             }
@@ -928,6 +952,19 @@ static void *hilo_productor_estres(void *arg)
                 break;
             }
             sched_yield();
+        }
+        if (ctx->paso_a_paso) {
+            for (;;) {
+                int q;
+
+                carro_bloquear();
+                q = carro_cola_cantidad();
+                carro_desbloquear();
+                if (q == 0) {
+                    break;
+                }
+                sched_yield();
+            }
         }
 
         espera = (rng >> 2) & 7u;
@@ -942,22 +979,50 @@ static void *hilo_productor_estres(void *arg)
     return NULL;
 }
 
+/* Una vuelta de loop() del hilo consumidor CON los sensores: por cada orden procesada el tiempo simulado avanza 50 ms (solo este hilo toca los relojes y el modelo del giroscopio),
+ * el giroscopio falso lee 160 grados/s mientras hay un pivote a la izquierda (y -160 a la derecha) y se cuentan los giros que terminan solos. */
+static void vuelta_loop_estres(ContextoEstres *ctx, int hay_orden)
+{
+    char t[MENSAJE_SALIDA_MAX];
+    int donde;
+
+    if (hay_orden) {
+        reloj_ms += 50u;
+        falso_us += 50000u;
+    }
+    if (pwm[PIN_MOTOR_DER_A] > 0 && pwm[PIN_MOTOR_IZQ_A] == 0 && pwm[PIN_MOTOR_IZQ_B] == 0 && pwm[PIN_MOTOR_DER_B] == 0) {
+        falso_imu_cuentas = 10480;
+    } else if (pwm[PIN_MOTOR_IZQ_B] > 0 && pwm[PIN_MOTOR_IZQ_A] == 0 && pwm[PIN_MOTOR_DER_A] == 0 && pwm[PIN_MOTOR_DER_B] == 0) {
+        falso_imu_cuentas = -10480;
+    } else {
+        falso_imu_cuentas = 0;
+    }
+    sensores_actualizar();
+    vuelta_loop();
+    while (sensores_extraer_mensaje(t, sizeof t, &donde)) {
+        if (strncmp(t, "GIRO_OK", 7) == 0 || strncmp(t, "GIRO_TIMEOUT", 12) == 0) {
+            ctx->giros_naturales++;
+        }
+    }
+}
+
 static void *hilo_consumidor_estres(void *arg)
 {
     ContextoEstres *ctx = (ContextoEstres *)arg;
 
     for (;;) {
-        int q, terminado;
+        int q, terminado, hay;
 
         carro_bloquear();
         q = carro_cola_cantidad();
         terminado = ctx->productor_terminado;
         carro_desbloquear();
+        hay = (q > 0);
 
         if (q < 0 || q > COLA_COMANDOS_MAX) {
             ctx->cola_coherente = 0;
         }
-        vuelta_loop();
+        vuelta_loop_estres(ctx, hay);
 
         carro_bloquear();
         q = carro_cola_cantidad();
@@ -992,10 +1057,10 @@ static int estado_coincide_con_comando(const char *cmd)
 
 static void prueba_estres_dos_hilos(void)
 {
-    static const char * const cierres[3] = { "FORWARD", "LEFT", "STOP" };
-    int c;
+    static const char * const cierres[4] = { "FORWARD", "LEFT", "STOP", "STOP" };
+    int c, k;
 
-    for (c = 0; c < 3; c++) {
+    for (c = 0; c < 4; c++) {
         ContextoEstres ctx;
         pthread_t th_prod, th_cons;
         char nombre[160];
@@ -1004,26 +1069,52 @@ static void prueba_estres_dos_hilos(void)
         ctx.productor_terminado = 0;
         ctx.stops_enviados = 0;
         ctx.cola_coherente = 1;
+        ctx.giros_naturales = 0;
+        ctx.giros_pedidos = 0;
         ctx.ultimo_movimiento = "STOP";
+        sensores_iniciar();                 /* el giroscopio falso se calibra ANTES de lanzar los hilos (así GIRAR sí empieza) */
+        for (k = 0; k < 400; k++) {
+            falso_us += 10000u;
+            reloj_ms += 10u;
+            sensores_actualizar();
+        }
+        escrituras_pwm = 0;
+        stops_pwm = 0;
         ctx.comando_cierre = cierres[c];
+        ctx.mezcla = (c == 3) ? MEZCLA_SUAVE : MEZCLA_DURA;
+        ctx.paso_a_paso = (c == 3);
 
         pthread_create(&th_prod, NULL, hilo_productor_estres, &ctx);
         pthread_create(&th_cons, NULL, hilo_consumidor_estres, &ctx);
         pthread_join(th_prod, NULL);
         pthread_join(th_cons, NULL);
+        if (c == 3) {
+            /* Un giro que frenó justo al final todavía no avisó (avisa 200 ms después): se deja pasar el tiempo para contarlo. El carro ya está en STOP, así que el watchdog no actúa. */
+            for (k = 0; k < 10; k++) {
+                vuelta_loop_estres(&ctx, 1);
+            }
+        }
 
         if ( c == 0 ) {
             snprintf(nombre, sizeof nombre,
-                     "estres 2 hilos (%d cmds): ningun STOP perdido (%d enviados == %d ejecutados)",
-                     ESTRES_N_COMANDOS, ctx.stops_enviados, stops_pwm);
-            caso(nombre, ctx.stops_enviados > 20000 && stops_pwm == ctx.stops_enviados);
+                     "estres 2 hilos (%d cmds con GIRAR mezclado): ningun STOP perdido (%d STOP enviados + %d giros que terminaron solos + %d watchdogs == %d paradas de motores)",
+                     ESTRES_N_COMANDOS, ctx.stops_enviados, ctx.giros_naturales, watchdogs_registrados, stops_pwm);
+            caso(nombre, ctx.stops_enviados > 10000 && stops_pwm == ctx.stops_enviados + ctx.giros_naturales + watchdogs_registrados);
+            printf("      (GIRAR pedidos: %d, terminaron solos: %d)\n", ctx.giros_pedidos, ctx.giros_naturales);
+            caso("estres 2 hilos (mezcla dura): se pidieron muchos GIRAR (la mayoria se corta con STOP/FORWARD/LEFT)", ctx.giros_pedidos > 10000);
             caso("estres 2 hilos: cola_cantidad siempre coherente (0..COLA_COMANDOS_MAX y 0 al final)",
                  ctx.cola_coherente == 1 && carro_cola_cantidad() == 0);
+        }
+        if (c == 3) {
+            snprintf(nombre, sizeof nombre,
+                     "estres 2 hilos (mezcla suave, %d cmds): ningun STOP perdido (%d STOP + %d giros que terminaron solos + %d watchdogs == %d paradas) y los giros si terminan",
+                     ESTRES_N_COMANDOS, ctx.stops_enviados, ctx.giros_naturales, watchdogs_registrados, stops_pwm);
+            caso(nombre, stops_pwm == ctx.stops_enviados + ctx.giros_naturales + watchdogs_registrados && ctx.giros_naturales > 100);
         }
         snprintf(nombre, sizeof nombre,
                  "estres 2 hilos (%d cmds, ultimo=%s): estado final de motores igual al ultimo comando",
                  ESTRES_N_COMANDOS, ctx.ultimo_movimiento);
-        caso(nombre, ctx.stops_enviados == stops_pwm && ctx.cola_coherente == 1 &&
+        caso(nombre, stops_pwm == ctx.stops_enviados + ctx.giros_naturales + watchdogs_registrados && ctx.cola_coherente == 1 &&
              carro_cola_cantidad() == 0 && estado_coincide_con_comando(ctx.ultimo_movimiento));
     }
 }

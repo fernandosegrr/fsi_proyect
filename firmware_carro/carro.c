@@ -23,10 +23,14 @@
 #include <string.h>
 #include "carro.h"
 #include "config.h"
+#include "sensores.h"
+#include "giro.h"
 
 /* ── Estado del carro ──────────────────────────────────────────────────── */
 
 static int      motores_en_marcha   = 0;   /* 1 si algún pin de motor tiene PWM > 0 */
+static int      ya_se_movio         = 0;   /* 1 si los motores han estado encendidos alguna vez desde el arranque */
+static uint32_t motores_apagados_desde_ms = 0;   /* hora en que los motores se apagaron por última vez (para saber cuánto lleva quieto el carro) */
 static char     comando_actual[LARGO_MAX_COMANDO] = "STOP";
 static uint32_t ultimo_comando_ms   = 0;   /* hora del último comando real (no PING) */
 static uint32_t ultimo_keepalive_ms = 0;   /* hora del último pulso keep-alive */
@@ -97,7 +101,13 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
     hw_motor_pwm(PIN_MOTOR_IZQ_B, izq_b);
     hw_motor_pwm(PIN_MOTOR_DER_A, der_a);
     hw_motor_pwm(PIN_MOTOR_DER_B, der_b);
+    if (motores_en_marcha && !(izq_a > 0 || izq_b > 0 || der_a > 0 || der_b > 0)) {
+        motores_apagados_desde_ms = hw_millis();
+    }
     motores_en_marcha = (izq_a > 0 || izq_b > 0 || der_a > 0 || der_b > 0);
+    if (motores_en_marcha) {
+        ya_se_movio = 1;
+    }
 }
 
 /* Ambos motores hacia adelante. El izquierdo avanza por su pin B y el
@@ -147,6 +157,48 @@ static void girar_derecha(void)
     poner_motores(0, VELOCIDAD_GIRO, 0, 0);
     pleno_modo = 0;
     escalon_modo = 0;
+}
+
+/* Pivote pedido por el giro por ángulo (giro.c): +1 a la izquierda, -1 a la derecha, 0 apaga todo. Parar NO avisa al giro (él mismo es quien para). */
+static void guardar_comando_actual(const char *texto);
+
+void carro_pivote(int sentido)
+{
+    if (sentido > 0) {
+        girar_izquierda();
+    } else if (sentido < 0) {
+        girar_derecha();
+    } else {
+        poner_motores(0, 0, 0, 0);
+        pleno_modo = 0;
+        escalon_modo = 0;
+        guardar_comando_actual("STOP");
+        return;
+    }
+    guardar_comando_actual("GIRAR");
+}
+
+/* 1 si el carro va AVANZANDO (comando FORWARD con los motores en marcha). */
+int carro_avanzando(void)
+{
+    return motores_en_marcha && strcmp(comando_actual, "FORWARD") == 0;
+}
+
+int carro_motores_en_marcha(void)
+{
+    return motores_en_marcha;
+}
+
+/* Cuántos ms lleva el carro con los motores apagados (0 si se mueve; un número enorme si no se ha movido desde el arranque). */
+uint32_t carro_quieto_ms(void)
+{
+    if (motores_en_marcha) {
+        return 0u;
+    }
+    if (!ya_se_movio) {
+        return 0x7FFFFFFFu;
+    }
+    return (uint32_t)(hw_millis() - motores_apagados_desde_ms);
 }
 
 /* ── Comandos ──────────────────────────────────────────────────────────── */
@@ -248,8 +300,17 @@ static void ejecutar_comando(const char *texto)
     if (strcmp(texto, "BAL?") == 0) {
         return;
     }
+    /* Los mensajes de sensores (CAPS?, IMU?, TOF?, GIRAR:, IMU_CAL...) los entiende sensores.c; los de consulta no son movimiento. */
+    if (sensores_es_comando(texto)) {
+        sensores_comando(texto);
+        return;
+    }
     if (es_comando_repetido(texto)) {
         return;
+    }
+    /* Cualquier otro movimiento corta un giro por ángulo que esté en curso. */
+    if (strcmp(texto, "FORWARD") == 0 || strcmp(texto, "REVERSE") == 0 || strcmp(texto, "LEFT") == 0 || strcmp(texto, "RIGHT") == 0) {
+        giro_abortar();
     }
 
     if (strcmp(texto, "FORWARD") == 0) {
@@ -283,6 +344,7 @@ void carro_iniciar(void)
     pleno_modo = 0;
     perfil_actual = PERFIL_AUTO;   /* al arrancar siempre AUTO: la app pide MODO_MANUAL cuando lo necesita */
     escalon_modo = 0;
+    giro_reiniciar();
     cola_inicio = 0;
     cola_fin = 0;
     cola_cantidad = 0;
@@ -455,7 +517,8 @@ void carro_recibir_comando(const char *texto)
         carro_desbloquear();
         return;
     }
-    if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0) {
+    /* Las consultas de sensores (CAPS?, IMU?...) no cuentan como orden de movimiento: no renuevan el watchdog. GIRAR sí. */
+    if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0 && (!sensores_es_comando(texto) || strncmp(texto, "GIRAR:", 6) == 0)) {
         ultimo_comando_ms = hw_millis();
     }
     ejecutar_comando(texto);
@@ -513,6 +576,7 @@ void carro_detener(void)
         carro_desbloquear();
         return;
     }
+    giro_abortar();   /* un giro por ángulo en curso se corta (informa GIRO_ERROR:abortado cuando se asiente) */
     poner_motores(0, 0, 0, 0);
     pleno_modo = 0;
     escalon_modo = 0;
@@ -552,7 +616,8 @@ void carro_vigilar_comunicacion(void)
         pleno_modo = 0;
     }
 
-    if (motores_en_marcha && (uint32_t)(ahora - ultimo_comando_ms) > TIEMPO_WATCHDOG_MS) {
+    /* Mientras corre un giro por ángulo el watchdog de 1 s no actúa (un giro largo dura más); el giro tiene su propio tiempo máximo. */
+    if (motores_en_marcha && !giro_activo() && (uint32_t)(ahora - ultimo_comando_ms) > TIEMPO_WATCHDOG_MS) {
         poner_motores(0, 0, 0, 0);
         pleno_modo = 0;
         escalon_modo = 0;

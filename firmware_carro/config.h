@@ -143,4 +143,80 @@
 #define LARGO_MAX_COMANDO 32
 #define COLA_COMANDOS_MAX 32
 
+/* ── SENSORES (J11): giroscopio MPU6050 y sensor láser VL53L0X ────────────
+ * Los dos módulos van en el MISMO bus I2C del DevKit, alimentados con 3V3 (cada módulo trae sus resistencias de pull-up):
+ *   SDA = GPIO 21, SCL = GPIO 22.   MPU6050 (GY-521) = 0x68,  VL53L0X (VL53LXX-V2) = 0x29.
+ * El código que decide (imu.c, tof.c, giro.c, sensores.c) es C puro; solo el .ino toca el bus (funciones hw_..., ver hw_sensores.h). */
+#define PIN_I2C_SDA              21
+#define PIN_I2C_SCL              22
+#define I2C_FRECUENCIA_HZ        400000   /* 400 kHz: leer 2 bytes del giroscopio tarda ~0.2 ms */
+#define I2C_TIMEOUT_MS           5        /* una transacción colgada se corta a los 5 ms: loop() nunca se queda esperando al bus */
+#define IMU_DIRECCION            0x68
+#define TOF_DIRECCION            0x29
+
+/* MPU6050: el WHO_AM_I oficial es 0x68; algunos clones contestan 0x70 o 0x72 (se aceptan los tres y se registra cuál se leyó). */
+#define IMU_QUIEN_1              0x68
+#define IMU_QUIEN_2              0x70
+#define IMU_QUIEN_3              0x72
+
+/* Sentido del ángulo: IMU_SIGNO = 1 si girar a la IZQUIERDA (antihorario visto desde arriba) da ángulo POSITIVO con el montaje de config (eje Z hacia arriba).
+ * Si en la prueba física sale al revés, se pone -1 aquí y nada más cambia (ver docs/validacion_sensores.md). */
+#define IMU_SIGNO                1
+
+/* Muestreo del giroscopio: ±500 °/s (65.5 cuentas por °/s), filtro digital de ~44 Hz, 100 muestras por segundo, solo el eje Z. */
+#define IMU_PERIODO_US           10000u   /* 100 Hz */
+#define IMU_DT_MAX_US            100000u  /* si loop() se atrasó más de esto entre dos muestras, no se integra el hueco entero */
+#define IMU_ZONA_MUERTA_MDPS     150      /* por debajo de 0.15 °/s (ya sin el sesgo) la velocidad se toma como 0: el ruido no suma ángulo */
+
+/* Sesgo (bias) del giroscopio: al arrancar, con el carro quieto, se promedian IMU_SESGO_MUESTRAS lecturas y se acepta el promedio solo si
+ * la desviación es pequeña (el carro no se movió) y el sesgo no es absurdo; si no, se reintenta hasta IMU_SESGO_REINTENTOS veces y después el giroscopio queda en IMU_MAL. */
+#define IMU_SESGO_MUESTRAS       250      /* 2.5 s a 100 Hz */
+#define IMU_SESGO_REINTENTOS     3
+#define IMU_SESGO_DESV_MAX_LSB   12       /* desviación estándar máxima de las lecturas (un giroscopio quieto da ~2 a 4) */
+#define IMU_SESGO_MAX_LSB        1000     /* sesgo máximo aceptable (~15 °/s) */
+#define IMU_CAL_QUIETO_MS        300      /* el carro debe llevar así de tiempo con los motores apagados para calibrar (que pase la vibración) */
+
+/* Actualización lenta del sesgo con el carro detenido (ZUPT): con los motores apagados más de IMU_ZUPT_QUIETO_MS y IMU_ZUPT_ESTABLES lecturas
+ * seguidas casi iguales, el sesgo se acerca 1/IMU_ZUPT_DIV de la diferencia en cada muestra. */
+#define IMU_ZUPT_QUIETO_MS       400
+#define IMU_ZUPT_UMBRAL_LSB      20       /* la lectura debe estar a menos de esto del sesgo */
+#define IMU_ZUPT_ESTABLES        20
+#define IMU_ZUPT_DIV             256
+
+/* Fallos: IMU_ERRORES_MAX errores seguidos del bus (o lecturas locas) marcan el giroscopio como caído. Una lectura idéntica IMU_CONGELADO_MUESTRAS veces seguidas
+ * (un giroscopio vivo siempre tiene algo de ruido) también. */
+#define IMU_ERRORES_MAX          3
+#define IMU_CONGELADO_MUESTRAS   200
+
+/* GIRO POR ÁNGULO (comando GIRAR:<grados>): positivo = izquierda, de GIRO_MIN_GRADOS a GIRO_MAX_GRADOS. Un pivote con un solo motor; se frena cuando
+ * (ángulo girado + velocidad x anticipación) llega al objetivo. La anticipación es cuánto sigue girando el carro después de frenar (inercia) en ms de velocidad actual; empieza en GIRO_ANTICIPACION_MS y,
+ * si GIRO_ANTICIPACION_AUTO es 1, se corrige sola después de cada giro con lo que giró de más o de menos (por lado, tope GIRO_ANTICIPACION_MAX_MS).
+ * Después de frenar se sigue integrando GIRO_ASENTAR_MS para informar el ángulo FINAL real. El giro tiene su propio tiempo máximo y NO depende del watchdog de 1 s. */
+#define GIRO_MIN_GRADOS          5
+#define GIRO_MAX_GRADOS          200
+#define GIRO_TIEMPO_BASE_MS      500
+#define GIRO_TIEMPO_POR_GRADO_MS 15
+#define GIRO_ANTICIPACION_MS     20
+#define GIRO_ANTICIPACION_AUTO   1
+#define GIRO_ANTICIPACION_MAX_MS 150
+#define GIRO_ASENTAR_MS          200
+
+/* SENSOR LÁSER VL53L0X: una lectura cada TOF_PERIODO_MS sin bloquear loop(). 8190, 65535, valores sobre TOF_LIBRE_MM o "sin eco" significan LIBRE (no hay nada a la vista).
+ * Parada de emergencia (solo perfil AUTO, solo avanzando): TOF_PARO_LECTURAS lecturas válidas seguidas menores de TOF_PARO_MM frenan con __STOP_AUTO y avisan TOF_PARO:<mm>.
+ * Tres errores seguidos, o más de TOF_SIN_DATOS_MS sin ninguna lectura, marcan el sensor como caído. */
+#define TOF_PERIODO_MS           33       /* tiempo de medida del sensor (el valor por defecto de la librería de Pololu) */
+#define TOF_SONDEO_MS            4        /* mientras espera la medida, pregunta si está lista cada tantos ms (no en cada vuelta, para no llenar el bus) */
+#define TOF_PARO_MM              120
+#define TOF_PARO_LECTURAS        2
+#define TOF_LIBRE_MM             1200
+#define TOF_MIN_VALIDO_MM        8        /* menos de esto es basura del sensor: se ignora (ni libre ni cerca) */
+#define TOF_ERRORES_MAX          3
+#define TOF_SIN_DATOS_MS         500
+
+/* Mensajes hacia la app: SENS cada SENS_PERIODO_MS mientras haya cliente y perfil AUTO. loop() no debe quedarse detenido más de LOOP_MAX_US. */
+#define SENS_PERIODO_MS          100
+#define LOOP_MAX_US              5000u
+#define MENSAJE_SALIDA_MAX       56       /* largo máximo (con el fin de texto) de un mensaje que sale hacia la app o el puerto serie */
+#define COLA_SALIDA_MAX          16
+
 #endif /* CONFIG_H */

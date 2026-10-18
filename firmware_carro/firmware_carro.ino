@@ -20,9 +20,13 @@
 #include "pagina.h"
 #include <esp_task_wdt.h>
 #include <Preferences.h>   /* memoria no volátil (NVS) del ESP32: ahí se guarda el balance de cada perfil */
+#include <Wire.h>          /* bus I2C del giroscopio MPU6050 y del láser VL53L0X */
+#include <VL53L0X.h>       /* librería de Pololu (licencia MIT), solo para el láser; el MPU6050 va con registros directos */
 
 #include "config.h"
 #include "carro.h"
+#include "hw_sensores.h"
+#include "sensores.h"
 
 AsyncWebServer server(PUERTO_HTTP);
 AsyncWebSocket ws(RUTA_WEBSOCKET);
@@ -72,6 +76,101 @@ extern "C" void hw_balance_guardar(int perfil, int milesimas)
     memoria.putInt(clave_balance(perfil), milesimas);
     memoria.end();
   }
+}
+
+/* ── Sensores I2C (giroscopio MPU6050 y láser VL53L0X) ─────────────────────
+ * Todo el acceso al bus ocurre desde loop() (vía sensores_actualizar) y desde setup(). Wire tiene un tiempo máximo de I2C_TIMEOUT_MS por transacción. */
+static VL53L0X laser;
+
+extern "C" uint32_t hw_micros(void)
+{
+  return (uint32_t)micros();
+}
+
+extern "C" void hw_demora_ms(uint32_t ms)
+{
+  delay(ms);
+}
+
+extern "C" int hw_i2c_leer(uint8_t dir, uint8_t reg, uint8_t *datos, int n)
+{
+  Wire.beginTransmission(dir);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0) {   /* false = reinicio repetido, sin soltar el bus */
+    return 1;
+  }
+  if (Wire.requestFrom((int)dir, n, (int)true) != n) {
+    return 2;
+  }
+  for (int i = 0; i < n; i++) {
+    datos[i] = (uint8_t)Wire.read();
+  }
+  return 0;
+}
+
+extern "C" int hw_i2c_escribir(uint8_t dir, uint8_t reg, const uint8_t *datos, int n)
+{
+  Wire.beginTransmission(dir);
+  Wire.write(reg);
+  for (int i = 0; i < n; i++) {
+    Wire.write(datos[i]);
+  }
+  return Wire.endTransmission() == 0 ? 0 : 1;
+}
+
+extern "C" int hw_i2c_presente(uint8_t dir)
+{
+  Wire.beginTransmission(dir);
+  return Wire.endTransmission() == 0 ? 1 : 0;
+}
+
+/* Láser: init() de Pololu espera al sensor (solo en setup). Después se mide de corrido y SIN esperar: se pregunta si hay medida lista (un registro) y solo entonces se lee. */
+extern "C" int hw_tof_iniciar(void)
+{
+  laser.setTimeout(20);
+  if (!laser.init()) {
+    return 0;
+  }
+  laser.setMeasurementTimingBudget((uint32_t)TOF_PERIODO_MS * 1000u);
+  laser.startContinuous(0);   /* una medida detrás de otra */
+  return 1;
+}
+
+extern "C" int hw_tof_listo(void)
+{
+  const uint8_t estado = laser.readReg(VL53L0X::RESULT_INTERRUPT_STATUS);
+  if (laser.last_status != 0) {
+    return -1;
+  }
+  return (estado & 0x07) ? 1 : 0;
+}
+
+extern "C" int hw_tof_leer(int *mm)
+{
+  const uint16_t valor = laser.readRangeContinuousMillimeters();   /* ya hay medida lista: no espera */
+  if (laser.last_status != 0 || laser.timeoutOccurred()) {
+    return 1;
+  }
+  *mm = (int)valor;
+  return 0;
+}
+
+/* Abre el bus y dice qué contesta en las dos direcciones (para el diagnóstico de cableado). */
+static void iniciar_i2c()
+{
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.setClock(I2C_FRECUENCIA_HZ);
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+  Serial.printf("I2C: SDA=GPIO%d SCL=GPIO%d a %d Hz\n", PIN_I2C_SDA, PIN_I2C_SCL, I2C_FRECUENCIA_HZ);
+  Serial.printf("I2C: MPU6050 0x%02X %s, VL53L0X 0x%02X %s\n", IMU_DIRECCION, hw_i2c_presente(IMU_DIRECCION) ? "RESPONDE" : "NO responde",
+                TOF_DIRECCION, hw_i2c_presente(TOF_DIRECCION) ? "RESPONDE" : "NO responde");
+  Serial.print("I2C: escaneo completo:");
+  for (uint8_t dir = 1; dir < 127; dir++) {
+    if (hw_i2c_presente(dir)) {
+      Serial.printf(" 0x%02X", dir);
+    }
+  }
+  Serial.println();
 }
 
 /* ── Inicialización de hardware ────────────────────────────────────────── */
@@ -240,6 +339,9 @@ void setup()
   carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
   carro_iniciar();   /* motores a 0 y estado "STOP" */
 
+  iniciar_i2c();
+  sensores_iniciar();   /* giroscopio (calibra el sesgo en loop, ~3 s con el carro quieto) y láser */
+
   iniciar_watchdog_hardware();
 
   iniciar_wifi();
@@ -257,12 +359,61 @@ void setup()
   Serial.println("Servidor listo.");
 }
 
+/* Saca los mensajes de sensores que hayan quedado en la cola de salida y los manda: al cliente WebSocket activo y/o por el puerto serie. */
+static void enviar_mensajes_de_sensores()
+{
+  char texto[MENSAJE_SALIDA_MAX];
+  int donde = 0;
+  while (sensores_extraer_mensaje(texto, sizeof texto, &donde)) {
+    if (donde & SENSORES_DESTINO_SERIE) {
+      Serial.println(texto);
+    }
+    if (donde & SENSORES_DESTINO_WS) {
+      carro_bloquear();
+      const uint32_t id = carro_cliente_activo();
+      carro_desbloquear();
+      if (id != 0u) {
+        ws.text(id, texto);
+      }
+    }
+  }
+}
+
+/* Comandos de diagnóstico por el cable USB (la PC no se conecta al WiFi del carro): líneas de texto terminadas en salto de línea. Solo los de sensores; NO mueven motores. */
+static void leer_comandos_serie()
+{
+  static char linea[LARGO_MAX_COMANDO];
+  static size_t largo = 0;
+  while (Serial.available() > 0) {
+    const char c = (char)Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (largo > 0) {
+        linea[largo] = '\0';
+        sensores_comando_serie(linea);
+      }
+      largo = 0;
+    } else if (largo < sizeof linea - 1) {
+      linea[largo++] = c;
+    } else {
+      largo = 0;   /* línea demasiado larga: se descarta */
+    }
+  }
+}
+
 void loop()
 {
+  const uint32_t inicio_us = micros();
+
   esp_task_wdt_reset();
   ws.cleanupClients();
 
+  sensores_actualizar();   /* único lugar de loop() donde se toca el bus I2C */
   carro_procesar_cola();
   carro_vigilar_comunicacion();
   carro_actualizar_keepalive();
+
+  enviar_mensajes_de_sensores();
+  leer_comandos_serie();
+
+  sensores_registrar_loop_us((uint32_t)micros() - inicio_us);   /* LOOP? informa el peor caso */
 }
