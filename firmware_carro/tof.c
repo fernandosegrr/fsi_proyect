@@ -9,6 +9,7 @@
  * Si el bus falla TOF_ERRORES_MAX veces seguidas, o pasan TOF_SIN_DATOS_MS sin ninguna lectura, el sensor se da por caído y no se vuelve a usar.
  */
 
+#include <stddef.h>
 #include <stdint.h>
 #include "tof.h"
 #include "hw_sensores.h"
@@ -28,6 +29,10 @@ static int      ventana[3];                   /* para la mediana */
 static int      ventana_n       = 0;
 static int      filtrado        = TOF_LIBRE_MM;
 static uint32_t total_lecturas  = 0;
+static int      reintentos_arranque = 0;   /* reintentos de inicio en este arranque (setup) */
+static int      reintentos_total    = 0;   /* ...y los que se hicieron después */
+static uint32_t proximo_reintento_ms = 0;  /* cuándo toca volver a intentar si el sensor no está vivo */
+static int      hay_reintento_programado = 0;
 
 static void caer(void)
 {
@@ -37,10 +42,50 @@ static void caer(void)
     vivo = 0;
     cerca_seguidas = 0;
     valida = 0;
+    hay_reintento_programado = 0;   /* el primer reintento se programa en la siguiente vuelta, TOF_REINTENTO_MS después */
 }
+
+/* El historial de arranques va empaquetado en un entero: los TOF_HIST_ARRANQUES dígitos hexadecimales de abajo (reintentos de cada arranque, el más nuevo a la derecha) y arriba, en los bits 20 a 22, cuántos hay anotados. */
+static void anotar_arranque(int reintentos)
+{
+    int guardado = hw_tof_hist_leer();
+    int n = (guardado < 0) ? 0 : (guardado >> 20) & 7;
+    int digitos = (guardado < 0) ? 0 : (guardado & 0xFFFFF);
+
+    digitos = ((digitos << 4) | (reintentos > 15 ? 15 : reintentos)) & 0xFFFFF;
+    if (n < TOF_HIST_ARRANQUES) {
+        n++;
+    }
+    hw_tof_hist_guardar((n << 20) | digitos);
+}
+
+void tof_historial(int *n, int *con_reintentos, int *empaquetado)
+{
+    int guardado = hw_tof_hist_leer();
+    int cuantos = (guardado < 0) ? 0 : (guardado >> 20) & 7;
+    int digitos = (guardado < 0) ? 0 : (guardado & 0xFFFFF);
+    int i, con = 0;
+
+    for (i = 0; i < cuantos; i++) {
+        if (((digitos >> (4 * i)) & 15) > 0) {
+            con++;
+        }
+    }
+    if (n != NULL) *n = cuantos;
+    if (con_reintentos != NULL) *con_reintentos = con;
+    if (empaquetado != NULL) *empaquetado = digitos;
+}
+
+int tof_reintentos_arranque(void) { return reintentos_arranque; }
+int tof_reintentos(void)          { return reintentos_total; }
 
 int tof_iniciar(void)
 {
+    int intento;
+
+    reintentos_arranque = 0;
+    reintentos_total = 0;
+    hay_reintento_programado = 0;
     vivo = 0;
     errores = 0;
     hay_lectura = 0;
@@ -51,9 +96,17 @@ int tof_iniciar(void)
     filtrado = TOF_LIBRE_MM;
     total_lecturas = 0;
     proximo_ms = 0;
-    if (hw_tof_iniciar()) {
-        vivo = 1;
+    for (intento = 0; intento < TOF_INTENTOS_INICIO && !vivo; intento++) {
+        if (intento > 0) {
+            hw_demora_ms(TOF_PAUSA_INICIO_MS);   /* el sensor a veces se está despertando: se espera y se reintenta */
+            reintentos_arranque++;
+        }
+        if (hw_tof_iniciar()) {
+            vivo = 1;
+        }
     }
+    reintentos_total = reintentos_arranque;
+    anotar_arranque(reintentos_arranque);
     return vivo;
 }
 
@@ -115,12 +168,39 @@ void tof_probar_lectura(int mm_crudo, uint32_t ahora_ms)
     procesar(mm_crudo, ahora_ms);
 }
 
-void tof_actualizar(uint32_t ahora_ms)
+void tof_actualizar(uint32_t ahora_ms, int puede_bloquear)
 {
     int listo;
     int crudo = 0;
 
     if (!vivo) {
+        /* Sin sensor: cada TOF_REINTENTO_MS se pregunta si contesta (una sola transacción del bus) y, si contesta y el carro está quieto, se vuelve a iniciar. */
+        if (!hay_reintento_programado) {
+            hay_reintento_programado = 1;
+            proximo_reintento_ms = ahora_ms + TOF_REINTENTO_MS;
+            return;
+        }
+        if ((int32_t)(ahora_ms - proximo_reintento_ms) < 0) {
+            return;
+        }
+        if (!puede_bloquear) {
+            proximo_reintento_ms = ahora_ms + 500u;   /* con el carro en marcha no se hace nada que espere: se vuelve a mirar en medio segundo */
+            return;
+        }
+        proximo_reintento_ms = ahora_ms + TOF_REINTENTO_MS;
+        if (!hw_i2c_presente(TOF_DIRECCION)) {
+            return;   /* ni contesta en el bus (cable, sin energía): no hay nada que iniciar */
+        }
+        reintentos_total++;
+        if (hw_tof_iniciar()) {
+            vivo = 1;
+            errores = 0;
+            hay_lectura = 0;
+            arranque_marcado = 0;
+            ventana_n = 0;
+            proximo_ms = 0;
+            eventos |= TOF_EVT_RECUPERADO;
+        }
         return;
     }
     if (!hay_lectura && !arranque_marcado) {

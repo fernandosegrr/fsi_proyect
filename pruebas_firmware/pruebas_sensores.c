@@ -794,6 +794,135 @@ static void prueba_giro_variable(void)
     caso("... y a la derecha", buenos[1] >= 8);
 }
 
+/* ── J12: el laser reintenta cada 5 s sin bloquear, cuenta los reintentos y recuerda los ultimos arranques ───── */
+
+/* Enciende todo desde cero con `fallos` intentos de inicio del laser que van a fallar, SIN borrar la memoria del historial de arranques (un reinicio del carro). */
+static void reiniciar_carro_con_laser(int fallos, int borrar_memoria)
+{
+    int hist = falso_tof_hist;
+    int ant[4];
+
+    memcpy(ant, falso_ant, sizeof ant);
+    memset(pwm, 0, sizeof pwm);
+    n_msg = 0;
+    omega_dps = 0.0;
+    angulo_real_deg = 0.0;
+    falso_sensores_reiniciar();
+    if (!borrar_memoria) {
+        falso_tof_hist = hist;
+        memcpy(falso_ant, ant, sizeof ant);
+    }
+    falso_imu_ruido = 3;
+    falso_tof_fallos_inicio = fallos;
+    carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
+    carro_iniciar();
+    sensores_iniciar();
+}
+
+static void prueba_laser_reintentos(void)
+{
+    int n, con, emp, i;
+    const char *m;
+
+    printf("-- J12: reintentos del laser (al arrancar y despues de una caida) --\n");
+
+    /* 1. Arranque limpio: 0 reintentos. */
+    reiniciar_carro_con_laser(0, 1);
+    avanzar_ms(3200);
+    caso("arranque limpio: el laser vive y los reintentos son 0 (CAPS:...,TOFR=0)", tof_vivo() && tof_reintentos() == 0 && tof_reintentos_arranque() == 0 && ultimo_mensaje("CAPS:IMU=1,TOF=1,TOFR=0") != NULL);
+
+    /* 2. El primer intento falla y el 3.o sirve: 2 reintentos, y aparecen en CAPS. */
+    reiniciar_carro_con_laser(2, 1);
+    avanzar_ms(3200);
+    printf("      arranque con 2 fallos de inicio: reintentos %d, intentos hechos %d\n", tof_reintentos_arranque(), falso_tof_iniciar_llamadas);
+    caso("el primer intento falla y el 3.o sirve: el laser vive con 2 reintentos de arranque", tof_vivo() && tof_reintentos_arranque() == 2 && falso_tof_iniciar_llamadas == 3);
+    orden("CAPS?");
+    avanzar_ms(5);
+    m = ultimo_mensaje("CAPS:");
+    caso("CAPS? lo dice: CAPS:IMU=1,TOF=1,TOFR=2", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2") == 0);
+
+    /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
+    reiniciar_carro_con_laser(5, 1);
+    avanzar_ms(1000);
+    caso("los 5 intentos de arranque fallan: el laser queda sin funcionar (4 reintentos de arranque) y CAPS dice TOF=0", !tof_vivo() && tof_reintentos_arranque() == 4 && falso_tof_iniciar_llamadas == 5 && ultimo_mensaje("CAPS:IMU=0,TOF=0,TOFR=4") != NULL);
+    {
+        int llamadas = falso_tof_iniciar_llamadas;
+
+        avanzar_ms(2000);
+        caso("el siguiente intento NO es inmediato: a los ~3 s todavia no hubo ninguno (se espera TOF_REINTENTO_MS)", falso_tof_iniciar_llamadas == llamadas);
+        falso_tof_fallos_inicio = 0;      /* el sensor ya esta bien */
+        avanzar_ms(3500);                 /* pasaron mas de 5 s */
+        caso("a los 5 s sin laser reintenta solo (con el carro quieto), lo logra y avisa CAPS:...,TOF=1,TOFR=5", tof_vivo() && tof_reintentos() == 5 && falso_tof_iniciar_llamadas == llamadas + 1 &&
+             ultimo_mensaje("CAPS:IMU=1,TOF=1,TOFR=5") != NULL);
+        falso_tof_mm = 300;
+        avanzar_ms(300);
+        caso("y vuelve a medir (300 mm)", tof_mm() == 300 && tof_valida());
+    }
+
+    /* 4. El reintento no ocurre con el carro en marcha (espera) y ocurre al detenerse. */
+    reiniciar_carro_con_laser(5, 1);
+    avanzar_ms(1000);
+    falso_tof_fallos_inicio = 0;
+    orden("FORWARD");
+    for (i = 0; i < 16; i++) {
+        avanzar_ms(800);
+        orden("FORWARD");                 /* sigue avanzando 12 s: el reintento ya toco, pero con el carro en marcha no se hace nada que espere */
+    }
+    caso("con el carro avanzando no se intenta iniciar el laser (el intento puede esperar al sensor) aunque ya toque", !tof_vivo() && falso_tof_iniciar_llamadas == 5);
+    orden("STOP");
+    avanzar_ms(1500);
+    caso("al detenerse el carro (300 ms) el reintento pendiente se hace y el laser vuelve", tof_vivo() && falso_tof_iniciar_llamadas == 6);
+
+    /* 5. Sin energia (no contesta en 0x29): solo se pregunta (barato), nunca se inicia. */
+    reiniciar_carro_con_laser(0, 1);
+    avanzar_ms(3200);
+    falso_tof_presente = 0;               /* se desconecta el cable */
+    avanzar_ms(1500);
+    caso("se cae el laser (deja de dar medidas): TOF=0", !tof_vivo());
+    {
+        int llamadas = falso_tof_iniciar_llamadas;
+
+        avanzar_ms(16000);                /* 3 periodos de 5 s */
+        caso("sin contestar en el bus nunca se llama a la inicializacion (solo se pregunta si contesta)", falso_tof_iniciar_llamadas == llamadas && !tof_vivo());
+        falso_tof_presente = 1;           /* se vuelve a conectar */
+        avanzar_ms(5500);
+        caso("al volver a contestar se inicia solo (sin reiniciar el carro) y el laser vuelve", tof_vivo() && falso_tof_iniciar_llamadas == llamadas + 1);
+    }
+
+    /* 6. Se cae a mitad de ruta y se recupera. */
+    reiniciar_carro_con_laser(0, 1);
+    avanzar_ms(3200);
+    falso_tof_modo = 1;                   /* 3 errores del bus seguidos */
+    avanzar_ms(200);
+    caso("3 errores seguidos del bus: se cae", !tof_vivo());
+    falso_tof_modo = 0;
+    avanzar_ms(2500);
+    caso("antes de 5 s no reintenta", !tof_vivo());
+    avanzar_ms(3500);
+    caso("pasados 5 s reintenta y se recupera", tof_vivo());
+
+    /* 7. Historial de los ultimos 5 arranques en la memoria. */
+    reiniciar_carro_con_laser(0, 1);                       /* arranque 1: sin reintentos */
+    reiniciar_carro_con_laser(2, 0);                       /* arranque 2: 2 reintentos */
+    reiniciar_carro_con_laser(0, 0);
+    reiniciar_carro_con_laser(1, 0);
+    reiniciar_carro_con_laser(0, 0);                       /* arranque 5 */
+    tof_historial(&n, &con, &emp);
+    printf("      historial tras 5 arranques [0,2,0,1,0]: n=%d, con reintentos=%d, empaquetado=%05X\n", n, con, emp);
+    caso("el historial recuerda 5 arranques: 2 con reintentos (el 2.o y el 4.o) y los dibuja 0,2,0,1,0", n == 5 && con == 2 && emp == 0x02010);
+    orden("ARR?");
+    avanzar_ms(5);
+    m = ultimo_mensaje("ARR:");
+    caso("ARR? -> ARR:5,2,02010,0 (arranques anotados, con reintentos, cada uno, este arranque)", m != NULL && strcmp(m, "ARR:5,2,02010,0") == 0);
+    reiniciar_carro_con_laser(3, 0);                       /* un 6.o arranque con 3 reintentos: el mas viejo sale */
+    tof_historial(&n, &con, &emp);
+    caso("al 6.o arranque el mas viejo sale: quedan los ultimos 5 (2,0,1,0,3)", n == 5 && con == 3 && emp == 0x20103);
+    reiniciar_carro_con_laser(0, 1);
+    reiniciar_carro_con_laser(0, 0);
+    tof_historial(&n, &con, &emp);
+    caso("sin reintentos nunca hay avisos: 2 arranques limpios -> n=2, con reintentos=0", n == 2 && con == 0);
+}
+
 /* ── J12: la anticipación es independiente por sentido y por perfil, aprende con la mediana y se guarda ───────── */
 
 static int ant_auto_izq(void) { return giro_anticipacion_ms(PERFIL_AUTO, 1); }
@@ -1218,13 +1347,13 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido (calibrando) -> CAPS:IMU=0,TOF=1", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1") == 0);
+    caso("CAPS? recien encendido (calibrando) -> CAPS:IMU=0,TOF=1,TOFR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0") == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo -> CAPS:IMU=1,TOF=1", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1") == 0);
+    caso("CAPS? con todo listo -> CAPS:IMU=1,TOF=1,TOFR=0", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0") == 0);
     orden("IMU?");
     avanzar_ms(5);
     m = ultimo_mensaje("IMU:");
@@ -1399,6 +1528,7 @@ int main(void)
     prueba_giro_sin_watchdog();
     prueba_giro_variable();
     prueba_anticipacion_por_sentido();
+    prueba_laser_reintentos();
     prueba_laser_lecturas();
     prueba_laser_paro();
     prueba_laser_fallos();

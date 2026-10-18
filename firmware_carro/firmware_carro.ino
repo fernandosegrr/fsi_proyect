@@ -70,6 +70,25 @@ extern "C" int hw_balance_leer(int perfil)
   return valor;
 }
 
+/* Historial de reintentos del láser en los últimos arranques (número empaquetado, ver tof.c). */
+extern "C" int hw_tof_hist_leer(void)
+{
+  int valor = 0;
+  if (memoria.begin("carro", true)) {
+    valor = memoria.getInt("tofHist", 0);
+    memoria.end();
+  }
+  return valor > 0 ? valor - 1 : -1;
+}
+
+extern "C" void hw_tof_hist_guardar(int valor)
+{
+  if (memoria.begin("carro", false)) {
+    memoria.putInt("tofHist", valor + 1);
+    memoria.end();
+  }
+}
+
 /* Anticipación del giro por ángulo (4 ranuras: perfil x sentido). Se guarda ms + 1 para distinguir «0 ms» de «nada guardado». */
 static const char *clave_anticipacion(int ranura)
 {
@@ -163,15 +182,8 @@ extern "C" int hw_i2c_presente(uint8_t dir)
 extern "C" int hw_tof_iniciar(void)
 {
   laser.setTimeout(20);
-  /* init() de Pololu falla de vez en cuando justo después de encender (el sensor aún se está despertando): se reintenta TOF_INTENTOS_INICIO veces con una pausa. */
-  bool listo = false;
-  for (int intento = 0; intento < TOF_INTENTOS_INICIO && !listo; intento++) {
-    if (intento > 0) {
-      delay(TOF_PAUSA_INICIO_MS);
-    }
-    listo = laser.init();
-  }
-  if (!listo) {
+  /* UN solo intento: los reintentos (y su cuenta) los hace tof.c, que también reintenta cada TOF_REINTENTO_MS si el láser se cae. */
+  if (!laser.init()) {
     return 0;
   }
   laser.setMeasurementTimingBudget((uint32_t)TOF_PERIODO_MS * 1000u);

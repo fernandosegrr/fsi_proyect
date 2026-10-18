@@ -86,6 +86,21 @@ class ControlLogica(
     var capsLaser: Boolean? = null
         private set
 
+    /** Reintentos de inicio del láser desde que se encendió el carro (CAPS:...,TOFR=n); 0 si todo arrancó a la primera. */
+    var tofReintentos = 0
+        private set
+
+    /** Historial de los últimos arranques (ARR?): cuántos hay anotados, en cuántos el láser necesitó reintentos y los reintentos de cada uno (hexadecimal, el más nuevo a la derecha). */
+    var arranquesAnotados = 0
+        private set
+    var arranquesConReintentos = 0
+        private set
+    var arranquesDetalle = ""
+        private set
+
+    /** true si el láser necesitó reintentos en más de 1 de cada 5 arranques (cableado, XSHUT o pull-ups). */
+    val laserArrancaMal: Boolean get() = arranquesAnotados >= 3 && arranquesConReintentos * 5 > arranquesAnotados
+
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true
     var usarSensorDistancia = true
@@ -350,6 +365,7 @@ class ControlLogica(
     /** Pregunta qué sensores funcionan (CAPS?), y le dice al firmware si hay que hacer caso al láser (TOF_USO). */
     fun pedirCapacidades() {
         enviar("CAPS?")
+        enviar("ARR?")
         enviar("TOF_USO:${if (usarSensorDistancia) 1 else 0}")
     }
 
@@ -477,6 +493,7 @@ class ControlLogica(
                     val tof = texto.contains("TOF=1")
                     capsGiroscopio = imu
                     capsLaser = tof
+                    tofReintentos = Regex("TOFR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     Log.i("SENS_DIAG", "capacidades del firmware: giroscopio=$imu laser=$tof (interruptores: giroscopio=$usarGiroscopio laser=$usarSensorDistancia)")
                     alCambiar()
                 }
@@ -506,6 +523,16 @@ class ControlLogica(
                     Log.i("SENS_DIAG", "TOF_PARO: el laser freno el carro con algo a $mm mm")
                     alTofParo?.invoke(mm)
                     alCambiar()
+                }
+                texto.startsWith("ARR:") -> {
+                    val p = texto.substring(4).split(",")
+                    if (p.size >= 3) {
+                        arranquesAnotados = p[0].toIntOrNull() ?: 0
+                        arranquesConReintentos = p[1].toIntOrNull() ?: 0
+                        arranquesDetalle = p[2]
+                        Log.i("SENS_DIAG", "arranques del laser: anotados=$arranquesAnotados con_reintentos=$arranquesConReintentos detalle=${p[2]}")
+                        alCambiar()
+                    }
                 }
                 texto.startsWith("IMU_CAL_OK:") -> {
                     sesgoX100 = texto.substring(11).toIntOrNull()

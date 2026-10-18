@@ -98,16 +98,17 @@ void sensores_reiniciar_estado(void)
     giro_reiniciar();
 }
 
+/* Bit 0 = giroscopio listo, bit 1 = láser vivo; de ahí para arriba, los reintentos del láser (para avisar a la app cuando cambian). */
 static int capacidades(void)
 {
-    return (imu_estado() == IMU_ESTADO_LISTA ? 1 : 0) | (tof_vivo() ? 2 : 0);
+    return (imu_estado() == IMU_ESTADO_LISTA ? 1 : 0) | (tof_vivo() ? 2 : 0) | (tof_reintentos() << 2);
 }
 
 static void texto_caps(char *dest, int largo)
 {
     int c = capacidades();
 
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d", c & 1, (c >> 1) & 1);
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d", c & 1, (c >> 1) & 1, tof_reintentos());   /* TOFR: reintentos de inicio del láser desde el arranque */
 }
 
 void sensores_iniciar(void)
@@ -150,6 +151,9 @@ static void revisar_eventos(void)
     }
     if (et & TOF_EVT_MAL) {
         hw_registrar("TOF: MAL (dejo de responder)");
+    }
+    if (et & TOF_EVT_RECUPERADO) {
+        hw_registrar("TOF: volvio a funcionar tras un reintento");
     }
     c = capacidades();
     if (c != caps_anunciadas) {
@@ -217,7 +221,7 @@ void sensores_actualizar(void)
     uint32_t ahora_ms = hw_millis();
 
     imu_actualizar(hw_micros(), carro_quieto_ms());
-    tof_actualizar(ahora_ms);
+    tof_actualizar(ahora_ms, carro_quieto_ms() >= TOF_REINTENTO_QUIETO_MS && !giro_ocupado());   /* el reintento del láser solo se hace con el carro detenido */
     giro_actualizar(ahora_ms);
     revisar_eventos();
     revisar_paro_tof();
@@ -242,7 +246,7 @@ uint32_t sensores_paros_tof(void)    { return paros_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
 
 int sensores_es_comando(const char *texto)
 {
@@ -304,6 +308,13 @@ static void ejecutar(const char *texto, int donde)
         /* ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> en ms */
         snprintf(respuesta, sizeof respuesta, "ANT:%d,%d,%d,%d", giro_anticipacion_ms(PERFIL_AUTO, 1), giro_anticipacion_ms(PERFIL_AUTO, -1),
                  giro_anticipacion_ms(PERFIL_MANUAL, 1), giro_anticipacion_ms(PERFIL_MANUAL, -1));
+        sensores_enviar(donde, respuesta);
+    } else if (strcmp(texto, "ARR?") == 0) {
+        /* ARR:<arranques anotados>,<con reintentos del láser>,<reintentos de cada uno en hexadecimal, el más nuevo a la derecha>,<reintentos de este arranque> */
+        int n, con, emp;
+
+        tof_historial(&n, &con, &emp);
+        snprintf(respuesta, sizeof respuesta, "ARR:%d,%d,%05X,%d", n, con, emp, tof_reintentos_arranque());
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "ANT_BORRAR") == 0) {
         giro_borrar_anticipaciones();

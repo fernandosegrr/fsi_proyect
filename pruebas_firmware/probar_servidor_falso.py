@@ -117,7 +117,7 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? se contesta CAPS:IMU=1,TOF=1", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1")
+            caso("sensores: CAPS? se contesta CAPS:IMU=1,TOF=1", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0")
             sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]
             caso("sensores: SENS llega solo, cada ~100 ms, con perfil AUTO (8 en menos de 3.2 s)", len(sens) == 8 and sens[-1].count(",") == 2)
             await ws.send("GIRAR:90")

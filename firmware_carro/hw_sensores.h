@@ -35,6 +35,10 @@ int hw_tof_iniciar(void);
 int hw_tof_listo(void);
 int hw_tof_leer(int *mm);
 
+/* Memoria no volátil del historial de reintentos del láser en los últimos arranques (un número empaquetado, ver tof.c): hw_tof_hist_leer devuelve -1 si no hay nada. */
+int  hw_tof_hist_leer(void);
+void hw_tof_hist_guardar(int valor);
+
 /* Memoria no volátil de la anticipación del giro: 4 ranuras (perfil x sentido, ver giro.c). hw_ant_leer devuelve los ms guardados o -1 si no hay nada; hw_ant_borrar las borra todas. */
 int  hw_ant_leer(int ranura);
 void hw_ant_guardar(int ranura, int ms);

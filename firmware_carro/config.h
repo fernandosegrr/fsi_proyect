@@ -218,8 +218,13 @@
 #define TOF_LIBRE_MM             1200
 #define TOF_MIN_VALIDO_MM        8        /* menos de esto es basura del sensor: se ignora (ni libre ni cerca) */
 #define TOF_ERRORES_MAX          3
-#define TOF_INTENTOS_INICIO      5        /* init() de la librería de Pololu falla a veces justo al encender: se reintenta */
+#define TOF_INTENTOS_INICIO      5        /* init() de la librería de Pololu falla a veces justo al encender: se reintenta (los reintentos se cuentan: CAPS y ARR?) */
 #define TOF_PAUSA_INICIO_MS      100
+/* Si el láser no inicia o se cae, se vuelve a intentar cada TOF_REINTENTO_MS. El intento es barato (¿contesta en 0x29?) y solo si contesta se llama a la inicialización de la librería, que sí
+ * espera al sensor unas decenas de ms: por eso solo se hace con el carro detenido (TOF_REINTENTO_QUIETO_MS sin motores y sin giro). Se recuerdan los reintentos de los últimos TOF_HIST_ARRANQUES arranques. */
+#define TOF_REINTENTO_MS         5000
+#define TOF_REINTENTO_QUIETO_MS  300
+#define TOF_HIST_ARRANQUES       5
 #define TOF_SIN_DATOS_MS         500
 
 /* Mensajes hacia la app: SENS cada SENS_PERIODO_MS mientras haya cliente y perfil AUTO. loop() no debe quedarse detenido más de LOOP_MAX_US. */

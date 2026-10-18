@@ -24,6 +24,9 @@
     <string name="sens_por_tiempo">Por tiempo (calibración)</string>
     <string name="sens_girar_izq">90° izq.</string>
     <string name="sens_girar_der">90° der.</string>
+    <string name="sens_laser_reintentos">Láser: %1$d reintento(s) de inicio desde que se encendió el carro</string>
+    <string name="sens_arranques">Últimos arranques con reintentos del láser: %1$d de %2$d</string>
+    <string name="sens_aviso_arranques">El láser necesitó reintentos en más de 1 de cada 5 arranques. Revisa el cableado (SDA, SCL, VIN y GND firmes y soldados), el pin XSHUT (libre o a 3V3) y las resistencias pull-up.</string>
     <string name="sens_sin_firmware">El carro no contestó a CAPS?: tiene el firmware viejo o los sensores no funcionan. Todo sigue como antes (giros por tiempo).</string>
     <string name="sens_sin_giroscopio_prueba">El giroscopio no está disponible: no se puede girar por ángulo.</string>
     <string name="sens_sin_conexion_prueba">Primero conecta con el carro.</string>

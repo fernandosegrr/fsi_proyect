@@ -122,7 +122,9 @@ async def procesar_sensores(conexion, mensaje):
     """Los mensajes del giroscopio y del laser (solo con --sensores). Devuelve True si el mensaje era de los sensores."""
     s = estado["sens"]
     if mensaje == "CAPS?":
-        await mandar(conexion, "CAPS:IMU=%d,TOF=%d" % (1 if s["imu"] else 0, 1 if s["tof"] else 0))
+        await mandar(conexion, "CAPS:IMU=%d,TOF=%d,TOFR=0" % (1 if s["imu"] else 0, 1 if s["tof"] else 0))
+    elif mensaje == "ARR?":
+        await mandar(conexion, "ARR:5,0,00000,0")   # los ultimos 5 arranques sin reintentos del laser
     elif mensaje == "IMU?":
         await mandar(conexion, "IMU:%d,%d,%d,104" % (s["angulo_x10"], s["sesgo_x100"], 2 if s["imu"] else 3))
     elif mensaje == "TOF?":
@@ -192,7 +194,7 @@ async def procesar(conexion, mensaje):
         return
 
     intervalo = ms_desde_anterior()
-    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL") or mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:"))):
+    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL") or mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:"))):
         imprimir("%s  %s" % (intervalo, mensaje))
         await procesar_sensores(conexion, mensaje)
         return

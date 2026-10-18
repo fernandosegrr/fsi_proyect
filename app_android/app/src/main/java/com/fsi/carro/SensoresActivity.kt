@@ -179,8 +179,11 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         textoLaser.text = if (!contesto) "Láser: sin respuesta del carro"
             else if (!laserOk) "Láser: MAL (no funciona; sin freno de emergencia)"
             else "Láser: ok · " + (if (!hayDistancia) "distancia —" else if (logica.banderasSens and 4 != 0) "${logica.distanciaMm} mm" else "libre (más de 1.2 m)") +
-                (if (logica.usarSensorDistancia) " · en uso" else " · apagado")
-        textoAviso.text = if (!conectado) getString(R.string.sens_sin_conexion_prueba) else if (!contesto) getString(R.string.sens_sin_firmware) else logica.ultimoAvisoSensores
+                (if (logica.usarSensorDistancia) " · en uso" else " · apagado") +
+                (if (logica.tofReintentos > 0) "\n" + getString(R.string.sens_laser_reintentos, logica.tofReintentos) else "") +
+                (if (logica.arranquesAnotados > 0) "\n" + getString(R.string.sens_arranques, logica.arranquesConReintentos, logica.arranquesAnotados) else "")
+        textoAviso.text = if (!conectado) getString(R.string.sens_sin_conexion_prueba) else if (!contesto) getString(R.string.sens_sin_firmware) else
+            (if (logica.laserArrancaMal) getString(R.string.sens_aviso_arranques) + "\n" else "") + logica.ultimoAvisoSensores
         textoAviso.visibility = if (textoAviso.text.isEmpty()) View.GONE else View.VISIBLE
         val puedeProbar = conectado && !probando && logica.perfilConfirmado == ControlLogica.Perfil.AUTO
         botonIzq.isEnabled = puedeProbar

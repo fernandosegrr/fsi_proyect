@@ -25,6 +25,9 @@ int  falso_tof_lecturas;
 
 int  falso_i2c_transacciones;
 int  falso_ant[4];
+int  falso_tof_fallos_inicio;
+int  falso_tof_iniciar_llamadas;
+int  falso_tof_hist = -1;
 int  falso_ant_escrituras;
 
 static uint8_t  regs[128];
@@ -50,6 +53,9 @@ void falso_sensores_reiniciar(void)
     falso_i2c_transacciones = 0;
     falso_ant[0] = falso_ant[1] = falso_ant[2] = falso_ant[3] = -1;
     falso_ant_escrituras = 0;
+    falso_tof_fallos_inicio = 0;
+    falso_tof_iniciar_llamadas = 0;
+    falso_tof_hist = -1;
     memset(regs, 0, sizeof regs);
     tof_ultima_us = falso_us;
     semilla = 12345u;
@@ -141,16 +147,27 @@ int  hw_ant_leer(int ranura)           { return falso_ant[ranura & 3]; }
 void hw_ant_guardar(int ranura, int ms) { falso_ant[ranura & 3] = ms; falso_ant_escrituras++; }
 void hw_ant_borrar(void)                { falso_ant[0] = falso_ant[1] = falso_ant[2] = falso_ant[3] = -1; }
 
+int  hw_tof_hist_leer(void)        { return falso_tof_hist; }
+void hw_tof_hist_guardar(int valor) { falso_tof_hist = valor; }
+
 int hw_tof_iniciar(void)
 {
+    falso_tof_iniciar_llamadas++;
     tof_ultima_us = falso_us;
-    return falso_tof_presente ? 1 : 0;
+    if (!falso_tof_presente) {
+        return 0;
+    }
+    if (falso_tof_fallos_inicio > 0) {
+        falso_tof_fallos_inicio--;
+        return 0;
+    }
+    return 1;
 }
 
 int hw_tof_listo(void)
 {
     falso_i2c_transacciones++;
-    if (falso_tof_modo == 1) {
+    if (!falso_tof_presente || falso_tof_modo == 1) {   /* sin energia o con el cable suelto el bus falla */
         return -1;
     }
     if (falso_tof_modo == 2) {
@@ -162,7 +179,7 @@ int hw_tof_listo(void)
 int hw_tof_leer(int *mm)
 {
     falso_i2c_transacciones++;
-    if (falso_tof_modo == 1) {
+    if (!falso_tof_presente || falso_tof_modo == 1) {
         return 3;
     }
     *mm = falso_tof_mm;

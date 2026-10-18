@@ -34,6 +34,11 @@ extern int  falso_tof_lecturas;          /* cuántas medidas se leyeron */
 /* Contador de todas las transacciones del bus (para ver cuánto se usa). */
 extern int  falso_i2c_transacciones;
 
+/* Láser: cuántos intentos de hw_tof_iniciar van a fallar todavía y cuántas veces se llamó; historial de arranques en la memoria falsa (-1 = nada). */
+extern int  falso_tof_fallos_inicio;
+extern int  falso_tof_iniciar_llamadas;
+extern int  falso_tof_hist;
+
 /* Memoria no volátil falsa de la anticipación del giro: 4 ranuras (-1 = nada) y cuántas escrituras hubo. */
 extern int  falso_ant[4];
 extern int  falso_ant_escrituras;
