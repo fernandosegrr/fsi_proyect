@@ -54,6 +54,16 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private val alCambiar: () -> Unit = { mostrar() }
 
+    /** El aviso «el carro no contestó»: se cancela en cuanto llega la respuesta, al empezar otra prueba y al parar (si no, el aviso de una prueba vieja marcaba como fallida la siguiente). */
+    private val tareaSinRespuesta = Runnable {
+        if (probando) {
+            probando = false
+            textoResultado.text = "El carro no contestó al giro en ${ESPERA_GIRO_MS / 1000} s (¿sensor caído?)."
+            Log.w(ETIQUETA, "prueba_giro sin_respuesta")
+            mostrar()
+        }
+    }
+
     private val tareaReloj = object : Runnable {
         override fun run() {
             mostrar()
@@ -135,6 +145,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private fun parar(motivo: String) {
         reloj.removeCallbacksAndMessages(null)
+        reloj.removeCallbacks(tareaSinRespuesta)
         reloj.post(tareaReloj)
         if (probando) {
             Log.i(ETIQUETA, "prueba_giro cancelada: $motivo")
@@ -189,6 +200,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             textoResultado.setText(R.string.sens_sin_giroscopio_prueba)
             return
         }
+        reloj.removeCallbacks(tareaSinRespuesta)
         probando = true
         inicioMs = android.os.SystemClock.elapsedRealtime()
         angulo0X10 = logica.anguloX10
@@ -197,14 +209,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             textoResultado.text = "Girando 90° a la $lado por ángulo…"
             Log.i(ETIQUETA, "prueba_giro inicio por=angulo lado=$lado objetivo=$grados")
             logica.girar(grados)
-            reloj.postDelayed({
-                if (probando) {
-                    probando = false
-                    textoResultado.text = "El carro no contestó al giro en ${ESPERA_GIRO_MS / 1000} s (¿sensor caído?)."
-                    Log.w(ETIQUETA, "prueba_giro sin_respuesta por=angulo lado=$lado")
-                    mostrar()
-                }
-            }, ESPERA_GIRO_MS)
+            reloj.postDelayed(tareaSinRespuesta, ESPERA_GIRO_MS)
         } else {
             val lado0 = if (grados > 0) CalibracionNativa.LADO_IZQUIERDA else CalibracionNativa.LADO_DERECHA
             val ms = CalibracionNativa.gradosAMs(guardada.leerAjustada(ControlLogica.Perfil.AUTO), lado0 * 90)
@@ -235,6 +240,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         if (!probando) {
             return
         }
+        reloj.removeCallbacks(tareaSinRespuesta)
         probando = false
         val estado = when (codigo) {
             NavegadorNativa.GIRO_OK -> "OK"

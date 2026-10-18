@@ -6,7 +6,7 @@
        1. INTERRUPTORES: «Usar giroscopio» y «Usar sensor de distancia». Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona.
           Apagados, el carro se comporta como antes (giros por tiempo y sin freno del láser).
        2. ESTADO: giroscopio (ok/mal, ángulo, sesgo) y láser (distancia en mm, ok/mal) en vivo, y los botones «Recalibrar giroscopio» (carro quieto) y «Ángulo en cero».
-       3. PRUEBA DE GIRO: «por ángulo (giroscopio)» o «por tiempo (calibración)» y los botones de 90° a la izquierda y a la derecha. El resultado (ángulo medido y ms) queda en el log como SENS_DIAG.
+       3. PRUEBA DE GIRO: el resultado arriba, «por ángulo (giroscopio)» o «por tiempo (calibración)» y los botones de 90° a la izquierda y a la derecha (abajo del todo, para que no cambien de lugar). El resultado (ángulo medido y ms) queda en el log como SENS_DIAG.
    - Abajo, SIEMPRE visible: el botón PARO.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -201,6 +201,13 @@
                         android:layout_height="wrap_content"
                         android:text="@string/sens_prueba_ayuda" />
 
+                    <TextView
+                        android:id="@+id/sens_resultado"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
                     <RadioGroup
                         android:id="@+id/sens_grupo_metodo"
                         android:layout_width="match_parent"
@@ -252,12 +259,6 @@
                             android:text="@string/sens_girar_der" />
                     </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/sens_resultado"
-                        style="@style/Texto.Cifras"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/e2" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
