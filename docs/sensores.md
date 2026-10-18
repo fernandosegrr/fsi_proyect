@@ -43,7 +43,7 @@ Láser: una lectura cada ~33 ms sin bloquear `loop()`; 8190, 65535 o más de 120
 - Láser: pico suelto no frena, 2 lecturas seguidas menores de 120 mm frenan en ~50 ms, no frena en MANUAL, en reversa, parado ni en giro; con el sensor caído el carro sigue como antes.
 - Una vuelta de `loop()` hace como mucho 3 transacciones del bus.
 - Estrés de 100 000 comandos con 2 hilos y `GIRAR` mezclado con STOP: 0 STOP perdidos (cuenta exacta de paradas: STOP + giros terminados solos + watchdogs).
-- **ThreadSanitizer no se pudo correr**: esta PC (Windows, MinGW) no tiene `libtsan` ni WSL. Pendiente correrlo en Linux.
+- **ThreadSanitizer**: esta PC (Windows, MinGW) no tiene `libtsan` ni WSL, así que se corre en Linux con GitHub Actions (`.github/workflows/sanitizadores.yml`): ThreadSanitizer sobre el estrés de 2 hilos con `GIRAR` mezclado con STOP (`carro.c` + `imu.c` + `tof.c` + `giro.c` + `sensores.c`) y AddressSanitizer + UBSan sobre `pruebas_sensores`, `pruebas_carro` y `pruebas_navegador`. Resultado del 18 oct: **sin errores en los tres** (https://github.com/fernandosegrr/fsi_proyect/actions/runs/39150275890).
 
 ## Errores típicos
 
