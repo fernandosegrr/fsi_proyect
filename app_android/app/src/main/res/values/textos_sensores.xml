@@ -4,6 +4,7 @@
 -->
 <resources>
     <string name="sens_titulo">Sensores (giroscopio y láser)</string>
+    <string name="sens_titulo_corto">Sensores</string>
     <string name="sens_en_lista_detalle">Giroscopio y sensor de distancia del carro: interruptores, estado y prueba de giro.</string>
     <string name="sens_abrir">Abrir sensores</string>
     <string name="sens_interruptores">Qué sensores se usan</string>
@@ -15,14 +16,14 @@
     <string name="sens_chip_parcial">Falla uno</string>
     <string name="sens_chip_ninguno">Sin sensores</string>
     <string name="sens_chip_sin_conexion">Sin conexión</string>
-    <string name="sens_recalibrar">Recalibrar giroscopio (carro quieto)</string>
-    <string name="sens_cero">Poner el ángulo en cero</string>
+    <string name="sens_recalibrar">Recalibrar giroscopio</string>
+    <string name="sens_cero">Ángulo en cero</string>
     <string name="sens_prueba">Prueba de giro de 90°</string>
-    <string name="sens_prueba_ayuda">Deja ~1 m libre alrededor del carro. El resultado (ángulo medido y milisegundos) queda también en el log.</string>
+    <string name="sens_prueba_ayuda">Recalibrar solo con el carro quieto (~3 s). Deja ~1 m libre alrededor del carro para la prueba. El resultado (ángulo medido y milisegundos) queda también en el log.</string>
     <string name="sens_por_angulo">Por ángulo (giroscopio)</string>
     <string name="sens_por_tiempo">Por tiempo (calibración)</string>
-    <string name="sens_girar_izq">90° izquierda</string>
-    <string name="sens_girar_der">90° derecha</string>
+    <string name="sens_girar_izq">90° izq.</string>
+    <string name="sens_girar_der">90° der.</string>
     <string name="sens_sin_firmware">El carro no contestó a CAPS?: tiene el firmware viejo o los sensores no funcionan. Todo sigue como antes (giros por tiempo).</string>
     <string name="sens_sin_giroscopio_prueba">El giroscopio no está disponible: no se puede girar por ángulo.</string>
     <string name="sens_sin_conexion_prueba">Primero conecta con el carro.</string>

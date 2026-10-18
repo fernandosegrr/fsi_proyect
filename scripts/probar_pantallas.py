@@ -37,6 +37,7 @@ PANTALLAS = [
 ACTIVIDADES = [
     ("vision", "com.fsi.carro/.VisionActivity", "abierta=VISION ok"),
     ("calibracion", "com.fsi.carro/.CalibracionActivity", "abierta=CALIBRACION ok"),
+    ("sensores", "com.fsi.carro/.SensoresActivity", "abierta=SENSORES ok"),
 ]
 
 

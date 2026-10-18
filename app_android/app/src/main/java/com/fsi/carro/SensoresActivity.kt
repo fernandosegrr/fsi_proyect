@@ -64,11 +64,12 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
     override fun onCreate(guardado: Bundle?) {
         super.onCreate(guardado)
         setContentView(R.layout.activity_sensores)
+        intent.getStringExtra("direccion")?.let { Ajustes(this).direccionCarro = it }   // para pruebas con adb (el servidor falso), igual que en Calibración
         logica = SesionCarro.lograr(this)
         ajustes = Ajustes(this)
         guardada = CalibracionGuardada(this)
 
-        findViewById<TextView>(R.id.barra_titulo).setText(R.string.sens_titulo)
+        findViewById<TextView>(R.id.barra_titulo).setText(R.string.sens_titulo_corto)
         findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
         interruptorGiro = findViewById(R.id.sens_switch_giro)
         interruptorLaser = findViewById(R.id.sens_switch_laser)
@@ -107,6 +108,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             Haptica.corta(this)
             parar("PARO")
         }
+        PantallasLog.abierta("SENSORES")
     }
 
     override fun onResume() {
