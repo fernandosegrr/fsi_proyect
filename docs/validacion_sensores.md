@@ -46,7 +46,7 @@ Etiquetas nuevas (`adb logcat` o el log de la app): `SENS_DIAG` (qué sensor dec
 | 2 Deriva | 18 oct | 0.0° en 60 s (sin tocar) | sí |
 | 3 Piso vacío | | | |
 | 4 Caja a 30 cm | | | |
-| 5 Giros 10+10, tiempo y ángulo | 18 oct | Solo 6 giros por ángulo medidos por el giroscopio (no con cinta): izquierda 99.2, 93.5 y 99.0 grados; derecha 91.0. La anticipación (20 ms al inicio) se corrige sola pero no alcanzó a asentarse. La prueba se cortó porque el carro chocó (el pivote barre ~16 cm de radio). No cuenta como la prueba completa. | repetir con más espacio |
+| 5 Giros 10+10, tiempo y ángulo | 18 oct | **Medidos por el giroscopio** (pedido 90°; algunas tandas con menos de 10 giros porque fallaron toques del script que maneja la app por adb). POR TIEMPO: izquierda 14 giros, media 88.8°, 10 de 14 a ±3°; derecha 17 giros, media 82.4° (se queda corto ~8°: la calibración de ese lado ya no coincide con el carro), 2 de 17 a ±3°. POR ÁNGULO: izquierda 10 giros, media 90.6° (89.7 a 91.7), **10 de 10 a ±3°**; derecha 8 giros, media 92.7° (90.9 a 94.4), 5 de 8 a ±3° (se pasa ~2.7° constantes). **Con cinta** (cuadrado alineado): 4 giros de 90° a la izquierda por ángulo (el giroscopio midió 362.4° en total) dejaron el carro **4.5° a la izquierda** de como empezó (2° más que lo que midió el giroscopio) y **5 cm hacia adelante** (el desplazamiento del pivote, que el navegador compensa). Pendiente: los 4 giros a la derecha con cinta. | izquierda sí (10 de 10 a ±3°); derecha casi (5 de 8) |
 | 6 Ruta en L con y sin giroscopio | | | |
 | 7 Caja delante / recta con caja | | | |
 | 8 Corte de WiFi | | | |
