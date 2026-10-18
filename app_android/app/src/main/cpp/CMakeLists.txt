@@ -29,6 +29,7 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/mascara_vision.c
     ${NUCLEO_C}/navegador.c
     ${NUCLEO_C}/calibracion.c
+    ${NUCLEO_C}/calgiro.c
     ${NUCLEO_C}/fusion.c
     ${NUCLEO_C}/movimiento_visual.c
     ${NUCLEO_C}/video_stats.c

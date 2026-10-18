@@ -28,6 +28,7 @@
 #include "mascara_vision.h"
 #include "navegador.h"
 #include "calibracion.h"
+#include "calgiro.h"
 #include "fusion.h"
 #include "movimiento_visual.h"
 #include "video_stats.h"
@@ -1406,6 +1407,121 @@ static jintArray devolver_calibracion(JNIEnv *env, int codigo, const Calibracion
         (*env)->SetIntArrayRegion(env, arreglo, 0, 1 + ENTEROS_CALIBRACION, salida);
     }
     return arreglo;
+}
+
+/* ── Calibración del giro con el giroscopio (J12, calgiro.c) ─────────────────────────────────────────────── */
+
+static CalGiro calgiro_global;
+
+/* Empieza la calibración con la calibración guardada (16 enteros). Devuelve 0 o -1 si el arreglo no sirve. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalGiroNativa_iniciar(JNIEnv *env, jobject objeto, jintArray calibracion, jlong ahora_ms)
+{
+    CalibracionCarro cal;
+
+    (void)objeto;
+    if (!leer_calibracion(env, calibracion, &cal)) {
+        return -1;
+    }
+    calgiro_iniciar(&calgiro_global, &cal, (uint32_t)ahora_ms);
+    return 0;
+}
+
+/* Una vuelta (cada ~50 ms): 0 = STOP, 1 = LEFT, 2 = RIGHT. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_CalGiroNativa_tick(JNIEnv *env, jobject objeto, jlong ahora_ms, jboolean hay_angulo, jint angulo_x10)
+{
+    (void)env;
+    (void)objeto;
+    return (jint)calgiro_tick(&calgiro_global, (uint32_t)ahora_ms, hay_angulo ? 1 : 0, (int)angulo_x10);
+}
+
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_CalGiroNativa_cancelar(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    calgiro_cancelar(&calgiro_global);
+}
+
+/* [estado, error, giro actual (0 a 6), código del ajuste, último comando] */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalGiroNativa_estado(JNIEnv *env, jobject objeto)
+{
+    jint salida[5];
+    jintArray arreglo = (*env)->NewIntArray(env, 5);
+
+    (void)objeto;
+    salida[0] = calgiro_global.estado;
+    salida[1] = calgiro_global.error;
+    salida[2] = calgiro_global.giro_actual;
+    salida[3] = calgiro_global.codigo_ajuste;
+    salida[4] = calgiro_global.comando;
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 5, salida);
+    }
+    return arreglo;
+}
+
+/* [1 si hay resultado (0 = no hay; lo demás es cero), la calibración nueva (16 enteros, en el orden de CalibracionNativa), y para cada lado (izquierda y luego derecha) 15 enteros:
+ * ms por grado antes y después (x10), frenado antes y después (grados x10), cambio del ms por grado (%), cambio del frenado (%), cambio grande (0/1), el peor error de la recta (grados x10),
+ * los 3 tiempos mandados (ms) y los 3 ángulos medidos (grados x10)] = 1 + 16 + 30 = 47 enteros. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalGiroNativa_resultado(JNIEnv *env, jobject objeto)
+{
+    jint salida[47] = { 0 };
+    CalibracionCarro nueva;
+    CalGiroLado lados[2];
+    jintArray arreglo = (*env)->NewIntArray(env, 47);
+    int l, i;
+
+    (void)objeto;
+    if (calgiro_resultado(&calgiro_global, &nueva, lados)) {
+        salida[0] = 1;
+        salida[1] = nueva.medidos;
+        salida[2] = nueva.arranque_ms;
+        salida[3] = nueva.ms_por_cm_x10;
+        salida[4] = nueva.frenado_mm;
+        salida[5] = nueva.ms_por_grado_izq_x10;
+        salida[6] = nueva.ms_por_grado_der_x10;
+        salida[7] = nueva.frenado_grados_izq_x10;
+        salida[8] = nueva.frenado_grados_der_x10;
+        salida[9] = nueva.fov_grados_x10;
+        salida[10] = nueva.ms_por_cm_atras_x10;
+        salida[11] = nueva.desp_adelante_izq_um;
+        salida[12] = nueva.desp_derecha_izq_um;
+        salida[13] = nueva.desp_adelante_der_um;
+        salida[14] = nueva.desp_derecha_der_um;
+        salida[15] = nueva.desp_grados_izq;
+        salida[16] = nueva.desp_grados_der;
+        for (l = 0; l < 2; l++) {
+            int base = 17 + 15 * l;
+
+            salida[base + 0] = lados[l].ms_x10_antes;
+            salida[base + 1] = lados[l].ms_x10_despues;
+            salida[base + 2] = lados[l].frenado_x10_antes;
+            salida[base + 3] = lados[l].frenado_x10_despues;
+            salida[base + 4] = lados[l].cambio_ms_pct;
+            salida[base + 5] = lados[l].cambio_frenado_pct;
+            salida[base + 6] = lados[l].cambio_grande;
+            salida[base + 7] = lados[l].error_max_x10;
+            for (i = 0; i < CG_GIROS_POR_LADO; i++) {
+                salida[base + 8 + i] = lados[l].duraciones_ms[i];
+                salida[base + 11 + i] = lados[l].grados_x10[i];
+            }
+        }
+    }
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 47, salida);
+    }
+    return arreglo;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_CalGiroNativa_textoError(JNIEnv *env, jobject objeto, jint error)
+{
+    (void)objeto;
+    return (*env)->NewStringUTF(env, calgiro_texto_error((int)error));
 }
 
 /* Ajuste fino del giro de 90°: los grados que se suponen girados en cada opción (0 = opción desconocida). */

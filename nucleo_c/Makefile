@@ -4,7 +4,7 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara
+all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -60,11 +60,15 @@ pruebas_ruta_editor: pruebas_ruta_editor.c ruta_editor.c ruta_editor.h trayector
 pruebas_sim_ruta: pruebas_sim_ruta.c sim_ruta.c sim_ruta.h ruta_editor.c ruta_editor.h simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c mascara_vision.h calibracion.c
 	$(CC) $(CFLAGS) -o $@ pruebas_sim_ruta.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
 
+pruebas_calgiro: pruebas_calgiro.c calgiro.c calgiro.h calibracion.c calibracion.h
+	$(CC) $(CFLAGS) -o $@ pruebas_calgiro.c calgiro.c calibracion.c
+
 pruebas_mascara: pruebas_mascara.c mascara_vision.c mascara_vision.h obstaculos.c obstaculos.h
 	$(CC) $(CFLAGS) -o $@ pruebas_mascara.c mascara_vision.c obstaculos.c
 
 test: all
 	./pruebas_calibracion
+	./pruebas_calgiro
 	./pruebas_trayectoria
 	./pruebas_obstaculos
 	./pruebas_piso
@@ -85,6 +89,6 @@ test: all
 	./pruebas_sim_ruta
 
 clean:
-	rm -f pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe pruebas_sesion_compartida pruebas_sesion_compartida.exe pruebas_latencia_video pruebas_latencia_video.exe pruebas_ruta_editor pruebas_ruta_editor.exe pruebas_sim_ruta pruebas_sim_ruta.exe
+	rm -f pruebas_calgiro pruebas_calgiro.exe pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe pruebas_sesion_compartida pruebas_sesion_compartida.exe pruebas_latencia_video pruebas_latencia_video.exe pruebas_ruta_editor pruebas_ruta_editor.exe pruebas_sim_ruta pruebas_sim_ruta.exe
 
 .PHONY: all test clean

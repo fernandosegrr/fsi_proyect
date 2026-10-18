@@ -1006,6 +1006,24 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
             setOnClickListener { startActivity(android.content.Intent(this@CalibracionActivity, SensoresActivity::class.java)) }
         }
         listaPartes.addView(filaSensores)
+        // Tarjeta de la calibración del giro con el giroscopio (J12): la inicia el usuario con un botón en su propia pantalla.
+        val filaCalGiro = layoutInflater.inflate(R.layout.item_calibracion_parte, listaPartes, false)
+        filaCalGiro.findViewById<TextView>(R.id.parte_titulo).setText(R.string.cg_titulo)
+        filaCalGiro.findViewById<ChipEstado>(R.id.parte_chip).apply {
+            when (logica.capsGiroscopio) {
+                true -> poner(Nivel.OK, getString(R.string.cg_chip_listo_para))
+                false -> poner(Nivel.ERROR, getString(R.string.cg_chip_sin_giroscopio))
+                null -> poner(Nivel.NEUTRO, getString(R.string.sens_chip_ninguno))
+            }
+        }
+        filaCalGiro.findViewById<TextView>(R.id.parte_valor).setText(R.string.cg_en_lista_detalle)
+        filaCalGiro.findViewById<View>(R.id.parte_fecha).visibility = View.GONE
+        filaCalGiro.findViewById<View>(R.id.parte_pilas).visibility = View.GONE
+        filaCalGiro.findViewById<MaterialButton>(R.id.parte_boton).apply {
+            setText(R.string.cg_abrir)
+            setOnClickListener { startActivity(android.content.Intent(this@CalibracionActivity, CalibrarGiroActivity::class.java)) }
+        }
+        listaPartes.addView(filaCalGiro)
     }
 
     // ── Mostrar el paso ───────────────────────────────────────────────────

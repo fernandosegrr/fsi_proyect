@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Guía de lectura: textos de la pantalla CALIBRAR EL GIRO CON EL GIROSCOPIO (CalibrarGiroActivity). Frases cortas; lo que falla dice qué pasó y qué hacer.
+-->
+<resources>
+    <string name="cg_titulo">Calibrar el giro con el giroscopio</string>
+    <string name="cg_titulo_corto">Calibrar giro (giroscopio)</string>
+    <string name="cg_en_lista_detalle">El carro hace 3 giros a cada lado y calcula solo los ms por grado y el frenado con el ángulo que mide el giroscopio. No hay que medir nada.</string>
+    <string name="cg_abrir">Abrir</string>
+    <string name="cg_titulo_tarjeta">Giros de prueba</string>
+    <string name="cg_explicacion">Pon el carro en el piso, quieto y con 1 metro libre alrededor. Hace 6 giros alternados (izquierda y derecha, de unos 40°, 70° y 100°) y tarda cerca de un minuto. Con lo que mide el giroscopio ajusta los ms por grado y el frenado de cada lado. El desplazamiento del pivote no cambia (sigue siendo manual). Para parar en cualquier momento: PARO.</string>
+    <string name="cg_empezar">Empezar los 6 giros</string>
+    <string name="cg_antes_de_empezar">Listo cuando tú lo digas. El carro no se mueve hasta que toques «Empezar».</string>
+    <string name="cg_avance">Giro %1$d de %2$d · %3$s</string>
+    <string name="cg_fase_quieto">esperando que el carro esté quieto</string>
+    <string name="cg_fase_girando">girando</string>
+    <string name="cg_fase_midiendo">midiendo cuánto giró</string>
+    <string name="cg_chip_listo_para">Listo para empezar</string>
+    <string name="cg_chip_midiendo">Midiendo</string>
+    <string name="cg_chip_listo">Terminó</string>
+    <string name="cg_chip_error">Error</string>
+    <string name="cg_chip_sin_giroscopio">Sin giroscopio</string>
+    <string name="cg_cancelada">Cancelada. No se guardó nada.</string>
+    <string name="cg_terminada">Terminó y se guardó la calibración nueva.</string>
+    <string name="cg_error_texto">No se pudo: %1$s. No se guardó nada.</string>
+    <string name="cg_error_inicio">No se pudo empezar (la calibración guardada no es válida).</string>
+    <string name="cg_resultado">Resultado</string>
+    <string name="cg_linea_lado">%1$s: %2$.1f → %3$.1f ms por grado (%4$+d %%) · frenado %5$.1f → %6$.1f° · giros medidos: %7$s</string>
+    <string name="cg_sin_cambio_grande">Ningún valor cambió más de 10 % contra lo guardado.</string>
+    <string name="cg_aviso_cambio">Giro a la %1$s: el valor cambió %2$d %% contra lo guardado (más de %3$d %%).</string>
+    <string name="cg_aviso_revisar">Se guardó de todos modos. Si no esperabas ese cambio (¿pilas nuevas, otro piso, algo atorado?), toca «Deshacer» y repite con el carro bien puesto.</string>
+    <string name="cg_no_guardo">La calibración nueva no pasó la revisión (código %1$d) y no se guardó; queda la de antes.</string>
+    <string name="cg_deshacer">Deshacer (volver a la calibración de antes)</string>
+    <string name="cg_deshecho">Deshecho: vuelve la calibración de antes.</string>
+</resources>

@@ -62,6 +62,12 @@
             android:exported="true"
             android:screenOrientation="portrait" />
 
+        <!-- Calibración del giro con el giroscopio (J12): 3 giros por lado que inicia el usuario; ver CalibrarGiroActivity.kt. -->
+        <activity
+            android:name=".CalibrarGiroActivity"
+            android:exported="true"
+            android:screenOrientation="portrait" />
+
         <!-- Benchmark del detector de objetos; se puede abrir con adb (ver BenchmarkActivity.kt). -->
         <activity
             android:name=".BenchmarkActivity"

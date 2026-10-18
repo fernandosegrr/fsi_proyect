@@ -38,6 +38,14 @@ Etiquetas nuevas (`adb logcat` o el log de la app): `SENS_DIAG` (qué sensor dec
 - **El giro por ángulo pasa o se queda corto siempre lo mismo**: ver `ANT?`; si queda en el tope (150 ms) el carro tiene mucha inercia.
 - **Se pierde la conexión con los sensores**: `CAPS?` por USB. Cableado: `docs/sensores.md` (errores típicos).
 
+## Pasos nuevos de J12 (los hace el dueño; Claude no mueve el carro)
+
+0. **Cargar el firmware de J12** (USB, `scripts\cargar.ps1 nuevo`) e instalar la app nueva. Con USB: `CAPS?` (debe traer `TOFR=` y `TOF=1`), `LOOP?` (el máximo debe seguir bajo 5 ms con el carro en marcha; anotar también el máximo con el láser caído y el carro quieto) y `ANT_BORRAR` si se quiere empezar de cero.
+9. **Calibración del giro con el giroscopio:** carro quieto, 1 m libre, Calibración → «Calibrar el giro con el giroscopio» → «Empezar los 6 giros». Esperar ~1 min. Anotar los dos «antes → después» de la pantalla (y si salió el aviso de más de 10 %). Repetir una vez: el segundo resultado debe cambiar menos de 5 % contra el primero. Después hacer un giro de 90° por tiempo (Sensores → «por tiempo») y ver que el giroscopio mida 90° ± 3°.
+10. **Anticipación:** hacer 4 giros de 90° por ángulo a cada lado (Sensores → «por ángulo»), pedir `ANT?` (cuatro números en ms) y después otros 10 giros por lado: objetivo ±3° en 9 de 10 por sentido.
+11. **Arranques del láser:** apagar y encender el carro 5 veces; la pantalla Sensores debe decir «Últimos arranques con reintentos del láser: k de n». Si pasa de 1 de 5 aparece el aviso con las causas probables.
+12. **Giro con mensaje perdido:** no se puede provocar a propósito sin tocar el carro; si algún día el log trae `SENS_DIAG giro mensaje_perdido`, revisar que el giro no se duplicó.
+
 ## Resultados (se llena al probar)
 
 | # | Fecha | Resultado | ¿Pasa? |
