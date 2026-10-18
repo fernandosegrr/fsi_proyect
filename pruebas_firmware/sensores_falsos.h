@@ -34,7 +34,11 @@ extern int  falso_tof_lecturas;          /* cuántas medidas se leyeron */
 /* Contador de todas las transacciones del bus (para ver cuánto se usa). */
 extern int  falso_i2c_transacciones;
 
-/* Deja todo como recién encendido y con el reloj en cero. */
+/* Memoria no volátil falsa de la anticipación del giro: 4 ranuras (-1 = nada) y cuántas escrituras hubo. */
+extern int  falso_ant[4];
+extern int  falso_ant_escrituras;
+
+/* Deja todo como recién encendido (memoria borrada de fábrica) y con el reloj en cero. */
 void falso_sensores_reiniciar(void);
 
 #endif /* SENSORES_FALSOS_H */

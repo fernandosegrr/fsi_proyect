@@ -116,6 +116,7 @@ void sensores_iniciar(void)
     int imu_ok, tof_ok;
 
     sensores_reiniciar_estado();
+    giro_cargar_memoria();   /* las anticipaciones aprendidas (4: perfil x sentido) */
     imu_ok = imu_iniciar();
     snprintf(linea, sizeof linea, "IMU: WHO_AM_I=0x%02X %s (motivo %d)", imu_quien_soy(), imu_ok ? "calibrando el sesgo" : "MAL", imu_motivo());
     hw_registrar(linea);
@@ -241,7 +242,7 @@ uint32_t sensores_paros_tof(void)    { return paros_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
 
 int sensores_es_comando(const char *texto)
 {
@@ -300,8 +301,13 @@ static void ejecutar(const char *texto, int donde)
         loop_excesos = 0;
         sensores_enviar(donde, "ACK_LOOP_CERO");
     } else if (strcmp(texto, "ANT?") == 0) {
-        snprintf(respuesta, sizeof respuesta, "ANT:%d,%d", giro_anticipacion_ms(1), giro_anticipacion_ms(-1));
+        /* ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> en ms */
+        snprintf(respuesta, sizeof respuesta, "ANT:%d,%d,%d,%d", giro_anticipacion_ms(PERFIL_AUTO, 1), giro_anticipacion_ms(PERFIL_AUTO, -1),
+                 giro_anticipacion_ms(PERFIL_MANUAL, 1), giro_anticipacion_ms(PERFIL_MANUAL, -1));
         sensores_enviar(donde, respuesta);
+    } else if (strcmp(texto, "ANT_BORRAR") == 0) {
+        giro_borrar_anticipaciones();
+        sensores_enviar(donde, "ACK_ANT_BORRAR");
     } else if (strncmp(texto, "TOF_USO:", 8) == 0) {
         tof_uso = (texto[8] != '0');
         paro_enviado = 0;

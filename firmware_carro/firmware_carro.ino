@@ -70,6 +70,41 @@ extern "C" int hw_balance_leer(int perfil)
   return valor;
 }
 
+/* Anticipación del giro por ángulo (4 ranuras: perfil x sentido). Se guarda ms + 1 para distinguir «0 ms» de «nada guardado». */
+static const char *clave_anticipacion(int ranura)
+{
+  static const char *claves[4] = { "antManD", "antManI", "antAutD", "antAutI" };
+  return claves[ranura & 3];
+}
+
+extern "C" int hw_ant_leer(int ranura)
+{
+  int valor = 0;
+  if (memoria.begin("carro", true)) {
+    valor = memoria.getInt(clave_anticipacion(ranura), 0);
+    memoria.end();
+  }
+  return valor > 0 ? valor - 1 : -1;
+}
+
+extern "C" void hw_ant_guardar(int ranura, int ms)
+{
+  if (memoria.begin("carro", false)) {
+    memoria.putInt(clave_anticipacion(ranura), ms + 1);
+    memoria.end();
+  }
+}
+
+extern "C" void hw_ant_borrar(void)
+{
+  if (memoria.begin("carro", false)) {
+    for (int r = 0; r < 4; r++) {
+      memoria.remove(clave_anticipacion(r));
+    }
+    memoria.end();
+  }
+}
+
 extern "C" void hw_balance_guardar(int perfil, int milesimas)
 {
   if (memoria.begin("carro", false)) {

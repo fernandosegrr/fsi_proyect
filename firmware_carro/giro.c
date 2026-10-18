@@ -8,8 +8,9 @@
  *   ASENTANDO → pasan GIRO_ASENTAR_MS (el carro termina de girar por inercia) → informa el resultado y vuelve a INACTIVO
  *
  * REGLA DE PARADA: se frena cuando  girado + velocidad x anticipación / 1000  >= objetivo  (todo en décimas de grado y décimas de °/s).
- * La anticipación se corrige sola después de cada giro bueno: si el carro siguió girando c décimas de grado a la velocidad v, la anticipación
- * ideal es c / v, y la usada se acerca la mitad del camino (con tope, por lado). Se puede apagar con GIRO_ANTICIPACION_AUTO 0.
+ * La anticipación se corrige sola después de cada giro bueno de GIRO_ANT_MIN_GRADOS o más: del error final (con signo, + = se pasó) y la velocidad v sale la anticipación que habría dado justo
+ * el ángulo (la usada + error / v); la que se usa de ahí en adelante es la MEDIANA de las últimas GIRO_ANT_MUESTRAS de esas lecturas. Hay una por sentido y por perfil (4), se guardan en la memoria
+ * no volátil y se pueden borrar (giro_borrar_anticipaciones). Se puede apagar con GIRO_ANTICIPACION_AUTO 0.
  */
 
 #include <stdio.h>
@@ -17,6 +18,7 @@
 #include <string.h>
 #include "giro.h"
 #include "imu.h"
+#include "hw_sensores.h"
 #include "sensores.h"
 #include "carro.h"
 #include "config.h"
@@ -42,21 +44,60 @@ static uint32_t tiempo_max_ms = 0;
 static uint32_t freno_ms      = 0;
 static int32_t  angulo_freno_x10 = 0;
 static int32_t  velocidad_freno_x10 = 0;
+static int      anticipacion_usada_ms = GIRO_ANTICIPACION_MS;   /* la que se usó en el giro en curso (para aprender de su error) */
 static int      duracion_ms   = 0;
-static int      anticipacion_ms[2] = { GIRO_ANTICIPACION_MS, GIRO_ANTICIPACION_MS };   /* [0] = derecha, [1] = izquierda */
+/* Las 4 ranuras de la anticipación: ranura = perfil x 2 + (izquierda ? 1 : 0), con perfil PERFIL_MANUAL (0) o PERFIL_AUTO (1). */
+#define RANURAS 4
+static int      anticipacion_ms[RANURAS];
+static int      muestras[RANURAS][GIRO_ANT_MUESTRAS];   /* las últimas lecturas de la anticipación ideal de cada ranura */
+static int      n_muestras[RANURAS];
+static int      sig_muestra[RANURAS];
+static int      guardado_ms[RANURAS];                    /* lo último que se escribió en la memoria no volátil (-1 = nada) */
+static int      ranura_actual = 0;                       /* la del giro en curso */
 
-static int indice(int s) { return s > 0 ? 1 : 0; }
+static int ranura_de(int perfil, int s) { return (perfil == PERFIL_AUTO ? 2 : 0) + (s > 0 ? 1 : 0); }
+
+static void anticipaciones_a_defecto(void)
+{
+    int r;
+
+    for (r = 0; r < RANURAS; r++) {
+        anticipacion_ms[r] = GIRO_ANTICIPACION_MS;
+        n_muestras[r] = 0;
+        sig_muestra[r] = 0;
+        guardado_ms[r] = -1;
+    }
+}
 
 void giro_reiniciar(void)
 {
     estado = G_INACTIVO;
-    anticipacion_ms[0] = GIRO_ANTICIPACION_MS;
-    anticipacion_ms[1] = GIRO_ANTICIPACION_MS;
+    anticipaciones_a_defecto();
+}
+
+void giro_cargar_memoria(void)
+{
+    int r;
+
+    for (r = 0; r < RANURAS; r++) {
+        int ms = hw_ant_leer(r);
+
+        if (ms >= 0 && ms <= GIRO_ANTICIPACION_MAX_MS) {
+            anticipacion_ms[r] = ms;
+            guardado_ms[r] = ms;
+        }
+    }
+}
+
+void giro_borrar_anticipaciones(void)
+{
+    anticipaciones_a_defecto();
+    hw_ant_borrar();
 }
 
 int giro_activo(void)  { return estado == G_MOVIENDO; }
 int giro_ocupado(void) { return estado != G_INACTIVO; }
-int giro_anticipacion_ms(int s) { return anticipacion_ms[indice(s)]; }
+int giro_anticipacion_ms(int perfil, int s) { return anticipacion_ms[ranura_de(perfil, s)]; }
 
 /* Lee "+90", "-45" o "90" (solo cifras, hasta 3, signo opcional). Devuelve 1 si es válido y deja el número con signo en *valor. */
 static int leer_grados(const char *t, int *valor)
@@ -105,12 +146,14 @@ int giro_pedir(const char *texto)
     }
 
     sentido = grados > 0 ? 1 : -1;
+    ranura_actual = ranura_de(carro_perfil(), sentido);
     objetivo_grados = grados;
     objetivo_x10 = (int32_t)magnitud * 10;
     angulo_ini_x10 = imu_angulo_x10();
     angulo_ultimo_x10 = angulo_ini_x10;
     inicio_ms = hw_millis();
     tiempo_max_ms = (uint32_t)GIRO_TIEMPO_BASE_MS + (uint32_t)GIRO_TIEMPO_POR_GRADO_MS * (uint32_t)magnitud;
+    anticipacion_usada_ms = anticipacion_ms[ranura_actual];
     estado = G_MOVIENDO;
     carro_pivote(sentido);
     return 1;
@@ -134,26 +177,55 @@ void giro_abortar(void)
     }
 }
 
-/* Corrige la anticipación con lo que el carro giró de más después de frenar. */
+/* Mediana de las lecturas guardadas de una ranura (con un número par, el promedio de las dos de en medio). */
+static int mediana_ranura(int r)
+{
+    int orden[GIRO_ANT_MUESTRAS];
+    int n = n_muestras[r], i, j;
+
+    for (i = 0; i < n; i++) {
+        orden[i] = muestras[r][i];
+    }
+    for (i = 1; i < n; i++) {   /* orden por inserción: son 5 números */
+        int v = orden[i];
+
+        for (j = i - 1; j >= 0 && orden[j] > v; j--) {
+            orden[j + 1] = orden[j];
+        }
+        orden[j + 1] = v;
+    }
+    return (n % 2 == 1) ? orden[n / 2] : (orden[n / 2 - 1] + orden[n / 2]) / 2;
+}
+
+/* Aprende de un giro bueno: la anticipación que habría dado justo el ángulo pedido es la usada más el error final dividido entre la velocidad (error + = se pasó, así que hace falta frenar antes). */
 static void corregir_anticipacion(int32_t angulo_final_x10)
 {
-    int32_t extra_x10 = sentido * (angulo_final_x10 - angulo_freno_x10);   /* lo que siguió girando por inercia */
+    int32_t error_x10 = sentido * (angulo_final_x10 - angulo_ini_x10) - objetivo_x10;   /* + = se pasó, - = se quedó corto */
     int32_t ideal;
+    int r = ranura_actual;
     int nueva;
 
-    if (!GIRO_ANTICIPACION_AUTO || velocidad_freno_x10 < 150) {
-        return;                                   /* con menos de 15 °/s no se puede estimar bien */
+    if (!GIRO_ANTICIPACION_AUTO || velocidad_freno_x10 < 150 || objetivo_x10 < (int32_t)GIRO_ANT_MIN_GRADOS * 10) {
+        return;   /* con menos de 15 °/s o en un giro corto no se puede estimar bien */
     }
-    ideal = (extra_x10 * 1000) / velocidad_freno_x10;
+    ideal = anticipacion_usada_ms + (int32_t)((int64_t)error_x10 * 1000 / velocidad_freno_x10);
     if (ideal < 0) {
         ideal = 0;
     }
     if (ideal > GIRO_ANTICIPACION_MAX_MS) {
         ideal = GIRO_ANTICIPACION_MAX_MS;
     }
-    nueva = anticipacion_ms[indice(sentido)];
-    nueva += (int)(ideal - nueva) / 2;
-    anticipacion_ms[indice(sentido)] = nueva;
+    muestras[r][sig_muestra[r]] = (int)ideal;
+    sig_muestra[r] = (sig_muestra[r] + 1) % GIRO_ANT_MUESTRAS;
+    if (n_muestras[r] < GIRO_ANT_MUESTRAS) {
+        n_muestras[r]++;
+    }
+    nueva = mediana_ranura(r);
+    anticipacion_ms[r] = nueva;
+    if (guardado_ms[r] < 0 || nueva - guardado_ms[r] >= GIRO_ANT_GUARDAR_DIF_MS || guardado_ms[r] - nueva >= GIRO_ANT_GUARDAR_DIF_MS) {
+        hw_ant_guardar(r, nueva);
+        guardado_ms[r] = nueva;
+    }
 }
 
 static void informar(uint32_t ahora_ms)
@@ -201,7 +273,7 @@ void giro_actualizar(uint32_t ahora_ms)
         if (velocidad_x10 < 0) {
             velocidad_x10 = 0;
         }
-        if (girado_x10 + (velocidad_x10 * anticipacion_ms[indice(sentido)] + 500) / 1000 >= objetivo_x10) {
+        if (girado_x10 + (velocidad_x10 * anticipacion_usada_ms + 500) / 1000 >= objetivo_x10) {
             carro_pivote(0);
             entrar_asentando(R_OK, ahora_ms);
             return;

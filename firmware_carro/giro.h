@@ -19,8 +19,14 @@
 extern "C" {
 #endif
 
-/* Deja el controlador sin giro en curso y con la anticipación de config.h. */
+/* Deja el controlador sin giro en curso y con la anticipación de config.h (no lee la memoria: eso lo hace giro_cargar_memoria). */
 void giro_reiniciar(void);
+
+/* Lee de la memoria no volátil las 4 anticipaciones (perfil x sentido); lo que no esté guardado queda en GIRO_ANTICIPACION_MS. Se llama en setup(), después de giro_reiniciar. */
+void giro_cargar_memoria(void);
+
+/* Vuelve las 4 anticipaciones a GIRO_ANTICIPACION_MS y borra lo guardado (comando ANT_BORRAR). */
+void giro_borrar_anticipaciones(void);
 
 /* Pide un giro. texto = lo que sigue a "GIRAR:" (por ejemplo "-90"). Si no puede empezar, manda GIRO_ERROR:<motivo> y devuelve 0; si empezó, devuelve 1. */
 int  giro_pedir(const char *texto);
@@ -33,7 +39,7 @@ void giro_abortar(void);
 
 int  giro_activo(void);         /* 1 mientras los motores del giro están encendidos (el watchdog de 1 s no corre en ese tiempo) */
 int  giro_ocupado(void);        /* 1 mientras gira o se está asentando (todavía no se puede pedir otro) */
-int  giro_anticipacion_ms(int sentido);   /* la anticipación actual: sentido +1 = izquierda, -1 = derecha */
+int  giro_anticipacion_ms(int perfil, int sentido);   /* la anticipación actual de ese perfil (PERFIL_MANUAL o PERFIL_AUTO) y sentido (+1 = izquierda, -1 = derecha) */
 
 #ifdef __cplusplus
 }

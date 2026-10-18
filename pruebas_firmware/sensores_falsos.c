@@ -24,6 +24,8 @@ int  falso_tof_modo;
 int  falso_tof_lecturas;
 
 int  falso_i2c_transacciones;
+int  falso_ant[4];
+int  falso_ant_escrituras;
 
 static uint8_t  regs[128];
 static uint64_t tof_ultima_us;
@@ -46,6 +48,8 @@ void falso_sensores_reiniciar(void)
     falso_tof_modo = 0;
     falso_tof_lecturas = 0;
     falso_i2c_transacciones = 0;
+    falso_ant[0] = falso_ant[1] = falso_ant[2] = falso_ant[3] = -1;
+    falso_ant_escrituras = 0;
     memset(regs, 0, sizeof regs);
     tof_ultima_us = falso_us;
     semilla = 12345u;
@@ -132,6 +136,10 @@ int hw_i2c_presente(uint8_t dir)
 {
     return (dir == 0x68 && falso_imu_presente) || (dir == 0x29 && falso_tof_presente);
 }
+
+int  hw_ant_leer(int ranura)           { return falso_ant[ranura & 3]; }
+void hw_ant_guardar(int ranura, int ms) { falso_ant[ranura & 3] = ms; falso_ant_escrituras++; }
+void hw_ant_borrar(void)                { falso_ant[0] = falso_ant[1] = falso_ant[2] = falso_ant[3] = -1; }
 
 int hw_tof_iniciar(void)
 {

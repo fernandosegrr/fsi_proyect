@@ -19,7 +19,8 @@
  *   IMU_CERO     → ACK_IMU_CERO (el ángulo vuelve a 0)
  *   TOF_PARO:<mm>               (lo manda el firmware solo) frenó por algo muy cerca al frente
  *   LOOP?        → LOOP:<el loop() más largo en µs>,<cuántos pasaron de LOOP_MAX_US>        LOOP_CERO → ACK_LOOP_CERO
- *   ANT?         → ANT:<anticipación izquierda ms>,<derecha ms>
+ *   ANT?         → ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> (anticipación del giro en ms, una por sentido y por perfil)
+ *   ANT_BORRAR   → ACK_ANT_BORRAR   las cuatro vuelven a GIRO_ANTICIPACION_MS y se borran de la memoria no volátil
  *   TOF_USO:<0|1> → ACK_TOF_USO:<n>   enciende (1, por defecto) o apaga (0) la parada de emergencia del láser (el interruptor «Usar sensor de distancia» de la app); el láser sigue midiendo y mandando SENS
  */
 #ifndef SENSORES_H

@@ -116,6 +116,8 @@ static double omega_dps;            /* velocidad de giro REAL (positivo = izquie
 static double angulo_real_deg;      /* ángulo REAL acumulado */
 static double omega_tope = 160.0;   /* velocidad de giro con el motor al 100 % */
 static double tau_acelera_ms = 80.0;
+static double omega_tope_der = 0.0;     /* velocidad de giro a la DERECHA al 100 %; 0 = la misma que a la izquierda (omega_tope) */
+static double tau_inercia_der_ms = 0.0; /* inercia a la derecha; 0 = la misma que a la izquierda */
 static double tau_inercia_ms = 50.0;    /* al soltar, la velocidad cae así: inercia = omega x tau (160 x 0.05 = 8 grados) */
 static double sesgo_cuentas = 0.0;      /* sesgo verdadero del giroscopio en cuentas */
 static int    ruido_cuentas = 3;
@@ -129,9 +131,9 @@ static void paso_modelo_1ms(void)
     double tau;
 
     if (impulsa_izq) objetivo = omega_tope * pwm[PIN_MOTOR_DER_A] / 255.0;
-    if (impulsa_der) objetivo = -omega_tope * pwm[PIN_MOTOR_IZQ_B] / 255.0;
+    if (impulsa_der) objetivo = -(omega_tope_der > 0.0 ? omega_tope_der : omega_tope) * pwm[PIN_MOTOR_IZQ_B] / 255.0;
     if (!seguir_giro_real) objetivo = 0.0;
-    tau = (impulsa_izq || impulsa_der) ? tau_acelera_ms : tau_inercia_ms;
+    tau = (impulsa_izq || impulsa_der) ? tau_acelera_ms : ((omega_dps < 0.0 && tau_inercia_der_ms > 0.0) ? tau_inercia_der_ms : tau_inercia_ms);
     omega_dps += (objetivo - omega_dps) / tau;
     angulo_real_deg += omega_dps * 0.001;
     {
@@ -178,6 +180,8 @@ static void arrancar(double sesgo, int ruido)
     omega_tope = 160.0;
     tau_acelera_ms = 80.0;
     tau_inercia_ms = 50.0;
+    omega_tope_der = 0.0;
+    tau_inercia_der_ms = 0.0;
     seguir_giro_real = 1;
     sesgo_cuentas = sesgo;
     ruido_cuentas = ruido;
@@ -541,7 +545,7 @@ static void prueba_giro_basico(void)
     ok = (leer_giro("GIRO_OK", &objetivo, &real_x10, &ms) == 3);
     caso("termina con GIRO_OK:90:<real x10>:<ms>", ok && objetivo == 90);
     caso("los motores quedan en 0", motores_parados());
-    printf("      (primer giro de 90: angulo REAL del modelo %.1f, medido por el giroscopio %.1f, %d ms, anticipacion %d ms)\n", real, real_x10 / 10.0, ms, giro_anticipacion_ms(1));
+    printf("      (primer giro de 90: angulo REAL del modelo %.1f, medido por el giroscopio %.1f, %d ms, anticipacion %d ms)\n", real, real_x10 / 10.0, ms, giro_anticipacion_ms(PERFIL_AUTO, 1));
     caso("el giroscopio acierta el angulo real del modelo a +-2 grados", ok && (real_x10 / 10.0 - real) < 2.0 && (real_x10 / 10.0 - real) > -2.0);
 
     /* La anticipación aprende: los siguientes giros de 90 quedan cerca. */
@@ -549,7 +553,7 @@ static void prueba_giro_basico(void)
         girar_y_medir("GIRAR:90", &ok);
     }
     real = girar_y_medir("GIRAR:90", &ok);
-    printf("      (despues de 6 giros: giro real %.1f grados, anticipacion izquierda %d ms)\n", real, giro_anticipacion_ms(1));
+    printf("      (despues de 6 giros: giro real %.1f grados, anticipacion izquierda %d ms)\n", real, giro_anticipacion_ms(PERFIL_AUTO, 1));
     caso("tras unos giros la anticipacion se corrige sola: el giro de 90 queda a +-3 grados", ok && real > 87.0 && real < 93.0);
 
     /* Derecha. */
@@ -566,7 +570,7 @@ static void prueba_giro_basico(void)
     }
     real = girar_y_medir("GIRAR:-90", &ok);
     caso("a la derecha tambien se corrige sola (±3 grados)", ok && real < -87.0 && real > -93.0);
-    printf("      (derecha despues de 6 giros: %.1f grados; anticipacion izq %d ms, der %d ms)\n", real, giro_anticipacion_ms(1), giro_anticipacion_ms(-1));
+    printf("      (derecha despues de 6 giros: %.1f grados; anticipacion izq %d ms, der %d ms)\n", real, giro_anticipacion_ms(PERFIL_AUTO, 1), giro_anticipacion_ms(PERFIL_AUTO, -1));
 }
 
 static void prueba_giro_angulos(void)
@@ -788,6 +792,149 @@ static void prueba_giro_variable(void)
     }
     caso("con un carro que varia (+-10 % de velocidad, +-25 % de inercia) al menos 8 de 10 giros quedan a +-3 grados a la izquierda", buenos[0] >= 8);
     caso("... y a la derecha", buenos[1] >= 8);
+}
+
+/* ── J12: la anticipación es independiente por sentido y por perfil, aprende con la mediana y se guarda ───────── */
+
+static int ant_auto_izq(void) { return giro_anticipacion_ms(PERFIL_AUTO, 1); }
+static int ant_auto_der(void) { return giro_anticipacion_ms(PERFIL_AUTO, -1); }
+
+/* Un giro de `grados` (con signo) y cuánto quedó de verdad: error en grados respecto al pedido (el carro del modelo). */
+static double error_de_giro(int grados)
+{
+    char cmd[24];
+    int ok;
+    double real;
+
+    snprintf(cmd, sizeof cmd, "GIRAR:%d", grados);
+    real = girar_y_medir(cmd, &ok);
+    return (grados > 0 ? real : -real) - (grados > 0 ? grados : -grados);
+}
+
+static void prueba_anticipacion_por_sentido(void)
+{
+    int lado, i, buenos[2] = { 0, 0 };
+    double suma[2] = { 0, 0 };
+    unsigned semilla = 4242u;
+    int guardados_antes;
+    char texto[MENSAJE_SALIDA_MAX];
+
+    printf("-- J12: anticipacion independiente por sentido y por perfil, con mediana y memoria --\n");
+    arrancar(10.0, 3);
+    /* Un carro ASIMETRICO: a la izquierda 160 grados/s con inercia de 50 ms; a la derecha 130 grados/s con inercia de 95 ms (frena peor). */
+    omega_tope = 160.0;
+    tau_inercia_ms = 50.0;
+    omega_tope_der = 130.0;
+    tau_inercia_der_ms = 95.0;
+    for (i = 0; i < 4; i++) {
+        (void)error_de_giro(90);
+        (void)error_de_giro(-90);
+    }
+    printf("      anticipaciones aprendidas tras 4 giros por lado: izquierda %d ms, derecha %d ms\n", ant_auto_izq(), ant_auto_der());
+    caso("con un motor asimetrico cada sentido aprende su propia anticipacion (la derecha, que frena peor, la tiene mas larga)", ant_auto_der() > ant_auto_izq() + 15);
+    caso("el perfil MANUAL no se tocó: sus anticipaciones siguen en 20 ms", giro_anticipacion_ms(PERFIL_MANUAL, 1) == 20 && giro_anticipacion_ms(PERFIL_MANUAL, -1) == 20);
+    for (lado = 0; lado < 2; lado++) {
+        for (i = 0; i < 10; i++) {
+            double e;
+
+            semilla = semilla * 1664525u + 1013904223u;
+            omega_tope = 160.0 * (0.95 + 0.1 * ((semilla >> 16) % 1000) / 1000.0);
+            omega_tope_der = 130.0 * (0.95 + 0.1 * ((semilla >> 8) % 1000) / 1000.0);
+            tau_inercia_ms = 50.0 * (0.85 + 0.3 * ((semilla >> 4) % 1000) / 1000.0);
+            tau_inercia_der_ms = 95.0 * (0.85 + 0.3 * ((semilla >> 2) % 1000) / 1000.0);
+            e = error_de_giro(lado ? -90 : 90);
+            suma[lado] += e;
+            if (e > -3.0 && e < 3.0) buenos[lado]++;
+        }
+        printf("      %s: error medio %+.2f grados, dentro de +-3: %d de 10\n", lado ? "derecha " : "izquierda", suma[lado] / 10.0, buenos[lado]);
+    }
+    caso("motor asimetrico y ruido: a la izquierda al menos 9 de 10 giros quedan a +-3 grados", buenos[0] >= 9);
+    caso("motor asimetrico y ruido: a la derecha al menos 9 de 10 giros quedan a +-3 grados", buenos[1] >= 9);
+
+    /* ANT? muestra las cuatro. */
+    n_msg = 0;
+    orden("ANT?");
+    avanzar_ms(5);
+    {
+        int a, b, c, d;
+        const char *m = ultimo_mensaje("ANT:");
+
+        caso("ANT? -> ANT:<auto izq>,<auto der>,<manual izq>,<manual der> con los valores aprendidos",
+             m != NULL && sscanf(m, "ANT:%d,%d,%d,%d", &a, &b, &c, &d) == 4 && a == ant_auto_izq() && b == ant_auto_der() && c == 20 && d == 20);
+    }
+
+    /* Memoria: se guardó, no se escribe de más y sobrevive a un reinicio. */
+    guardados_antes = falso_ant_escrituras;
+    printf("      escrituras a la memoria durante 28 giros: %d (limite: solo cuando cambia 3 ms o mas)\n", guardados_antes);
+    caso("las anticipaciones se guardaron en la memoria no volatil (ranuras AUTO izq y der, con menos de 3 ms de diferencia: solo se escribe si cambia 3 ms o mas)",
+         falso_ant[3] >= 0 && falso_ant[2] >= 0 && abs(falso_ant[3] - ant_auto_izq()) < GIRO_ANT_GUARDAR_DIF_MS && abs(falso_ant[2] - ant_auto_der()) < GIRO_ANT_GUARDAR_DIF_MS);
+    caso("no se escribe en cada giro: menos de 20 escrituras en 28 giros", guardados_antes > 0 && guardados_antes < 20);
+    {
+        int izq = falso_ant[3], der = falso_ant[2];   /* lo guardado */
+
+        sensores_reiniciar_estado();    /* un reinicio del carro: se pierde la RAM pero no la memoria no volatil */
+        carro_iniciar();
+        sensores_iniciar();
+        caso("tras reiniciar el carro las anticipaciones aprendidas se leen de la memoria", ant_auto_izq() == izq && ant_auto_der() == der);
+    }
+
+    /* Mediana: un giro disparatado (inercia enorme, un resbalon) casi no mueve la anticipacion. */
+    arrancar(10.0, 3);
+    omega_tope = 160.0;
+    tau_inercia_ms = 50.0;
+    for (i = 0; i < 5; i++) {
+        (void)error_de_giro(90);
+    }
+    {
+        int antes = ant_auto_izq();
+
+        tau_inercia_ms = 400.0;                 /* un giro con muchisima inercia (se resbalo) */
+        (void)error_de_giro(90);
+        tau_inercia_ms = 50.0;
+        printf("      mediana: anticipacion %d ms antes de un giro raro y %d ms despues\n", antes, ant_auto_izq());
+        caso("la mediana no se deja llevar por UN giro raro (cambia menos de 15 ms)", ant_auto_izq() - antes < 15 && antes - ant_auto_izq() < 15);
+    }
+
+    /* Un giro corto no aprende (la velocidad no llega a su valor normal). */
+    {
+        int antes = ant_auto_izq();
+
+        (void)error_de_giro(15);
+        caso("un giro de menos de 30 grados no cambia la anticipacion", ant_auto_izq() == antes);
+    }
+
+    /* Perfil MANUAL: aprende en su propia ranura sin tocar la de AUTO. */
+    arrancar(10.0, 3);
+    omega_tope = 160.0;
+    tau_inercia_ms = 50.0;
+    for (i = 0; i < 3; i++) {
+        (void)error_de_giro(90);
+    }
+    {
+        int auto_izq = ant_auto_izq();
+
+        orden("MODO_MANUAL");
+        avanzar_ms(30);
+        tau_inercia_ms = 90.0;
+        for (i = 0; i < 4; i++) {
+            (void)error_de_giro(90);
+        }
+        tau_inercia_ms = 50.0;
+        printf("      MANUAL aprendio %d ms (AUTO sigue en %d ms)\n", giro_anticipacion_ms(PERFIL_MANUAL, 1), ant_auto_izq());
+        caso("en perfil MANUAL aprende en su propia ranura y la de AUTO no cambia", giro_anticipacion_ms(PERFIL_MANUAL, 1) > auto_izq + 10 && ant_auto_izq() == auto_izq);
+        orden("MODO_AUTO");
+        avanzar_ms(30);
+    }
+
+    /* Borrar. */
+    n_msg = 0;
+    orden("ANT_BORRAR");
+    avanzar_ms(5);
+    caso("ANT_BORRAR -> ACK_ANT_BORRAR", ultimo_mensaje("ACK_ANT_BORRAR") != NULL);
+    caso("... las 4 vuelven a 20 ms y la memoria queda vacia", ant_auto_izq() == 20 && ant_auto_der() == 20 && giro_anticipacion_ms(PERFIL_MANUAL, 1) == 20 && giro_anticipacion_ms(PERFIL_MANUAL, -1) == 20 &&
+         falso_ant[0] == -1 && falso_ant[1] == -1 && falso_ant[2] == -1 && falso_ant[3] == -1);
+    (void)texto;
+    caso("sensores_es_comando reconoce ANT_BORRAR y no ANT_BORRARX", sensores_es_comando("ANT_BORRAR") && !sensores_es_comando("ANT_BORRARX"));
 }
 
 /* ── 8. Sensor láser: filtro, regla de 2 lecturas, solo AUTO y solo avanzando ── */
@@ -1095,7 +1242,7 @@ static void prueba_mensajes(void)
     orden("ANT?");
     avanzar_ms(5);
     m = ultimo_mensaje("ANT:");
-    caso("ANT? -> ANT:20,20 (la anticipacion de config.h)", m != NULL && strcmp(m, "ANT:20,20") == 0);
+    caso("ANT? -> ANT:20,20,20,20 (la anticipacion de config.h en las 4 ranuras)", m != NULL && strcmp(m, "ANT:20,20,20,20") == 0);
 
     /* IMU_CERO. */
     orden("GIRAR:45");
@@ -1251,6 +1398,7 @@ int main(void)
     prueba_giro_errores();
     prueba_giro_sin_watchdog();
     prueba_giro_variable();
+    prueba_anticipacion_por_sentido();
     prueba_laser_lecturas();
     prueba_laser_paro();
     prueba_laser_fallos();

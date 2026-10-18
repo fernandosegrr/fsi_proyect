@@ -35,6 +35,11 @@ int hw_tof_iniciar(void);
 int hw_tof_listo(void);
 int hw_tof_leer(int *mm);
 
+/* Memoria no volátil de la anticipación del giro: 4 ranuras (perfil x sentido, ver giro.c). hw_ant_leer devuelve los ms guardados o -1 si no hay nada; hw_ant_borrar las borra todas. */
+int  hw_ant_leer(int ranura);
+void hw_ant_guardar(int ranura, int ms);
+void hw_ant_borrar(void);
+
 #ifdef __cplusplus
 }
 #endif
