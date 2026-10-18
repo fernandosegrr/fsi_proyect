@@ -437,6 +437,8 @@ static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
         nav->giro_fw = 0;                /* el giro por ángulo (si había) ya se cerró en registrar_fin_comando */
         nav->giro_fw_estado = 0;
         nav->giro_fw_pedir = 0;
+        nav->giro_fw_consultando = 0;
+        nav->giro_fw_consulta_pedir = 0;
         nav->giro_visual_x10 = 0;        /* un comando nuevo empieza a medir desde cero */
         nav->visual_cubierto_ms = 0;
         nav->cmd_actual = nuevo;
@@ -798,6 +800,10 @@ static void giro_fw_empezar(Navegador *nav, ComandoNav nuevo)
     nav->giro_fw_real_x10 = 0;
     nav->giro_fw_ms = 0;
     nav->giro_fw_t_ms = nav->t_ultimo_ms;
+    nav->giro_fw_consultando = 0;
+    nav->giro_fw_consulta_pedir = 0;
+    nav->giro_fw_ang_ini_ok = nav->sens_angulo_ok && (uint32_t)(nav->t_ultimo_ms - nav->sens_angulo_t_ms) <= (uint32_t)NAV_TOF_FRESCO_MS;   /* el ángulo del giroscopio justo antes del giro */
+    nav->giro_fw_ang_ini_x10 = nav->sens_angulo_x10;
     diag_escribir(nav, "SENS_DIAG giro pide=GIRAR objetivo=%d origen=%s t_ms=%lu", nav->giro_fw_grados, nombre_origen(nav->cmd_origen), (unsigned long)nav->t_ultimo_ms);
 }
 
@@ -813,21 +819,95 @@ static void giro_fw_pasar_a_tiempo(Navegador *nav, const char *motivo)
     nav->y_mm = nav->base_y_mm;
     nav->rumbo_grados = nav->base_rumbo_grados;
     fijar_pose(nav);
-    nav->ms_paso = 0;
-    nav->ms_fase = 0;
+    if (nav->estado == NAV_SIGUIENDO) {
+        nav->ms_paso = 0;   /* solo el contador del movimiento en curso: en ESQUIVANDO o REINCORPORANDO ms_paso es del paso de la ruta que quedó interrumpido y no se toca */
+    } else {
+        nav->ms_fase = 0;
+    }
+    nav->giro_fw_consultando = 0;
     nav->giro_visual_x10 = 0;
     nav->visual_cubierto_ms = 0;
     diag_escribir(nav, "SENS_DIAG giro_a_tiempo motivo=%s: este giro y los que siguen de la ruta van por tiempo", motivo);
 }
 
-/* Si el firmware no contesta en su tiempo máximo más el margen, el giro cae al método por tiempo. */
+/* El mensaje del giro se perdió: con el ángulo actual del giroscopio se sabe cuánto giró de verdad (en la dirección del comando). Si ya giró al menos NAV_GIRO_FW_YA_GIRO_PCT % de lo pedido, ese es el
+ * ángulo real y NO se repite nada; si no, la pose parte de lo que giró y se repite por tiempo SOLO lo que falta. */
+static void giro_fw_resolver(Navegador *nav, int angulo_ahora_x10, const char *fuente)
+{
+    int hecho_x10 = (nav->cmd_actual == NAV_CMD_LEFT) ? angulo_ahora_x10 - nav->giro_fw_ang_ini_x10 : nav->giro_fw_ang_ini_x10 - angulo_ahora_x10;
+    int pedido_x10 = nav->cmd_pedido * 10;
+
+    nav->giro_fw_consultando = 0;
+    nav->giro_fw_consulta_pedir = 0;
+    if (hecho_x10 * 100 >= pedido_x10 * NAV_GIRO_FW_YA_GIRO_PCT) {
+        nav->giro_fw_real_x10 = hecho_x10;      /* ya giró: lo medido es el ángulo real */
+        nav->giro_fw_ms = 0;
+        nav->giro_fw_estado = 1;
+        diag_escribir(nav, "SENS_DIAG giro mensaje_perdido fuente=%s real_x10=%d pedido_x10=%d: ya giro al menos el %d %%, NO se repite", fuente, hecho_x10, pedido_x10, NAV_GIRO_FW_YA_GIRO_PCT);
+        return;
+    }
+    {   /* giró solo una parte: la pose parte de ahí y por tiempo se hace lo que falta */
+        int lado = (nav->cmd_actual == NAV_CMD_LEFT) ? -1 : 1;
+        int total_ms = cal_grados_a_ms(&nav->cal, lado * nav->cmd_pedido);
+        int falta_ms;
+        int parcial = (hecho_x10 > 0) ? hecho_x10 : 0;
+
+        nav->giro_fw_real_x10 = parcial;
+        nav->giro_fw_estado = 1;
+        calcular_pose(nav);                      /* la pose después de lo que ya giró */
+        fijar_pose(nav);
+        nav->giro_fw = 0;
+        nav->giro_fw_estado = 0;
+        nav->giro_fw_pedir = 0;
+        nav->giro_fw_caido = 1;                  /* los giros que siguen van por tiempo */
+        falta_ms = cal_grados_a_ms(&nav->cal, lado * ((pedido_x10 - parcial) / 10));
+        {
+            int hecho_ms = total_ms - falta_ms;
+
+            if (hecho_ms < 0) {
+                hecho_ms = 0;
+            }
+            if (nav->estado == NAV_SIGUIENDO) {
+                nav->ms_paso = hecho_ms;         /* el paso termina cuando se cumple su tiempo total: queda solo lo que falta */
+            } else {
+                nav->ms_fase = hecho_ms;
+            }
+        }
+        nav->giro_visual_x10 = 0;
+        nav->visual_cubierto_ms = 0;
+        diag_escribir(nav, "SENS_DIAG giro mensaje_perdido fuente=%s real_x10=%d pedido_x10=%d: giro menos del %d %%, se repite por tiempo SOLO lo que falta (%d ms)", fuente, hecho_x10, pedido_x10,
+                      NAV_GIRO_FW_YA_GIRO_PCT, falta_ms);
+    }
+}
+
+/* Si el firmware no contesta en su tiempo máximo más el margen, antes de repetir el giro por tiempo se pregunta cuánto giró (IMU?). */
 static void giro_fw_vigilar(Navegador *nav, uint32_t ahora_ms)
 {
     int grados = (nav->giro_fw_grados < 0) ? -nav->giro_fw_grados : nav->giro_fw_grados;
     uint32_t espera_max = (uint32_t)(NAV_GIRO_FW_BASE_MS + NAV_GIRO_FW_POR_GRADO_MS * grados + NAV_GIRO_FW_ESPERA_EXTRA_MS);
 
-    if (nav->giro_fw && nav->giro_fw_estado == 0 && (uint32_t)(ahora_ms - nav->giro_fw_t_ms) > espera_max) {
-        giro_fw_pasar_a_tiempo(nav, "sin_respuesta");
+    if (!nav->giro_fw || nav->giro_fw_estado != 0) {
+        return;
+    }
+    if (!nav->giro_fw_consultando) {
+        if ((uint32_t)(ahora_ms - nav->giro_fw_t_ms) > espera_max) {
+            if (!nav->giro_fw_ang_ini_ok) {   /* sin el ángulo del inicio no hay con qué comparar: se repite por tiempo como antes */
+                giro_fw_pasar_a_tiempo(nav, "sin_respuesta_ni_angulo_inicial");
+                return;
+            }
+            nav->giro_fw_consultando = 1;
+            nav->giro_fw_consulta_pedir = 1;
+            nav->giro_fw_consulta_t_ms = ahora_ms;
+            diag_escribir(nav, "SENS_DIAG giro sin_GIRO_OK: se pregunta IMU? antes de repetirlo (angulo al inicio=%d)", nav->giro_fw_ang_ini_x10);
+        }
+        return;
+    }
+    if ((uint32_t)(ahora_ms - nav->giro_fw_consulta_t_ms) > (uint32_t)NAV_GIRO_FW_CONSULTA_MS) {
+        if (nav->sens_angulo_ok && (uint32_t)(ahora_ms - nav->sens_angulo_t_ms) <= (uint32_t)NAV_TOF_FRESCO_MS) {
+            giro_fw_resolver(nav, nav->sens_angulo_x10, "ultimo_SENS");
+        } else {
+            giro_fw_pasar_a_tiempo(nav, "sin_respuesta_ni_IMU");
+        }
     }
 }
 
@@ -1391,6 +1471,10 @@ void navegador_iniciar(Navegador *nav)
     nav->giro_fw_grados = nav->giro_fw_real_x10 = nav->giro_fw_ms = 0;
     nav->giro_fw_t_ms = 0;
     nav->n_giros_angulo = nav->n_giros_tiempo = 0;
+    nav->giro_fw_ang_ini_x10 = nav->giro_fw_ang_ini_ok = nav->giro_fw_consultando = nav->giro_fw_consulta_pedir = 0;
+    nav->giro_fw_consulta_t_ms = 0;
+    nav->sens_angulo_x10 = nav->sens_angulo_ok = 0;
+    nav->sens_angulo_t_ms = 0;
     nav->tof_vivo = nav->tof_mm = nav->tof_valida = nav->tof_libre_lecturas = nav->tof_cerca_lecturas = 0;
     nav->tof_t_ms = 0;
     nav->tof_paro_activo = nav->tof_pendiente = nav->tof_paros = nav->tof_dist_mm = 0;
@@ -1536,6 +1620,7 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
 
         nav->giro_fw_caido = nav->giro_fw = nav->giro_fw_estado = nav->giro_fw_pedir = 0;   /* por ruta: el giroscopio vuelve a intentarse y los contadores parten de cero */
         nav->n_giros_angulo = nav->n_giros_tiempo = 0;
+        nav->giro_fw_consultando = nav->giro_fw_consulta_pedir = nav->giro_fw_ang_ini_ok = 0;
         nav->tof_paro_activo = nav->tof_pendiente = nav->tof_paros = nav->tof_dist_mm = 0;
         nav->racha_solo_centro2 = nav->tof_racha_nota = 0;
         diag_escribir(nav, "SENS_DIAG config giroscopio=%d sensor_distancia=%d", nav->usa_giroscopio, nav->usa_tof);
@@ -3347,11 +3432,14 @@ void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, 
     }
 }
 
-void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, uint32_t ahora_ms)
+void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms)
 {
     if (nav == NULL) {
         return;
     }
+    nav->sens_angulo_x10 = angulo_x10_fw;
+    nav->sens_angulo_t_ms = ahora_ms;
+    nav->sens_angulo_ok = 1;
     nav->tof_vivo = tof_vivo ? 1 : 0;
     nav->tof_mm = mm;
     nav->tof_valida = tof_valida ? 1 : 0;
@@ -3374,6 +3462,28 @@ void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida,
     }
     limitar_contador(&nav->tof_libre_lecturas);
     limitar_contador(&nav->tof_cerca_lecturas);
+}
+
+int navegador_tomar_consulta_imu(Navegador *nav)
+{
+    if (nav == NULL || !nav->giro_fw_consulta_pedir) {
+        return 0;
+    }
+    nav->giro_fw_consulta_pedir = 0;
+    return 1;
+}
+
+void navegador_aporte_imu(Navegador *nav, int angulo_x10_fw, uint32_t ahora_ms)
+{
+    if (nav == NULL) {
+        return;
+    }
+    nav->sens_angulo_x10 = angulo_x10_fw;   /* IMU? también es una lectura fresca del ángulo */
+    nav->sens_angulo_t_ms = ahora_ms;
+    nav->sens_angulo_ok = 1;
+    if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_consultando) {
+        giro_fw_resolver(nav, angulo_x10_fw, "IMU?");
+    }
 }
 
 void navegador_aporte_tof_paro(Navegador *nav, int mm, uint32_t ahora_ms)

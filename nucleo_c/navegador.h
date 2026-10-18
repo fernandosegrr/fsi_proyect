@@ -192,6 +192,8 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_GIRO_FW_BASE_MS        500    /* tiempo máximo propio del firmware: base + por grado (igual que GIRO_TIEMPO_BASE_MS y GIRO_TIEMPO_POR_GRADO_MS de config.h) */
 #define NAV_GIRO_FW_POR_GRADO_MS    15
 #define NAV_GIRO_FW_ESPERA_EXTRA_MS 1500  /* margen sobre ese máximo para que llegue la respuesta; si no llega, el giro cae al método por tiempo */
+#define NAV_GIRO_FW_CONSULTA_MS   1000    /* si no llega GIRO_OK ni GIRO_TIMEOUT se pregunta IMU? y se espera tanto la respuesta (si no llega se usa el último SENS fresco) */
+#define NAV_GIRO_FW_YA_GIRO_PCT     80    /* con el mensaje perdido, si el giroscopio dice que ya giró al menos este % de lo pedido NO se repite el giro */
 #define NAV_TOF_ESPERA_LADO_MS     700    /* tras TOF_PARO se espera tanto (como máximo) a que la cámara dé el lado libre */
 #define NAV_TOF_LIBRE_MM           800    /* el láser «ve libre» si mide más de esto (o no tiene eco) */
 #define NAV_TOF_LIBRE_LECTURAS       3
@@ -464,6 +466,14 @@ typedef struct {
     int      giro_fw_real_x10;       /* grados por 10 que giró de verdad, en la dirección del comando */
     int      giro_fw_ms;             /* lo que tardó el firmware */
     uint32_t giro_fw_t_ms;           /* hora en que se pidió */
+    int      giro_fw_ang_ini_x10;    /* ángulo del giroscopio (convención del firmware, + izquierda) al empezar el giro por ángulo; solo vale si giro_fw_ang_ini_ok */
+    int      giro_fw_ang_ini_ok;
+    int      giro_fw_consultando;    /* 1 desde que se acabó la espera sin respuesta hasta que se resuelve con IMU? (o el último SENS) */
+    int      giro_fw_consulta_pedir; /* 1 = falta mandar IMU? (la app lo toma con navegador_tomar_consulta_imu) */
+    uint32_t giro_fw_consulta_t_ms;
+    int      sens_angulo_x10;        /* el último ángulo que dijo SENS (+ izquierda) y la hora en que llegó */
+    uint32_t sens_angulo_t_ms;
+    int      sens_angulo_ok;
     int      n_giros_angulo, n_giros_tiempo;   /* cuántos giros de la ruta fueron por ángulo y cuántos por tiempo (para el resumen final) */
     int      tof_vivo;               /* 1 si el láser funciona (según SENS) */
     int      tof_mm;                 /* última lectura (1200 = libre) */
@@ -560,7 +570,13 @@ int  navegador_poner_sensor_distancia(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, uint32_t ahora_ms);
-void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, uint32_t ahora_ms);
+void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms);
+
+/* MENSAJE DE GIRO PERDIDO (J12): si pasa la espera máxima sin GIRO_OK ni GIRO_TIMEOUT, antes de repetir el giro por tiempo el navegador pide IMU? (navegador_tomar_consulta_imu devuelve 1 una vez
+ * para que la app lo mande) y compara el ángulo que contesta (navegador_aporte_imu, en grados por 10, + izquierda) con el del inicio del giro: si ya giró al menos NAV_GIRO_FW_YA_GIRO_PCT % de lo pedido NO
+ * repite (usa lo medido como ángulo real); si no, repite por tiempo SOLO lo que falta. Sin respuesta del IMU? en NAV_GIRO_FW_CONSULTA_MS se usa el último SENS si es reciente. */
+int  navegador_tomar_consulta_imu(Navegador *nav);
+void navegador_aporte_imu(Navegador *nav, int angulo_x10_fw, uint32_t ahora_ms);
 void navegador_aporte_tof_paro(Navegador *nav, int mm, uint32_t ahora_ms);
 
 /* Saca la siguiente línea de diagnóstico que el navegador escribió y la copia a `texto` (capacidad `capacidad`, termina en '\0'). Devuelve 1 si había una

@@ -103,6 +103,11 @@ typedef struct {
     int fw_n_giros;            /* giros por ángulo pedidos */
     int fw_cerrado;            /* 1 = el último giro lo hizo el firmware: al soltar el comando no se suma el frenado de tiempo */
     int fw_sin_motor;          /* 1 = este giro no mueve el carro (el firmware ni lo empezó) */
+    int fw_pierde_mensaje;     /* J12: 1 = el GIRO_OK/GIRO_TIMEOUT de los giros por ángulo se pierde (el carro gira igual) */
+    int fw_total_pct;          /* J12: % del giro que el carro hace de verdad (100 normal; 40 = se detuvo antes, p. ej. el mensaje se perdió porque algo falló) */
+    int imu_sin_respuesta;     /* J12: 1 = el firmware no contesta IMU? */
+    int sens_apagado;          /* J12: 1 = el firmware no manda SENS (ni ángulo) */
+    long rumbo0_cgrados;       /* rumbo con el que empezó (el giroscopio mide el ángulo desde ahí) */
     int tof_activo;
     int tof_perdido;           /* 1 = el láser está caído (SENS con láser muerto) */
     int tof_paro_hecho;        /* cuántas paradas de emergencia hizo el láser */

@@ -194,7 +194,8 @@ class ModoSemiautonomo(
         NavegadorNativa.ponerSensorDistancia(if (logica.laserActivo) 1 else 0)
         Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo}")
         logica.alGiro = { codigo, _, real, ms -> NavegadorNativa.aporteGiro(codigo, real, ms, SystemClock.elapsedRealtime()) }
-        logica.alSens = { _, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, SystemClock.elapsedRealtime()) }
+        logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime()) }
+        logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
         logica.alTofParo = { mm -> NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime()) }
         NavegadorNativa.pedirAyuda(if (modoPruebaObstaculo) 0 else 1)   // si no puede esquivar, pide que tomes el control en vez de rendirse (la prueba de obstáculo no)
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
@@ -325,6 +326,10 @@ class ModoSemiautonomo(
         val girarGrados = NavegadorNativa.tomarGiroFw()
         if (girarGrados != 0) {
             logica.girar(girarGrados)
+        }
+        if (NavegadorNativa.tomarConsultaImu() != 0) {
+            Log.i("SENS_DIAG", "se perdió la respuesta de un giro: se pregunta IMU? para saber cuánto giró")
+            logica.pedirImu()
         }
         val porAngulo = NavegadorNativa.giroFwActivo() == 1
         val reenviar = giroPorAnguloAntes && !porAngulo && (comando == NavegadorNativa.CMD_LEFT || comando == NavegadorNativa.CMD_RIGHT)

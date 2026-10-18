@@ -2379,11 +2379,29 @@ Java_com_fsi_carro_NavegadorNativa_aporteGiro(JNIEnv *env, jobject objeto, jint 
 
 /* Llegó un SENS del firmware. */
 JNIEXPORT void JNICALL
-Java_com_fsi_carro_NavegadorNativa_aporteSens(JNIEnv *env, jobject objeto, jint mm, jboolean tof_vivo, jboolean tof_valida, jlong ahora_ms)
+Java_com_fsi_carro_NavegadorNativa_aporteSens(JNIEnv *env, jobject objeto, jint mm, jboolean tof_vivo, jboolean tof_valida, jint angulo_x10, jlong ahora_ms)
 {
     (void)env;
     (void)objeto;
-    navegador_aporte_sens(obtener_navegador(), (int)mm, tof_vivo ? 1 : 0, tof_valida ? 1 : 0, (uint32_t)ahora_ms);
+    navegador_aporte_sens(obtener_navegador(), (int)mm, tof_vivo ? 1 : 0, tof_valida ? 1 : 0, (int)angulo_x10, (uint32_t)ahora_ms);
+}
+
+/* J12: 1 (una sola vez) si el navegador pide que se mande IMU? (se perdió la respuesta de un giro por ángulo). */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_tomarConsultaImu(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return navegador_tomar_consulta_imu(obtener_navegador());
+}
+
+/* J12: la respuesta a IMU?: el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteImu(JNIEnv *env, jobject objeto, jint angulo_x10, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_imu(obtener_navegador(), (int)angulo_x10, (uint32_t)ahora_ms);
 }
 
 /* Llegó TOF_PARO:<mm>: el firmware frenó por algo muy cerca al frente. */

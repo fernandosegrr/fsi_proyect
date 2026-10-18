@@ -3306,10 +3306,42 @@ static void pruebas_j11_giroscopio(void)
     correr_leyendo(60000);
     caso("GIRO_ERROR con angulo parcial: lo usa, avisa y sigue por tiempo", nav.estado == NAV_TERMINADO && hay_diag("SENS_DIAG giro aviso=GIRO_ERROR") && nav.n_giros_tiempo >= 1);
 
+    /* J12, mensaje de giro perdido: antes de repetir por tiempo se pregunta IMU? y se compara el angulo con el del inicio del giro. */
     preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
-    sim.fw_sin_respuesta = 1;
+    correr_leyendo(60000);
+    {
+        int base_distancia = distancia_a(1, 4);
+
+        preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+        sim.fw_pierde_mensaje = 1;   /* el carro gira completo pero el GIRO_OK nunca llega */
+        correr_leyendo(80000);
+        printf("      mensaje perdido con el carro que SI giro: distancia al inicio %d mm (sin perdida %d mm), giros por angulo %d, por tiempo %d\n", distancia_a(1, 4), base_distancia, nav.n_giros_angulo, nav.n_giros_tiempo);
+        caso("mensaje perdido y el carro ya giro: pregunta IMU?, ve que giro mas del 80 % y NO repite el giro (ni uno por tiempo)", nav.estado == NAV_TERMINADO && hay_diag("SENS_DIAG giro sin_GIRO_OK: se pregunta IMU?") &&
+             hay_diag("fuente=IMU?") && hay_diag("NO se repite") && nav.n_giros_tiempo == 0 && !hay_diag("giro_a_tiempo"));
+        caso("... y termina casi donde terminaria sin perder el mensaje (el giro no se duplico)", nav.estado == NAV_TERMINADO && distancia_a(1, 4) <= base_distancia + 100 && pose_estimada_coincide(270));
+    }
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_pierde_mensaje = 1;
+    sim.fw_total_pct = 40;   /* ...y el carro solo hizo el 40 % del giro */
     correr_leyendo(80000);
-    caso("el firmware nunca contesta: tras la espera maxima el giro cae al metodo por tiempo y la ruta termina", nav.estado == NAV_TERMINADO && hay_diag("motivo=sin_respuesta") && nav.n_giros_tiempo >= 2);
+    printf("      mensaje perdido con el carro que giro 40 %%: estado=%s distancia al inicio %d mm, rumbo real %d\n", navegador_texto_estado(nav.estado), distancia_a(1, 4), sim_rumbo_grados(&sim));
+    caso("mensaje perdido y el carro giro menos del 80 %: repite por tiempo SOLO lo que falta (el giro de 90 no se hace entero otra vez)", nav.estado == NAV_TERMINADO && hay_diag("giro menos del 80 %, se repite por tiempo SOLO lo que falta") &&
+         !hay_diag("sin_respuesta_ni"));
+    caso("... y el carro real termina cerca del destino (rumbo 270 +-15, a menos de 45 cm de donde empezo)", nav.estado == NAV_TERMINADO && distancia_a(1, 4) <= 450 && ((sim_rumbo_grados(&sim) - 270 + 540) % 360 - 180) <= 15 && ((sim_rumbo_grados(&sim) - 270 + 540) % 360 - 180) >= -15);
+
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_pierde_mensaje = 1;
+    sim.imu_sin_respuesta = 1;   /* el IMU? tampoco se contesta, pero SENS sigue llegando */
+    correr_leyendo(90000);
+    caso("mensaje perdido y sin respuesta a IMU?: usa el ultimo SENS (fresco) y no repite el giro", nav.estado == NAV_TERMINADO && hay_diag("fuente=ultimo_SENS") && nav.n_giros_tiempo == 0);
+
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_pierde_mensaje = 1;
+    sim.imu_sin_respuesta = 1;
+    sim.sens_apagado = 1;        /* sin SENS no hay angulo del inicio: no se puede comparar */
+    correr_leyendo(120000);
+    caso("sin angulo del inicio (no llega SENS) y sin respuesta: cae al metodo por tiempo como antes y la ruta termina (nunca se queda trabada)", nav.estado == NAV_TERMINADO &&
+         hay_diag("motivo=sin_respuesta_ni_angulo_inicial") && nav.n_giros_tiempo >= 2);
 
     /* 5. Cancelar a mitad de un giro por angulo no deja nada colgado. */
     preparar_giro(CUADRADO, N(CUADRADO), 1, 100);

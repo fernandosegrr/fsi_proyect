@@ -56,6 +56,8 @@ void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados)
     sim->x_cmm = (long)columna * CELDA_CM * 1000;
     sim->y_cmm = (long)fila * CELDA_CM * 1000;
     sim->rumbo_cgrados = (long)rumbo_grados * 100;
+    sim->rumbo0_cgrados = sim->rumbo_cgrados;
+    sim->fw_total_pct = 100;
     sim->pct_avance = 100;
     sim->pct_giro = 100;
     cal_defecto(&sim->real);
@@ -326,7 +328,7 @@ static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
         }
         sim->fw_anticipacion_ms[izquierda ? 1 : 0] = ant + (int)((ideal - ant) / 2);
     }
-    sim->fw_total_cgrados = total_mdeg / 10;
+    sim->fw_total_cgrados = total_mdeg / 10 * sim->fw_total_pct / 100;
     sim->fw_manejo_ms = t;
     sim->fw_medido_x10 = (int)((medido_final + 50) / 100) + (sim->fw_ruido_x10 > 0 ? azar_fw_entre(-sim->fw_ruido_x10, sim->fw_ruido_x10) : 0);
     sim->fw_codigo = codigo;
@@ -353,7 +355,7 @@ static void fw_avanzar(Simulador *sim, Navegador *nav, int dt)
     if (sim->fw_ms >= sim->fw_dur_ms) {
         sim->fw_activo = 0;
         sim->fw_cerrado = 1;
-        if (!sim->fw_sin_respuesta) {
+        if (!sim->fw_sin_respuesta && !sim->fw_pierde_mensaje) {
             /* el firmware cuenta + a la izquierda */
             navegador_aporte_giro(nav, sim->fw_codigo, (sim->fw_lado == CAL_LADO_IZQUIERDA) ? sim->fw_medido_x10 : -sim->fw_medido_x10, sim->fw_manejo_ms, sim->t_ms);
         }
@@ -393,6 +395,14 @@ static int laser_ve(Simulador *sim)
         }
     }
     return mm;
+}
+
+/* El ángulo que da el giroscopio (decimas de grado, + a la izquierda): lo que giró el carro REAL desde que empezó, con el error de escala del giroscopio. */
+static int angulo_fw_x10(const Simulador *sim)
+{
+    long cgrados_der = sim->rumbo_cgrados - sim->rumbo0_cgrados;
+
+    return (int)(-(cgrados_der / 10) * (100 + sim->fw_escala_pct) / 100);
 }
 
 static int es_estado_sin_movimiento(EstadoNav estado)
@@ -445,12 +455,12 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
             sim->n_pendientes--;
         }
-        if (sim->tof_activo && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms; el láser mira lo que había en el cuadro anterior */
-            int mm = laser_ve(sim);
+        if ((sim->tof_activo || sim->fw_giroscopio) && !sim->sens_apagado && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms (ángulo del giroscopio y láser); el láser mira lo que había en el cuadro anterior */
+            int mm = sim->tof_activo ? laser_ve(sim) : 1200;
 
             sim->proximo_sens_ms = sim->t_ms + 100;
-            navegador_aporte_sens(nav, mm, sim->tof_perdido ? 0 : 1, mm < 1200, sim->t_ms);
-            if (!sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
+            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0, sim->tof_activo && mm < 1200, angulo_fw_x10(sim), sim->t_ms);
+            if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
                 sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */
                     sim->tof_parado = 1;
@@ -463,6 +473,9 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
         }
         comando = navegador_tick(nav, sim->t_ms, obs);
+        if (sim->fw_giroscopio && navegador_tomar_consulta_imu(nav) && !sim->imu_sin_respuesta) {
+            navegador_aporte_imu(nav, angulo_fw_x10(sim), sim->t_ms);   /* el firmware contesta IMU? con el ángulo actual */
+        }
         if (sim->fw_giroscopio) {   /* si el navegador pide un giro por ángulo, el firmware simulado lo toma */
             int grados_fw;
 

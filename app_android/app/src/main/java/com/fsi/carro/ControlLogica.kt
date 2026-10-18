@@ -123,6 +123,9 @@ class ControlLogica(
     var alGiro: ((Int, Int, Int, Int) -> Unit)? = null
     var alTofParo: ((Int) -> Unit)? = null
 
+    /** La respuesta a IMU?: el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
+    var alImu: ((Int) -> Unit)? = null
+
     /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
     val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
     private var sinConexionDesdeMs = 0L
@@ -334,6 +337,11 @@ class ControlLogica(
         alCambiar()
     }
 
+    /** Pregunta el ángulo del giroscopio ahora (IMU?): el navegador lo usa cuando se pierde la respuesta de un giro por ángulo. */
+    fun pedirImu() {
+        enviar("IMU?")
+    }
+
     /** Pone el ángulo del giroscopio en cero (IMU_CERO). */
     fun ponerAnguloCero() {
         enviar("IMU_CERO")
@@ -516,6 +524,7 @@ class ControlLogica(
                     val p = texto.substring(4).split(",")
                     if (p.size >= 2) {
                         sesgoX100 = p[1].toIntOrNull()
+                        p[0].toIntOrNull()?.let { alImu?.invoke(it) }
                         alCambiar()
                     }
                 }
