@@ -42,11 +42,11 @@ Etiquetas nuevas (`adb logcat` o el log de la app): `SENS_DIAG` (qué sensor dec
 
 | # | Fecha | Resultado | ¿Pasa? |
 |---|---|---|---|
-| 1 Polaridad | | | |
+| 1 Polaridad | 18 oct | Con el carro por WiFi y la app: `GIRAR:+90` (izquierda) terminó en `GIRO_OK` con ángulo POSITIVO (sin tocar `IMU_SIGNO`). Falta confirmar a ojo que giró a la izquierda. | pendiente de confirmar a ojo |
 | 2 Deriva | 18 oct | 0.0° en 60 s (sin tocar) | sí |
 | 3 Piso vacío | | | |
 | 4 Caja a 30 cm | | | |
-| 5 Giros 10+10, tiempo y ángulo | | | |
+| 5 Giros 10+10, tiempo y ángulo | 18 oct | Solo 6 giros por ángulo medidos por el giroscopio (no con cinta): izquierda 99.2, 93.5 y 99.0 grados; derecha 91.0. La anticipación (20 ms al inicio) se corrige sola pero no alcanzó a asentarse. La prueba se cortó porque el carro chocó (el pivote barre ~16 cm de radio). No cuenta como la prueba completa. | repetir con más espacio |
 | 6 Ruta en L con y sin giroscopio | | | |
 | 7 Caja delante / recta con caja | | | |
 | 8 Corte de WiFi | | | |
