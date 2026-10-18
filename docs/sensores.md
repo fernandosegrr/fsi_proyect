@@ -3,20 +3,12 @@
 ## Estado (17 oct 2026)
 
 - **Código y pruebas de PC: hechos** (Fase A). `imu.c`, `tof.c`, `giro.c`, `sensores.c` son C puro; el `.ino` solo pone el bus I2C.
-- **Hardware: NO verificado.** Al cargar el firmware al DevKit (COM6) el escaneo del bus mostró:
-  - **MPU6050 (0x68): nunca contesta** (0 de 6 arranques; tampoco 0x69).
-  - **VL53L0X (0x29): contesta a ratos.** En 6 arranques seguidos: 1 vez no apareció nada en el escaneo, 4 veces apareció y `init()` de Pololu funcionó 2 veces y falló 2 (aparece pero no inicia).
-- Por eso **no se midieron** el sesgo, la deriva, el tiempo de `loop()` ni las lecturas del láser (los pasos siguientes de A4 quedan bloqueados hasta arreglar el cableado). No se inventa ningún número.
-
-### Diagnóstico
-
-1. Un láser que aparece y desaparece entre arranques y un MPU que nunca aparece apuntan a **conexión eléctrica**, no a software: el mismo código inicia bien en las pruebas de PC y el bus I2C sí funciona (el láser contesta).
-2. Sospechas, de más a menos probable:
-   - **GY-521 sin alimentación** (VCC o GND sin soldar o en falso) pero con SDA/SCL conectados: un módulo apagado "arrastra" las líneas por sus diodos de protección y vuelve inestable a los demás. Explicaría los dos síntomas a la vez.
-   - Soldadura fría o cable flojo en SDA o SCL del GY-521 (o del láser).
-   - SDA y SCL cruzados en el GY-521 (el láser funciona porque va bien).
-   - Pines de la tira del GY-521 sin soldar (suele venir suelta y hay que soldarla).
-3. Pruebas que se piden al dueño del carro (ver el informe): foto del cableado; desconectar SDA y SCL del GY-521 y repetir `estado` (si el láser queda 5 de 5, el problema es el GY-521); medir con multímetro 3.3 V entre VCC y GND del GY-521.
+- **Hardware: los dos módulos funcionan** (comprobado por USB con el DevKit en COM6, tras corregir el cableado):
+  - Escaneo del bus: `0x29` (láser) y `0x68` (giroscopio).
+  - **MPU6050:** WHO_AM_I = `0x68` (original, no clon), sesgo medido −0.44 a −0.46 °/s (igual en 5 arranques), deriva del ángulo con el carro quieto 60 s: 0.8° como máximo (límite 1°; se hizo mientras se reconectaba un cable, hay que repetirla sin tocar nada).
+  - **VL53L0X:** 8 de 8 arranques iniciaron bien (con 5 reintentos de `init()`; sin reintentos fallaba 1 de cada 3 aunque aparecía en el escaneo). Lecturas con algo delante: 66 a 77 mm, estables (sin comparar todavía con una regla).
+  - **Tiempo de `loop()`: NO cumple todavía.** `LOOP?` informó un máximo de 92 ms con 2 vueltas sobre 5 ms desde el arranque. Causa sin identificar (puede ser el arranque o una impresión por serie); queda por investigar antes de dar por buena la Fase A.
+- Causas del problema de cableado que hubo: el cable SCL del GY-521 no llegaba al DevKit (con el láser desconectado, SCL no subía). Sirvió el comando `PINES?` (nivel eléctrico de SDA/SCL) y `PRUEBAI2C?` (escaneo cruzado y a 100/400 kHz).
 
 ## Cableado y pines
 
@@ -41,7 +33,7 @@ Láser: una lectura cada ~33 ms sin bloquear `loop()`; 8190, 65535 o más de 120
 
 ## Mensajes (WebSocket y, los de consulta, también por USB)
 
-`CAPS?`, `IMU?`, `TOF?`, `SENS:<ángulo x10>,<mm>,<banderas>` (cada 100 ms con cliente y perfil AUTO), `GIRAR:<grados>` → `GIRO_OK` / `GIRO_TIMEOUT` / `GIRO_ERROR`, `IMU_CAL`, `IMU_CERO`, `TOF_PARO:<mm>`, `LOOP?`, `ANT?`. Solo por USB: `SENS_SERIE:1`, `I2C?` (escaneo del bus) y `REG:<dir>:<reg>` (lee un registro). **Por USB nunca se mueven los motores** (`GIRAR` se rechaza con `NAK_SERIE`). Detalle de cada mensaje en `firmware_carro/sensores.h` y `giro.h`.
+`CAPS?`, `IMU?`, `TOF?`, `SENS:<ángulo x10>,<mm>,<banderas>` (cada 100 ms con cliente y perfil AUTO), `GIRAR:<grados>` → `GIRO_OK` / `GIRO_TIMEOUT` / `GIRO_ERROR`, `IMU_CAL`, `IMU_CERO`, `TOF_PARO:<mm>`, `LOOP?`, `ANT?`. Solo por USB: `SENS_SERIE:1`, `I2C?` (escaneo del bus), `REG:<dir>:<reg>` (lee un registro), `PINES?` y `PRUEBAI2C?` (diagnóstico de cableado). **Por USB nunca se mueven los motores** (`GIRAR` se rechaza con `NAK_SERIE`). Detalle de cada mensaje en `firmware_carro/sensores.h` y `giro.h`.
 
 ## Pruebas de PC (Fase A)
 

@@ -211,6 +211,8 @@
 #define TOF_LIBRE_MM             1200
 #define TOF_MIN_VALIDO_MM        8        /* menos de esto es basura del sensor: se ignora (ni libre ni cerca) */
 #define TOF_ERRORES_MAX          3
+#define TOF_INTENTOS_INICIO      5        /* init() de la librería de Pololu falla a veces justo al encender: se reintenta */
+#define TOF_PAUSA_INICIO_MS      100
 #define TOF_SIN_DATOS_MS         500
 
 /* Mensajes hacia la app: SENS cada SENS_PERIODO_MS mientras haya cliente y perfil AUTO. loop() no debe quedarse detenido más de LOOP_MAX_US. */

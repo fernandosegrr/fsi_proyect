@@ -128,7 +128,15 @@ extern "C" int hw_i2c_presente(uint8_t dir)
 extern "C" int hw_tof_iniciar(void)
 {
   laser.setTimeout(20);
-  if (!laser.init()) {
+  /* init() de Pololu falla de vez en cuando justo después de encender (el sensor aún se está despertando): se reintenta TOF_INTENTOS_INICIO veces con una pausa. */
+  bool listo = false;
+  for (int intento = 0; intento < TOF_INTENTOS_INICIO && !listo; intento++) {
+    if (intento > 0) {
+      delay(TOF_PAUSA_INICIO_MS);
+    }
+    listo = laser.init();
+  }
+  if (!listo) {
     return 0;
   }
   laser.setMeasurementTimingBudget((uint32_t)TOF_PERIODO_MS * 1000u);
@@ -379,6 +387,58 @@ static void enviar_mensajes_de_sensores()
   }
 }
 
+/* Diagnóstico eléctrico del bus (comando PINES? por USB): suelta el bus y lee SDA y SCL como entradas, primero sin ayuda, luego con una resistencia hacia abajo y hacia arriba del chip.
+ *   SDA/SCL = 1 sin ayuda  -> algún módulo ENCENDIDO los sube con su pull-up (bien).
+ *   SDA/SCL = 0 aun con pull-up del chip -> algo los tiene pegados a GND (corto, módulo mal conectado).
+ *   0 sin ayuda y 1 con pull-up del chip -> ningún módulo con energía los sube (módulos sin VCC o cable desconectado). */
+static void diagnostico_pines()
+{
+  Wire.end();
+  pinMode(PIN_I2C_SDA, INPUT);
+  pinMode(PIN_I2C_SCL, INPUT);
+  delay(5);
+  const int sda_libre = digitalRead(PIN_I2C_SDA), scl_libre = digitalRead(PIN_I2C_SCL);
+  pinMode(PIN_I2C_SDA, INPUT_PULLDOWN);
+  pinMode(PIN_I2C_SCL, INPUT_PULLDOWN);
+  delay(5);
+  const int sda_abajo = digitalRead(PIN_I2C_SDA), scl_abajo = digitalRead(PIN_I2C_SCL);
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+  delay(5);
+  const int sda_arriba = digitalRead(PIN_I2C_SDA), scl_arriba = digitalRead(PIN_I2C_SCL);
+  Serial.printf("PINES: libre SDA=%d SCL=%d | con resistencia hacia abajo SDA=%d SCL=%d | con resistencia hacia arriba SDA=%d SCL=%d\n",
+                sda_libre, scl_libre, sda_abajo, scl_abajo, sda_arriba, scl_arriba);
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.setClock(I2C_FRECUENCIA_HZ);
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+}
+
+/* Comando PRUEBAI2C? por USB: escanea el bus con SDA/SCL como están y CRUZADOS, a 100 kHz y a 400 kHz. Si algo aparece solo cruzado, los cables SDA y SCL están al revés. */
+static void diagnostico_prueba_i2c()
+{
+  for (int cruzado = 0; cruzado < 2; cruzado++) {
+    for (int velocidad = 0; velocidad < 2; velocidad++) {
+      const int sda = cruzado ? PIN_I2C_SCL : PIN_I2C_SDA;
+      const int scl = cruzado ? PIN_I2C_SDA : PIN_I2C_SCL;
+      Wire.end();
+      Wire.begin(sda, scl);
+      Wire.setClock(velocidad ? 400000 : 100000);
+      Wire.setTimeOut(I2C_TIMEOUT_MS);
+      Serial.printf("PRUEBAI2C: SDA=GPIO%d SCL=GPIO%d %d kHz ->", sda, scl, velocidad ? 400 : 100);
+      for (uint8_t dir = 1; dir < 127; dir++) {
+        if (hw_i2c_presente(dir)) {
+          Serial.printf(" 0x%02X", dir);
+        }
+      }
+      Serial.println();
+    }
+  }
+  Wire.end();
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.setClock(I2C_FRECUENCIA_HZ);
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+}
+
 /* Comandos de diagnóstico por el cable USB (la PC no se conecta al WiFi del carro): líneas de texto terminadas en salto de línea. Solo los de sensores; NO mueven motores. */
 static void leer_comandos_serie()
 {
@@ -389,7 +449,13 @@ static void leer_comandos_serie()
     if (c == '\n' || c == '\r') {
       if (largo > 0) {
         linea[largo] = '\0';
-        sensores_comando_serie(linea);
+        if (strcmp(linea, "PINES?") == 0) {
+          diagnostico_pines();
+        } else if (strcmp(linea, "PRUEBAI2C?") == 0) {
+          diagnostico_prueba_i2c();
+        } else {
+          sensores_comando_serie(linea);
+        }
       }
       largo = 0;
     } else if (largo < sizeof linea - 1) {
