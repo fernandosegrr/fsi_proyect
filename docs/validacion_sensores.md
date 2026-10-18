@@ -42,7 +42,7 @@ Etiquetas nuevas (`adb logcat` o el log de la app): `SENS_DIAG` (qué sensor dec
 
 | # | Fecha | Resultado | ¿Pasa? |
 |---|---|---|---|
-| 1 Polaridad | 18 oct | Con el carro por WiFi y la app: `GIRAR:+90` (izquierda) terminó en `GIRO_OK` con ángulo POSITIVO (sin tocar `IMU_SIGNO`). Falta confirmar a ojo que giró a la izquierda. | pendiente de confirmar a ojo |
+| 1 Polaridad | 18 oct | Con el carro por WiFi y la app: `GIRAR:+90` (izquierda) terminó en `GIRO_OK` con ángulo POSITIVO (sin tocar `IMU_SIGNO`). Confirmado a ojo por el dueño: el carro giró a la izquierda. | sí |
 | 2 Deriva | 18 oct | 0.0° en 60 s (sin tocar) | sí |
 | 3 Piso vacío | | | |
 | 4 Caja a 30 cm | | | |
