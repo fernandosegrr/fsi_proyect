@@ -1,10 +1,10 @@
 /*
- * calgiro.h — Calibración del GIRO con el giroscopio: el carro hace 3 giros a cada lado y los ms por grado y el frenado salen del ángulo REAL que mide el giroscopio, sin que nadie mida nada.
+ * calgiro.h — Calibración del GIRO con el giroscopio: cuatro giros por lado, el primero de calentamiento. La recta usa los otros tres y permite descartar el peor si quedan dos consistentes.
  *
  * GUÍA DE LECTURA
  *  1. La app la maneja así: calgiro_iniciar() (el USUARIO toca un botón, con el carro quieto y el espacio despejado) y después, cada ~50 ms, calgiro_tick() con el ángulo del giroscopio (lo último que
  *     dijo SENS, en décimas de grado, POSITIVO a la izquierda). calgiro_tick devuelve el comando que el carro debe mantener: CG_CMD_STOP, CG_CMD_IZQ (LEFT) o CG_CMD_DER (RIGHT).
- *  2. Son 6 giros alternados (izquierda, derecha, izquierda...) de unos 40, 70 y 100 grados, por TIEMPO (como siempre): para cada uno espera a que el carro esté quieto (el ángulo no cambia), manda LEFT o
+ *  2. Son 8 giros alternados (izquierda, derecha...), calentamiento de 40 y tres válidos de 40, 70 y 100 grados, por TIEMPO: para cada uno espera a que el carro esté quieto, manda LEFT o
  *     RIGHT durante el tiempo planeado, frena, espera CG_ASENTAR_MS a que termine de girar y anota el ángulo REAL que giró el giroscopio.
  *  3. Con los 3 pares (ms, grados) de cada lado se ajusta una recta (cal_ajustar_giro, el mismo ajuste de la calibración manual con el arranque que ya estaba guardado): sale ms por grado y frenado de cada lado.
  *     El desplazamiento del pivote NO se toca (sigue siendo manual).
@@ -23,7 +23,8 @@ extern "C" {
 #endif
 
 #define CG_GIROS_POR_LADO      3
-#define CG_TOTAL_GIROS         (2 * CG_GIROS_POR_LADO)
+#define CG_MEDICIONES_POR_LADO 4       /* calentamiento y tres puntos para la recta */
+#define CG_TOTAL_GIROS         (2 * CG_MEDICIONES_POR_LADO)
 
 /* Lo que devuelve calgiro_tick: el comando que el carro debe mantener. */
 #define CG_CMD_STOP            0
@@ -35,7 +36,7 @@ extern "C" {
 #define CG_PREPARANDO          1   /* STOP: esperando a que el carro esté quieto */
 #define CG_GIRANDO             2   /* mandando LEFT o RIGHT el tiempo planeado */
 #define CG_ASENTANDO           3   /* STOP: el carro termina de girar y se mide el ángulo real */
-#define CG_LISTO               4   /* los 6 giros hechos y la calibración calculada */
+#define CG_LISTO               4   /* los 8 giros hechos y la calibración calculada */
 #define CG_ERROR               5   /* ver calgiro_error */
 #define CG_CANCELADO           6
 
@@ -71,6 +72,7 @@ typedef struct {
     int cambio_frenado_pct;      /* idem el frenado (0 si antes era 0) */
     int cambio_grande;           /* 1 si el ms por grado cambió más de CG_CAMBIO_AVISO_PCT % */
     int error_max_x10;           /* lo que más se aleja un giro de la recta ajustada, en décimas de grado */
+    int descartado;              /* 0 = ninguno; 2..4 = medición descartada de ese lado (1 es calentamiento) */
     int duraciones_ms[CG_GIROS_POR_LADO];       /* los tiempos mandados */
     int grados_x10[CG_GIROS_POR_LADO];          /* lo que giró cada uno según el giroscopio */
 } CalGiroLado;
@@ -85,8 +87,9 @@ typedef struct {
     CalibracionCarro base;       /* lo guardado (con su arranque) */
     CalibracionCarro nueva;      /* lo calculado (solo vale en CG_LISTO) */
     int plan_ms[CG_TOTAL_GIROS];
-    int ms_real[2][CG_GIROS_POR_LADO];
-    int grados_x10[2][CG_GIROS_POR_LADO];
+    int ms_real[2][CG_MEDICIONES_POR_LADO];
+    int grados_x10[2][CG_MEDICIONES_POR_LADO];
+    int medido[2][CG_MEDICIONES_POR_LADO]; /* distingue cero grados de una medición pendiente */
     uint32_t t_inicio_ms, t_estado_ms, t_cmd_ms, t_ref_ms, t_angulo_ms;
     int ang_ref_x10, ang0_x10, ang_x10;
     CalGiroLado resumen[2];      /* [0] izquierda, [1] derecha */

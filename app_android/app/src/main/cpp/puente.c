@@ -1505,6 +1505,7 @@ Java_com_fsi_carro_CalGiroNativa_resultado(JNIEnv *env, jobject objeto)
             salida[base + 5] = lados[l].cambio_frenado_pct;
             salida[base + 6] = lados[l].cambio_grande;
             salida[base + 7] = lados[l].error_max_x10;
+            salida[base + 14] = lados[l].descartado;
             for (i = 0; i < CG_GIROS_POR_LADO; i++) {
                 salida[base + 8 + i] = lados[l].duraciones_ms[i];
                 salida[base + 11 + i] = lados[l].grados_x10[i];
@@ -1514,6 +1515,28 @@ Java_com_fsi_carro_CalGiroNativa_resultado(JNIEnv *env, jobject objeto)
     if (arreglo != NULL) {
         (*env)->SetIntArrayRegion(env, arreglo, 0, 47, salida);
     }
+    return arreglo;
+}
+
+/* Diagnóstico disponible incluso al fallar o cancelar: por lado, cuatro
+ * mediciones con ms planeados, ms reales, grados x10 y bandera de medición. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalGiroNativa_datos(JNIEnv *env, jobject objeto)
+{
+    jint salida[32];
+    jintArray arreglo = (*env)->NewIntArray(env, 32);
+    int l, i;
+    (void)objeto;
+    for (l = 0; l < 2; l++) {
+        for (i = 0; i < CG_MEDICIONES_POR_LADO; i++) {
+            int b = l * 16 + i * 4;
+            salida[b] = calgiro_global.plan_ms[i * 2 + l];
+            salida[b + 1] = calgiro_global.ms_real[l][i];
+            salida[b + 2] = calgiro_global.grados_x10[l][i];
+            salida[b + 3] = calgiro_global.medido[l][i];
+        }
+    }
+    if (arreglo != NULL) (*env)->SetIntArrayRegion(env, arreglo, 0, 32, salida);
     return arreglo;
 }
 

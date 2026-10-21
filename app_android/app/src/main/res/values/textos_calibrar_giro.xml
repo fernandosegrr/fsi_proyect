@@ -5,11 +5,13 @@
 <resources>
     <string name="cg_titulo">Calibrar el giro con el giroscopio</string>
     <string name="cg_titulo_corto">Calibrar giro (giroscopio)</string>
-    <string name="cg_en_lista_detalle">El carro hace 3 giros a cada lado y calcula solo los ms por grado y el frenado con el ángulo que mide el giroscopio. No hay que medir nada.</string>
+    <string name="cg_en_lista_detalle">El carro hace 4 giros por lado. El primero es de calentamiento y no cuenta para la recta; los otros tres calculan ms por grado y frenado.</string>
     <string name="cg_abrir">Abrir</string>
     <string name="cg_titulo_tarjeta">Giros de prueba</string>
-    <string name="cg_explicacion">Pon el carro en el piso, quieto y con 1 metro libre alrededor. Hace 6 giros alternados (izquierda y derecha, de unos 40°, 70° y 100°) y tarda cerca de un minuto. Con lo que mide el giroscopio ajusta los ms por grado y el frenado de cada lado. El desplazamiento del pivote no cambia (sigue siendo manual). Para parar en cualquier momento: PARO.</string>
-    <string name="cg_empezar">Empezar los 6 giros</string>
+    <string name="cg_explicacion">Pon el carro en el piso, quieto y con espacio libre alrededor. Hace 8 giros alternados: 4 por lado. El primero de cada lado es de calentamiento y no cuenta para la recta. Los otros tres (unos 40°, 70° y 100°) ajustan ms por grado y frenado. Puede descartar uno si los otros dos son consistentes; lo indica al terminar. Tarda cerca de un minuto. El desplazamiento del pivote sigue siendo manual. Para parar: PARO. Reposiciona el carro entre tandas.</string>
+    <string name="cg_empezar">Empezar los 8 giros</string>
+    <string name="cg_calentamiento">Giro de calentamiento: no cuenta para la recta.</string>
+    <string name="cg_descartado">Se descartó el giro %1$d de la %2$s; se usaron los otros dos válidos.</string>
     <string name="cg_antes_de_empezar">Listo cuando tú lo digas. El carro no se mueve hasta que toques «Empezar».</string>
     <string name="cg_avance">Giro %1$d de %2$d · %3$s</string>
     <string name="cg_fase_quieto">esperando que el carro esté quieto</string>

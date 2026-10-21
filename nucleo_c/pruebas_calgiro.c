@@ -29,6 +29,7 @@ typedef struct {
     int invertido;        /* 1 = el giroscopio da el ángulo con el signo cambiado */
     int sin_giro_lado;    /* -1 = ninguno; 0 o 1 = ese lado no gira nunca (sin pilas) */
     int resbala_giro;     /* -1 = ninguno; k = el giro k (0 a 5) solo gira la mitad (patinó) */
+    int atipicos_x10[CG_TOTAL_GIROS]; /* error adicional de cada giro, también durante calentamiento */
     long mover_al_inicio_ms;   /* gira lentamente durante tantos ms al empezar (alguien lo mueve a mano) */
     long sin_angulo_desde, sin_angulo_hasta;   /* entre estas horas el giroscopio no da lectura */
 } Carro;
@@ -111,7 +112,7 @@ static void simular(Carro *c, CalGiro *cg, const CalibracionCarro *guardada, lon
                 int l = (cmd_previo == CG_CMD_IZQ) ? 0 : 1;
 
                 t_stop = t;
-                coast_pend_mdeg = (cmd_previo == CG_CMD_IZQ ? 1 : -1) * (long)c->fre_x10[l] * 100;   /* sigue girando al frenar */
+                coast_pend_mdeg = (cmd_previo == CG_CMD_IZQ ? 1 : -1) * (long)(c->fre_x10[l] + c->atipicos_x10[giro_visto - 1]) * 100;
             }
             cmd_previo = cmd;
         }
@@ -189,9 +190,9 @@ int main(void)
     c = carro_de(96, 81, 50, 20);                        /* lo real: 9.6 y 8.1 ms por grado, frenado de 5.0 y 2.0 grados */
     simular(&c, &cg, &g, 120000, -1);
     caso("carro 20 % desajustado: termina en LISTO sin error", cg.estado == CG_LISTO && cg.error == CG_ERR_NINGUNO);
-    caso("hace 6 giros alternados: izquierda, derecha, izquierda, derecha, izquierda, derecha (y siempre vuelve a STOP)",
-         n_comandos == 12 && comandos[0] == CG_CMD_IZQ && comandos[1] == CG_CMD_STOP && comandos[2] == CG_CMD_DER && comandos[4] == CG_CMD_IZQ && comandos[6] == CG_CMD_DER &&
-         comandos[8] == CG_CMD_IZQ && comandos[10] == CG_CMD_DER && comandos[11] == CG_CMD_STOP);
+    caso("hace 8 giros alternados (4 por lado, incluidos dos de calentamiento), siempre vuelve a STOP",
+         n_comandos == 16 && comandos[0] == CG_CMD_IZQ && comandos[1] == CG_CMD_STOP && comandos[2] == CG_CMD_DER && comandos[4] == CG_CMD_IZQ && comandos[6] == CG_CMD_DER &&
+         comandos[8] == CG_CMD_IZQ && comandos[10] == CG_CMD_DER && comandos[12] == CG_CMD_IZQ && comandos[14] == CG_CMD_DER && comandos[15] == CG_CMD_STOP);
     caso("al terminar no queda ningun comando de giro puesto", ultimo_cmd == CG_CMD_STOP && cg.comando == CG_CMD_STOP);
     printf("      tiempo total %ld ms\n", tiempo_total_ms);
     caso("toda la calibracion tarda menos de 45 segundos", tiempo_total_ms < 45000);
@@ -277,7 +278,7 @@ int main(void)
 
     /* 10. Un giro que patino. */
     c = carro_de(80, 90, 30, 30);
-    c.resbala_giro = 2;                  /* el 3.o gira solo la mitad: 70 grados deberian ser 35 */
+    c.resbala_giro = 2;                  /* el primer válido gira la mitad y también desajusta los tiempos siguientes */
     simular(&c, &cg, &g, 120000, -1);
     caso("si un giro patina (gira la mitad) los tres de ese lado no siguen una recta: ERROR inconsistente y no se entrega calibracion", cg.estado == CG_ERROR && cg.error == CG_ERR_INCONSISTENTE &&
          calgiro_resultado(&cg, &nueva, r) == 0);
@@ -312,6 +313,30 @@ int main(void)
     }
 
     caso("textos de error en espanol", calgiro_texto_error(CG_ERR_NO_GIRO)[0] != '\0' && calgiro_texto_error(CG_ERR_NINGUNO)[0] == '\0');
+
+    /* J13: el calentamiento no entra en la recta ni escala tiempos. */
+    g = guardada_aprox(90, 90, 30, 30);
+    c = carro_de(90, 90, 30, 30);
+    c.atipicos_x10[0] = c.atipicos_x10[1] = 150;
+    simular(&c, &cg, &g, 120000, -1);
+    caso("primer giro de cada lado atipico +15 grados: termina y recupera ms/grado", cg.estado == CG_LISTO &&
+         calgiro_resultado(&cg, &nueva, r) && cerca(r[0].ms_x10_despues, 90, 5) && cerca(r[1].ms_x10_despues, 90, 5));
+    caso("calentamientos se conservan para diagnostico sin descartar validos", cg.medido[0][0] && cg.medido[1][0] &&
+         cg.grados_x10[0][0] > cg.grados_x10[0][1] + 100 && r[0].descartado == 0 && r[1].descartado == 0);
+    c = carro_de(90, 90, 30, 30);
+    c.atipicos_x10[4] = 200;
+    simular(&c, &cg, &g, 120000, -1);
+    caso("valor atipico en medio: descarta solo el tercer giro izquierdo", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
+         r[0].descartado == 3 && r[1].descartado == 0 && cerca(r[0].ms_x10_despues, 90, 5));
+    c = carro_de(90, 90, 30, 30);
+    simular(&c, &cg, &g, 120000, -1);
+    caso("datos buenos: usa los tres puntos sin descarte", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
+         r[0].descartado == 0 && r[1].descartado == 0);
+    c = carro_de(90, 90, 30, 30);
+    c.atipicos_x10[2] = 650; c.atipicos_x10[4] = 400; c.atipicos_x10[6] = -300;
+    simular(&c, &cg, &g, 120000, -1);
+    caso("datos totalmente inconsistentes: rechaza y conserva pares sin entregar calibracion", cg.estado == CG_ERROR &&
+         cg.error == CG_ERR_INCONSISTENTE && cg.medido[0][3] && !calgiro_resultado(&cg, &nueva, r) && ultimo_cmd == CG_CMD_STOP);
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

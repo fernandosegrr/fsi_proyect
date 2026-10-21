@@ -3,7 +3,7 @@
  *
  * GUÍA DE LECTURA
  *  1. iniciar() con la calibración guardada, y después tick() cada ~50 ms con el ángulo que dijo SENS. tick() devuelve el comando que el carro debe mantener (CMD_*).
- *  2. estado() dice en qué va (giro actual de 6) y si hubo un error; resultado() da la calibración nueva y, para cada lado, cuánto cambió contra lo guardado.
+ *  2. estado() dice en qué va (giro actual de 8); datos() conserva los pares incluso si falla; resultado() da la calibración nueva y los descartes.
  *  3. La pantalla es CalibrarGiroActivity; la lógica (cuándo girar, cuándo medir) está toda en el código en C, con sus pruebas en nucleo_c/pruebas_calgiro.c.
  */
 package com.fsi.carro
@@ -34,7 +34,7 @@ object CalGiroNativa {
     const val E_CODIGO_AJUSTE = 3
     const val E_COMANDO = 4
 
-    const val TOTAL_GIROS = 6
+    const val TOTAL_GIROS = 8
 
     // Índices de resultado(): [0] = 1 si hay resultado; [1..16] = la calibración nueva; después, para cada lado (izquierda: 17, derecha: 32), 15 enteros.
     const val R_HAY = 0
@@ -51,6 +51,7 @@ object CalGiroNativa {
     const val L_ERROR_MAX = 7
     const val L_DURACIONES = 8   // 3 tiempos mandados (ms)
     const val L_GRADOS = 11      // 3 ángulos medidos (grados x10)
+    const val L_DESCARTADO = 14  // 0 = ninguno; 2..4 = medición de ese lado
 
     /** Empieza con la calibración guardada (16 enteros, ver CalibracionNativa). Devuelve 0 o -1. */
     external fun iniciar(calibracion: IntArray, ahoraMs: Long): Int
@@ -65,6 +66,9 @@ object CalGiroNativa {
 
     /** Ver los índices R_* y L_*. Solo hay datos (R_HAY = 1) en el estado LISTO. */
     external fun resultado(): IntArray
+
+    /** Cuatro mediciones por lado: [ms planeados, ms reales, grados x10, medido]. También tras error o cancelación. */
+    external fun datos(): IntArray
 
     /** Frase corta del error (vacía si no hay). */
     external fun textoError(error: Int): String

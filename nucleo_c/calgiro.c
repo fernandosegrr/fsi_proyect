@@ -1,17 +1,17 @@
 /*
  * calgiro.c — Calibración del giro con el giroscopio (ver calgiro.h).
  *
- * CÓMO FUNCIONA (por cada uno de los 6 giros)
+ * CÓMO FUNCIONA (por cada uno de los 8 giros)
  *   PREPARANDO → espera a que el ángulo lleve CG_QUIETO_MS sin cambiar (el carro está quieto) y anota el ángulo de salida.
  *   GIRANDO    → devuelve LEFT o RIGHT hasta que pasa el tiempo planeado.
  *   ASENTANDO  → devuelve STOP; cuando pasaron CG_ASENTAR_MS y el ángulo lleva CG_QUIETO_FINAL_MS quieto, lo que giró es la diferencia con el ángulo de salida.
- * Al terminar el sexto giro se ajusta una recta por lado con cal_ajustar_giro.
+ * Al terminar el octavo giro se ajusta una recta por lado sin el calentamiento.
  */
 
 #include <string.h>
 #include "calgiro.h"
 
-static const int OBJETIVO_GRADOS[CG_GIROS_POR_LADO] = { 40, 70, 100 };
+static const int OBJETIVO_GRADOS[CG_MEDICIONES_POR_LADO] = { 40, 40, 70, 100 };
 
 static int valor_absoluto(int x)
 {
@@ -82,7 +82,39 @@ static void seguir_quieto(CalGiro *cg, uint32_t ahora_ms)
     }
 }
 
-/* Ajusta las dos rectas y llena el resumen. */
+/* Revisa la recta sin truncar el frenado negativo. Dos puntos no bastan si
+ * implican una inercia imposible. Devuelve el peor punto y el error máximo. */
+static int revisar_recta(const CalGiro *cg, int l, int excluir, int *peor, int *maximo)
+{
+    int i, n = 0, ok = 1;
+    int64_t sx = 0, sy = 0, sxx = 0, sxy = 0, den, num, intercepto;
+
+    *peor = -1;
+    *maximo = 0;
+    for (i = 1; i < CG_MEDICIONES_POR_LADO; i++) {
+        int x = cg->ms_real[l][i] - cg->base.arranque_ms;
+        int y = cg->grados_x10[l][i];
+        if (i == excluir) continue;
+        if (x <= 0) return 0;
+        n++; sx += x; sy += y; sxx += (int64_t)x * x; sxy += (int64_t)x * y;
+    }
+    den = n * sxx - sx * sx;
+    num = n * sxy - sx * sy;
+    if (den <= 0 || num <= 0) return 0;
+    intercepto = (sy * den - num * sx) / (n * den);
+    if (intercepto < -CG_INCONSISTENTE_X10 || intercepto > 200) ok = 0;
+    for (i = 1; i < CG_MEDICIONES_POR_LADO; i++) {
+        int predicho, error;
+        if (i == excluir) continue;
+        predicho = (int)(intercepto + num * (cg->ms_real[l][i] - cg->base.arranque_ms) / den);
+        error = valor_absoluto(cg->grados_x10[l][i] - predicho);
+        if (*peor < 0 || error > *maximo) { *peor = i; *maximo = error; }
+        if (error > CG_INCONSISTENTE_X10 && error * 100 > cg->grados_x10[l][i] * 6) ok = 0;
+    }
+    return ok;
+}
+
+/* Ajusta las dos rectas sin calentamiento; permite quitar solo el peor punto. */
 static void calcular(CalGiro *cg)
 {
     int l;
@@ -93,9 +125,23 @@ static void calcular(CalGiro *cg)
         CalGiroLado *r = &cg->resumen[l];
         int ms_antes = (l == 0) ? cg->base.ms_por_grado_izq_x10 : cg->base.ms_por_grado_der_x10;
         int fre_antes = (l == 0) ? cg->base.frenado_grados_izq_x10 : cg->base.frenado_grados_der_x10;
-        int ms_des, fre_des, codigo, i, peor = 0;
+        int ms_des, fre_des, codigo, i, peor, error_max, descartar = -1, n = 0;
+        int ms[CG_GIROS_POR_LADO], grados[CG_GIROS_POR_LADO];
 
-        codigo = cal_ajustar_giro(&cg->nueva, lado, CG_GIROS_POR_LADO, cg->ms_real[l], cg->grados_x10[l]);
+        if (!revisar_recta(cg, l, -1, &peor, &error_max)) {
+            int otro;
+            descartar = peor;
+            if (descartar < 1 || !revisar_recta(cg, l, descartar, &otro, &error_max)) {
+                fallar(cg, CG_ERR_INCONSISTENTE);
+                return;
+            }
+        }
+        for (i = 1; i < CG_MEDICIONES_POR_LADO; i++) {
+            if (i == descartar) continue;
+            ms[n] = cg->ms_real[l][i];
+            grados[n++] = cg->grados_x10[l][i];
+        }
+        codigo = cal_ajustar_giro(&cg->nueva, lado, n, ms, grados);
         if (codigo != CAL_OK) {
             cg->codigo_ajuste = codigo;
             fallar(cg, CG_ERR_AJUSTE);
@@ -103,13 +149,11 @@ static void calcular(CalGiro *cg)
         }
         ms_des = (l == 0) ? cg->nueva.ms_por_grado_izq_x10 : cg->nueva.ms_por_grado_der_x10;
         fre_des = (l == 0) ? cg->nueva.frenado_grados_izq_x10 : cg->nueva.frenado_grados_der_x10;
-        for (i = 0; i < CG_GIROS_POR_LADO; i++) {   /* ¿los tres giros siguen la recta? */
-            int predicho = fre_des + (cg->ms_real[l][i] - cg->base.arranque_ms) * 100 / ms_des;
-            int error = valor_absoluto(cg->grados_x10[l][i] - predicho);
-
-            if (error > peor) {
-                peor = error;
-            }
+        for (i = 1; i < CG_MEDICIONES_POR_LADO; i++) {
+            int predicho, error;
+            if (i == descartar) continue;
+            predicho = fre_des + (cg->ms_real[l][i] - cg->base.arranque_ms) * 100 / ms_des;
+            error = valor_absoluto(cg->grados_x10[l][i] - predicho);
             if (error > CG_INCONSISTENTE_X10 && error * 100 > cg->grados_x10[l][i] * 6) {
                 fallar(cg, CG_ERR_INCONSISTENTE);
                 return;
@@ -123,10 +167,11 @@ static void calcular(CalGiro *cg)
         r->cambio_ms_pct = (ms_antes > 0) ? (int)(((long)(ms_des - ms_antes) * 100 + (ms_des >= ms_antes ? ms_antes / 2 : -ms_antes / 2)) / ms_antes) : 0;
         r->cambio_frenado_pct = (fre_antes > 0) ? (int)(((long)(fre_des - fre_antes) * 100) / fre_antes) : 0;
         r->cambio_grande = valor_absoluto(r->cambio_ms_pct) > CG_CAMBIO_AVISO_PCT;
-        r->error_max_x10 = peor;
+        r->error_max_x10 = error_max;
+        r->descartado = descartar < 0 ? 0 : descartar + 1;
         for (i = 0; i < CG_GIROS_POR_LADO; i++) {
-            r->duraciones_ms[i] = cg->ms_real[l][i];
-            r->grados_x10[i] = cg->grados_x10[l][i];
+            r->duraciones_ms[i] = cg->ms_real[l][i + 1];
+            r->grados_x10[i] = cg->grados_x10[l][i + 1];
         }
     }
     cg->estado = CG_LISTO;
@@ -191,6 +236,8 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
             int lado = lado_del_giro(k);
             int girado_x10 = (lado == CAL_LADO_IZQUIERDA) ? cg->ang_x10 - cg->ang0_x10 : cg->ang0_x10 - cg->ang_x10;   /* grados que giró en la dirección pedida */
 
+            cg->grados_x10[indice_lado(lado)][k / 2] = girado_x10; /* también se conserva si provoca un error */
+            cg->medido[indice_lado(lado)][k / 2] = 1;
             if (girado_x10 < -CG_MIN_GRADOS_X10) {
                 fallar(cg, CG_ERR_SENTIDO);
                 return CG_CMD_STOP;
@@ -203,8 +250,7 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
                 fallar(cg, CG_ERR_MUCHO);
                 return CG_CMD_STOP;
             }
-            cg->grados_x10[indice_lado(lado)][k / 2] = girado_x10;
-            if (k < 2) {   /* el primer giro de cada lado dice cuánto se equivocó lo guardado: los demás de ese lado se acomodan para que den los ángulos previstos (40, 70 y 100) */
+            if (k == 2 || k == 3) {   /* solo el primer giro válido acomoda los siguientes; el calentamiento nunca cambia la recta ni los tiempos */
                 int j;
                 long esperado_x10 = (long)OBJETIVO_GRADOS[0] * 10;
 

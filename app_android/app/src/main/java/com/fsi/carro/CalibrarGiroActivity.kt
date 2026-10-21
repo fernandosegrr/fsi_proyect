@@ -1,10 +1,10 @@
 /*
- * CalibrarGiroActivity.kt — Pantalla CALIBRAR EL GIRO CON EL GIROSCOPIO (J12). Se abre desde la lista de Calibración; el carro hace 3 giros a cada lado y calcula solo los ms por grado y el frenado.
+ * CalibrarGiroActivity.kt — Cuatro giros por lado; el primero de calentamiento. Calcula ms por grado y frenado con diagnóstico de todos los pares incluso al fallar.
  *
  * GUÍA DE LECTURA
  *  1. El USUARIO toca «Empezar» (nunca arranca sola) con el carro quieto, en el piso y con ~1 m libre alrededor. Hace falta el giroscopio (CAPS) y el perfil AUTO confirmado.
  *  2. Cada 50 ms se le da a CalGiroNativa (nucleo_c/calgiro.c) el ángulo del último SENS; ella decide si el carro espera, gira a la izquierda/derecha (LEFT/RIGHT por tiempo, como siempre) o frena. Aquí solo se
- *     traduce su respuesta a presionar()/parar() y se muestra el avance «Giro k de 6».
+ *     traduce su respuesta a presionar()/parar() y se muestra el avance «Giro k de 8».
  *  3. Al terminar (LISTO): se guarda una copia (para «Deshacer»), se guarda la calibración nueva (solo cambian los ms por grado y el frenado de cada giro; el desplazamiento del pivote sigue manual), se
  *     anota la fecha de GIRO_IZQ y GIRO_DER y se vuelve a 1000 el ajuste fino del giro de 90° de esos lados (ya no aplica). Si un valor cambió más de 10 % contra lo guardado, se avisa en rojo.
  *  4. Seguridad: PARO, salir de la pantalla o cualquier error mandan STOP y nunca dejan un comando puesto. Nada se guarda si la calibración no terminó bien. El resultado queda en el log (CALGIRO ...).
@@ -172,8 +172,7 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
         if (corriendo) {
             Log.i(ETIQUETA, "cancelada: $motivo")
             CalGiroNativa.cancelar()
-            corriendo = false
-            reloj.removeCallbacks(tareaTick)
+            terminar(motivo)
         }
         comandoPuesto = CalGiroNativa.CMD_STOP
         logica.parar()
@@ -185,6 +184,7 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
         reloj.removeCallbacks(tareaTick)
         val estado = CalGiroNativa.estado()
         Log.i(ETIQUETA, "fin ($motivo): estado=${estado[CalGiroNativa.E_ESTADO]} error=${estado[CalGiroNativa.E_ERROR]} giro=${estado[CalGiroNativa.E_GIRO_ACTUAL]}")
+        registrarPares()
         if (estado[CalGiroNativa.E_ESTADO] == CalGiroNativa.LISTO) {
             aplicarResultado()
         }
@@ -192,6 +192,21 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     // ── Resultado ─────────────────────────────────────────────────────────
+
+    private fun pares(lado: Int): String {
+        val datos = CalGiroNativa.datos()
+        return (0 until 4).joinToString("; ") { i ->
+            val b = lado * 16 + i * 4
+            val grados = if (datos[b + 3] != 0) "${datos[b + 2] / 10.0}°" else "sin medida"
+            "${i + 1}${if (i == 0) " (calentamiento)" else ""}: (${datos[b]} ms planeados, ${datos[b + 1]} ms reales, $grados)"
+        }
+    }
+
+    private fun registrarPares() {
+        for ((l, nombre) in listOf(0 to "izquierda", 1 to "derecha")) {
+            Log.i(ETIQUETA, "pares lado=$nombre orden=calentamiento,1,2,3 ${pares(l)}")
+        }
+    }
 
     private fun aplicarResultado() {
         val r = CalGiroNativa.resultado()
@@ -223,6 +238,8 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
             val frDespues = r[base + CalGiroNativa.L_FRENADO_DESPUES] / 10.0
             val cambio = r[base + CalGiroNativa.L_CAMBIO_MS_PCT]
             val grados = (0 until 3).joinToString(", ") { "%.0f°".format(r[base + CalGiroNativa.L_GRADOS + it] / 10.0) }
+            val descartado = r[base + CalGiroNativa.L_DESCARTADO]
+            if (descartado != 0) avisos.append(getString(R.string.cg_descartado, descartado, nombre)).append('\n')
             lineas.append(getString(R.string.cg_linea_lado, nombre, msAntes, msDespues, cambio, frAntes, frDespues, grados)).append('\n')
             if (r[base + CalGiroNativa.L_CAMBIO_GRANDE] != 0) {
                 avisos.append(getString(R.string.cg_aviso_cambio, nombre, Math.abs(cambio), AVISO_PCT)).append('\n')
@@ -261,8 +278,10 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         val giro = estado[CalGiroNativa.E_GIRO_ACTUAL]
         textoEstado.text = when {
-            corriendo -> getString(R.string.cg_avance, Math.min(giro + 1, CalGiroNativa.TOTAL_GIROS), CalGiroNativa.TOTAL_GIROS, fase(st))
-            st == CalGiroNativa.ERROR -> getString(R.string.cg_error_texto, CalGiroNativa.textoError(estado[CalGiroNativa.E_ERROR]))
+            corriendo -> getString(R.string.cg_avance, Math.min(giro + 1, CalGiroNativa.TOTAL_GIROS), CalGiroNativa.TOTAL_GIROS, fase(st)) +
+                if (giro < 2) "\n" + getString(R.string.cg_calentamiento) else ""
+            st == CalGiroNativa.ERROR -> getString(R.string.cg_error_texto, CalGiroNativa.textoError(estado[CalGiroNativa.E_ERROR])) +
+                "\nIzquierda: ${pares(0)}\nDerecha: ${pares(1)}"
             st == CalGiroNativa.CANCELADO -> getString(R.string.cg_cancelada)
             st == CalGiroNativa.LISTO -> getString(R.string.cg_terminada)
             !conectado -> getString(R.string.sens_sin_conexion_prueba)
