@@ -101,6 +101,17 @@ class ControlLogica(
     /** true si el láser necesitó reintentos en más de 1 de cada 5 arranques (cableado, XSHUT o pull-ups). */
     val laserArrancaMal: Boolean get() = arranquesAnotados >= 3 && arranquesConReintentos * 5 > arranquesAnotados
 
+    var imuReintentos = 0
+        private set
+    var imuMotivo = 0
+        private set
+    var imuEstado = 0
+        private set
+    var imuArranquesAnotados = 0
+        private set
+    var imuArranquesConReintentos = 0
+        private set
+
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true
     var usarSensorDistancia = true
@@ -494,6 +505,11 @@ class ControlLogica(
                     capsGiroscopio = imu
                     capsLaser = tof
                     tofReintentos = Regex("TOFR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    imuReintentos = Regex("IMUR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    imuMotivo = Regex("IMUM=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    imuEstado = Regex("IMUE=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    enviar("ARR?")   // actualiza el historial también tras un reintento en esta sesión
+                    Log.i("SENS_DIAG", texto)
                     Log.i("SENS_DIAG", "capacidades del firmware: giroscopio=$imu laser=$tof (interruptores: giroscopio=$usarGiroscopio laser=$usarSensorDistancia)")
                     alCambiar()
                 }
@@ -530,6 +546,8 @@ class ControlLogica(
                         arranquesAnotados = p[0].toIntOrNull() ?: 0
                         arranquesConReintentos = p[1].toIntOrNull() ?: 0
                         arranquesDetalle = p[2]
+                        imuArranquesAnotados = p.getOrNull(4)?.toIntOrNull() ?: 0
+                        imuArranquesConReintentos = p.getOrNull(5)?.toIntOrNull() ?: 0
                         Log.i("SENS_DIAG", "arranques del laser: anotados=$arranquesAnotados con_reintentos=$arranquesConReintentos detalle=${p[2]}")
                         alCambiar()
                     }
@@ -551,6 +569,7 @@ class ControlLogica(
                     val p = texto.substring(4).split(",")
                     if (p.size >= 2) {
                         sesgoX100 = p[1].toIntOrNull()
+                        imuMotivo = p.getOrNull(4)?.toIntOrNull() ?: imuMotivo
                         p[0].toIntOrNull()?.let { alImu?.invoke(it) }
                         alCambiar()
                     }

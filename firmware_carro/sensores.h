@@ -10,7 +10,7 @@
  *
  * MENSAJES (ver docs/sensores.md)
  *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>       lo que funciona (se repite solo cuando cambia)
- *   IMU?         → IMU:<ángulo x10>,<sesgo x100 °/s>,<estado 0..3>,<WHO_AM_I>
+ *   IMU?         → IMU:<ángulo x10>,<sesgo x100 °/s>,<estado 0..3>,<WHO_AM_I>,<motivo>
  *   TOF?         → TOF:<mm>,<banderas: 1 = sensor vivo, 2 = medida válida>
  *   SENS:<ángulo x10>,<mm>,<banderas>   cada 100 ms con cliente y perfil AUTO. Banderas: 1 IMU lista, 2 láser vivo, 4 última medida válida (si no, "libre"),
  *                                       8 IMU calibrando, 16 giro en curso.
@@ -20,8 +20,8 @@
  *   TOF_PARO:<mm>               (lo manda el firmware solo) frenó por algo muy cerca al frente
  *   LOOP?        → LOOP:<el loop() más largo en µs>,<cuántos pasaron de LOOP_MAX_US>        LOOP_CERO → ACK_LOOP_CERO
  *   ANT?         → ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> (anticipación del giro en ms, una por sentido y por perfil)
- *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>,TOFR=<reintentos de inicio del láser desde el arranque>
- *   ARR?         → ARR:<arranques anotados>,<con reintentos del láser>,<reintentos de cada uno (hex, el más nuevo a la derecha)>,<reintentos de este arranque>
+ *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>,TOFR=<reintentos láser>,IMUR=<reintentos sesgo>,IMUM=<motivo>,IMUE=<estado>
+ *   ARR?         → ARR:<n TOF>,<con reintentos TOF>,<detalle hex TOF>,<actual TOF>,<n IMU>,<con reintentos IMU>,<detalle hex IMU>,<actual IMU>
  *   ANT_BORRAR   → ACK_ANT_BORRAR   las cuatro vuelven a GIRO_ANTICIPACION_MS y se borran de la memoria no volátil
  *   TOF_USO:<0|1> → ACK_TOF_USO:<n>   enciende (1, por defecto) o apaga (0) la parada de emergencia del láser (el interruptor «Usar sensor de distancia» de la app); el láser sigue midiendo y mandando SENS
  */

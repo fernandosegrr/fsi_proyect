@@ -175,6 +175,7 @@
 #define IMU_SESGO_DESV_MAX_LSB   12       /* desviación estándar máxima de las lecturas (un giroscopio quieto da ~2 a 4) */
 #define IMU_SESGO_MAX_LSB        1000     /* sesgo máximo aceptable (~15 °/s) */
 #define IMU_CAL_QUIETO_MS        300      /* el carro debe llevar así de tiempo con los motores apagados para calibrar (que pase la vibración) */
+#define IMU_REINTENTO_MS         5000u    /* tras motivo 4, solo detenido; promedio sin reiniciar el bus */
 
 /* Actualización lenta del sesgo con el carro detenido (ZUPT): con los motores apagados más de IMU_ZUPT_QUIETO_MS y IMU_ZUPT_ESTABLES lecturas
  * seguidas casi iguales, el sesgo se acerca 1/IMU_ZUPT_DIV de la diferencia en cada muestra. */
@@ -231,7 +232,7 @@
 /* Mensajes hacia la app: SENS cada SENS_PERIODO_MS mientras haya cliente y perfil AUTO. loop() no debe quedarse detenido más de LOOP_MAX_US. */
 #define SENS_PERIODO_MS          100
 #define LOOP_MAX_US              5000u
-#define MENSAJE_SALIDA_MAX       56       /* largo máximo (con el fin de texto) de un mensaje que sale hacia la app o el puerto serie */
+#define MENSAJE_SALIDA_MAX       128      /* CAPS incluye reintentos, motivo y versión; con fin de texto */
 #define COLA_SALIDA_MAX          16
 
 #endif /* CONFIG_H */

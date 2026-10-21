@@ -3284,6 +3284,13 @@ static void pruebas_j11_giroscopio(void)
     }
 
     /* 4. Fallos: el firmware responde TIMEOUT / ERROR con datos / ERROR sin datos desde el 2.o giro, o no responde. */
+    preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
+    sim.fw_falla_desde = 1;
+    sim.fw_falla_codigo = NAV_GIRO_ERROR_SIN_DATOS; /* GIRO_ERROR:sin_sesgo */
+    correr_leyendo(60000);
+    caso("J13: firmware sin sesgo desde el primer giro cae a tiempo y termina sin angulo inventado", nav.estado == NAV_TERMINADO &&
+         nav.n_giros_angulo == 0 && nav.n_giros_tiempo >= 3 && nav.giro_fw_caido && hay_diag("SENS_DIAG giro_a_tiempo"));
+
     preparar_giro(CUADRADO, N(CUADRADO), 1, 90);
     sim.fw_falla_desde = 2;
     sim.fw_falla_codigo = NAV_GIRO_ERROR_SIN_DATOS;

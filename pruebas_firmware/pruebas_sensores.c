@@ -195,6 +195,40 @@ static void arrancar(double sesgo, int ruido)
 
 /* ── 1. Conversiones ───────────────────────────────────────────────────── */
 
+static void prueba_reintento_sesgo(void)
+{
+    int i, h, nt, ct, rt, ni, ci, ri;
+    unsigned dt, di;
+    const char *m;
+    printf("-- J13: sesgo tras arranque movido y reintento detenido --\n");
+    arrancar(-30.0, 3);
+    avanzar_ms(10000);
+    caso("J13: arranque quieto queda LISTA y no reintenta", imu_estado() == IMU_ESTADO_LISTA && (falso_imu_hist & 15) == 0);
+    arrancar(2000.0, 3); /* una velocidad durante el arranque no puede aceptarse como sesgo */
+    avanzar_ms(4700);
+    caso("J13: arranque movido agota promedios y queda MAL por motivo 4", imu_estado() == IMU_ESTADO_MAL && imu_motivo() == IMU_MOTIVO_SESGO);
+    orden("GIRAR:90"); avanzar_ms(5);
+    caso("J13: sin sesgo niega giro por angulo claramente y no energiza motores", ultimo_mensaje("GIRO_ERROR:sin_sesgo") != NULL && motores_parados());
+    avanzar_ms(4000);
+    caso("J13: antes de cinco segundos no reintenta", imu_estado() == IMU_ESTADO_MAL && (falso_imu_hist & 15) == 0);
+    for (i = 0; i < 30; i++) { orden("FORWARD"); avanzar_ms(200); }
+    caso("J13: aun vencido el plazo no reintenta con motores en marcha", imu_estado() == IMU_ESTADO_MAL && (falso_imu_hist & 15) == 0 && carro_motores_en_marcha());
+    orden("STOP"); sesgo_cuentas = -30.0; avanzar_ms(350);
+    m = ultimo_mensaje("CAPS:");
+    caso("J13: detenido reintenta sin demora de bus y anuncia IMUR=1", imu_estado() == IMU_ESTADO_CALIBRANDO && m && strstr(m, "IMUR=1") != NULL);
+    avanzar_ms(3000);
+    caso("J13: reintento exitoso mide sesgo y queda LISTA sin mover motores", imu_estado() == IMU_ESTADO_LISTA && motores_parados() && imu_sesgo_x100() >= -49 && imu_sesgo_x100() <= -42);
+    caso("J13: ultimo arranque registra el reintento en NVS", (falso_imu_hist & 15) == 1);
+    h = falso_imu_hist;
+    sensores_iniciar(); avanzar_ms(3200);
+    caso("J13: nuevo arranque conserva historial anterior y agrega cero", (falso_imu_hist & 0xFFFFF) == ((h << 4) & 0xFFFFF));
+    orden("ARR?"); avanzar_ms(5);
+    m = ultimo_mensaje("ARR:");
+    caso("J13: ARR conserva los cuatro campos TOF y agrega historial IMU", m &&
+         sscanf(m, "ARR:%d,%d,%x,%d,%d,%d,%x,%d", &nt, &ct, &dt, &rt, &ni, &ci, &di, &ri) == 8 &&
+         ni == 2 && ci == 1 && di == 0x10 && ri == 0);
+}
+
 static void prueba_conversiones(void)
 {
     printf("-- conversion de registros y de unidades --\n");
@@ -839,7 +873,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? lo dice: CAPS:IMU=1,TOF=1,TOFR=2", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2") == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2") == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -913,7 +947,7 @@ static void prueba_laser_reintentos(void)
     orden("ARR?");
     avanzar_ms(5);
     m = ultimo_mensaje("ARR:");
-    caso("ARR? -> ARR:5,2,02010,0 (arranques anotados, con reintentos, cada uno, este arranque)", m != NULL && strcmp(m, "ARR:5,2,02010,0") == 0);
+    caso("ARR? conserva historial TOF y agrega el de IMU", m != NULL && strcmp(m, "ARR:5,2,02010,0,1,0,00000,0") == 0);
     reiniciar_carro_con_laser(3, 0);                       /* un 6.o arranque con 3 reintentos: el mas viejo sale */
     tof_historial(&n, &con, &emp);
     caso("al 6.o arranque el mas viejo sale: quedan los ultimos 5 (2,0,1,0,3)", n == 5 && con == 3 && emp == 0x20103);
@@ -1362,13 +1396,13 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido (calibrando) -> CAPS:IMU=0,TOF=1,TOFR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0") == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1") == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo -> CAPS:IMU=1,TOF=1,TOFR=0", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0") == 0);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2") == 0);
     orden("IMU?");
     avanzar_ms(5);
     m = ultimo_mensaje("IMU:");
@@ -1402,7 +1436,7 @@ static void prueba_mensajes(void)
     orden("IMU_CAL");
     avanzar_ms(5);
     caso("IMU_CAL con el carro quieto -> ACK_IMU_CAL", ultimo_mensaje("ACK_IMU_CAL") != NULL && imu_estado() == IMU_ESTADO_CALIBRANDO);
-    caso("... mientras calibra, GIRAR -> GIRO_ERROR:sin_imu", (orden("GIRAR:45"), avanzar_ms(5), ultimo_mensaje("GIRO_ERROR:sin_imu") != NULL));
+    caso("... mientras calibra, GIRAR -> GIRO_ERROR:sin_sesgo", (orden("GIRAR:45"), avanzar_ms(5), ultimo_mensaje("GIRO_ERROR:sin_sesgo") != NULL && motores_parados()));
     avanzar_ms(3200);
     m = ultimo_mensaje("IMU_CAL_OK:");
     caso("al terminar -> IMU_CAL_OK:<sesgo x100>", m != NULL && sscanf(m, "IMU_CAL_OK:%d", &a) == 1 && a >= 10 && a <= 20 && imu_estado() == IMU_ESTADO_LISTA);
@@ -1532,6 +1566,7 @@ static void prueba_mensajes(void)
 int main(void)
 {
     prueba_conversiones();
+    prueba_reintento_sesgo();
     prueba_inicio();
     prueba_sesgo_y_angulo();
     prueba_reloj();

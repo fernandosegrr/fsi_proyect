@@ -51,6 +51,10 @@ void imu_actualizar(uint32_t ahora_us, uint32_t quieto_ms);
  * en MAL intenta iniciarlo otra vez (usa hw_demora_ms). El resultado llega como IMU_EVT_CAL_OK / IMU_EVT_CAL_FALLO. */
 int imu_recalibrar(void);
 
+/* Reintento automático tras motivo 4. El chip ya está configurado; no espera
+ * ni reinicia I2C. El llamador exige motores detenidos. Devuelve 1 si empezó. */
+int imu_reintentar_sesgo(void);
+
 int      imu_estado(void);
 int      imu_motivo(void);
 int      imu_quien_soy(void);          /* el WHO_AM_I que se leyó (0 si no se pudo) */

@@ -172,9 +172,10 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         val frescoMs = android.os.SystemClock.elapsedRealtime() - logica.ultimoSensMs
         val hayAngulo = giroOk && logica.ultimoSensMs != 0L && frescoMs < 1500L
         textoGiro.text = if (!contesto) "Giroscopio: sin respuesta del carro"
-            else if (!giroOk) "Giroscopio: MAL (no funciona; las rutas usan giros por tiempo)"
+            else if (!giroOk) "Giroscopio: ${if (logica.imuEstado == 1) "calibrando sesgo" else "MAL (motivo ${logica.imuMotivo})"}; las rutas usan giros por tiempo"
             else "Giroscopio: ok · " + (if (hayAngulo) "ángulo ${"%.1f".format(logica.anguloX10 / 10.0)}°" else "ángulo —") +
                 (logica.sesgoX100?.let { " · sesgo ${"%.2f".format(it / 100.0)} °/s" } ?: "") + (if (logica.usarGiroscopio) " · en uso" else " · apagado")
+        textoGiro.append("\nReintentos del sesgo: ${logica.imuReintentos}. Últimos arranques con reintentos del giroscopio: ${logica.imuArranquesConReintentos} de ${logica.imuArranquesAnotados}.")
         val hayDistancia = laserOk && logica.ultimoSensMs != 0L && frescoMs < 1500L
         textoLaser.text = if (!contesto) "Láser: sin respuesta del carro"
             else if (!laserOk) "Láser: MAL (no funciona; sin freno de emergencia)"

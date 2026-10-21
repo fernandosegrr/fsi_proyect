@@ -32,7 +32,10 @@ static Mensaje  salida[COLA_SALIDA_MAX];
 static int      salida_inicio = 0;
 static int      salida_cantidad = 0;
 
-static int      caps_anunciadas = -1;       /* lo último que se avisó de CAPS (bit 0 = IMU, bit 1 = TOF); -1 = nada todavía */
+static char     caps_anunciadas[MENSAJE_SALIDA_MAX];
+static int      imu_reintentos = 0;
+static int      imu_reintento_programado = 0;
+static uint32_t imu_proximo_ms = 0;
 static int      sens_serie = 0;             /* 1 = mandar SENS también por el puerto serie */
 static uint32_t ultimo_sens_ms = 0;
 static uint32_t ultimo_sens_serie_ms = 0;
@@ -85,7 +88,9 @@ void sensores_reiniciar_estado(void)
 {
     salida_inicio = 0;
     salida_cantidad = 0;
-    caps_anunciadas = -1;
+    caps_anunciadas[0] = '\0';
+    imu_reintentos = 0;
+    imu_reintento_programado = 0;
     sens_serie = 0;
     ultimo_sens_ms = 0;
     ultimo_sens_serie_ms = 0;
@@ -99,16 +104,21 @@ void sensores_reiniciar_estado(void)
 }
 
 /* Bit 0 = giroscopio listo, bit 1 = láser vivo; de ahí para arriba, los reintentos del láser (para avisar a la app cuando cambian). */
-static int capacidades(void)
+/* Historial de cinco arranques: igual que TOF, pero actualiza el último
+ * dígito cuando el sesgo necesita un reintento en tiempo de ejecución. */
+static void imu_anotar_arranque(void)
 {
-    return (imu_estado() == IMU_ESTADO_LISTA ? 1 : 0) | (tof_vivo() ? 2 : 0) | (tof_reintentos() << 2);
+    int h = hw_imu_hist_leer();
+    int n = h < 0 ? 0 : (h >> 20) & 7;
+    int digitos = h < 0 ? 0 : h & 0xFFFFF;
+    if (n < 5) n++;
+    hw_imu_hist_guardar((n << 20) | ((digitos << 4) & 0xFFFFF));
 }
 
 static void texto_caps(char *dest, int largo)
 {
-    int c = capacidades();
-
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d", c & 1, (c >> 1) & 1, tof_reintentos());   /* TOFR: reintentos de inicio del láser desde el arranque */
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d",
+             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado());
 }
 
 void sensores_iniciar(void)
@@ -119,6 +129,7 @@ void sensores_iniciar(void)
     sensores_reiniciar_estado();
     giro_cargar_memoria();   /* las anticipaciones aprendidas (4: perfil x sentido) */
     imu_ok = imu_iniciar();
+    imu_anotar_arranque();
     snprintf(linea, sizeof linea, "IMU: WHO_AM_I=0x%02X %s (motivo %d)", imu_quien_soy(), imu_ok ? "calibrando el sesgo" : "MAL", imu_motivo());
     hw_registrar(linea);
     tof_ok = tof_iniciar();
@@ -132,7 +143,6 @@ static void revisar_eventos(void)
     int ei = imu_tomar_eventos();
     int et = tof_tomar_eventos();
     char texto[MENSAJE_SALIDA_MAX];
-    int c;
 
     if (ei & IMU_EVT_LISTA) {
         snprintf(texto, sizeof texto, "IMU: lista, sesgo %d (x0.01 grados/s)", (int)imu_sesgo_x100());
@@ -155,10 +165,9 @@ static void revisar_eventos(void)
     if (et & TOF_EVT_RECUPERADO) {
         hw_registrar("TOF: volvio a funcionar tras un reintento");
     }
-    c = capacidades();
-    if (c != caps_anunciadas) {
-        caps_anunciadas = c;
-        texto_caps(texto, sizeof texto);
+    texto_caps(texto, sizeof texto);
+    if (strcmp(texto, caps_anunciadas) != 0) {
+        strcpy(caps_anunciadas, texto);
         sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
     }
 }
@@ -220,6 +229,24 @@ void sensores_actualizar(void)
 {
     uint32_t ahora_ms = hw_millis();
 
+    if (imu_estado() == IMU_ESTADO_MAL && imu_motivo() == IMU_MOTIVO_SESGO) {
+        if (!imu_reintento_programado) {
+            imu_proximo_ms = ahora_ms + IMU_REINTENTO_MS;
+            imu_reintento_programado = 1;
+        }
+        if ((int32_t)(ahora_ms - imu_proximo_ms) >= 0 && !carro_motores_en_marcha() &&
+            carro_quieto_ms() >= IMU_CAL_QUIETO_MS && !giro_ocupado() && imu_reintentar_sesgo()) {
+            int h = hw_imu_hist_leer();
+            int digito;
+            if (imu_reintentos < 65535) imu_reintentos++;
+            digito = imu_reintentos > 15 ? 15 : imu_reintentos;
+            if ((h & 15) != digito) hw_imu_hist_guardar((h & ~15) | digito);
+            imu_reintento_programado = 0;
+            hw_registrar("IMU: reintento automatico del sesgo con motores detenidos");
+        }
+    } else {
+        imu_reintento_programado = 0;
+    }
     imu_actualizar(hw_micros(), carro_quieto_ms());
     tof_actualizar(ahora_ms, carro_quieto_ms() >= TOF_REINTENTO_QUIETO_MS && !giro_ocupado());   /* el reintento del láser solo se hace con el carro detenido */
     giro_actualizar(ahora_ms);
@@ -276,7 +303,7 @@ static void ejecutar(const char *texto, int donde)
         texto_caps(respuesta, sizeof respuesta);
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "IMU?") == 0) {
-        snprintf(respuesta, sizeof respuesta, "IMU:%d,%d,%d,%d", (int)imu_angulo_x10(), (int)imu_sesgo_x100(), imu_estado(), imu_quien_soy());
+        snprintf(respuesta, sizeof respuesta, "IMU:%d,%d,%d,%d,%d", (int)imu_angulo_x10(), (int)imu_sesgo_x100(), imu_estado(), imu_quien_soy(), imu_motivo());
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "TOF?") == 0) {
         snprintf(respuesta, sizeof respuesta, "TOF:%d,%d", tof_vivo() ? tof_mm() : 0, (tof_vivo() ? 1 : 0) | (tof_vivo() && tof_valida() ? 2 : 0));
@@ -314,7 +341,14 @@ static void ejecutar(const char *texto, int donde)
         int n, con, emp;
 
         tof_historial(&n, &con, &emp);
-        snprintf(respuesta, sizeof respuesta, "ARR:%d,%d,%05X,%d", n, con, emp, tof_reintentos_arranque());
+        {
+            int h = hw_imu_hist_leer();
+            int ni = h < 0 ? 0 : (h >> 20) & 7;
+            int di = h < 0 ? 0 : h & 0xFFFFF;
+            int ci = 0, i;
+            for (i = 0; i < ni; i++) if ((di >> (4 * i)) & 15) ci++;
+            snprintf(respuesta, sizeof respuesta, "ARR:%d,%d,%05X,%d,%d,%d,%05X,%d", n, con, emp, tof_reintentos_arranque(), ni, ci, di, imu_reintentos);
+        }
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "ANT_BORRAR") == 0) {
         giro_borrar_anticipaciones();

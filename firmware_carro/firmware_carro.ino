@@ -90,6 +90,24 @@ extern "C" void hw_tof_hist_guardar(int valor)
 }
 
 /* Anticipación del giro por ángulo (4 ranuras: perfil x sentido). Se guarda ms + 1 para distinguir «0 ms» de «nada guardado». */
+extern "C" int hw_imu_hist_leer(void)
+{
+  int valor = 0;
+  if (memoria.begin("carro", true)) {
+    valor = memoria.getInt("imuHist", 0);
+    memoria.end();
+  }
+  return valor > 0 ? valor - 1 : -1;
+}
+
+extern "C" void hw_imu_hist_guardar(int valor)
+{
+  if (memoria.begin("carro", false)) {
+    memoria.putInt("imuHist", valor + 1);
+    memoria.end();
+  }
+}
+
 static const char *clave_anticipacion(int ranura)
 {
   static const char *claves[4] = { "antManD", "antManI", "antAutD", "antAutI" };

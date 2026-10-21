@@ -137,7 +137,8 @@ int giro_pedir(const char *texto)
         return 0;
     }
     if (imu_estado() != IMU_ESTADO_LISTA) {
-        sensores_enviar(SENSORES_DESTINO_WS, "GIRO_ERROR:sin_imu");
+        sensores_enviar(SENSORES_DESTINO_WS, imu_motivo() == IMU_MOTIVO_SESGO || imu_estado() == IMU_ESTADO_CALIBRANDO ?
+                        "GIRO_ERROR:sin_sesgo" : "GIRO_ERROR:sin_imu");
         return 0;
     }
     if (estado != G_INACTIVO || carro_motores_en_marcha()) {

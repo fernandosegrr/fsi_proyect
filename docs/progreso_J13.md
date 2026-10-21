@@ -9,7 +9,9 @@ Fase 1: terminada. Ocho giros alternados, calentamiento excluido del ajuste y de
 Pruebas fase 1: núcleo 20 programas / 1545 casos (calgiro 37, antes 32), firmware 152 + 224 + 15 + 34, estrés de 100000 comandos sin STOP perdido, hash de página y servidor falso 42. App y firmware compilan. Estado: verde, sin tocar dispositivos.
 Commit fase 1: b0d118b.
 Fase 2: terminada. Tope 250 ms; AUTO sin historial 100 por lado, MANUAL conserva 20. Mediana de cinco, NVS, ANT? y ANT_BORRAR conservados. Asentamiento ampliado a 750 ms para medir la inercia completa (motores ya apagados). Pruebas: núcleo 1545; firmware 152+229+15+34, estrés sin STOP perdido. Inercia simulada de 200 ms aprende más de 150 y queda a ±3°. Ruido asimétrico: izquierda 10/10, derecha 9/10. Firmware compilado. Estado verde. Commit: J13 fase 2.
-Fases 3 a 5: pendientes.
+Commit fase 2: 7be39df.
+Fase 3: terminada. Reintento del sesgo tras motivo 4 cada 5 s mientras falla, solo con motores detenidos y asentados. Reinicia el promedio sin resetear el chip ni esperar al bus. IMUR, IMUM e IMUE en CAPS; historial NVS de cinco arranques agregado a ARR; estado y motivo en Sensores. Sin sesgo, GIRAR se niega y las rutas caen al tiempo. Pruebas: núcleo 1546 (navegador +1); firmware 152+239+15+34, estrés sin STOP perdido. App y firmware compilan. Commit: J13 fase 3. Estado verde.
+Fases 4 y 5: pendientes.
 Fase 6: pendiente; solo tras pruebas verdes y push.
 Cierre: pendiente; guardar estado del teléfono antes de tocarlo, restaurarlo al terminar y documentar estado exacto del DevKit.
 

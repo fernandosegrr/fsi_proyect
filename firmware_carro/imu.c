@@ -244,6 +244,21 @@ static void cerrar_promedio(void)
     caer(IMU_MOTIVO_SESGO);
 }
 
+int imu_reintentar_sesgo(void)
+{
+    if (estado != IMU_ESTADO_MAL || motivo != IMU_MOTIVO_SESGO) return 0;
+    estado = IMU_ESTADO_CALIBRANDO;
+    motivo = IMU_MOTIVO_NINGUNO;
+    cal_intento = 0;
+    cal_por_comando = 0;
+    hay_ultima = 0;
+    hay_anterior = 0;
+    iguales = 0;
+    fallos = 0;
+    empezar_promedio();
+    return 1;
+}
+
 int imu_recalibrar(void)
 {
     if (estado == IMU_ESTADO_APAGADA) {
