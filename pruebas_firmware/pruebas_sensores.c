@@ -1186,6 +1186,10 @@ static void prueba_laser_paro(void)
 
     printf("-- laser: parada de emergencia (solo AUTO y solo avanzando) --\n");
     avanzando_en_auto();
+    falso_tof_mm = 350;
+    avanzar_ms(250);
+    caso("J13: el umbral de autoridad de la app no cambia el freno firmware de 120 mm", TOF_PARO_MM == 120 && carro_avanzando() && sensores_paros_tof() == 0);
+    avanzando_en_auto();
     caso("avanza en AUTO con el laser libre", carro_avanzando());
     falso_tof_mm = 100;
     for (t = 0; t < 200 && !motores_parados(); t += 1) {

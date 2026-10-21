@@ -1386,6 +1386,8 @@ void navegador_iniciar(Navegador *nav)
     cal_defecto(&nav->cal);
     nav->latencia_visual_ms = 0;
     nav->frenar_lejos_centro = 0;
+    nav->autoridad_laser = 0;
+    nav->contradiccion_laser = 0;
     nav->solo_lejos_centro = 0;
     nav->n_puntos = 0;
     nav->indice_objetivo = 0;
@@ -1693,12 +1695,50 @@ static int cuadro_es_inmediato(int zona, int cercania, int celdas)
     return cercania >= 3 && celdas >= NAV_CERC3_AREA_INMEDIATA;
 }
 
+/* Una zona lateral solo contiene el carril del láser si TODAS sus celdas
+ * aceptadas están en columnas 3..6 (proyectadas a 10 columnas). Sin rejilla
+ * fiable no se suprimen obstáculos laterales. Los datos de lado no se cambian. */
+static int solo_carril_central(const ResultadoObstaculos *obs, int zona)
+{
+    int f, c, dentro = 0;
+    if (obs->filas < 1 || obs->filas > OBS_MAX_FILAS || obs->columnas < 1 || obs->columnas > OBS_MAX_COLUMNAS ||
+        obs->fila_minima_usada < 0 || obs->fila_minima_usada >= obs->filas) return 0;
+    for (f = obs->fila_minima_usada; f < obs->filas; f++) {
+        for (c = 0; c < obs->columnas; c++) {
+            int col = c * 10 / obs->columnas;
+            if (!obs->no_piso[f][c] || c * OBS_ZONAS / obs->columnas != zona) continue;
+            if (col < 3 || col > 6) return 0;
+            dentro = 1;
+        }
+    }
+    return dentro;
+}
+
 /* Guarda lo que se vio en el último cuadro y lleva la cuenta de la RACHA actual: cuántos cuadros
  * seguidos (y desde qué hora, en ms) el frente está bloqueado o libre. Un cuadro de ruido suelto
  * no cambia nada: ver bloqueo_confirmado() y libre_confirmado(). */
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
     int z, bloqueado = 0, inmediato = 0, cerc3_chico = 0, causa_normal = 0, firma = 0, otra_causa = 0;
+    int autoridad = nav->autoridad_laser && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0;
+    int laser_cerca = autoridad && nav->tof_mm <= OBSTACULO_LASER_MM;
+    int solo_central[OBS_ZONAS] = { 0, 0, 0 };
+
+    if (autoridad) {
+        int camara_centro = obs->zona[ZONA_CENTRO].hay_obstaculo;
+        int contradiccion;
+        for (z = 0; z < OBS_ZONAS; z++) {
+            solo_central[z] = solo_carril_central(obs, z);
+            if (solo_central[z] && obs->zona[z].hay_obstaculo) camara_centro = 1;
+        }
+        contradiccion = camara_centro == laser_cerca ? 0 : (laser_cerca ? 1 : 2);
+        if (contradiccion && contradiccion != nav->contradiccion_laser) {
+            diag_escribir(nav, "CONTRADICCION_LASER_CAMARA laser_mm=%d laser_obstaculo=%d camara_obstaculo=%d columnas=3..6", nav->tof_mm, laser_cerca, camara_centro);
+        }
+        nav->contradiccion_laser = contradiccion;
+    } else {
+        nav->contradiccion_laser = 0;
+    }
 
     /* Para el registro OBS_DIAG y la firma de celdas del fantasma fijo: la máscara de cada zona y la franja de referencia de lo último que se vio. */
     for (z = 0; z < OBS_ZONAS; z++) {
@@ -1714,6 +1754,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         int hay = obs->zona[z].hay_obstaculo;
         int celdas = obs->zona[z].celdas;
 
+        if (autoridad && z == ZONA_CENTRO) {
+            hay = laser_cerca;
+            nav->fijo_ignorar[z] = 0;  /* el láser nunca se descarta como un fantasma de color */
+        }
+
         /* «Sospechoso fijo» (sondeo del arranque): vale toda la corrida mientras la firma de celdas siga igual, con tope de NAV_SONDEO_TOPE_CELDAS celdas por zona,
          * y se cancela si crece más del 30 %. Al ignorar una zona, su zona_celdas también se pone en 0 para no sesgar elegir_lado. */
         if (hay && nav->fijo_ignorar[z]) {
@@ -1728,14 +1773,22 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
         nav->zona_hay[z] = hay;
-        nav->zona_cercania[z] = hay ? obs->zona[z].cercania : 0;
+        nav->zona_cercania[z] = hay ? ((autoridad && z == ZONA_CENTRO) ? 3 : obs->zona[z].cercania) : 0;
         nav->zona_celdas[z] = celdas;
-        firma |= (hay ? (obs->zona[z].cercania & 3) : 0) << (2 * z);
+        firma |= (hay ? (nav->zona_cercania[z] & 3) : 0) << (2 * z);
         /* Corredor (corredor.h): un obstáculo FUERA del corredor se sigue viendo (zona_hay, para elegir lado) pero no frena. */
         nav->zona_frena[z] = hay && !obs->zona[z].fuera_corredor;
         nav->zona_en_corredor[z] = nav->zona_frena[z] && obs->zona[z].cercania_corredor > 0;   /* el corredor (activo) dice que está en el camino del carro */
         nav->zona_cerc_frena[z] = !nav->zona_frena[z] ? 0 :
             ((obs->zona[z].cercania_corredor > 0) ? obs->zona[z].cercania_corredor : obs->zona[z].cercania);
+        if (autoridad && z == ZONA_CENTRO) {
+            nav->zona_frena[z] = laser_cerca;
+            nav->zona_en_corredor[z] = laser_cerca;
+            nav->zona_cerc_frena[z] = laser_cerca ? 3 : 0;
+            if (laser_cerca) inmediato = 1;
+        } else if (autoridad && solo_central[z]) {
+            nav->zona_frena[z] = nav->zona_en_corredor[z] = nav->zona_cerc_frena[z] = 0;
+        }
         if (nav->zona_frena[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cerc_frena[z] >= 1 &&
             nav->zona_cerc_frena[z] < NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* frenar desde lejos: cercanía 1 en el centro también bloquea (se confirma con menos tiempo) */
@@ -3387,6 +3440,14 @@ int navegador_poner_sensor_distancia(Navegador *nav, int activo)
         return NAV_ERR_ARGUMENTO;
     }
     nav->usa_tof = activo;
+    return NAV_OK;
+}
+
+int navegador_poner_autoridad_laser(Navegador *nav, int activo)
+{
+    if (nav == NULL || (activo != 0 && activo != 1)) return NAV_ERR_ARGUMENTO;
+    nav->autoridad_laser = activo;
+    nav->contradiccion_laser = 0;
     return NAV_OK;
 }
 

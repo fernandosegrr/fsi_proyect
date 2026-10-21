@@ -3526,6 +3526,97 @@ static void pruebas_j11_monte_carlo(void)
     caso("MC: con giroscopio el error medio y el p95 son menores que sin giroscopio", media_con < media_sin && p95_con < p95_sin);
 }
 
+static void preparar_autoridad(int activa, int mm, int vivo, int valida, uint32_t hora)
+{
+    ResultadoObstaculos libre;
+    preparar(RECTA, N(RECTA));
+    n_lineas_diag = 0;
+    cuadro_centro(&libre, 0);
+    navegador_tick(&nav, 0, &libre); /* ya avanzaba; se prueba la aparición de obstáculos, no la espera inicial */
+    navegador_poner_sensor_distancia(&nav, 1);
+    navegador_poner_autoridad_laser(&nav, activa);
+    navegador_aporte_sens(&nav, mm, vivo, valida, 0, hora);
+}
+
+static void pruebas_j13_autoridad(void)
+{
+    ResultadoObstaculos obs;
+    int i;
+    printf("-- J13: autoridad opcional del laser, columnas 3 a 6 --\n");
+    preparar(RECTA, N(RECTA));
+    caso("J13: autoridad laser apagada por defecto", nav.autoridad_laser == 0);
+    caso("J13: autoridad rechaza argumentos invalidos", navegador_poner_autoridad_laser(NULL, 1) == NAV_ERR_ARGUMENTO && navegador_poner_autoridad_laser(&nav, 2) == NAV_ERR_ARGUMENTO);
+    navegador_poner_autoridad_laser(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    caso("J13: cargar ruta conserva la opcion de autoridad elegida", nav.autoridad_laser == 1);
+    preparar_autoridad(0, 300, 1, 1, 100);
+    cuadro_centro(&obs, 0);
+    navegador_tick(&nav, 100, &obs);
+    caso("J13: apagado conserva camara libre aunque laser cerca", nav.estado == NAV_SIGUIENDO && !nav.zona_frena[ZONA_CENTRO]);
+    preparar_autoridad(0, 1000, 1, 1, 100);
+    cuadro_centro(&obs, 3);
+    navegador_tick(&nav, 100, &obs);
+    caso("J13: apagado conserva freno por camara aunque laser libre", nav.estado == NAV_DETENIDO_OBSTACULO);
+    preparar_autoridad(1, 1000, 1, 1, 100);
+    navegador_tick(&nav, 100, &obs);
+    leer_diag();
+    caso("J13: laser valido libre tiene autoridad sobre camara central", nav.estado == NAV_SIGUIENDO && !nav.zona_frena[ZONA_CENTRO]);
+    caso("J13: registra contradiccion camara cerca y laser libre", hay_diag("CONTRADICCION_LASER_CAMARA") && hay_diag("laser_obstaculo=0 camara_obstaculo=1"));
+    preparar_autoridad(1, 350, 1, 1, 100);
+    cuadro_centro(&obs, 0);
+    navegador_tick(&nav, 100, &obs);
+    leer_diag();
+    caso("J13: laser a 350 mm con camara libre frena en un cuadro", nav.estado == NAV_DETENIDO_OBSTACULO && nav.cmd_actual == NAV_CMD_STOP);
+    caso("J13: registra contradiccion laser cerca y camara libre", hay_diag("laser_obstaculo=1 camara_obstaculo=0"));
+    preparar_autoridad(1, 400, 1, 1, 100);
+    navegador_tick(&nav, 100, &obs);
+    caso("J13: limite de 400 mm incluido", nav.zona_frena[ZONA_CENTRO]);
+    preparar_autoridad(1, 401, 1, 1, 100);
+    navegador_tick(&nav, 100, &obs);
+    caso("J13: 401 mm no es obstaculo laser", !nav.zona_frena[ZONA_CENTRO] && nav.estado == NAV_SIGUIENDO);
+    for (i = 0; i < 3; i++) {
+        char nombre[100];
+        preparar_autoridad(1, 1000, i != 0, i != 1, i == 2 ? 100 : 600);
+        cuadro_centro(&obs, 3);
+        navegador_tick(&nav, 600, &obs);
+        snprintf(nombre, sizeof nombre, "J13: caido/invalido/vencido (%d) vuelve a camara y frena", i);
+        caso(nombre, nav.estado == NAV_DETENIDO_OBSTACULO && nav.zona_frena[ZONA_CENTRO]);
+    }
+    preparar_autoridad(1, 1000, 1, 1, 100);
+    navegador_poner_sensor_distancia(&nav, 0);
+    navegador_tick(&nav, 100, &obs);
+    caso("J13: interruptor general de distancia apagado devuelve autoridad a camara", nav.estado == NAV_DETENIDO_OBSTACULO);
+    /* Bordes exactos del carril, incluida la columna 3 que pertenece al resumen izquierdo. */
+    for (i = 2; i <= 7; i++) {
+        int z = i * 3 / 10;
+        char nombre[100];
+        preparar_autoridad(1, 1000, 1, 1, 100);
+        cuadro_zona(&obs, z, 3);
+        obs.filas = obs.columnas = 10; obs.fila_minima_usada = 4;
+        obs.no_piso[7][i] = obs.no_piso[8][i] = obs.no_piso[9][i] = 1;
+        navegador_tick(&nav, 100, &obs);
+        snprintf(nombre, sizeof nombre, "J13: columna %d %s", i, i >= 3 && i <= 6 ? "obedece al laser libre" : "conserva freno de camara lateral");
+        caso(nombre, i >= 3 && i <= 6 ? nav.estado == NAV_SIGUIENDO : nav.estado == NAV_DETENIDO_OBSTACULO);
+    }
+    preparar_autoridad(1, 350, 1, 1, 100);
+    cuadro_zona(&obs, ZONA_IZQUIERDA, 3);
+    obs.zona[ZONA_IZQUIERDA].celdas = 25;
+    for (i = 100; i <= 800; i += 100) {
+        navegador_aporte_sens(&nav, 350, 1, 1, 0, (uint32_t)i);
+        navegador_tick(&nav, (uint32_t)i, &obs);
+    }
+    caso("J13: camara con izquierda ocupada elige esquive derecho; laser no elige lado", nav.estado == NAV_ESQUIVANDO && nav.lado > 0 && nav.zona_celdas[ZONA_IZQUIERDA] == 25);
+    for (i = 9; i <= 10; i++) {
+        preparar_autoridad(1, 1000, 1, 1, 100);
+        cuadro_zona(&obs, ZONA_IZQUIERDA, 3);
+        obs.filas = 10; obs.columnas = 32; obs.fila_minima_usada = 4;
+        obs.no_piso[7][i] = obs.no_piso[8][i] = obs.no_piso[9][i] = 1;
+        navegador_tick(&nav, 100, &obs);
+        caso(i == 9 ? "J13: rejilla de 32 columnas, columna 9 queda fuera del carril" : "J13: rejilla de 32 columnas, columna 10 proyecta a la columna central 3",
+             i == 9 ? nav.estado == NAV_DETENIDO_OBSTACULO : nav.estado == NAV_SIGUIENDO);
+    }
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -3559,6 +3650,7 @@ int main(void)
     pruebas_j11_giroscopio();
     pruebas_j11_laser();
     pruebas_j11_monte_carlo();
+    pruebas_j13_autoridad();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

@@ -199,6 +199,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_TOF_LIBRE_LECTURAS       3
 #define NAV_TOF_CONFIRMA_MM        500    /* el láser «confirma» el obstáculo si mide menos de esto */
 #define NAV_TOF_FRESCO_MS          400    /* una lectura del láser más vieja que esto ya no sirve */
+#define OBSTACULO_LASER_MM         400    /* autoridad opcional en columnas 3 a 6 de la rejilla 10x10 */
 
 /* Resultado de un giro por ángulo (navegador_aporte_giro). */
 #define NAV_GIRO_OK                  0
@@ -458,6 +459,8 @@ typedef struct {
     /* Giroscopio y láser (J11). */
     int      usa_giroscopio;         /* 1 = los giros se piden al firmware por ángulo (configuración; por defecto 0 = por tiempo como siempre) */
     int      usa_tof;                /* 1 = se hace caso al láser: TOF_PARO y la confirmación de la cámara (configuración; por defecto 0) */
+    int      autoridad_laser;        /* apagado por defecto; solo lectura válida y fresca, la cámara elige el lado */
+    int      contradiccion_laser;    /* última contradicción anunciada (0 ninguna, 1 láser cerca, 2 cámara cerca) */
     int      giro_fw_caido;          /* 1 = en esta ruta el giro por ángulo falló: el resto de los giros va por tiempo */
     int      giro_fw;                /* 1 mientras el giro actual lo hace el firmware */
     int      giro_fw_estado;         /* 0 = esperando la respuesta, 1 = ya llegó el ángulo real */
@@ -567,6 +570,7 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
  * navegador_aporte_tof_paro: el firmware frenó por algo muy cerca al frente (TOF_PARO:<mm>). */
 int  navegador_poner_giroscopio(Navegador *nav, int activo);
 int  navegador_poner_sensor_distancia(Navegador *nav, int activo);
+int  navegador_poner_autoridad_laser(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, uint32_t ahora_ms);

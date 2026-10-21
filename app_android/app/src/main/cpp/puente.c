@@ -1335,6 +1335,7 @@ static int latencia_visual_global = 0;   /* retraso de la cámara en ms: se apli
 static int requiere_camara_global = 0;   /* 1 = la ruta usa la cámara de obstáculos: el carro no se mueve hasta el primer cuadro (ver navegador_poner_requiere_camara) */
 static int usa_giroscopio_global = 0;   /* J11: 1 = los giros de la ruta se piden al firmware por ángulo (se aplica en cada ruta nueva) */
 static int usa_tof_global = 0;          /* J11: 1 = se hace caso al láser (TOF_PARO y confirmación de la cámara) */
+static int autoridad_laser_global = 0; /* se reaplica después de iniciar cada ruta */
 static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
 
 static CalibracionCarro *obtener_calibracion(void)
@@ -2144,6 +2145,7 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_requiere_camara(&navegador_global, requiere_camara_global);
     navegador_poner_giroscopio(&navegador_global, usa_giroscopio_global);
     navegador_poner_sensor_distancia(&navegador_global, usa_tof_global);
+    navegador_poner_autoridad_laser(&navegador_global, autoridad_laser_global);
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -2368,6 +2370,16 @@ Java_com_fsi_carro_ObstaculosNativa_mascaraCalcular(JNIEnv *env, jobject objeto,
 /* Un tick. `obs` es el arreglo de 10 enteros de ObstaculosNativa.analizar (se usan los
  * índices 1 a 6: hay/cercanía de izquierda, centro y derecha); solo se mira si `hay_cuadro`
  * es verdadero. Devuelve el comando: 0 STOP, 1 FORWARD, 2 REVERSE, 3 LEFT, 4 RIGHT. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerAutoridadLaser(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) return NAV_ERR_ARGUMENTO;
+    autoridad_laser_global = (int)activo;
+    return (jint)navegador_poner_autoridad_laser(obtener_navegador(), (int)activo);
+}
+
 JNIEXPORT jint JNICALL
 Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora_ms,
                                          jboolean hay_cuadro, jintArray obs)

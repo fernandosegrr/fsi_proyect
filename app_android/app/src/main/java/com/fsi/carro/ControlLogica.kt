@@ -113,6 +113,7 @@ class ControlLogica(
         private set
     var versionFirmware = "sin versión (firmware anterior)"
         private set
+    var autoridadLaser = false
 
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true

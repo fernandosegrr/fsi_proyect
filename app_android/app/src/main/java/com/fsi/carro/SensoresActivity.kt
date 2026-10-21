@@ -39,6 +39,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private lateinit var interruptorGiro: MaterialSwitch
     private lateinit var interruptorLaser: MaterialSwitch
+    private lateinit var interruptorAutoridad: MaterialSwitch
     private lateinit var chip: ChipEstado
     private lateinit var textoGiro: TextView
     private lateinit var textoLaser: TextView
@@ -94,6 +95,14 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
 
         interruptorGiro.isChecked = ajustes.usarGiroscopio
         interruptorLaser.isChecked = ajustes.usarSensorDistancia
+        interruptorAutoridad = findViewById(R.id.sens_switch_autoridad)
+        interruptorAutoridad.isChecked = ajustes.autoridadLaser
+        interruptorAutoridad.setOnCheckedChangeListener { _, encendido ->
+            ajustes.autoridadLaser = encendido
+            logica.autoridadLaser = encendido
+            Log.i(ETIQUETA, "interruptor autoridad_laser=$encendido")
+        }
+        findViewById<View>(R.id.sens_fila_autoridad).setOnClickListener { interruptorAutoridad.toggle() }
         grupoMetodo.check(R.id.sens_metodo_angulo)
         interruptorGiro.setOnCheckedChangeListener { _, encendido ->
             ajustes.usarGiroscopio = encendido
@@ -125,6 +134,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         super.onResume()
         logica.usarGiroscopio = ajustes.usarGiroscopio
         logica.usarSensorDistancia = ajustes.usarSensorDistancia
+        logica.autoridadLaser = ajustes.autoridadLaser
         SesionCarro.escuchar(alCambiar)
         SesionCarro.entrar(this, SesionNativa.USUARIO_CALIBRACION)
         logica.pedirPerfil(ControlLogica.Perfil.AUTO)   // SENS solo llega con el perfil AUTO

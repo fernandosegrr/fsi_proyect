@@ -67,6 +67,10 @@ class Ajustes(contexto: Context) {
         get() = preferencias.getBoolean("usar_sensor_distancia", true)
         set(valor) = preferencias.edit().putBoolean("usar_sensor_distancia", valor).apply()
 
+    var autoridadLaser: Boolean
+        get() = preferencias.getBoolean("autoridad_laser", false)
+        set(valor) = preferencias.edit().putBoolean("autoridad_laser", valor).apply()
+
     var vibracion: Boolean
         get() = preferencias.getBoolean("vibracion", true)
         set(valor) = preferencias.edit().putBoolean("vibracion", valor).apply()

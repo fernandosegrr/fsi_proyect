@@ -104,6 +104,34 @@
                             android:contentDescription="@string/sens_usar_laser" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/sens_fila_autoridad"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/toque_minimo"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Texto.Cuerpo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/sens_autoridad_laser" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/sens_switch_autoridad"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/sens_autoridad_laser" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_autoridad_detalle" />
+
                     <TextView
                         style="@style/Texto.Suave"
                         android:layout_width="match_parent"

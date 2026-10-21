@@ -85,6 +85,8 @@ object NavegadorNativa {
     /** Dice cuántas celdas de obstáculo tiene cada zona en el cuadro que va al siguiente tick (-1 = no se sabe). El navegador elige el lado con menos celdas. */
     external fun ponerCeldas(izquierda: Int, centro: Int, derecha: Int)
 
+    external fun ponerAutoridadLaser(activo: Int): Int
+
     /**
      * Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giroX10` en grados por 10 (positivo a la derecha), `dtMs` el tiempo
      * entre esos cuadros y `confiable` si la cámara estaba segura. Solo cuenta mientras el carro gira; el giro se corta cuando la cámara ve

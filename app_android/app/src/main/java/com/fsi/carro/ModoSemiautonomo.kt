@@ -192,6 +192,7 @@ class ModoSemiautonomo(
         NavegadorNativa.requiereCamara(if (fuente != null) 1 else 0)   // con cámara no se mueve hasta su primer cuadro (antes, sin cuadros, recorría la ruta a ciegas)
         NavegadorNativa.ponerGiroscopio(if (logica.giroscopioActivo) 1 else 0)   // J11: giros por ángulo medido solo si el interruptor está encendido y el firmware dice que el giroscopio funciona
         NavegadorNativa.ponerSensorDistancia(if (logica.laserActivo) 1 else 0)
+        NavegadorNativa.ponerAutoridadLaser(if (logica.autoridadLaser) 1 else 0)
         Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo}")
         logica.alGiro = { codigo, _, real, ms -> NavegadorNativa.aporteGiro(codigo, real, ms, SystemClock.elapsedRealtime()) }
         logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime()) }
@@ -367,7 +368,7 @@ class ModoSemiautonomo(
                 break
             }
             val etiqueta = linea.substringBefore(' ')
-            Log.i(if (etiqueta.endsWith("_DIAG")) etiqueta else "ESQUIVE_DIAG", linea)
+            Log.i(if (etiqueta == "CONTRADICCION_LASER_CAMARA" || etiqueta.endsWith("_DIAG")) etiqueta else "ESQUIVE_DIAG", linea)
         }
     }
 
