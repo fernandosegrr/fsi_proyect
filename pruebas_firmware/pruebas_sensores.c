@@ -661,7 +661,7 @@ static void prueba_giro_errores(void)
     caso("motor trabado: a los 1800 ms (menos del maximo de 500+15x90) sigue intentando", giro_activo());
     avanzar_ms(300);
     caso("... y a los ~1850 ms frena", motores_parados());
-    avanzar_ms(400);
+    avanzar_ms(GIRO_ASENTAR_MS);
     c = leer_giro("GIRO_TIMEOUT", &objetivo, &real_x10, &ms);
     caso("informa GIRO_TIMEOUT:90:<real>:<ms> con el angulo real casi 0", c == 3 && objetivo == 90 && real_x10 < 50 && real_x10 > -50 && ms >= 1840 && ms <= 1900);
     seguir_giro_real = 1;
@@ -684,7 +684,7 @@ static void prueba_giro_errores(void)
             c2 = (strcmp(cortes[k], "STOP") == 0 || strcmp(cortes[k], "EBRAKE") == 0 || strcmp(cortes[k], "MODO_MANUAL") == 0 || strcmp(cortes[k], "__STOP_AUTO") == 0);
             snprintf(nombre, sizeof nombre, "%s a mitad de un giro lo aborta%s", cortes[k], c2 ? " y deja los motores en 0" : " y el nuevo movimiento manda");
             caso(nombre, !giro_activo() && (c2 ? motores_parados() : !motores_parados()));
-            avanzar_ms(400);
+            avanzar_ms(GIRO_ASENTAR_MS);
             if (c2) {
                 caso("... informa GIRO_ERROR:abortado con el angulo parcial real", leer_giro("GIRO_ERROR:abortado", &objetivo, &real_x10, &ms) == 3 && objetivo == 180 && real_x10 > 100 && real_x10 < 1700);
             } else {
@@ -1060,10 +1060,25 @@ static void prueba_anticipacion_por_sentido(void)
     orden("ANT_BORRAR");
     avanzar_ms(5);
     caso("ANT_BORRAR -> ACK_ANT_BORRAR", ultimo_mensaje("ACK_ANT_BORRAR") != NULL);
-    caso("... las 4 vuelven a 20 ms y la memoria queda vacia", ant_auto_izq() == 20 && ant_auto_der() == 20 && giro_anticipacion_ms(PERFIL_MANUAL, 1) == 20 && giro_anticipacion_ms(PERFIL_MANUAL, -1) == 20 &&
+    caso("... AUTO vuelve a 100 ms, MANUAL a 20 ms y la memoria queda vacia", ant_auto_izq() == 100 && ant_auto_der() == 100 && giro_anticipacion_ms(PERFIL_MANUAL, 1) == 20 && giro_anticipacion_ms(PERFIL_MANUAL, -1) == 20 &&
          falso_ant[0] == -1 && falso_ant[1] == -1 && falso_ant[2] == -1 && falso_ant[3] == -1);
     (void)texto;
     caso("sensores_es_comando reconoce ANT_BORRAR y no ANT_BORRARX", sensores_es_comando("ANT_BORRAR") && !sensores_es_comando("ANT_BORRARX"));
+    falso_ant[2] = 230; falso_ant[3] = 250;
+    giro_cargar_memoria();
+    caso("J13: carga anticipaciones NVS superiores a 150 hasta el nuevo tope 250", ant_auto_der() == 230 && ant_auto_izq() == 250);
+    falso_ant[3] = 251;
+    giro_reiniciar(); giro_cargar_memoria();
+    caso("J13: rechaza NVS fuera de rango y usa 100 en AUTO sin historial valido", ant_auto_izq() == 100 && ant_auto_der() == 230);
+    caso("J13: mediana conserva cinco muestras y tope de anticipacion 250 ms", GIRO_ANT_MUESTRAS == 5 && GIRO_ANTICIPACION_MAX_MS == 250);
+    arrancar(10.0, 3);
+    tau_inercia_ms = 200.0;
+    for (i = 0; i < 6; i++) (void)error_de_giro(90);
+    caso("J13: con inercia de 200 ms aprende por encima del antiguo tope 150", ant_auto_izq() > 150 && ant_auto_izq() <= 250);
+    {
+        double error = error_de_giro(90);
+        caso("J13: asentamiento largo mide la inercia y el siguiente giro queda a +-3 grados", error > -3.0 && error < 3.0);
+    }
 }
 
 /* ── 8. Sensor láser: filtro, regla de 2 lecturas, solo AUTO y solo avanzando ── */
@@ -1371,7 +1386,7 @@ static void prueba_mensajes(void)
     orden("ANT?");
     avanzar_ms(5);
     m = ultimo_mensaje("ANT:");
-    caso("ANT? -> ANT:20,20,20,20 (la anticipacion de config.h en las 4 ranuras)", m != NULL && strcmp(m, "ANT:20,20,20,20") == 0);
+    caso("ANT? -> ANT:100,100,20,20 (AUTO sin historial, MANUAL conservado)", m != NULL && strcmp(m, "ANT:100,100,20,20") == 0);
 
     /* IMU_CERO. */
     orden("GIRAR:45");

@@ -28,7 +28,7 @@ Giroscopio plano sobre la caja de pilas, flecha X al frente, eje Z hacia arriba;
 ## Parámetros (todos en `firmware_carro/config.h`)
 
 MPU6050: ±500 °/s (65.5 cuentas por °/s), filtro de ~44 Hz, 100 muestras/s, solo el eje Z; zona muerta 0.15 °/s; sesgo = promedio de 250 muestras, aceptado con desviación ≤ 12 cuentas y sesgo ≤ 1000 cuentas, 3 intentos; corrección lenta del sesgo (ZUPT) con el carro quieto más de 400 ms. Acepta WHO_AM_I 0x68, 0x70 y 0x72 y registra cuál leyó.
-Giro: `GIRAR:<grados>` de 5 a 200, tiempo máximo propio 500 ms + 15 ms por grado, anticipación inicial 20 ms que se corrige sola por lado (tope 150 ms), 200 ms de asentamiento para informar el ángulo final.
+Giro: `GIRAR:<grados>` de 5 a 200, tiempo máximo propio 500 ms + 15 ms por grado. Desde J13, AUTO sin historial inicia con 100 ms por sentido; MANUAL con 20 ms. Tope 250 ms; mediana de los últimos cinco giros y NVS conservados. Se esperan 750 ms con motores apagados para medir el ángulo final: 200 ms truncaban la cola de inercia y sesgaban el aprendizaje.
 Láser: una lectura cada ~33 ms sin bloquear `loop()`; 8190, 65535 o más de 1200 mm = libre; parada de emergencia con 2 lecturas válidas seguidas menores de 120 mm, solo en perfil AUTO y solo avanzando.
 
 ## Mensajes (WebSocket y, los de consulta, también por USB)
@@ -76,8 +76,8 @@ Después de probar los giros con el carro real salieron cuatro ajustes. Aquí va
 
 - **Problema:** el giro a la derecha se pasaba ~2.7° y la anticipación no convergía (una sola, corregida a medias con cada giro y con ruido).
 - **Ahora** (`firmware_carro/giro.c`): hay **4 anticipaciones**, una por sentido (izquierda/derecha) y por perfil (AUTO/MANUAL). Cada una es la **mediana de las últimas 5 lecturas** de «cuántos ms de anticipación habrían dado justo el ángulo»: la que se usó en ese giro más el error final (con signo) dividido entre la velocidad. Solo aprenden los giros bien terminados (`GIRO_OK`) de **30° o más** (con uno chico la velocidad no llega a su valor normal) y con más de 15 °/s. El primer giro ya corrige casi todo (con 1 lectura la mediana es esa lectura) y un giro raro (un resbalón) no la mueve (mediana).
-- **Memoria no volátil:** se guardan cuando cambian **3 ms o más** (así no se gasta la memoria: 3 escrituras en 28 giros en la simulación) y se leen al arrancar. Tope `GIRO_ANTICIPACION_MAX_MS` = 150 ms.
-- **Mensajes:** `ANT?` → `ANT:<AUTO izq>,<AUTO der>,<MANUAL izq>,<MANUAL der>` en ms; `ANT_BORRAR` → `ACK_ANT_BORRAR` (las 4 vuelven a 20 ms y se borra la memoria).
+- **Memoria no volátil:** se guardan cuando cambian **3 ms o más** y se leen al arrancar. J13 amplía el tope a 250 ms y conserva los valores existentes; no se borra el aprendizaje al cargar.
+- **Mensajes:** `ANT?` → `ANT:<AUTO izq>,<AUTO der>,<MANUAL izq>,<MANUAL der>` en ms; `ANT_BORRAR` → `ACK_ANT_BORRAR` (AUTO vuelve a 100 ms por lado, MANUAL a 20 ms; se borra solo esa memoria).
 - **Pruebas** (`pruebas_sensores.c`, modelo de motor ASIMÉTRICO: izquierda 160 °/s con inercia de 50 ms; derecha 130 °/s con inercia de 95 ms, y ruido de ±5 % en la velocidad y ±15 % en la inercia): tras 4 giros por lado aprende 52 ms a la izquierda y 91 ms a la derecha; después **10 de 10 giros a ±3° a la izquierda y 9 de 10 a la derecha** (objetivo: 9 de 10 por sentido). También: MANUAL no se toca con giros en AUTO y al revés, sobrevive a un reinicio, `ANT_BORRAR` deja todo en 20 ms y vacía la memoria, un giro disparatado casi no la mueve, y un giro de menos de 30° no la cambia.
 - **Límite honesto:** el giroscopio informa el ángulo 200 ms después de frenar; si el carro todavía sigue girando después de eso (mucha inercia) esa parte final no se ve y el ángulo real queda un poco por encima (≈1.5° en la simulación con inercia de 95 ms). Con el carro real la prueba del dueño no vio diferencia entre el giroscopio y la cinta.
 

@@ -62,7 +62,7 @@ static void anticipaciones_a_defecto(void)
     int r;
 
     for (r = 0; r < RANURAS; r++) {
-        anticipacion_ms[r] = GIRO_ANTICIPACION_MS;
+        anticipacion_ms[r] = r >= 2 ? GIRO_ANTICIPACION_AUTO_INICIAL_MS : GIRO_ANTICIPACION_MS;
         n_muestras[r] = 0;
         sig_muestra[r] = 0;
         guardado_ms[r] = -1;

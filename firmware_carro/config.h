@@ -197,8 +197,9 @@
 #define GIRO_TIEMPO_BASE_MS      500
 #define GIRO_TIEMPO_POR_GRADO_MS 15
 #define GIRO_ANTICIPACION_MS     20
+#define GIRO_ANTICIPACION_AUTO_INICIAL_MS 100 /* solo AUTO sin historial; MANUAL conserva 20 ms */
 #define GIRO_ANTICIPACION_AUTO   1
-#define GIRO_ANTICIPACION_MAX_MS 150
+#define GIRO_ANTICIPACION_MAX_MS 250
 /* La anticipación es INDEPENDIENTE por sentido (izquierda y derecha) y por perfil (AUTO y MANUAL): cuatro valores. Cada uno es la MEDIANA de las últimas GIRO_ANT_MUESTRAS lecturas
  * de «cuántos ms de anticipación habrían dado justo el ángulo pedido» (la anticipación usada más el error final dividido entre la velocidad); solo aprenden los giros de al menos
  * GIRO_ANT_MIN_GRADOS (con uno chico la velocidad no llega a su valor normal). Se guardan en la memoria no volátil cuando cambian GIRO_ANT_GUARDAR_DIF_MS o más (así no se gasta la
@@ -206,7 +207,7 @@
 #define GIRO_ANT_MUESTRAS        5
 #define GIRO_ANT_MIN_GRADOS      30
 #define GIRO_ANT_GUARDAR_DIF_MS  3
-#define GIRO_ASENTAR_MS          200
+#define GIRO_ASENTAR_MS          750 /* deja medir la cola de inercia con anticipaciones de hasta 250 ms */
 
 /* SENSOR LÁSER VL53L0X: una lectura cada TOF_PERIODO_MS sin bloquear loop(). 8190, 65535, valores sobre TOF_LIBRE_MM o "sin eco" significan LIBRE (no hay nada a la vista).
  * Parada de emergencia (solo perfil AUTO, solo avanzando): TOF_PARO_LECTURAS lecturas válidas seguidas menores de TOF_PARO_MM frenan con __STOP_AUTO y avisan TOF_PARO:<mm>.
