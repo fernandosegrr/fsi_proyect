@@ -7,6 +7,16 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* cargar.ps1 genera este archivo en la copia temporal, nunca en el repo. */
+#if defined(__has_include)
+#if __has_include("version_compilada.h")
+#include "version_compilada.h"
+#endif
+#endif
+#ifndef FW_VERSION
+#define FW_VERSION "FW:sin-version"
+#endif
+
 /* ── WiFi ─────────────────────────────────────────────────────────────────
  * El nombre (WIFI_SSID) y la contraseña (WIFI_PASSWORD) NO están en este
  * archivo, porque el repositorio es público. Viven en:

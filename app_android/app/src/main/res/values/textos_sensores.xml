@@ -3,6 +3,7 @@
   Guía de lectura: textos de la pantalla SENSORES (SensoresActivity): giroscopio MPU6050 y sensor láser VL53L0X. Frases cortas; lo que falla dice qué pasó y qué hacer.
 -->
 <resources>
+    <string name="camara_prueba">CÁMARA DE PRUEBA</string>
     <string name="sens_titulo">Sensores (giroscopio y láser)</string>
     <string name="sens_titulo_corto">Sensores</string>
     <string name="sens_en_lista_detalle">Giroscopio y sensor de distancia del carro: interruptores, estado y prueba de giro.</string>

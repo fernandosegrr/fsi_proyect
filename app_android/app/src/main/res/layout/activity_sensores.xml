@@ -36,6 +36,13 @@
             android:paddingTop="@dimen/e2"
             android:paddingEnd="@dimen/margen_pantalla">
 
+            <TextView
+                android:id="@+id/sens_versiones"
+                style="@style/Texto.Cuerpo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/e2" />
+
             <!-- Interruptores -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

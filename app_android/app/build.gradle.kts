@@ -12,6 +12,24 @@ plugins {
     id("com.android.application")
 }
 
+val hashGit = providers.exec {
+    workingDir(rootProject.projectDir.parentFile)
+    commandLine("git", "rev-parse", "--short=7", "HEAD")
+}.standardOutput.asText.get().trim()
+val nombreVersion = "0.4"
+val generarVersion = tasks.register("generarVersion") {
+    inputs.property("hashGit", hashGit)
+    inputs.property("versionName", nombreVersion)
+    val destino = layout.buildDirectory.dir("generated/versionAssets")
+    outputs.dir(destino)
+    doLast {
+        val archivo = destino.get().file("version_app.txt").asFile
+        archivo.parentFile.mkdirs()
+        archivo.writeText("APP:$nombreVersion-$hashGit\n")
+    }
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(generarVersion) }
+
 android {
     namespace = "com.fsi.carro"
     compileSdk = 37
@@ -22,13 +40,17 @@ android {
         applicationId = "com.fsi.carro"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.3"
+        versionCode = 3
+        versionName = nombreVersion
+        buildConfigField("String", "GIT_HASH", "\"$hashGit\"")
 
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
+
+    buildFeatures { buildConfig = true }
+    sourceSets["main"].assets.directories.add(layout.buildDirectory.dir("generated/versionAssets").get().asFile.absolutePath)
 
     externalNativeBuild {
         cmake {

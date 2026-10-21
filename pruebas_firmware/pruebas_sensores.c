@@ -873,7 +873,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2") == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1396,13 +1396,14 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1") == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2") == 0);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2," FW_VERSION) == 0);
+    caso("J13: CAPS incluye la version compilada sin truncarla", m && strstr(m, FW_VERSION) && strlen(m) < MENSAJE_SALIDA_MAX);
     orden("IMU?");
     avanzar_ms(5);
     m = ultimo_mensaje("IMU:");

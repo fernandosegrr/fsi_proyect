@@ -111,7 +111,10 @@ class MainActivity : AppCompatActivity() {
      * (el servidor falso del carro), `--es tema oscuro|claro|sistema`, `--es orientacion horizontal|vertical|auto` y `--ez asistente_visto true`, `--ez video_en_manual true|false`, `--ei ruta_plantilla 0..3` (pone una plantilla en el editor de rutas).
      */
     private fun aplicarExtrasDePrueba() {
-        intent.getStringExtra("video_url")?.let { ConfigVision(this).urlVideoCarro = it; ConfigVision(this).fuenteCarro = true }
+        ConfigVision.urlPrueba = intent.getStringExtra("video_url")?.takeIf { it.isNotBlank() }
+        if (!ConfigVision.camaraDePrueba) ConfigVision(this).direccionRealAlAbrir()
+        findViewById<TextView>(R.id.camara_prueba).visibility = if (ConfigVision.camaraDePrueba) View.VISIBLE else View.GONE
+        android.util.Log.i("CAMARA_PRUEBA", "activa=${ConfigVision.camaraDePrueba} url=${ConfigVision(this).urlVideoCarro}")
         intent.getStringExtra("ws_url")?.let { Ajustes(this).direccionCarro = it }
         if (intent.hasExtra("asistente_visto")) {
             Ajustes(this).asistenteVisto = intent.getBooleanExtra("asistente_visto", true)
@@ -143,7 +146,9 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intento: Intent) {
         super.onNewIntent(intento)
         setIntent(intento)
+        val anterior = ConfigVision(this).urlVideoCarro
         aplicarExtrasDePrueba()
+        if (anterior != ConfigVision(this).urlVideoCarro) SesionVideo.reintentar()
         intento.getStringExtra("pantalla")?.let { abrirPorNombre(it) }
     }
 

@@ -405,6 +405,7 @@ static void al_evento_websocket(AsyncWebSocket *servidor, AsyncWebSocketClient *
 void setup()
 {
   Serial.begin(115200);
+  Serial.println(FW_VERSION);
   setCpuFrequencyMhz(CPU_MHZ);
   Serial.println("CPU: 160 MHz");
 

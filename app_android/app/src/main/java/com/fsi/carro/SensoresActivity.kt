@@ -162,6 +162,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         val giroOk = logica.capsGiroscopio == true
         val laserOk = logica.capsLaser == true
         val contesto = logica.capsGiroscopio != null
+        findViewById<TextView>(R.id.sens_versiones).text = "${logica.versionFirmware}\nApp ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_HASH})"
         when {
             !conectado -> chip.poner(Nivel.AVISO, getString(R.string.sens_chip_sin_conexion))
             !contesto -> chip.poner(Nivel.AVISO, getString(R.string.sens_chip_ninguno))

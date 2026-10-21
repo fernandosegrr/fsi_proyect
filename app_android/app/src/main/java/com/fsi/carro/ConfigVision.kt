@@ -22,6 +22,9 @@ import android.content.SharedPreferences
 class ConfigVision(contexto: Context) {
 
     companion object {
+        // Solo memoria de esta sesión. El extra de adb nunca escribe preferencias.
+        var urlPrueba: String? = null
+        val camaraDePrueba: Boolean get() = urlPrueba != null
         const val UMBRAL_COLOR_MAXIMO = 300   // tope de la barra deslizable (el máximo del detector es 765)
         const val MIN_CELDAS_MAXIMO = 40
         const val PORCENTAJE_FILA_MAXIMO = 100   // la barra de fila mínima va de 0 a 100 %
@@ -156,13 +159,18 @@ class ConfigVision(contexto: Context) {
 
     /** true = los cuadros salen de la cámara DEL CARRO (video por WiFi, VideoCarro); false = de la cámara del teléfono. */
     var fuenteCarro: Boolean
-        get() = preferencias.getBoolean("fuente_carro", false)
+        get() = camaraDePrueba || preferencias.getBoolean("fuente_carro", false)
         set(valor) = preferencias.edit().putBoolean("fuente_carro", valor).apply()
 
     /** Dirección del video de la cámara del carro. */
     var urlVideoCarro: String
-        get() = preferencias.getString("url_video_carro", VideoCarro.URL_DEFECTO) ?: VideoCarro.URL_DEFECTO
+        get() = urlPrueba ?: preferencias.getString("url_video_carro", VideoCarro.URL_DEFECTO) ?: VideoCarro.URL_DEFECTO
         set(valor) = preferencias.edit().putString("url_video_carro", valor).apply()
+
+    /** Apertura normal: corrige también la URL falsa que guardaban versiones antiguas. */
+    fun direccionRealAlAbrir() {
+        preferencias.edit().remove("url_video_carro").apply()
+    }
 
     /** Índice en TAMANOS del tamaño de cuadro que se pide a la cámara del teléfono. */
     var indiceTamano: Int

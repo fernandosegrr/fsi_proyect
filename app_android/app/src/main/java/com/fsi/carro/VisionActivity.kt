@@ -149,6 +149,10 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
         avanzadoContenido = findViewById(R.id.avanzado_contenido)
 
         findViewById<TextView>(R.id.barra_titulo).setText(R.string.vision_titulo_corto)
+        if (ConfigVision.camaraDePrueba) findViewById<TextView>(R.id.barra_titulo).apply {
+            maxLines = 3
+            append("\n" + getString(R.string.camara_prueba))
+        }
         findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { finish() }
 
         barraUmbral.max = ConfigVision.UMBRAL_COLOR_MAXIMO

@@ -111,6 +111,8 @@ class ControlLogica(
         private set
     var imuArranquesConReintentos = 0
         private set
+    var versionFirmware = "sin versión (firmware anterior)"
+        private set
 
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true
@@ -508,6 +510,7 @@ class ControlLogica(
                     imuReintentos = Regex("IMUR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuMotivo = Regex("IMUM=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuEstado = Regex("IMUE=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    versionFirmware = texto.substringAfter("FW:", "").takeIf { it.isNotEmpty() }?.let { "FW:$it" } ?: "sin versión (firmware anterior)"
                     enviar("ARR?")   // actualiza el historial también tras un reintento en esta sesión
                     Log.i("SENS_DIAG", texto)
                     Log.i("SENS_DIAG", "capacidades del firmware: giroscopio=$imu laser=$tof (interruptores: giroscopio=$usarGiroscopio laser=$usarSensorDistancia)")

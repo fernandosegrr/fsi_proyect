@@ -12,6 +12,15 @@
 
     <include layout="@layout/view_cabecera" />
 
+    <TextView
+        android:id="@+id/camara_prueba"
+        style="@style/Texto.Subtitulo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/e1"
+        android:text="@string/camara_prueba"
+        android:visibility="gone" />
+
     <com.fsi.carro.AvisoBanda
         android:id="@+id/aviso_global"
         android:layout_width="match_parent"

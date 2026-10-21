@@ -331,6 +331,10 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
         botonGpMenos.contentDescription = getString(R.string.cal_gp_menos)
         botonGpMas.contentDescription = getString(R.string.cal_gp_mas)
         findViewById<TextView>(R.id.barra_titulo).setText(R.string.cal_titulo)
+        if (ConfigVision.camaraDePrueba) findViewById<TextView>(R.id.barra_titulo).apply {
+            maxLines = 3
+            append("\n" + getString(R.string.camara_prueba))
+        }
         findViewById<MaterialButton>(R.id.barra_volver).setOnClickListener { alVolver() }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

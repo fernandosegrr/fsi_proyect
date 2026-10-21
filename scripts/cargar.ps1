@@ -10,7 +10,10 @@
         camara   : camara_prueba/ (se crea en H2)                          -> Freenove ESP32-WROVER (con PSRAM)
    2. Primero COMPILA (en una carpeta temporal; el repositorio no se ensucia) y despues busca
       la placa. Con -SoloCompilar se detiene ahi.
-   3. Cada puerto COM se consulta con esptool (chip-id, no destructivo). La placa con PSRAM es la
+   3. En modo nuevo se exige UNA placa serie y su MAC debe estar registrada como DevKit
+      en placas.local.json. Incluso -Puerto debe coincidir con ella. Nunca se carga una sonda
+      para identificarla. En baseline/camara se mantiene la deteccion anterior:
+      cada puerto COM se consulta con esptool (chip-id, no destructivo). La placa con PSRAM es la
       Freenove y la que no la tiene es la DevKit. Como esptool no puede ver la PSRAM, la primera
       vez que ve una placa (por su MAC) carga scripts/sonda_placa (un programa minimo) y lee lo que
       imprime. ESO SOBRESCRIBE el programa que tuviera esa placa, una sola vez. La MAC y su rol
@@ -157,7 +160,18 @@ function Preparar-Sketch {
             }
             $m = [regex]::Match((Get-Content -Raw -LiteralPath $secretos), 'WIFI_SSID\s+"([^"]*)"')
             if ($m.Success) { $script:ssidMostrado = $m.Groups[1].Value }
-            return $sketch
+            # Copia aislada: la version se inyecta sin modificar el sketch ni la NVS.
+            $destino = Join-Path $carpetaTemporal 'nuevo\firmware_carro'
+            New-Item -ItemType Directory -Force -Path $destino | Out-Null
+            Copy-Item -Path (Join-Path $sketch '*') -Destination $destino -Recurse -Force
+            $hash = (& git -C $raiz rev-parse --short=7 HEAD).Trim()
+            if ($LASTEXITCODE -ne 0 -or $hash -notmatch '^[0-9a-f]{7,40}$') { Fallar 'No se pudo obtener la revision Git.' }
+            $fecha = Get-Date -Format 'yyyyMMdd'
+            $version = "FW:$hash-$fecha"
+            [IO.File]::WriteAllText((Join-Path $destino 'version_compilada.h'), "#define FW_VERSION `"$version`"`n", [Text.Encoding]::ASCII)
+            [IO.File]::WriteAllText((Join-Path $carpetaTemporal 'version_nuevo.txt'), $version, [Text.Encoding]::ASCII)
+            Decir $version
+            return $destino
         }
         'camara' {
             $sketch = Join-Path $raiz 'camara_prueba'
@@ -376,8 +390,18 @@ if ($SoloCompilar) {
     exit 0
 }
 
-# Elegir el puerto
-if ($Puerto) {
+# Elegir el puerto. El firmware nuevo nunca identifica una placa sobrescribiendola.
+if ($Modo -eq 'nuevo') {
+    $activos = @([System.IO.Ports.SerialPort]::GetPortNames())
+    $puertos = @(Listar-Puertos | Where-Object { $activos -contains $_.Puerto })
+    if ($puertos.Count -ne 1 -or $activos.Count -ne 1) { Fallar 'Se exige exactamente una placa serie conectada; no se carga nada.' 3 }
+    $com = $puertos[0].Puerto
+    if ($Puerto -and $Puerto.ToUpper() -ne $com) { Fallar 'El puerto indicado no es la unica placa conectada.' 3 }
+    $info = Consultar-Placa $com
+    $conocidas = Leer-Placas
+    if (-not $info -or $conocidas[$info.Mac] -ne 'devkit') { Fallar 'La unica placa no esta identificada como DevKit. No se carga sonda ni firmware.' 3 }
+    Decir ("DevKit conocida verificada en {0}; una sola placa serie." -f $com)
+} elseif ($Puerto) {
     $com = $Puerto.ToUpper()
     Decir ("Puerto indicado a mano: {0} (no se comprueba el tipo de placa)." -f $com)
 } else {
@@ -435,7 +459,6 @@ if (-not $subido) {
 if ($MonitorSegundos -gt 0) {
     Decir ("Monitor serie a 115200 durante {0} s (lo que imprime la placa):" -f $MonitorSegundos)
     $lineas = Leer-Serie $com $MonitorSegundos $true
-    if ($ssidMostrado) { Decir ("Red WiFi del carro (nombre): {0}" -f $ssidMostrado) }
     $ip = $lineas | Where-Object { $_ -match '\d+\.\d+\.\d+\.\d+' } | Select-Object -First 1
     if ($ip) { Decir ("Linea con la IP: {0}" -f $ip) }
     if ($lineas.Count -eq 0) { Decir 'La placa no imprimio nada en ese tiempo.' }

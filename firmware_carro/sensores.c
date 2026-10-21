@@ -117,8 +117,8 @@ static void imu_anotar_arranque(void)
 
 static void texto_caps(char *dest, int largo)
 {
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d",
-             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado());
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,%s",
+             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), FW_VERSION);
 }
 
 void sensores_iniciar(void)
