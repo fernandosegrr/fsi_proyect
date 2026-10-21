@@ -130,4 +130,3 @@ pruebas_firmware\.venv\Scripts\python.exe scripts\verificar_version.py --puerto 
 Solo consulta CAPS? y lee el paquete com.fsi.carro. Compara hashes con HEAD, versión declarada y opcionalmente SHA-256 del APK instalado contra el build. Tolera commits posteriores exclusivamente de docs/ para poder guardar el reporte después de cargar; no tolera cambios de producto. No envía movimiento ni escribe NVS.
 
 El extra video_url ya no se guarda en preferencias. Mientras existe hay aviso CÁMARA DE PRUEBA. Una apertura normal vuelve a http://192.168.4.2/stream y limpia la dirección antigua de pruebas.
-

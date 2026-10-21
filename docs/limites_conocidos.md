@@ -91,4 +91,3 @@ El giroscopio ahora reintenta el sesgo tras motivo 4 con motores detenidos; no e
 La autoridad opcional del láser decide a 400 mm solo en columnas 3 a 6. Está apagada por defecto y solo se ha probado en PC. Requiere lectura válida y fresca; sin ella vuelve a la cámara. El láser sigue viendo un punto: habilitarlo puede ignorar un objeto central que la cámara ve pero queda fuera del haz. La cámara conserva la elección del lado y los obstáculos fuera del carril. TOF_PARO del firmware se conserva a 120 mm, independiente del nuevo umbral de navegación.
 
 J10c queda fuera de J13: sigue la aceptación de una franja horizontal casi del ancho completo como segundo color de piso (obstaculos_aprender_terminar). No aparece un arreglo posterior que distinga ese caso de un obstáculo que llena el ancho; pendiente revisar y validar. El modelo de objetos sigue apagado por defecto (ConfigVision.usarModelo = false); no se cambió ese valor.
-
