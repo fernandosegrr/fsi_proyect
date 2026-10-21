@@ -1,7 +1,21 @@
 J13 — Reporte de trabajo desatendido
 
-Estado final, 21 de octubre de 2026, hora de Ciudad de México: fases 1 a 5 terminadas y publicadas; firmware cargado y verificado sin movimiento. APK nueva pendiente por bloqueo de PIN. Teléfono apagado. DevKit detenido en reset verificado; el USB sigue suministrando tensión.
+Estado final actualizado, 21 de octubre de 2026, 08:05, hora de Ciudad de México: firmware FW:adbdd13-20261021 cargado y flash verificada; APK APP:0.4-adbdd13 instalada conservando datos. Comparación FW/APK/Git y bytes del APK: PASA. Pantalla Sensores revisada: ambos sensores funcionan, Autoridad del láser apagada. DevKit y teléfono encendidos por la nueva solicitud del dueño; app cerrada y ajuste de pantalla restaurado. Sin movimientos ni imágenes de cámara. El cierre anterior queda como registro histórico.
 Base c6b4fc5. Commits: fase 1 b0d118b; fase 2 7be39df; fase 3 5085c6d; fase 4 e60ec35; fase 5 4233201. El cierre posterior solo cambia documentación.
+
+Reanudación autorizada y fase 6 terminada sin movimiento, 21 oct, 07:49 a 08:05:
+- El dueño pidió reactivar ambos dispositivos, recargar e instalar, y autorizó el desbloqueo del teléfono. No se guarda el dato de desbloqueo en archivos ni reportes. La petición nueva sustituye el apagado/reset del cierre anterior: el DevKit queda encendido y disponible.
+- Se comprobó la identidad de los dos procesos del helper de reset, PID 14244 y 19532. Al detener el lanzador terminó también el hijo; se verificó que ambos desaparecieron. Se liberó RTS y CAPS confirmó el arranque. El estado temporal del helper quedó marcado como detenido.
+- Se compilaron firmware y APK desde HEAD adbdd13, que solo agrega documentación a 4233201. Carga mediante cargar.ps1 nuevo, única placa serie COM6 y MAC conocida de DevKit, a 921600. verify-flash pasó para los cuatro archivos. No se borró NVS ni se enviaron movimientos.
+- USB 07:52:46: CAPS:IMU=1,TOF=1,TOFR=1,IMUR=0,IMUM=0,IMUE=2,FW:adbdd13-20261021; IMU:0,-47,2,104,0; TOF:254,3; ANT:121,150,20,20; ARR:5,5,11111,1,5,0,00000,0. Sesgo -0.47 grados/s. Anticipaciones intactas. Historial incluye los reinicios de carga/verificación, sin ensayos con powerbank.
+- LOOP inicial:12935,1. Tras LOOP_CERO, una ventana de 60 s en reposo dio máximo 1690 us y cero excesos de 5 ms (15 y 30 s: 1686 us). Dos pasadas separando CAPS?, IMU?, TOF?, ANT? y ARR? dieron máximos entre 1401 y 1764 us, todos sin excesos. No se reprodujo el pico en esas consultas; la causa del pico inicial no queda demostrada ni se da por resuelta.
+- APK 0.4/código 3, APP:0.4-adbdd13, compilación correcta. SHA-256 D8C0577D0E744B173220709B8A526C4F086B4FE01BA2D54FD041DC6576495903. El archivo permanece en app_android/app/build/outputs/apk/debug/app-debug.apk; no se agrega el binario al repositorio.
+- Inicialmente Windows veía el Huawei sin interfaz ADB. El dueño lo encendió/desbloqueó y después habilitó la conexión USB; a las 08:01 ADB ya lo reconocía. La orientación para seleccionar Transferir archivos procede del soporte de Huawei (https://consumer.huawei.com/mx/support/content/es-us00407330/). No fue necesario introducir el PIN ni se guardó ese dato. Antes de tocar la app se guardaron stay_on_while_plugged_in=2 y pantalla encendida.
+- Instalación solo con adb install -r: Success. Pasó de 0.3/código 2 a 0.4/código 3 sin desinstalar ni borrar datos. No hubo que confirmar botones; el límite de cinco intentos no se utilizó. Se abrió únicamente Sensores; teléfono en 192.168.4.10 alcanzó al DevKit 192.168.4.1, ping 3.607 ms. PC sin unirse a esa red.
+- verificar_version.py --puerto COM6 --apk app_android/app/build/outputs/apk/debug/app-debug.apk: FW:adbdd13-20261021; APP:0.4-adbdd13; versionName=0.4; APK idéntica al build=True; fuentes versionadas sin cambios=True; comparación con HEAD=PASA. Los cambios posteriores a adbdd13 son solo documentos.
+- Capturas autorizadas de Sensores: versiones iguales; giroscopio ok, ángulo 0.2 grados, reintentos de sesgo 0, historial IMU 0 de 5; láser ok, 254 mm, un reintento en este arranque e historial TOF 5 de 5 con reintento. La pantalla muestra correctamente ese aviso de cableado. Ese historial incluye reinicios de carga/verificación y no demuestra cinco arranques normales defectuosos. Uso de giroscopio y distancia encendidos; Autoridad del láser apagada, sin tocarla. Capturas locales en %TEMP%/j13_sensores_instalada.png y %TEMP%/j13_sensores_estado.png, sin video.
+- USB con la app conectada, 08:03:43: CAPS:IMU=1,TOF=1,TOFR=1,IMUR=0,IMUM=0,IMUE=2,FW:adbdd13-20261021; IMU:2,-47,2,104,0; TOF:253,3; ANT:121,150,20,20; ARR:5,5,11111,1,5,0,00000,0; LOOP:8000,4. Hubo cuatro ciclos por encima de 5 ms desde la última limpieza, con máximo de 8 ms, al tener la app conectada. La ventana anterior en reposo pasó, pero el límite de 5 ms no pasa globalmente; causa pendiente, sin atribuirla a WiFi o NVS sin evidencia.
+- Cierre de esta reanudación: am force-stop com.fsi.carro; stay-on restaurado y comprobado en 2; pantalla sigue encendida como al inicio, sin wake-locks nuevos; archivo temporal de UI retirado. Gradle, helper de reset y pruebas de diagnóstico terminados. DevKit y teléfono quedan encendidos; no se repite el apagado/reset anterior.
 
 Cambios:
 - Calibración: ocho giros, calentamiento excluido, descarte controlado, pares disponibles incluso con error o cancelación.
@@ -14,7 +28,7 @@ Pruebas: núcleo 20 programas / 1570 casos (antes 1540), firmware 152+241+15+34 
 
 Pruebas nuevas: calentamiento +15°, atípico intermedio, datos buenos e inconsistentes; tope/NVS y aprendizaje con inercia de 200 ms; arranque movido/quieto, bloqueo del reintento con motores activos, recuperación e historial; respaldo a tiempo sin sesgo; FW en CAPS y lectores de versiones; autoridad apagada/encendida, 400/401 mm, caído/inválido/vencido, bordes de columnas 2 a 7 y rejilla de 32 columnas, elección lateral por cámara y protección del freno anterior de 120 mm.
 
-Fase 6 y versiones, 21 oct, 07:28 a 07:38:
+Fase 6, primer intento histórico, 21 oct, 07:28 a 07:38 (resuelto en la reanudación de arriba):
 - Revisión de producto 4233201, publicada antes de cargar. FW:4233201-20261021 compilado y cargado al DevKit conocido, única placa serie, COM6. Se usó cargar.ps1 nuevo a 921600. No hubo borrado completo de flash; verify-flash pasó para bootloader, particiones, boot_app0 y aplicación. ANT se conservó exactamente en 121,150,20,20 antes y después.
 - APK compilada: APP:0.4-4233201, versionName 0.4, versionCode 3. Archivo listo: app_android/app/build/outputs/apk/debug/app-debug.apk. El hash del APK compilado coincide con el del FW y la revisión cargada. Esto no implica que esté instalada.
 - Se intentó instalar solo con adb install -r. El teléfono mostró un bloqueo por PIN; no hubo botón de instalación accesible. No se escribió ningún código, contraseña ni cuenta. Se canceló el cliente de instalación por el PID exacto 17368. Quedó instalada la app anterior 0.3, versionCode 2, sin hash verificable de J13. No se desinstaló ni se borraron sus datos. El límite de cinco toques no se agotó porque la excepción expresa de no resolver PIN impide seguir.
@@ -22,7 +36,7 @@ Fase 6 y versiones, 21 oct, 07:28 a 07:38:
 - LOOP:12858,1, máximo 12.858 ms y un exceso de 5 ms. Antes de cargar: 2.126 ms, cero excesos. Causa no determinada; pendiente aislarlo en reposo antes de medirlo en marcha. No se afirma que el límite de 5 ms haya pasado en esta verificación.
 - La pantalla Sensores de la app nueva, sus versiones visibles y la comparación completa de FW/APK instalado con verificar_version.py quedaron pendientes por el PIN. No se tomaron capturas; no se vio ni guardó video. No se mandó ningún comando de movimiento al hardware.
 
-Cierre y alimentación:
+Cierre anterior y alimentación (07:38; sustituido por la reanudación de arriba):
 - Teléfono: se guardó antes de tocarlo stay_on_while_plugged_in=2 y pantalla encendida. Al cerrar se ejecutó am force-stop com.fsi.carro, se restauró y comprobó el valor 2, se retiró el archivo temporal de UI y se envió reboot -p. La orden fue aceptada; después adb devices no muestra el teléfono. Se cerró el servidor adb. No se dejaron wake-locks nuevos.
 - No se pudo cortar físicamente la alimentación del DevKit. Está en el puerto 2 del concentrador raíz de Windows; uhubctl no está instalado y su documentación declara que la conmutación no funciona en Windows con el controlador habitual (https://github.com/mvp/uhubctl). Se intentó deshabilitar únicamente USB\\VID_10C4&PID_EA60\\0001 con pnputil: Acceso denegado. No se alteró el concentrador ni otros dispositivos. Deshabilitar/reiniciar un dispositivo tampoco demuestra por sí mismo que VBUS quede apagado; referencia de Microsoft: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbioctl/ni-usbioctl-ioctl_usb_hub_cycle_port.
 - Alternativa autorizada: DevKit detenido en reset por RTS afirmada (bajo físico), con DTR desactivada. Se verificó silencio al consultar CAPS durante tres segundos; al soltar RTS arrancó FW:4233201-20261021; al afirmarla de nuevo hubo otros tres segundos sin respuesta. El helper conserva la línea afirmada. No se afirma que los 5 V estén cortados.
@@ -30,13 +44,12 @@ Cierre y alimentación:
 - Para reanimar: ejecutar Stop-Process -Id 19532,14244 -ErrorAction SilentlyContinue y desconectar/reconectar USB. Cerrar el helper antes de consultar o cargar COM6. La forma de eliminar por completo la alimentación que aquí no se pudo conmutar es desconectar físicamente el USB.
 
 Pendiente, en orden:
-1. Encender y desbloquear el teléfono; instalar la APK 0.4 con adb install -r y comprobar FW/APK y pantalla Sensores. Mantener Autoridad del láser apagada.
-2. Repetir LOOP en reposo y aislar el pico de 12.858 ms. Arranques quietos/movidos para recuperación del sesgo y contadores.
-3. Calibración con ocho giros, reposicionando el carro entre tandas; revisar pares, descarte, repetibilidad y Deshacer.
-4. Anticipación: aprendizaje y diez giros por lado con cinta, incluidos primeros tras reposo. No hace falta borrar NVS para empezar.
-5. LOOP con movimiento y tras recuperación; rutas en L, caja y pérdida de WiFi.
-6. Autoridad láser: comparar apagado/encendido en carril central, laterales y objetos fuera del haz; mantener apagada hasta esta validación.
+1. Aislar los picos de loop: inicial 12.858/12.935 ms; con app conectada 8 ms y cuatro excesos de 5 ms. Los 60 s en reposo tras limpiar el contador pasaron con 1.690 ms y cero excesos. Arranques quietos/movidos para recuperación del sesgo y contadores.
+2. Calibración con ocho giros, reposicionando el carro entre tandas; revisar pares, descarte, repetibilidad y Deshacer.
+3. Anticipación: aprendizaje y diez giros por lado con cinta, incluidos primeros tras reposo. No hace falta borrar NVS para empezar.
+4. LOOP con movimiento y tras recuperación; rutas en L, caja y pérdida de WiFi.
+5. Autoridad láser: comparar apagado/encendido en carril central, laterales y objetos fuera del haz; mantener apagada hasta esta validación.
 
 Fuera de alcance: J10c no se corrigió; persiste la regla que acepta una franja casi del ancho completo como segundo color de piso y puede confundir un obstáculo ancho. El modelo de objetos sigue apagado por defecto.
 
-Al volver: liberar el reset y reconectar USB, encender/desbloquear el teléfono e instalar primero la APK nueva. Consultar docs/progreso_J13.md y la sección J13 sin movimiento de docs/validacion_sensores.md antes de conectar motores. No ejecutar giros ni rutas sin colocar y despejar el carro. No usar el comportamiento nuevo de la app hasta instalarla.
+Al volver: DevKit encendido, sin helper de reset; teléfono encendido con la APK 0.4 nueva instalada. Consultar docs/progreso_J13.md y la sección J13 sin movimiento de docs/validacion_sensores.md antes de conectar motores. Mantener Autoridad del láser apagada y hacer las pruebas físicas pendientes con el carro colocado y el área despejada.
