@@ -38,3 +38,9 @@ Fase A5: terminada.
   * Se implementó la corrección mínima en nucleo_c/obstaculos.c (obstaculos_aprender_terminar): un segundo color de piso solo se acepta como franja continua si ninguna de sus celdas toca las filas cercanas al carro (filas >= 7 de 10).
   * Con la corrección, la caja ancha se descarta (> 5 %, muy_variado = 1) y en detección cuenta como obstáculo en la zona centro. Los casos legítimos de dos colores (tapete lejos en filas 4 a 6) siguen pasando con 0 falsos positivos (32 casos, 0 fallos).
   * Compromiso y riesgos documentados en docs/limites_conocidos.md: obstáculos anchos a más de 50 cm que no toquen filas cercanas podrían asimilarse a tapetes lejanos si el láser está apagado (se resolverán al avanzar); y tapetes reales que comiencen exactamente en fila 7 sin tocar filas 8-9 exigirán recolocar el carro.
+
+Fase A6: terminada.
+- Modelo de objetos encendido por defecto:
+  * En app_android/app/src/main/java/com/fsi/carro/ConfigVision.kt se fijó usarModelo por defecto en true (preferencias.getBoolean("usar_modelo", true)).
+  * En CamaraObstaculos.kt se protegió activarModelo() para que cualquier fallo al instanciar o arrancar el hilo capture la excepción, registre el aviso/error y permita que el detector de color continúe operando transparentemente sin interrumpir la cámara ni la navegación.
+  * Documentación actualizada en docs/fusion.md, docs/obstaculos.md y docs/limites_conocidos.md.

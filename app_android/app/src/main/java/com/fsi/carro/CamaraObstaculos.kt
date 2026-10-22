@@ -740,15 +740,20 @@ class CamaraObstaculos(
     fun activarModelo(activar: Boolean) {
         if (activar) {
             if (modelo == null) {
-                modelo = ModeloEnHilo(contexto).also { it.iniciar() }
-                configFusion = null
-                Log.i(ETIQUETA, "modelo de objetos encendido")
+                try {
+                    modelo = ModeloEnHilo(contexto).also { it.iniciar() }
+                    configFusion = null
+                    Log.i(ETIQUETA, "modelo de objetos encendido")
+                } catch (e: Exception) {
+                    Log.w(ETIQUETA, "No se pudo iniciar el modelo de objetos: ${e.message}")
+                    error = "No se pudo iniciar el modelo: ${e.message}"
+                }
             }
         } else {
             val m = modelo
             modelo = null
             if (m != null) {
-                m.detener()
+                try { m.detener() } catch (e: Exception) { Log.w(ETIQUETA, "deteniendo modelo: ${e.message}") }
                 Log.i(ETIQUETA, "modelo de objetos apagado")
             }
         }

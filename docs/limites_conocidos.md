@@ -92,7 +92,7 @@ La autoridad opcional del láser decide a 400 mm solo en columnas 3 a 6. Está a
 
 J10c resuelto en J14: se refinó la regla en obstaculos_aprender_terminar. Un segundo color de piso solo se acepta como franja continua si ninguna de sus muestras toca las filas cercanas al carro (filas >= 7 de 10). Compromiso y riesgos conocidos:
 - Un obstáculo muy ancho (como una pared o caja transversal) situado a más de 50 cm (filas 4 a 6) que abarque todo el ancho podría seguir confundiéndose con un tapete lejano durante el aprendizaje si el láser está apagado. Al avanzar el carro y aproximarse, entrará en filas cercanas o el láser lo detectará.
-- Un tapete legítimo que empiece exactamente en la fila 7 (a unos 35-45 cm del carro) sin tocar las filas 8 y 9 no se aceptará como segundo piso (dará descartado > 5 % y muy_variado = 1), exigiendo colocar el carro con las filas cercanas despejadas o completamente sobre el tapete. El modelo de objetos sigue apagado por defecto (ConfigVision.usarModelo = false).
+- Un tapete legítimo que empiece exactamente en la fila 7 (a unos 35-45 cm del carro) sin tocar las filas 8 y 9 no se aceptará como segundo piso (dará descartado > 5 % y muy_variado = 1), exigiendo colocar el carro con las filas cercanas despejadas o completamente sobre el tapete. El modelo de objetos queda encendido por defecto (ConfigVision.usarModelo = true, con fallback automático al detector de color si falla al abrir).
 
 ## 13. Tiempos del loop del firmware (mediciones J13)
 

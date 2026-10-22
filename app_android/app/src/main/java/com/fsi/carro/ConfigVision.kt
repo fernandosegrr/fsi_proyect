@@ -11,7 +11,7 @@
  *  4. También guarda el tamaño de los cuadros que se piden a la cámara del teléfono (por defecto
  *     240x176, el de la cámara real del carro).
  *  5. También guarda cuántos colores puede tener el piso (K, 1 a 4) y la velocidad de aprendizaje del modelo.
- *  6. usarModelo dice si además del detector de color se usa el modelo de objetos (fusión); por defecto NO hasta probarlo.
+ *  6. usarModelo dice si además del detector de color se usa el modelo de objetos (fusión); por defecto SÍ.
  *  7. comoArreglo() da los 10 enteros que espera ObstaculosNativa.analizarConfig.
  */
 package com.fsi.carro
@@ -75,7 +75,7 @@ class ConfigVision(contexto: Context) {
 
     /** true = se usa también el modelo de objetos (en su propio hilo) y se fusiona con el detector de color. */
     var usarModelo: Boolean
-        get() = preferencias.getBoolean("usar_modelo", false)
+        get() = preferencias.getBoolean("usar_modelo", true)
         set(valor) = preferencias.edit().putBoolean("usar_modelo", valor).apply()
 
     // ── Modo «cualquier objeto» del modelo de objetos (cualquiera.h): APAGADO por defecto ──

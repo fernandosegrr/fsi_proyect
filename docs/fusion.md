@@ -65,7 +65,7 @@ las demás clases fuera del camino se ignoran. **Cualquier clase cuenta igual cu
 
 ## En la app
 
-Pantalla de visión: botón «Modelo de objetos (fusión): SÍ/no» (guardado; **apagado por defecto** hasta probarlo en el teléfono) y,
+Pantalla de visión: botón «Modelo de objetos (fusión): SÍ/no» (guardado; **encendido por defecto** desde J14) y,
 cuando está encendido, un texto con **quién decidió** (detector, modelo o ambos), la severidad, si el detector frena solo, la edad del
 resultado del modelo, los avisos y los **milisegundos de cada etapa**: detector (conversión + análisis), modelo (preparar + inferir +
 postprocesar y cada cuánto sale un resultado) y fusión. En la imagen se dibujan en celeste las cajas del modelo con su nombre y
