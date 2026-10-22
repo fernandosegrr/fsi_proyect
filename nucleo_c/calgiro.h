@@ -1,11 +1,11 @@
 /*
- * calgiro.h — Calibración del GIRO con el giroscopio: cuatro giros por lado, el primero de calentamiento. La recta usa los otros tres y permite descartar el peor si quedan dos consistentes.
+ * calgiro.h — Calibración del GIRO con el giroscopio: dos bloques de cuatro giros seguidos por lado (primero 4 a la izquierda, pausa, y 4 a la derecha). El primero de cada bloque es de calentamiento y no cuenta para la recta. La recta usa los otros tres y permite descartar el peor si quedan dos consistentes.
  *
  * GUÍA DE LECTURA
  *  1. La app la maneja así: calgiro_iniciar() (el USUARIO toca un botón, con el carro quieto y el espacio despejado) y después, cada ~50 ms, calgiro_tick() con el ángulo del giroscopio (lo último que
  *     dijo SENS, en décimas de grado, POSITIVO a la izquierda). calgiro_tick devuelve el comando que el carro debe mantener: CG_CMD_STOP, CG_CMD_IZQ (LEFT) o CG_CMD_DER (RIGHT).
- *  2. Son 8 giros alternados (izquierda, derecha...), calentamiento de 40 y tres válidos de 40, 70 y 100 grados, por TIEMPO: para cada uno espera a que el carro esté quieto, manda LEFT o
- *     RIGHT durante el tiempo planeado, frena, espera CG_ASENTAR_MS a que termine de girar y anota el ángulo REAL que giró el giroscopio.
+ *  2. Son 8 giros en dos bloques: 4 izquierdas (calentamiento de 40 y tres válidos de 40, 70 y 100 grados), pausa de aviso (CG_PAUSA_MS), y 4 derechas (calentamiento de 40 y tres válidos de 40, 70 y 100).
+ *     Para cada uno espera a que el carro esté quieto, manda LEFT o RIGHT durante el tiempo planeado, frena, espera CG_ASENTAR_MS a que termine de girar y anota el ángulo REAL que giró el giroscopio.
  *  3. Con los 3 pares (ms, grados) de cada lado se ajusta una recta (cal_ajustar_giro, el mismo ajuste de la calibración manual con el arranque que ya estaba guardado): sale ms por grado y frenado de cada lado.
  *     El desplazamiento del pivote NO se toca (sigue siendo manual).
  *  4. Seguridad: si el giroscopio deja de dar el ángulo, si el carro no gira, si gira al revés o más de CG_MAX_GRADOS, para y da error. Nunca deja un comando de giro puesto al terminar.
@@ -39,6 +39,7 @@ extern "C" {
 #define CG_LISTO               4   /* los 8 giros hechos y la calibración calculada */
 #define CG_ERROR               5   /* ver calgiro_error */
 #define CG_CANCELADO           6
+#define CG_PAUSA               7   /* STOP: pausa entre el bloque izquierdo y el derecho */
 
 /* Errores (calgiro_error). */
 #define CG_ERR_NINGUNO         0
@@ -53,6 +54,7 @@ extern "C" {
 /* Parámetros. */
 #define CG_MS_MIN              300     /* duración mínima y máxima de un giro de prueba */
 #define CG_MS_MAX              1600
+#define CG_PAUSA_MS            2000    /* pausa entre bloques de giros */
 #define CG_QUIETO_MS           800     /* el ángulo no debe cambiar más de CG_QUIETO_TOL_X10 en este tiempo antes de cada giro */
 #define CG_QUIETO_TOL_X10      8
 #define CG_ASENTAR_MS          1500    /* tiempo mínimo después del STOP antes de leer el ángulo final (y debe estar quieto CG_QUIETO_FINAL_MS) */

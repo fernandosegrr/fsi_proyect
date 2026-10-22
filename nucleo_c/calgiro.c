@@ -20,7 +20,7 @@ static int valor_absoluto(int x)
 
 static int lado_del_giro(int k)
 {
-    return (k % 2 == 0) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;   /* izquierda, derecha, izquierda... */
+    return (k < CG_MEDICIONES_POR_LADO) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
 }
 
 static int indice_lado(int lado)
@@ -30,7 +30,7 @@ static int indice_lado(int lado)
 
 static int comando_del_giro(int k)
 {
-    return (k % 2 == 0) ? CG_CMD_IZQ : CG_CMD_DER;
+    return (k < CG_MEDICIONES_POR_LADO) ? CG_CMD_IZQ : CG_CMD_DER;
 }
 
 static void fallar(CalGiro *cg, int error)
@@ -52,7 +52,8 @@ void calgiro_iniciar(CalGiro *cg, const CalibracionCarro *guardada, uint32_t aho
     }
     cg->nueva = cg->base;
     for (k = 0; k < CG_TOTAL_GIROS; k++) {
-        int ms = cal_grados_a_ms(&cg->base, lado_del_giro(k) * OBJETIVO_GRADOS[k / 2]);   /* lo que pide un giro de ese tamaño con la calibración guardada */
+        int m = k % CG_MEDICIONES_POR_LADO;
+        int ms = cal_grados_a_ms(&cg->base, lado_del_giro(k) * OBJETIVO_GRADOS[m]);   /* lo que pide un giro de ese tamaño con la calibración guardada */
 
         if (ms < CG_MS_MIN) ms = CG_MS_MIN;
         if (ms > CG_MS_MAX) ms = CG_MS_MAX;
@@ -222,7 +223,7 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
         if ((uint32_t)(ahora_ms - cg->t_cmd_ms) >= (uint32_t)cg->plan_ms[k]) {
             int l = indice_lado(lado_del_giro(k));
 
-            cg->ms_real[l][k / 2] = (int)(ahora_ms - cg->t_cmd_ms);
+            cg->ms_real[l][k % CG_MEDICIONES_POR_LADO] = (int)(ahora_ms - cg->t_cmd_ms);
             cg->estado = CG_ASENTANDO;
             cg->t_estado_ms = ahora_ms;
             cg->ang_ref_x10 = cg->ang_x10;
@@ -231,13 +232,23 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
             return CG_CMD_STOP;
         }
         return cg->comando;
+    case CG_PAUSA:
+        if ((uint32_t)(ahora_ms - cg->t_estado_ms) >= (uint32_t)CG_PAUSA_MS) {
+            cg->estado = CG_PREPARANDO;
+            cg->t_estado_ms = ahora_ms;
+            cg->ang_ref_x10 = cg->ang_x10;
+            cg->t_ref_ms = ahora_ms;
+        }
+        cg->comando = CG_CMD_STOP;
+        return CG_CMD_STOP;
     default:   /* CG_ASENTANDO */
         if (hay_angulo && (uint32_t)(ahora_ms - cg->t_estado_ms) >= (uint32_t)CG_ASENTAR_MS && (uint32_t)(ahora_ms - cg->t_ref_ms) >= (uint32_t)CG_QUIETO_FINAL_MS) {
             int lado = lado_del_giro(k);
+            int m = k % CG_MEDICIONES_POR_LADO;
             int girado_x10 = (lado == CAL_LADO_IZQUIERDA) ? cg->ang_x10 - cg->ang0_x10 : cg->ang0_x10 - cg->ang_x10;   /* grados que giró en la dirección pedida */
 
-            cg->grados_x10[indice_lado(lado)][k / 2] = girado_x10; /* también se conserva si provoca un error */
-            cg->medido[indice_lado(lado)][k / 2] = 1;
+            cg->grados_x10[indice_lado(lado)][m] = girado_x10; /* también se conserva si provoca un error */
+            cg->medido[indice_lado(lado)][m] = 1;
             if (girado_x10 < -CG_MIN_GRADOS_X10) {
                 fallar(cg, CG_ERR_SENTIDO);
                 return CG_CMD_STOP;
@@ -250,11 +261,12 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
                 fallar(cg, CG_ERR_MUCHO);
                 return CG_CMD_STOP;
             }
-            if (k == 2 || k == 3) {   /* solo el primer giro válido acomoda los siguientes; el calentamiento nunca cambia la recta ni los tiempos */
+            if (k == 1 || k == 5) {   /* solo el primer giro válido de cada bloque acomoda los siguientes; el calentamiento nunca cambia la recta ni los tiempos */
                 int j;
-                long esperado_x10 = (long)OBJETIVO_GRADOS[0] * 10;
+                long esperado_x10 = (long)OBJETIVO_GRADOS[1] * 10;
+                int fin = (k == 1) ? CG_MEDICIONES_POR_LADO : CG_TOTAL_GIROS;
 
-                for (j = k + 2; j < CG_TOTAL_GIROS; j += 2) {
+                for (j = k + 1; j < fin; j++) {
                     long util = cg->plan_ms[j] - cg->base.arranque_ms;
                     long nuevo;
 
@@ -270,8 +282,16 @@ int calgiro_tick(CalGiro *cg, uint32_t ahora_ms, int hay_angulo, int angulo_x10)
                 calcular(cg);
                 return CG_CMD_STOP;
             }
+            if (cg->giro_actual == CG_MEDICIONES_POR_LADO) {
+                cg->estado = CG_PAUSA;
+                cg->t_estado_ms = ahora_ms;
+                cg->comando = CG_CMD_STOP;
+                return CG_CMD_STOP;
+            }
             cg->estado = CG_PREPARANDO;
             cg->t_estado_ms = ahora_ms;
+            cg->ang_ref_x10 = cg->ang_x10;
+            cg->t_ref_ms = ahora_ms;
         }
         cg->comando = CG_CMD_STOP;
         return CG_CMD_STOP;

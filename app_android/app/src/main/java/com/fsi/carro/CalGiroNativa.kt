@@ -26,6 +26,7 @@ object CalGiroNativa {
     const val LISTO = 4
     const val ERROR = 5
     const val CANCELADO = 6
+    const val PAUSA = 7
 
     // Índices de estado().
     const val E_ESTADO = 0

@@ -1531,7 +1531,7 @@ Java_com_fsi_carro_CalGiroNativa_datos(JNIEnv *env, jobject objeto)
     for (l = 0; l < 2; l++) {
         for (i = 0; i < CG_MEDICIONES_POR_LADO; i++) {
             int b = l * 16 + i * 4;
-            salida[b] = calgiro_global.plan_ms[i * 2 + l];
+            salida[b] = calgiro_global.plan_ms[l * CG_MEDICIONES_POR_LADO + i];
             salida[b + 1] = calgiro_global.ms_real[l][i];
             salida[b + 2] = calgiro_global.grados_x10[l][i];
             salida[b + 3] = calgiro_global.medido[l][i];

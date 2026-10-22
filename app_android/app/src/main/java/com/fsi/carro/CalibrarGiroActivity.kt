@@ -278,8 +278,9 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         val giro = estado[CalGiroNativa.E_GIRO_ACTUAL]
         textoEstado.text = when {
+            st == CalGiroNativa.PAUSA -> getString(R.string.cg_pausa_bloques)
             corriendo -> getString(R.string.cg_avance, Math.min(giro + 1, CalGiroNativa.TOTAL_GIROS), CalGiroNativa.TOTAL_GIROS, fase(st)) +
-                if (giro < 2) "\n" + getString(R.string.cg_calentamiento) else ""
+                if (giro == 0 || giro == 4) "\n" + getString(R.string.cg_calentamiento) else ""
             st == CalGiroNativa.ERROR -> getString(R.string.cg_error_texto, CalGiroNativa.textoError(estado[CalGiroNativa.E_ERROR])) +
                 "\nIzquierda: ${pares(0)}\nDerecha: ${pares(1)}"
             st == CalGiroNativa.CANCELADO -> getString(R.string.cg_cancelada)
@@ -296,6 +297,7 @@ class CalibrarGiroActivity : androidx.appcompat.app.AppCompatActivity() {
         CalGiroNativa.PREPARANDO -> getString(R.string.cg_fase_quieto)
         CalGiroNativa.GIRANDO -> getString(R.string.cg_fase_girando)
         CalGiroNativa.ASENTANDO -> getString(R.string.cg_fase_midiendo)
+        CalGiroNativa.PAUSA -> getString(R.string.cg_fase_pausa)
         else -> ""
     }
 }

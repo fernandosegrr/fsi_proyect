@@ -190,9 +190,16 @@ int main(void)
     c = carro_de(96, 81, 50, 20);                        /* lo real: 9.6 y 8.1 ms por grado, frenado de 5.0 y 2.0 grados */
     simular(&c, &cg, &g, 120000, -1);
     caso("carro 20 % desajustado: termina en LISTO sin error", cg.estado == CG_LISTO && cg.error == CG_ERR_NINGUNO);
-    caso("hace 8 giros alternados (4 por lado, incluidos dos de calentamiento), siempre vuelve a STOP",
-         n_comandos == 16 && comandos[0] == CG_CMD_IZQ && comandos[1] == CG_CMD_STOP && comandos[2] == CG_CMD_DER && comandos[4] == CG_CMD_IZQ && comandos[6] == CG_CMD_DER &&
-         comandos[8] == CG_CMD_IZQ && comandos[10] == CG_CMD_DER && comandos[12] == CG_CMD_IZQ && comandos[14] == CG_CMD_DER && comandos[15] == CG_CMD_STOP);
+    caso("hace 8 giros en bloques (4 izquierda, pausa, 4 derecha), siempre vuelve a STOP",
+         n_comandos == 16 &&
+         comandos[0] == CG_CMD_IZQ && comandos[1] == CG_CMD_STOP &&
+         comandos[2] == CG_CMD_IZQ && comandos[3] == CG_CMD_STOP &&
+         comandos[4] == CG_CMD_IZQ && comandos[5] == CG_CMD_STOP &&
+         comandos[6] == CG_CMD_IZQ && comandos[7] == CG_CMD_STOP &&
+         comandos[8] == CG_CMD_DER && comandos[9] == CG_CMD_STOP &&
+         comandos[10] == CG_CMD_DER && comandos[11] == CG_CMD_STOP &&
+         comandos[12] == CG_CMD_DER && comandos[13] == CG_CMD_STOP &&
+         comandos[14] == CG_CMD_DER && comandos[15] == CG_CMD_STOP);
     caso("al terminar no queda ningun comando de giro puesto", ultimo_cmd == CG_CMD_STOP && cg.comando == CG_CMD_STOP);
     printf("      tiempo total %ld ms\n", tiempo_total_ms);
     caso("toda la calibracion tarda menos de 45 segundos", tiempo_total_ms < 45000);
@@ -210,7 +217,7 @@ int main(void)
         char nombre[80];
 
         snprintf(nombre, sizeof nombre, "giro %d: dura entre %d y %d ms", i + 1, CG_MS_MIN, CG_MS_MAX);
-        caso(nombre, r[i % 2].duraciones_ms[i / 2] >= CG_MS_MIN && r[i % 2].duraciones_ms[i / 2] <= CG_MS_MAX + 100);
+        caso(nombre, r[i / 3].duraciones_ms[i % 3] >= CG_MS_MIN && r[i / 3].duraciones_ms[i % 3] <= CG_MS_MAX + 100);
     }
 
     /* 2. Un carro bien calibrado: no avisa. */
@@ -278,7 +285,7 @@ int main(void)
 
     /* 10. Un giro que patino. */
     c = carro_de(80, 90, 30, 30);
-    c.resbala_giro = 2;                  /* el primer válido gira la mitad y también desajusta los tiempos siguientes */
+    c.resbala_giro = 1;                  /* el primer válido gira la mitad y también desajusta los tiempos siguientes */
     simular(&c, &cg, &g, 120000, -1);
     caso("si un giro patina (gira la mitad) los tres de ese lado no siguen una recta: ERROR inconsistente y no se entrega calibracion", cg.estado == CG_ERROR && cg.error == CG_ERR_INCONSISTENTE &&
          calgiro_resultado(&cg, &nueva, r) == 0);
@@ -314,29 +321,42 @@ int main(void)
 
     caso("textos de error en espanol", calgiro_texto_error(CG_ERR_NO_GIRO)[0] != '\0' && calgiro_texto_error(CG_ERR_NINGUNO)[0] == '\0');
 
-    /* J13: el calentamiento no entra en la recta ni escala tiempos. */
+    /* A1: Pruebas de calibración por bloques */
+    /* 1. Datos buenos: usa los tres puntos de cada lado sin descarte */
     g = guardada_aprox(90, 90, 30, 30);
     c = carro_de(90, 90, 30, 30);
-    c.atipicos_x10[0] = c.atipicos_x10[1] = 150;
     simular(&c, &cg, &g, 120000, -1);
-    caso("primer giro de cada lado atipico +15 grados: termina y recupera ms/grado", cg.estado == CG_LISTO &&
-         calgiro_resultado(&cg, &nueva, r) && cerca(r[0].ms_x10_despues, 90, 5) && cerca(r[1].ms_x10_despues, 90, 5));
-    caso("calentamientos se conservan para diagnostico sin descartar validos", cg.medido[0][0] && cg.medido[1][0] &&
-         cg.grados_x10[0][0] > cg.grados_x10[0][1] + 100 && r[0].descartado == 0 && r[1].descartado == 0);
+    caso("datos buenos: usa los tres puntos de cada lado sin descarte", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
+         r[0].descartado == 0 && r[1].descartado == 0 && cerca(r[0].ms_x10_despues, 90, 5) && cerca(r[1].ms_x10_despues, 90, 5));
+
+    /* 2. Atípico al inicio de un bloque (calentamiento giros 0 y 4): no entra a la recta ni descarta válidos */
     c = carro_de(90, 90, 30, 30);
-    c.atipicos_x10[4] = 200;
+    c.atipicos_x10[0] = 150;
+    c.atipicos_x10[4] = 150;
     simular(&c, &cg, &g, 120000, -1);
-    caso("valor atipico en medio: descarta solo el tercer giro izquierdo", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
+    caso("atipico al inicio de un bloque: calentamiento no entra a la recta ni descarta validos", cg.estado == CG_LISTO &&
+         calgiro_resultado(&cg, &nueva, r) && cerca(r[0].ms_x10_despues, 90, 5) && cerca(r[1].ms_x10_despues, 90, 5) &&
+         cg.medido[0][0] && cg.medido[1][0] && r[0].descartado == 0 && r[1].descartado == 0);
+
+    /* 3. Atípico en medio: giro 2 (segundo válido de la izquierda) se descarta y ajusta con los otros dos */
+    c = carro_de(90, 90, 30, 30);
+    c.atipicos_x10[2] = 200;
+    simular(&c, &cg, &g, 120000, -1);
+    caso("atipico en medio: descarta el giro del medio y ajusta con los otros dos", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
          r[0].descartado == 3 && r[1].descartado == 0 && cerca(r[0].ms_x10_despues, 90, 5));
+
+    /* 4. Inconsistente: giros que no siguen una recta */
     c = carro_de(90, 90, 30, 30);
+    c.atipicos_x10[1] = 650; c.atipicos_x10[2] = 400; c.atipicos_x10[3] = -300;
     simular(&c, &cg, &g, 120000, -1);
-    caso("datos buenos: usa los tres puntos sin descarte", cg.estado == CG_LISTO && calgiro_resultado(&cg, &nueva, r) &&
-         r[0].descartado == 0 && r[1].descartado == 0);
-    c = carro_de(90, 90, 30, 30);
-    c.atipicos_x10[2] = 650; c.atipicos_x10[4] = 400; c.atipicos_x10[6] = -300;
-    simular(&c, &cg, &g, 120000, -1);
-    caso("datos totalmente inconsistentes: rechaza y conserva pares sin entregar calibracion", cg.estado == CG_ERROR &&
+    caso("inconsistente: rechaza y conserva pares sin entregar calibracion", cg.estado == CG_ERROR &&
          cg.error == CG_ERR_INCONSISTENTE && cg.medido[0][3] && !calgiro_resultado(&cg, &nueva, r) && ultimo_cmd == CG_CMD_STOP);
+
+    /* 5. Cancelación a mitad de un bloque */
+    c = carro_de(90, 90, 30, 30);
+    simular(&c, &cg, &g, 120000, 5500);  /* a mitad del bloque izquierdo */
+    caso("cancelacion a mitad de un bloque: estado CANCELADO, comando STOP y pares medidos conservados", cg.estado == CG_CANCELADO &&
+         ultimo_cmd == CG_CMD_STOP && !calgiro_resultado(&cg, &nueva, r) && cg.medido[0][0]);
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;
