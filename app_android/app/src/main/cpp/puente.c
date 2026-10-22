@@ -2521,11 +2521,11 @@ Java_com_fsi_carro_NavegadorNativa_giroFwActivo(JNIEnv *env, jobject objeto)
 
 /* Llegó la respuesta del firmware a un giro: codigo 0 OK, 1 TIMEOUT, 2 ERROR con ángulo, 3 ERROR sin datos; `real_x10_fw` los grados por 10 (POSITIVO = izquierda). */
 JNIEXPORT void JNICALL
-Java_com_fsi_carro_NavegadorNativa_aporteGiro(JNIEnv *env, jobject objeto, jint codigo, jint real_x10_fw, jint ms, jlong ahora_ms)
+Java_com_fsi_carro_NavegadorNativa_aporteGiro(JNIEnv *env, jobject objeto, jint codigo, jint real_x10_fw, jint ms, jint ant, jlong ahora_ms)
 {
     (void)env;
     (void)objeto;
-    navegador_aporte_giro(obtener_navegador(), (int)codigo, (int)real_x10_fw, (int)ms, (uint32_t)ahora_ms);
+    navegador_aporte_giro(obtener_navegador(), (int)codigo, (int)real_x10_fw, (int)ms, (int)ant, (uint32_t)ahora_ms);
 }
 
 /* Llegó un SENS del firmware. */

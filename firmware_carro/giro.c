@@ -54,8 +54,30 @@ static int      n_muestras[RANURAS];
 static int      sig_muestra[RANURAS];
 static int      guardado_ms[RANURAS];                    /* lo último que se escribió en la memoria no volátil (-1 = nada) */
 static int      ranura_actual = 0;                       /* la del giro en curso */
+static int      duraciones_hist[RANURAS][5];             /* historial de duraciones para descartar giros largos */
+static int      n_duraciones[RANURAS];
+static int      sig_duracion[RANURAS];
 
 static int ranura_de(int perfil, int s) { return (perfil == PERFIL_AUTO ? 2 : 0) + (s > 0 ? 1 : 0); }
+
+static int mediana_duracion(int r)
+{
+    int orden[5];
+    int n = n_duraciones[r], i, j;
+
+    for (i = 0; i < n; i++) {
+        orden[i] = duraciones_hist[r][i];
+    }
+    for (i = 1; i < n; i++) {
+        int v = orden[i];
+
+        for (j = i - 1; j >= 0 && orden[j] > v; j--) {
+            orden[j + 1] = orden[j];
+        }
+        orden[j + 1] = v;
+    }
+    return (n % 2 == 1) ? orden[n / 2] : (orden[n / 2 - 1] + orden[n / 2]) / 2;
+}
 
 static void anticipaciones_a_defecto(void)
 {
@@ -65,6 +87,8 @@ static void anticipaciones_a_defecto(void)
         anticipacion_ms[r] = r >= 2 ? GIRO_ANTICIPACION_AUTO_INICIAL_MS : GIRO_ANTICIPACION_MS;
         n_muestras[r] = 0;
         sig_muestra[r] = 0;
+        n_duraciones[r] = 0;
+        sig_duracion[r] = 0;
         guardado_ms[r] = -1;
     }
 }
@@ -234,18 +258,44 @@ static void informar(uint32_t ahora_ms)
     char texto[MENSAJE_SALIDA_MAX];
     int32_t real_x10;
     const char *palabra;
+    int r = ranura_actual;
     (void)ahora_ms;
 
     real_x10 = angulo_ultimo_x10 - angulo_ini_x10;
-    if (resultado == R_OK) {
-        corregir_anticipacion(angulo_ultimo_x10);
+    if (resultado == R_TIMEOUT) {
+        sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:timeout");
+    } else if (resultado == R_ABORTADO) {
+        sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:interrumpido");
+    } else if (resultado == R_OK) {
+        int32_t error_x10 = sentido * real_x10 - objetivo_x10;
+        int ignorar = 0;
+
+        if (error_x10 > 200 || error_x10 < -200) {
+            sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:error_grande");
+            ignorar = 1;
+        } else if (n_duraciones[r] >= 3) {
+            int med = mediana_duracion(r);
+
+            if (duracion_ms > (med * 3) / 2) {
+                sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:giro_largo");
+                ignorar = 1;
+            }
+        }
+        if (!ignorar) {
+            duraciones_hist[r][sig_duracion[r]] = duracion_ms;
+            sig_duracion[r] = (sig_duracion[r] + 1) % 5;
+            if (n_duraciones[r] < 5) {
+                n_duraciones[r]++;
+            }
+            corregir_anticipacion(angulo_ultimo_x10);
+        }
     }
     if (resultado == R_OK || resultado == R_TIMEOUT) {
         palabra = (resultado == R_OK) ? "GIRO_OK" : "GIRO_TIMEOUT";
-        snprintf(texto, sizeof texto, "%s:%d:%d:%d", palabra, objetivo_grados, (int)real_x10, duracion_ms);
+        snprintf(texto, sizeof texto, "%s:%d:%d:%d:%d", palabra, objetivo_grados, (int)real_x10, duracion_ms, anticipacion_ms[r]);
     } else {
         palabra = (resultado == R_ABORTADO) ? "abortado" : "sin_imu";
-        snprintf(texto, sizeof texto, "GIRO_ERROR:%s:%d:%d:%d", palabra, objetivo_grados, (int)real_x10, duracion_ms);
+        snprintf(texto, sizeof texto, "GIRO_ERROR:%s:%d:%d:%d:%d", palabra, objetivo_grados, (int)real_x10, duracion_ms, anticipacion_ms[r]);
     }
     sensores_enviar(SENSORES_DESTINO_WS, texto);
     estado = G_INACTIVO;

@@ -194,7 +194,7 @@ class ModoSemiautonomo(
         NavegadorNativa.ponerSensorDistancia(if (logica.laserActivo) 1 else 0)
         NavegadorNativa.ponerAutoridadLaser(if (logica.autoridadLaser) 1 else 0)
         Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo}")
-        logica.alGiro = { codigo, _, real, ms -> NavegadorNativa.aporteGiro(codigo, real, ms, SystemClock.elapsedRealtime()) }
+        logica.alGiro = { codigo, _, real, ms, ant -> NavegadorNativa.aporteGiro(codigo, real, ms, ant, SystemClock.elapsedRealtime()) }
         logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime()) }
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
         logica.alTofParo = { mm -> NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime()) }

@@ -138,7 +138,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         SesionCarro.escuchar(alCambiar)
         SesionCarro.entrar(this, SesionNativa.USUARIO_CALIBRACION)
         logica.pedirPerfil(ControlLogica.Perfil.AUTO)   // SENS solo llega con el perfil AUTO
-        logica.alGiro = { codigo, objetivo, real, ms -> alRespuestaGiro(codigo, objetivo, real, ms) }
+        logica.alGiro = { codigo, objetivo, real, ms, ant -> alRespuestaGiro(codigo, objetivo, real, ms, ant) }
         reloj.removeCallbacks(tareaReloj)
         reloj.post(tareaReloj)
         mostrar()
@@ -251,7 +251,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     /** Llegó GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR del carro (sirve a la prueba por ángulo; ModoSemiautonomo pone la suya durante una ruta). */
-    private fun alRespuestaGiro(codigo: Int, objetivo: Int, realX10: Int, ms: Int) {
+    private fun alRespuestaGiro(codigo: Int, objetivo: Int, realX10: Int, ms: Int, ant: Int) {
         if (!probando) {
             return
         }
@@ -263,8 +263,8 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             NavegadorNativa.GIRO_ERROR_CON_DATOS -> "ERROR con ángulo parcial"
             else -> "ERROR (no giró)"
         }
-        textoResultado.text = "Por ángulo ($estado): pedido ${Math.abs(objetivo)}°, el giroscopio midió ${"%.1f".format(Math.abs(realX10) / 10.0)}° en $ms ms"
-        Log.i(ETIQUETA, "prueba_giro fin por=angulo estado=$estado objetivo=${Math.abs(objetivo)} medido_x10=${Math.abs(realX10)} ms=$ms")
+        textoResultado.text = "Por ángulo ($estado): pedido ${Math.abs(objetivo)}°, el giroscopio midió ${"%.1f".format(Math.abs(realX10) / 10.0)}° en $ms ms (ant $ant ms)"
+        Log.i(ETIQUETA, "prueba_giro fin por=angulo estado=$estado objetivo=${Math.abs(objetivo)} medido_x10=${Math.abs(realX10)} ms=$ms ant=$ant")
         mostrar()
     }
 }

@@ -357,7 +357,7 @@ static void fw_avanzar(Simulador *sim, Navegador *nav, int dt)
         sim->fw_cerrado = 1;
         if (!sim->fw_sin_respuesta && !sim->fw_pierde_mensaje) {
             /* el firmware cuenta + a la izquierda */
-            navegador_aporte_giro(nav, sim->fw_codigo, (sim->fw_lado == CAL_LADO_IZQUIERDA) ? sim->fw_medido_x10 : -sim->fw_medido_x10, sim->fw_manejo_ms, sim->t_ms);
+            navegador_aporte_giro(nav, sim->fw_codigo, (sim->fw_lado == CAL_LADO_IZQUIERDA) ? sim->fw_medido_x10 : -sim->fw_medido_x10, sim->fw_manejo_ms, sim->fw_anticipacion_ms[sim->fw_lado == CAL_LADO_IZQUIERDA ? 1 : 0], sim->t_ms);
         }
     }
 }

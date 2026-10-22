@@ -468,6 +468,7 @@ typedef struct {
     int      giro_fw_grados;         /* grados pedidos con la convención del navegador (+ derecha) */
     int      giro_fw_real_x10;       /* grados por 10 que giró de verdad, en la dirección del comando */
     int      giro_fw_ms;             /* lo que tardó el firmware */
+    int      giro_fw_ant;            /* anticipación del firmware en ms */
     uint32_t giro_fw_t_ms;           /* hora en que se pidió */
     int      giro_fw_ang_ini_x10;    /* ángulo del giroscopio (convención del firmware, + izquierda) al empezar el giro por ángulo; solo vale si giro_fw_ang_ini_ok */
     int      giro_fw_ang_ini_ok;
@@ -573,7 +574,7 @@ int  navegador_poner_sensor_distancia(Navegador *nav, int activo);
 int  navegador_poner_autoridad_laser(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
-void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, uint32_t ahora_ms);
+void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);
 void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms);
 
 /* MENSAJE DE GIRO PERDIDO (J12): si pasa la espera máxima sin GIRO_OK ni GIRO_TIMEOUT, antes de repetir el giro por tiempo el navegador pide IMU? (navegador_tomar_consulta_imu devuelve 1 una vez

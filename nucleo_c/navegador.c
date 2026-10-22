@@ -703,10 +703,10 @@ static void registrar_fin_comando(Navegador *nav)
         giro.desp_adelante_mm = (dx * seno_mil(h0) - dy * seno_mil(h0 + 90)) / 1000;    /* el desplazamiento del mapa, en el marco del carro al empezar el giro */
         giro.desp_derecha_mm = (dx * seno_mil(h0 + 90) + dy * seno_mil(h0)) / 1000;
         giro.por_angulo = por_fw;
-        diag_escribir(nav, "TURN_DIAG lado=%s origen=%s pedido=%d hecho=%d plan_ms=%d real_ms=%d um_grado=(%d,%d) mm=(%d,%d) carro_mm=(%d,%d) rumbo=%d>%d%s por=%s fw_real_x10=%d fw_ms=%d",
+        diag_escribir(nav, "TURN_DIAG lado=%s origen=%s pedido=%d hecho=%d plan_ms=%d real_ms=%d um_grado=(%d,%d) mm=(%d,%d) carro_mm=(%d,%d) rumbo=%d>%d%s por=%s fw_real_x10=%d fw_ms=%d ant=%d",
                       (lado < 0) ? "IZQ" : "DER", nombre_origen(giro.origen), giro.pedido_grados, hecho, giro.plan_ms, giro.real_ms, um_adelante, um_derecha,
                       dx, dy, giro.desp_adelante_mm, giro.desp_derecha_mm, h0, nav->rumbo_grados,
-                      cal_desplazamiento_es_espejo(&nav->cal, lado) ? " aviso=espejo_estimado" : "", por_fw ? "angulo" : "tiempo", por_fw ? nav->giro_fw_real_x10 : 0, por_fw ? nav->giro_fw_ms : 0);
+                      cal_desplazamiento_es_espejo(&nav->cal, lado) ? " aviso=espejo_estimado" : "", por_fw ? "angulo" : "tiempo", por_fw ? nav->giro_fw_real_x10 : 0, por_fw ? nav->giro_fw_ms : 0, por_fw ? nav->giro_fw_ant : 0);
         if (nav->cmd_pedido > 0) {
             if (por_fw) {
                 nav->n_giros_angulo++;
@@ -1470,7 +1470,7 @@ void navegador_iniciar(Navegador *nav)
     nav->usa_giroscopio = 0;                 /* J11: por defecto todo como antes (giros por tiempo, sin láser) */
     nav->usa_tof = 0;
     nav->giro_fw_caido = nav->giro_fw = nav->giro_fw_estado = nav->giro_fw_pedir = 0;
-    nav->giro_fw_grados = nav->giro_fw_real_x10 = nav->giro_fw_ms = 0;
+    nav->giro_fw_grados = nav->giro_fw_real_x10 = nav->giro_fw_ms = nav->giro_fw_ant = 0;
     nav->giro_fw_t_ms = 0;
     nav->n_giros_angulo = nav->n_giros_tiempo = 0;
     nav->giro_fw_ang_ini_x10 = nav->giro_fw_ang_ini_ok = nav->giro_fw_consultando = nav->giro_fw_consulta_pedir = 0;
@@ -3466,7 +3466,7 @@ int navegador_giro_fw_en_curso(const Navegador *nav)
     return nav != NULL && nav->giro_fw && nav->giro_fw_estado == 0;
 }
 
-void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, uint32_t ahora_ms)
+void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms)
 {
     int real_x10;
 
@@ -3485,6 +3485,7 @@ void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, 
     real_x10 = (nav->cmd_actual == NAV_CMD_LEFT) ? real_x10_fw : -real_x10_fw;   /* + a la izquierda del firmware → grados en la dirección del comando */
     nav->giro_fw_real_x10 = real_x10;
     nav->giro_fw_ms = ms;
+    nav->giro_fw_ant = ant;
     nav->giro_fw_estado = 1;
     if (codigo != NAV_GIRO_OK) {
         nav->giro_fw_caido = 1;   /* los giros siguientes de la ruta van por tiempo */

@@ -149,7 +149,7 @@ class ControlLogica(
 
     /** Avisos de los sensores: SENS (ángulo x10, mm, banderas), respuesta de un giro (código NavegadorNativa.GIRO_*, objetivo en grados, real x10 con signo del firmware, ms) y TOF_PARO (mm). */
     var alSens: ((Int, Int, Int) -> Unit)? = null
-    var alGiro: ((Int, Int, Int, Int) -> Unit)? = null
+    var alGiro: ((Int, Int, Int, Int, Int) -> Unit)? = null
     var alTofParo: ((Int) -> Unit)? = null
 
     /** La respuesta a IMU?: el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
@@ -532,10 +532,11 @@ class ControlLogica(
                     val objetivo = numeros.getOrNull(0)?.toIntOrNull() ?: 0
                     val real = numeros.getOrNull(1)?.toIntOrNull() ?: 0
                     val ms = numeros.getOrNull(2)?.toIntOrNull() ?: 0
+                    val ant = numeros.getOrNull(3)?.toIntOrNull() ?: 0
                     girandoPorAngulo = false
-                    ultimoAvisoSensores = "Giro pedido ${objetivo}°, medido ${real / 10.0}° en $ms ms" + if (codigo == NavegadorNativa.GIRO_OK) "" else " ($texto)"
+                    ultimoAvisoSensores = "Giro pedido ${objetivo}°, medido ${real / 10.0}° en $ms ms (ant $ant ms)" + if (codigo == NavegadorNativa.GIRO_OK) "" else " ($texto)"
                     Log.i("SENS_DIAG", "firmware: $texto")
-                    alGiro?.invoke(codigo, objetivo, real, ms)
+                    alGiro?.invoke(codigo, objetivo, real, ms, ant)
                     alCambiar()
                 }
                 texto.startsWith("TOF_PARO:") -> {

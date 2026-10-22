@@ -1700,7 +1700,7 @@ class CalibracionActivity : androidx.appcompat.app.AppCompatActivity() {
 
     /** Una línea TURN_DIAG de la calibración del desplazamiento (el mismo registro de los giros de la ruta; origen=calibracion). */
     private fun diagDesp(texto: String) {
-        Log.i("TURN_DIAG", "TURN_DIAG lado=${if (ladoAjuste < 0) "IZQ" else "DER"} origen=calibracion perfil=${perfilAjuste.name} $texto")
+        Log.i("TURN_DIAG", "TURN_DIAG lado=${if (ladoAjuste < 0) "IZQ" else "DER"} origen=calibracion perfil=${perfilAjuste.name} ant=0 $texto")
     }
 
     /** Pasa la medida de esta repetición a µm por grado (en C), la anota y, con 2 repeticiones del lado, las compara (se aceptan si difieren 30 % o menos, o 1 cm o menos). Si no coinciden NO se

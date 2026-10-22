@@ -1568,6 +1568,79 @@ static void prueba_mensajes(void)
 
 /* ── Programa principal ────────────────────────────────────────────────── */
 
+
+static void prueba_ant_giros_invalidos(void)
+{
+    int ant_antes, i;
+
+    printf("-- A2: ANT no aprende de giros invalidos --\n");
+
+    /* 1. Giro normal que si aprende */
+    giro_reiniciar();
+    arrancar(10.0, 3);
+    omega_tope = 160.0;
+    tau_inercia_ms = 80.0;
+    ant_antes = ant_auto_izq();
+    n_msg = 0;
+    (void)error_de_giro(90);
+    caso("giro normal: aprende y actualiza ANT", ant_auto_izq() != ant_antes && ultimo_mensaje("ANT_IGNORADO") == NULL);
+
+    /* 2. Timeout: motor trabado, no gira */
+    ant_antes = ant_auto_izq();
+    seguir_giro_real = 0;
+    n_msg = 0;
+    orden("GIRAR:90");
+    avanzar_ms(3000);
+    caso("timeout: emite ANT_IGNORADO:timeout y no actualiza ANT",
+         ultimo_mensaje("GIRO_TIMEOUT") != NULL &&
+         ultimo_mensaje("ANT_IGNORADO:timeout") != NULL &&
+         ant_auto_izq() == ant_antes);
+    seguir_giro_real = 1;
+
+    /* 3. Interrumpido: STOP a mitad del giro */
+    ant_antes = ant_auto_izq();
+    n_msg = 0;
+    orden("GIRAR:90");
+    avanzar_ms(200);
+    orden("STOP");
+    avanzar_ms(GIRO_ASENTAR_MS + 200);
+    caso("interrumpido: emite ANT_IGNORADO:interrumpido y no actualiza ANT",
+         ultimo_mensaje("GIRO_ERROR:abortado") != NULL &&
+         ultimo_mensaje("ANT_IGNORADO:interrumpido") != NULL &&
+         ant_auto_izq() == ant_antes);
+
+    /* 4. Error grande (> 20 grados respecto al pedido) */
+    ant_antes = ant_auto_izq();
+    n_msg = 0;
+    tau_inercia_ms = 500.0;   /* inercia enorme: sobregira mas de 50 grados */
+    orden("GIRAR:90");
+    avanzar_ms(4500);
+    tau_inercia_ms = 50.0;
+    caso("error grande (> 20 deg): emite ANT_IGNORADO:error_grande y no actualiza ANT",
+         ultimo_mensaje("GIRO_OK") != NULL &&
+         ultimo_mensaje("ANT_IGNORADO:error_grande") != NULL &&
+         ant_auto_izq() == ant_antes);
+
+    /* 5. Giro largo: dura mas de 1.5 veces la mediana reciente (con al menos 3 giros de historial) */
+    giro_reiniciar();
+    arrancar(10.0, 3);
+    omega_tope = 160.0;
+    tau_inercia_ms = 50.0;
+    for (i = 0; i < 3; i++) {
+        (void)error_de_giro(90);
+    }
+    ant_antes = ant_auto_izq();
+    omega_tope = 80.0;   /* dura ~1150 ms > 1.5x la mediana (~590 ms) pero < timeout (1850 ms) */
+    n_msg = 0;
+    (void)error_de_giro(90);
+
+    caso("giro largo (> 1.5x mediana con historial >= 3): emite ANT_IGNORADO:giro_largo y no actualiza ANT",
+         ultimo_mensaje("GIRO_OK") != NULL &&
+         ultimo_mensaje("ANT_IGNORADO:giro_largo") != NULL &&
+         ant_auto_izq() == ant_antes);
+    omega_tope = 160.0;
+}
+
 int main(void)
 {
     prueba_conversiones();
@@ -1583,6 +1656,7 @@ int main(void)
     prueba_giro_sin_watchdog();
     prueba_giro_variable();
     prueba_anticipacion_por_sentido();
+    prueba_ant_giros_invalidos();
     prueba_laser_reintentos();
     prueba_laser_lecturas();
     prueba_laser_paro();
