@@ -58,3 +58,12 @@ Fase A7 & A8: terminada.
   * Botones de parada y cancelación en EjecutarRutaFragment: ej_paro (contentDescription="Parar ruta") y ej_cancelar cancelan limpiamente enviando STOP inmediato y deteniendo el temporizador semiautónomo.
 - Autoridad del láser (A8): mantenida apagada por defecto en Ajustes.kt (autoridad_laser = false) y ControlLogica.kt (autoridadLaser = false).
 - Pruebas unitarias de la recta predefinida añadidas en nucleo_c/pruebas_navegador.c (validando override de 1500 mm, tiempo con cal_cm_a_ms_tramo, término y distancia). Todas las pruebas en verde (380 casos nucleo_c).
+
+Fase A9: terminada.
+- Carga de firmware y verificación sin movimiento:
+  * Firmware compilado para HEAD 69fbd1b y flasheado al DevKit en COM6 con scripts\cargar.ps1 nuevo (verify-flash habilitado y NVS intacta).
+  * APK compilada en debug con versión APP:0.4-69fbd1b e instalada en el Huawei P40 Pro con adb install -r (sin desinstalar).
+  * Ejecución de scripts\verificar_version.py: resultado PASA (Git HEAD 69fbd1b, Firmware 69fbd1b y APK 69fbd1b coinciden).
+  * Sensores y hardware verificados en reposo absoluto sin movimiento: giroscopio MPU6050 ok (IMU=1, estado calibrado), sensor láser VL53L0X ok (TOF=1, listo), y anticipación ANT intacta en memoria no volátil (AUTO izq 126 ms, AUTO der 144 ms, MANUAL 20 ms).
+  * Pantalla Sensores abierta por adb y validada; app cerrada con am force-stop y stay_on_while_plugged_in restaurado.
+- Etapa A completa con 100 % de pruebas unitarias y suites en verde; sin ningún comando de movimiento enviado.
