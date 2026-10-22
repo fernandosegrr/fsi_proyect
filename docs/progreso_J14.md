@@ -44,3 +44,17 @@ Fase A6: terminada.
   * En app_android/app/src/main/java/com/fsi/carro/ConfigVision.kt se fijó usarModelo por defecto en true (preferencias.getBoolean("usar_modelo", true)).
   * En CamaraObstaculos.kt se protegió activarModelo() para que cualquier fallo al instanciar o arrancar el hilo capture la excepción, registre el aviso/error y permita que el detector de color continúe operando transparentemente sin interrumpir la cámara ni la navegación.
   * Documentación actualizada en docs/fusion.md, docs/obstaculos.md y docs/limites_conocidos.md.
+
+Fase A7 & A8: terminada.
+- Rutas de prueba predefinidas en la app listas para ejecución directa y automatización desatendida por adb:
+  * "Recta 150 cm": base de 8 tramos con override nativo a 1500 mm (navegador_poner_largo_recta_mm) para recorrido exacto de 150 cm.
+  * "Recta 200 cm": 10 celdas de 20 cm = 200 cm exactos.
+  * "Ruta en L (100 cm, giro 90° a la derecha, 100 cm)": 5 celdas adelante (100 cm), giro 90° derecha, 5 celdas a la derecha (100 cm).
+  * "Prueba de obstáculo (1 m)": confirmada existencia (RUTA_PRUEBA_OBSTACULO = 5 celdas = 100 cm con freno inmediato y cancelación al detectar).
+- Identificadores estables y automatización adb:
+  * Botones en fragment_rutas.xml con IDs estables y contentDescription: rutas_predef_recta_150, rutas_predef_recta_200, rutas_predef_l, rutas_predef_obstaculo.
+  * Lanzamiento por Intent ADB: --es ruta_predefinida <recta_150|recta_200|ruta_l|obstaculo> en MainActivity abre directamente EjecutarRutaFragment con la ruta elegida. Soporte opcional de --ez auto_iniciar true.
+  * Control de parada por ADB: --es accion parar dispara SesionCarro.pararTodo("Paro por comando externo (ADB)").
+  * Botones de parada y cancelación en EjecutarRutaFragment: ej_paro (contentDescription="Parar ruta") y ej_cancelar cancelan limpiamente enviando STOP inmediato y deteniendo el temporizador semiautónomo.
+- Autoridad del láser (A8): mantenida apagada por defecto en Ajustes.kt (autoridad_laser = false) y ControlLogica.kt (autoridadLaser = false).
+- Pruebas unitarias de la recta predefinida añadidas en nucleo_c/pruebas_navegador.c (validando override de 1500 mm, tiempo con cal_cm_a_ms_tramo, término y distancia). Todas las pruebas en verde (380 casos nucleo_c).

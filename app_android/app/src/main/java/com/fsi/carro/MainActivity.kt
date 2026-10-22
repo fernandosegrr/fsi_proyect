@@ -125,6 +125,20 @@ class MainActivity : AppCompatActivity() {
         if (intent.hasExtra("video_en_manual")) {
             Ajustes(this).videoEnManual = intent.getBooleanExtra("video_en_manual", true)
         }
+        val accion = intent.getStringExtra("accion")
+        if (accion == "parar" || accion == "stop") {
+            SesionCarro.pararTodo("Paro por comando externo (ADB)")
+        }
+        val rutaClave = intent.getStringExtra("ruta_predefinida") ?: intent.getStringExtra("ruta")
+        if (rutaClave != null && intent.getStringExtra("pantalla") == null) {
+            val predef = RutasPredefinidas.buscarPorIdONombre(rutaClave)
+            if (predef != null) {
+                val autoIniciar = intent.getBooleanExtra("auto_iniciar", false) || accion == "iniciar"
+                cambiarA(R.id.pestana_rutas)
+                supportFragmentManager.executePendingTransactions()
+                abrirSubpantalla(EjecutarRutaFragment.nueva(predef.nombre, predef.celdas, autoIniciar))
+            }
+        }
         intent.getStringExtra("tema")?.let {
             Ajustes(this).tema = it
             Diseno.aplicarTema(this)
@@ -260,11 +274,18 @@ class MainActivity : AppCompatActivity() {
             }
             "ejecutar" -> {
                 cambiarA(R.id.pestana_rutas)
-                if (RutaEditorNativa.vertices().isEmpty()) {
-                    RutaEditorNativa.plantilla(RutaEditorNativa.PLANTILLA_CUADRADO)
-                }
+                val rutaClaveEj = intent.getStringExtra("ruta_predefinida") ?: intent.getStringExtra("ruta")
+                val predef = RutasPredefinidas.buscarPorIdONombre(rutaClaveEj)
+                val autoIniciar = intent.getBooleanExtra("auto_iniciar", false) || intent.getStringExtra("accion") == "iniciar"
                 supportFragmentManager.executePendingTransactions()
-                abrirSubpantalla(EjecutarRutaFragment.nueva("Ruta de prueba", RutaEditorNativa.celdas()))
+                if (predef != null) {
+                    abrirSubpantalla(EjecutarRutaFragment.nueva(predef.nombre, predef.celdas, autoIniciar))
+                } else {
+                    if (RutaEditorNativa.vertices().isEmpty()) {
+                        RutaEditorNativa.plantilla(RutaEditorNativa.PLANTILLA_CUADRADO)
+                    }
+                    abrirSubpantalla(EjecutarRutaFragment.nueva("Ruta de prueba", RutaEditorNativa.celdas(), autoIniciar))
+                }
             }
             else -> {
                 cambiarA(R.id.pestana_mas)

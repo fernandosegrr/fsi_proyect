@@ -3617,6 +3617,32 @@ static void pruebas_j13_autoridad(void)
     }
 }
 
+static void pruebas_j14_recta_predefinida(void)
+{
+    static const Punto RECTA_8[] = {
+        {2, 8}, {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0}
+    };
+    int t_esperado;
+
+    navegador_iniciar(&nav);
+    navegador_cargar_ruta(&nav, RECTA_8, N(RECTA_8));
+    sim_iniciar(&sim, RECTA_8[0].columna, RECTA_8[0].fila, 0);
+    navegador_poner_largo_recta_mm(&nav, 1500);
+    navegador_comenzar(&nav, 0);
+    caso("J14: recta con override 1500 mm fija ruta_largo_mm en 1500", nav.ruta_largo_mm == 1500);
+
+    /* En el primer tick se planifica el paso de 150 cm */
+    navegador_tick(&nav, 0, NULL);
+    caso("J14: paso 0 es AVANZAR 150 cm", nav.n_pasos >= 1 && nav.pasos[0].tipo == PASO_AVANZAR && nav.pasos[0].valor == 150);
+    t_esperado = cal_cm_a_ms_tramo(&nav.cal, 150, 1, 1);
+    caso("J14: tiempo planeado coincide con cal_cm_a_ms_tramo(150)", nav.pasos[0].tiempo_ms == t_esperado);
+
+    /* Correr el simulador hasta terminar la ruta */
+    correr(t_esperado + 3000);
+    caso("J14: la recta de 150 cm termina en NAV_TERMINADO", nav.estado == NAV_TERMINADO);
+    caso("J14: la distancia recorrida es ~150 cm", nav.recorrido_mm >= 1480 && nav.recorrido_mm <= 1520);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -3651,6 +3677,7 @@ int main(void)
     pruebas_j11_laser();
     pruebas_j11_monte_carlo();
     pruebas_j13_autoridad();
+    pruebas_j14_recta_predefinida();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

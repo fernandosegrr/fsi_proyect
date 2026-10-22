@@ -2380,6 +2380,14 @@ Java_com_fsi_carro_NavegadorNativa_ponerAutoridadLaser(JNIEnv *env, jobject obje
     return (jint)navegador_poner_autoridad_laser(obtener_navegador(), (int)activo);
 }
 
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerLargoRectaMm(JNIEnv *env, jobject objeto, jint mm)
+{
+    (void)env;
+    (void)objeto;
+    navegador_poner_largo_recta_mm(obtener_navegador(), (int)mm);
+}
+
 JNIEXPORT jint JNICALL
 Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora_ms,
                                          jboolean hay_cuadro, jintArray obs)

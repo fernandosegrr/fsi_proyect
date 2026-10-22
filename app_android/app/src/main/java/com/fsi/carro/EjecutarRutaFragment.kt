@@ -40,10 +40,11 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         private const val PERFIL_ESPERA_MS = 1000L    // cuánto se espera el ACK del perfil AUTO
         private const val CONFIRMAR_MAX_MS = 60000L   // «Confirmar y salir» caduca: pasado esto se vuelve a comprobar todo (el piso, el video y el perfil pudieron cambiar)
 
-        fun nueva(nombre: String, celdas: IntArray): EjecutarRutaFragment = EjecutarRutaFragment().also {
+        fun nueva(nombre: String, celdas: IntArray, autoIniciar: Boolean = false): EjecutarRutaFragment = EjecutarRutaFragment().also {
             it.arguments = Bundle().apply {
                 putString("nombre", nombre)
                 putIntArray("celdas", celdas)
+                putBoolean("auto_iniciar", autoIniciar)
             }
         }
     }
@@ -145,7 +146,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
                 principal.postDelayed(this, 1000)
             } else {
                 fase = Fase.OCIOSA
-                SesionCarro.semi.iniciar(celdas)   // la comprobación de arriba ya dejó el piso aprendido y el perfil AUTO: arranca sin pedir nada más
+                SesionCarro.semi.iniciar(celdas, nombreRuta)   // la comprobación de arriba ya dejó el piso aprendido y el perfil AUTO: arranca sin pedir nada más
                 actualizar()
             }
         }
@@ -229,6 +230,14 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             val abrir = avanzado.visibility != View.VISIBLE
             avanzado.visibility = if (abrir) View.VISIBLE else View.GONE
             botonDetalles.setIconResource(if (abrir) R.drawable.ic_expand_less else R.drawable.ic_expand_more)
+        }
+
+        if (arguments?.getBoolean("auto_iniciar") == true) {
+            principal.postDelayed({
+                if (isAdded && !SesionCarro.semi.activo && !SesionCarro.semi.esperandoPerfil) {
+                    iniciar()
+                }
+            }, 600)
         }
     }
 

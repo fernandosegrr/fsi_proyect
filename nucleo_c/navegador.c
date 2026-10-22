@@ -1119,6 +1119,14 @@ static int planificar(Navegador *nav)
     fijar_pose(nav);
     nav->frenado_pendiente = 0;
 
+    if (nav->override_largo_mm > 0 && nav->indice_objetivo > 1) {
+        /* Ya se cumplió la recta prefijada: terminar la ruta */
+        nav->n_pasos = 0;
+        nav->indice_objetivo = nav->n_puntos;
+        nav->estado = NAV_TERMINADO;
+        return NAV_OK;
+    }
+
     if (!nav->sin_compensar_giro && k >= 1 && k < nav->n_puntos) {
         int rumbo_tramo = rumbo_del_tramo(nav, k - 1);
         int u1x = dir_x_mil(rumbo_tramo), u1y = dir_y_mil(rumbo_tramo);
@@ -1242,9 +1250,12 @@ static int planificar(Navegador *nav)
             }
             dist_k = ((kx - p_ini.x_mm) * (long)uhx + (ky - p_ini.y_mm) * (long)uhy) / 1000;
             avance_mm = (k == k_esq || dist_k > dist_esq) ? dist_esq : dist_k;
-            cm = (int)((avance_mm + 5) / 10);
             continua = (nav->cmd_actual == NAV_CMD_FORWARD && nav->n_pasos == 0);
-            sigue_recto = (k < k_esq && dist_esq - avance_mm >= 10);
+            if (nav->override_largo_mm > 0 && nav->indice_objetivo == 1 && !continua) {
+                avance_mm = nav->override_largo_mm;
+            }
+            cm = (int)((avance_mm + 5) / 10);
+            sigue_recto = (k < k_esq && dist_esq - avance_mm >= 10 && nav->override_largo_mm == 0);
             if (cm > 0) {
                 nav->pasos[nav->n_pasos].tipo = PASO_AVANZAR;
                 nav->pasos[nav->n_pasos].valor = cm;
@@ -1527,6 +1538,7 @@ void navegador_iniciar(Navegador *nav)
     nav->diag_firma = -1;
     nav->diag_t_ms = 0;
     nav->diag[0][0] = '\0';
+    nav->override_largo_mm = 0;
 }
 
 int navegador_retroceso_calibrado(const Navegador *nav)
@@ -1644,7 +1656,11 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
         nav->recorrido_mm = 0;
         nav->prev_x_mm = nav->x_mm;
         nav->prev_y_mm = nav->y_mm;
-        nav->ruta_largo_mm = (nav->n_puntos >= 2) ? distancia_hasta_tramo(nav, nav->n_puntos - 1) : 0;
+        if (nav->override_largo_mm > 0) {
+            nav->ruta_largo_mm = nav->override_largo_mm;
+        } else {
+            nav->ruta_largo_mm = (nav->n_puntos >= 2) ? distancia_hasta_tramo(nav, nav->n_puntos - 1) : 0;
+        }
         nav->max_giro_ruta = 0;
         for (k = 0; k + 1 < nav->n_puntos; k++) {
             int rumbo = rumbo_del_tramo(nav, k);
@@ -3449,6 +3465,13 @@ int navegador_poner_autoridad_laser(Navegador *nav, int activo)
     nav->autoridad_laser = activo;
     nav->contradiccion_laser = 0;
     return NAV_OK;
+}
+
+void navegador_poner_largo_recta_mm(Navegador *nav, int mm)
+{
+    if (nav != NULL) {
+        nav->override_largo_mm = (mm > 0) ? mm : 0;
+    }
 }
 
 int navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo)

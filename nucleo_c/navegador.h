@@ -491,6 +491,7 @@ typedef struct {
     int      tof_dist_mm;            /* distancia al obstáculo que midió el láser al detenerse (0 = no se sabe) */
     int      racha_solo_centro2;     /* 1 si la racha de bloqueo actual es SOLO cercanía 2 en el centro */
     int      tof_racha_nota;         /* 0 nada, 1 veto anotado, 2 confirmación anotada (para escribir SENS_DIAG una vez por racha) */
+    int      override_largo_mm;      /* si > 0, largo forzado de la recta en mm (ej. 1500 mm) */
 
     /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG, TURN_DIAG, RUTA_DIAG): ver navegador_diag_siguiente. */
     char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
@@ -592,6 +593,9 @@ int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad);
 /* Cuántos giros recuerda de la ruta en curso (de 0 a NAV_MAX_GIROS) y los datos del giro `indice` (0 = el primero). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
 int navegador_cuantos_giros(const Navegador *nav);
 int navegador_giro_datos(const Navegador *nav, int indice, NavGiro *giro);
+
+/* Fija el largo en mm para una recta predefinida (ej. 1500 mm para 150 cm). 0 = usa el largo de las celdas. */
+void navegador_poner_largo_recta_mm(Navegador *nav, int mm);
 
 /* Texto para la pantalla de resultado: una línea por giro, «derecha: pedido 90°, hecho ~88°», lista para mostrar bajo el título «Giro pedido / Giro hecho (estimado)».
  * Devuelve el largo escrito (0 si no hubo giros). */

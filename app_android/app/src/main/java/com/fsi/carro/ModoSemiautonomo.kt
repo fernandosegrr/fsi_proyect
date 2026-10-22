@@ -120,7 +120,7 @@ class ModoSemiautonomo(
      * Pide la ruta: primero revisa la conexión y la cámara; después manda MODO_AUTO y la ruta SOLO arranca cuando el carro contesta ACK_AUTO
      * (máximo PERFIL_ESPERA_MS = 1 s). Si no contesta, no se arranca y queda un ERROR claro. Devuelve false si no se pudo ni empezar a pedir.
      */
-    fun iniciar(ruta: IntArray): Boolean {
+    fun iniciar(ruta: IntArray, nombre: String = ""): Boolean {
         if (activo || esperandoPerfil) {
             return false
         }
@@ -156,7 +156,7 @@ class ModoSemiautonomo(
         logica.confirmarPerfil(ControlLogica.Perfil.AUTO, PERFIL_ESPERA_MS) { confirmado ->
             esperandoPerfil = false
             if (confirmado) {
-                comenzarRuta(ruta)
+                comenzarRuta(ruta, nombre)
             } else {
                 mensaje = "ERROR: el carro no confirmó el perfil AUTO (ACK_AUTO) en 1 s: la ruta NO arrancó. ¿Está cargado el firmware nuevo en el DevKit? " +
                     "Revisa la conexión y vuelve a tocar Iniciar."
@@ -168,11 +168,14 @@ class ModoSemiautonomo(
     }
 
     /** Carga la ruta y empieza a seguirla (ya con el perfil AUTO confirmado). Devuelve false (y deja un mensaje) si no se pudo. */
-    private fun comenzarRuta(ruta: IntArray): Boolean {
+    private fun comenzarRuta(ruta: IntArray, nombre: String = ""): Boolean {
         if (activo) {
             return false
         }
-        modoPruebaObstaculo = (ruta === RUTA_PRUEBA_OBSTACULO)   // la ruta de esquivar tiene otros puntos, pero igual se mide el primer frenado
+        val predef = RutasPredefinidas.buscarPorIdONombre(nombre)
+            ?: RutasPredefinidas.TODAS.firstOrNull { it.celdas.contentEquals(ruta) }
+        modoPruebaObstaculo = (ruta === RUTA_PRUEBA_OBSTACULO || predef?.id == RutasPredefinidas.ID_OBSTACULO)
+        NavegadorNativa.ponerLargoRectaMm(predef?.largoRectaMm ?: 0)
         bloqueoMarcaMs = 0L
         resumenEscrito = false
         if (logica.conexion != ControlLogica.Conexion.CONECTADO) {

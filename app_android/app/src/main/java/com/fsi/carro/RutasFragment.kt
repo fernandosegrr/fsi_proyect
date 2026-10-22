@@ -112,6 +112,10 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
             R.id.rutas_plantilla_l to RutaEditorNativa.PLANTILLA_L, R.id.rutas_plantilla_ida to RutaEditorNativa.PLANTILLA_IDA_VUELTA)) {
             vista.findViewById<View>(id).setOnClickListener { hacer { RutaEditorNativa.plantilla(plantilla) } }
         }
+        vista.findViewById<View>(R.id.rutas_predef_recta_150)?.setOnClickListener { abrirPredefinida(RutasPredefinidas.TODAS[0]) }
+        vista.findViewById<View>(R.id.rutas_predef_recta_200)?.setOnClickListener { abrirPredefinida(RutasPredefinidas.TODAS[1]) }
+        vista.findViewById<View>(R.id.rutas_predef_l)?.setOnClickListener { abrirPredefinida(RutasPredefinidas.TODAS[2]) }
+        vista.findViewById<View>(R.id.rutas_predef_obstaculo)?.setOnClickListener { abrirPredefinida(RutasPredefinidas.TODAS[3]) }
         vista.findViewById<MaterialSwitch>(R.id.rutas_switch_obstaculo).setOnCheckedChangeListener { _, encendido ->
             cuadricula.modo = if (encendido) EditorRutaView.Modo.OBSTACULOS else EditorRutaView.Modo.RUTA
             cuadricula.deseleccionar()
@@ -411,6 +415,11 @@ class RutasFragment : Fragment(R.layout.fragment_rutas) {
     }
 
     // ── Ejecutar e historial ──────────────────────────────────────────────
+
+    private fun abrirPredefinida(ruta: RutasPredefinidas.RutaInfo) {
+        Haptica.corta(requireContext())
+        (activity as? MainActivity)?.abrirSubpantalla(EjecutarRutaFragment.nueva(ruta.nombre, ruta.celdas))
+    }
 
     private fun ejecutar() {
         val celdas = RutaEditorNativa.celdas()

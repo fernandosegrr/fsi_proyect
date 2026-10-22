@@ -191,6 +191,62 @@
             </LinearLayout>
         </HorizontalScrollView>
 
+        <TextView
+            style="@style/Seccion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e3"
+            android:text="@string/rutas_predefinidas_titulo" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/e1"
+            android:clipToPadding="false"
+            android:overScrollMode="never">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_predef_recta_150"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:contentDescription="@string/ruta_predef_recta_150"
+                    android:text="@string/ruta_predef_recta_150" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_predef_recta_200"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:contentDescription="@string/ruta_predef_recta_200"
+                    android:text="@string/ruta_predef_recta_200" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_predef_l"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:contentDescription="@string/ruta_predef_l"
+                    android:text="@string/ruta_predef_l" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rutas_predef_obstaculo"
+                    style="@style/Boton.Secundario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/toque_minimo"
+                    android:layout_marginStart="@dimen/e1"
+                    android:contentDescription="@string/ruta_predef_obstaculo"
+                    android:text="@string/ruta_predef_obstaculo" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

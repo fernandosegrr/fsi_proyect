@@ -16,6 +16,11 @@
     <string name="plantilla_zigzag">Zigzag</string>
     <string name="plantilla_l">En L</string>
     <string name="plantilla_ida_vuelta">Ida y vuelta</string>
+    <string name="rutas_predefinidas_titulo">Rutas predefinidas de prueba</string>
+    <string name="ruta_predef_recta_150">Recta 150 cm</string>
+    <string name="ruta_predef_recta_200">Recta 200 cm</string>
+    <string name="ruta_predef_l">Ruta en L (100 cm, giro 90° a la derecha, 100 cm)</string>
+    <string name="ruta_predef_obstaculo">Prueba de obstáculo (1 m)</string>
     <string name="rapida_titulo">Salir rápido</string>
     <string name="rapida_detalle">Elige una ruta: el carro sale con «Iniciar» y «Confirmar» (3 toques desde aquí).</string>
     <string name="rapida_ultima">Repetir la última ruta</string>

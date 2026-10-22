@@ -86,6 +86,7 @@ object NavegadorNativa {
     external fun ponerCeldas(izquierda: Int, centro: Int, derecha: Int)
 
     external fun ponerAutoridadLaser(activo: Int): Int
+    external fun ponerLargoRectaMm(mm: Int)
 
     /**
      * Avisa cuánto vio girar la cámara entre dos cuadros consecutivos: `giroX10` en grados por 10 (positivo a la derecha), `dtMs` el tiempo
