@@ -275,6 +275,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/toque_manejo"
                 android:layout_marginTop="@dimen/e2"
+                android:contentDescription="@string/ejecutar_iniciar"
                 android:text="@string/ejecutar_iniciar"
                 app:icon="@drawable/ic_play_arrow"
                 app:iconGravity="textStart" />
@@ -285,6 +286,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/e1"
+                android:contentDescription="@string/ejecutar_cancelar_salida"
                 android:text="@string/ejecutar_cancelar_salida"
                 android:visibility="gone" />
 
@@ -294,6 +296,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/paro_cruceta"
                 android:layout_marginTop="@dimen/e2"
+                android:contentDescription="@string/paro"
                 android:text="@string/paro"
                 android:textSize="20sp"
                 android:visibility="gone"

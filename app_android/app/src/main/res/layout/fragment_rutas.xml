@@ -395,6 +395,7 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/toque_manejo"
             android:layout_marginTop="@dimen/e2"
+            android:contentDescription="@string/rutas_ejecutar"
             android:text="@string/rutas_ejecutar"
             app:icon="@drawable/ic_play_arrow"
             app:iconGravity="textStart" />

@@ -18,3 +18,11 @@ Fase A2: terminada.
 - Cada línea de registro TURN_DIAG incluye el campo ant=%d (en nucleo_c/navegador.c y CalibracionActivity.kt).
 - Pruebas en simulador del firmware (pruebas_firmware/pruebas_sensores.c): 5 casos nuevos que validan giro normal que sí aprende, timeout, interrumpido, error grande y giro largo (> 1.5x mediana). Total pruebas_sensores: 246 casos, 0 fallos.
 - Pruebas completas: nucleo_c (20 programas / 1570 casos), firmware (152+246+15+34 = 447 casos), estrés 100k comandos sin STOPs perdidos, servidor falso (42 casos) y verificador de versiones (7 casos). Todo verde.
+
+Fase A3: terminada.
+- Pantalla Sensores estable: se reservó altura fija en sens_resultado con android:minLines="2" en activity_sensores.xml para evitar saltos visuales al mostrar diagnósticos de giros.
+- contentDescription e identificadores estables añadidos para automatización desatendida por adb:
+  * Sensores (activity_sensores.xml): sens_recalibrar, sens_cero, sens_girar_izq, sens_girar_der, sens_paro (los switches ya contaban con contentDescription).
+  * Calibración de giro (activity_calibrar_giro.xml): cg_empezar, cg_deshacer, cg_paro.
+  * Iniciar / parar rutas: ej_iniciar, ej_paro, ej_cancelar en fragment_ejecutar.xml; rutas_ejecutar en fragment_rutas.xml.
+- Compilación de APK Android verificada exitosamente; todas las suites de pruebas siguen en verde.

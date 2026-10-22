@@ -200,6 +200,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/toque_minimo"
                         android:layout_marginTop="@dimen/e2"
+                        android:contentDescription="@string/sens_recalibrar"
                         android:text="@string/sens_recalibrar" />
 
                     <com.google.android.material.button.MaterialButton
@@ -208,6 +209,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/toque_minimo"
                         android:layout_marginTop="@dimen/e1"
+                        android:contentDescription="@string/sens_cero"
                         android:text="@string/sens_cero" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -241,6 +243,7 @@
                         style="@style/Texto.Cifras"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:minLines="2"
                         android:layout_marginTop="@dimen/e1" />
 
                     <RadioGroup
@@ -282,6 +285,7 @@
                             android:layout_height="@dimen/toque_minimo"
                             android:layout_marginEnd="@dimen/e0"
                             android:layout_weight="1"
+                            android:contentDescription="@string/sens_girar_izq"
                             android:text="@string/sens_girar_izq" />
 
                         <com.google.android.material.button.MaterialButton
@@ -291,6 +295,7 @@
                             android:layout_height="@dimen/toque_minimo"
                             android:layout_marginStart="@dimen/e0"
                             android:layout_weight="1"
+                            android:contentDescription="@string/sens_girar_der"
                             android:text="@string/sens_girar_der" />
                     </LinearLayout>
 
@@ -308,6 +313,7 @@
         android:layout_marginTop="@dimen/e1"
         android:layout_marginEnd="@dimen/e2"
         android:layout_marginBottom="@dimen/e1"
+        android:contentDescription="@string/paro"
         android:text="@string/paro"
         app:icon="@drawable/ic_stop"
         app:iconGravity="textStart" />

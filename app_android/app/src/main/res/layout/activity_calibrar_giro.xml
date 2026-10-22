@@ -90,6 +90,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/toque_minimo"
                         android:layout_marginTop="@dimen/e2"
+                        android:contentDescription="@string/cg_empezar"
                         android:text="@string/cg_empezar" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -133,6 +134,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/toque_minimo"
                         android:layout_marginTop="@dimen/e2"
+                        android:contentDescription="@string/cg_deshacer"
                         android:text="@string/cg_deshacer" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -148,6 +150,7 @@
         android:layout_marginTop="@dimen/e1"
         android:layout_marginEnd="@dimen/e2"
         android:layout_marginBottom="@dimen/e1"
+        android:contentDescription="@string/paro"
         android:text="@string/paro"
         app:icon="@drawable/ic_stop"
         app:iconGravity="textStart" />
