@@ -26,3 +26,8 @@ Fase A3: terminada.
   * Calibración de giro (activity_calibrar_giro.xml): cg_empezar, cg_deshacer, cg_paro.
   * Iniciar / parar rutas: ej_iniciar, ej_paro, ej_cancelar en fragment_ejecutar.xml; rutas_ejecutar en fragment_rutas.xml.
 - Compilación de APK Android verificada exitosamente; todas las suites de pruebas siguen en verde.
+
+Fase A4: terminada.
+- Loop del firmware documentado en docs/limites_conocidos.md sin tocar código de firmware.
+- Se documentaron las mediciones de J13: reposo sin cliente 1.7 ms (0 excesos), en el aire con motores 3.25 ms (0 excesos), app conectada 6.8 a 8.4 ms (2 a 3 excesos), y arranque 12.8 a 12.9 ms (pico inicial transitorio con 1 exceso).
+- Se documentó la hipótesis de que los excesos provienen del tráfico asíncrono y serialización de WebSocket de la app (PING, MODO_AUTO, telemetría SENS) y que los giros no se ven afectados, manteniendo la precisión requerida de +-3°.

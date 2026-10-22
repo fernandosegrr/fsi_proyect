@@ -91,3 +91,13 @@ El giroscopio ahora reintenta el sesgo tras motivo 4 con motores detenidos; no e
 La autoridad opcional del láser decide a 400 mm solo en columnas 3 a 6. Está apagada por defecto y solo se ha probado en PC. Requiere lectura válida y fresca; sin ella vuelve a la cámara. El láser sigue viendo un punto: habilitarlo puede ignorar un objeto central que la cámara ve pero queda fuera del haz. La cámara conserva la elección del lado y los obstáculos fuera del carril. TOF_PARO del firmware se conserva a 120 mm, independiente del nuevo umbral de navegación.
 
 J10c queda fuera de J13: sigue la aceptación de una franja horizontal casi del ancho completo como segundo color de piso (obstaculos_aprender_terminar). No aparece un arreglo posterior que distinga ese caso de un obstáculo que llena el ancho; pendiente revisar y validar. El modelo de objetos sigue apagado por defecto (ConfigVision.usarModelo = false); no se cambió ese valor.
+
+## 13. Tiempos del loop del firmware (mediciones J13)
+
+- Mediciones reales observadas con LOOP? en el ESP32:
+  * Reposo sin cliente WiFi conectado: 1.7 ms (1684 a 1717 us a 60 s, 0 excesos de 5 ms).
+  * En el aire con motores encendidos: 3.25 ms (3251 us, 0 excesos de 5 ms en 36 s con cinco giros y 9 s de motores).
+  * App conectada (reposo o marcha con giros): 6.8 a 8.4 ms (8431 us en reposo con 2 excesos por minuto; 6775 a 6783 us en piso con 2 a 3 excesos).
+  * Arranque inicial del sistema: 12.8 a 12.9 ms (pico transitorio único de inicialización con 1 exceso, observado en 12856, 12858 y 12935 us).
+- Hipótesis de tráfico de la app: el incremento del tiempo de loop por encima de 5 ms no proviene de los motores ni del I2C de los sensores (que en el aire operaron a 3.25 ms sin excesos), sino del tráfico asíncrono y la serialización WebSocket generada por la app Android (mensajes periódicos de PING, MODO_AUTO y la transmisión continua de telemetría SENS a 10 Hz).
+- Impacto en giros: los giros por ángulo no se ven afectados; la lectura del giróscopo MPU6050 y la lógica de corte por ángulo continúan ejecutándose dentro del margen de control y mantienen la precisión requerida (giros de 90° dentro de +-3° validados en físico), por lo que no se requiere modificar el código del firmware.
