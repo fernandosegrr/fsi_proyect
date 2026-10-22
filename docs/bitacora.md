@@ -376,3 +376,59 @@
 - Fase 1: cuatro giros por lado = ocho totales, dos de calentamiento y seis válidos. Se registran los ocho pares para no perder información; un fallo temprano muestra explícitamente las mediciones pendientes. El calentamiento tampoco escala los tiempos siguientes. De los tres válidos se permite quitar solo el peor residuo; el par restante debe tener pendiente positiva, tiempos distintos y frenado admisible (tolerancia negativa máxima 6° por ruido, límite superior 20°), y pasar el ajuste existente. Dos puntos por sí solos siempre definen una recta: esto no demuestra estabilidad física y debe validarse en el carro.
 - Fase 1 verde: 1545 casos del núcleo (37 de calgiro, +5); firmware 152+224+15+34, estrés 100000 sin STOP perdido, servidor falso 42, hash de página, APK y firmware compilados. Primer intento del servidor falso falló por ejecutarlo desde la raíz: su subproceso requiere pruebas_firmware como directorio; repetido con el comando documentado, pasa. No es un fallo del producto.
 
+# J13 — Pruebas físicas con movimiento controlado por ADB (21 oct 2026, 20:03 a 20:25)
+
+- Nota: los pasos 0, 1, 2/3 y 5 de abajo los dejó escritos una pasada anterior de esta misma sesión. Revisión posterior: reconfirmé en pantalla FW y APP iguales, giroscopio y láser ok, Autoridad apagada, los botones 90° izq. (346,2215), 90° der. (853,2215) y PARO (600,2521), y recalculé la secuencia de calibración (ver abajo).
+
+- **Paso 0: Preparación sin movimiento.**
+  - ADB conectado: teléfono Huawei K5J0220320019510 reconocido.
+  - Estado inicial guardado: `stay_on_while_plugged_in=2`, pantalla encendida (`mWakefulness=Awake`), teléfono desbloqueado (`isStatusBarKeyguard=false`). Aplicado `stayon usb`.
+  - Red WiFi: conectado a la red del carro (`192.168.4.10`), ping a DevKit `192.168.4.1` exitoso (3.5 a 7.9 ms, 0 % pérdida). PC fuera de la red.
+  - Pantalla Sensores (`SensoresActivity`):
+    - Versiones verificadas: `FW:adbdd13-20261021` y `App 0.4 (adbdd13)` (coinciden exactamente).
+    - Giroscopio: ok (ángulo 4.1°, reintentos del sesgo 0, últimos arranques con reintentos 0 de 5). No requirió recalibrar. Sesgo no enviado en SENS periódicos (en arranque previo fue -0.47 °/s).
+    - Láser: ok (libre más de 1.2 m, últimos arranques con reintentos 4 de 5).
+    - Interruptores: Usar giroscopio ON, Usar sensor de distancia ON, Autoridad del láser OFF (conservada apagada).
+- **Paso 1: Descubrimiento de pantallas y botones.**
+  - Pantalla de Calibración de giro: `CalibrarGiroActivity`. Botón "Empezar los 8 giros" (cian) y botón "PARO" (rojo inferior).
+  - Pantalla de Giro por ángulo: `SensoresActivity`. Selector de método "Por ángulo (giroscopio)" seleccionado por defecto.
+    - Botón "90° izq.": coordenadas de centro `(341, 2204)`.
+    - Botón "90° der.": coordenadas de centro `(853, 2213)`.
+    - Botón "PARO": coordenadas de centro `(600, 2379)`.
+    - Perfil confirmado: AUTO (210) pedido al reanudar `SensoresActivity`.
+- **Paso 2 y 3: Análisis de seguridad de la Calibración de giros.**
+  - Lectura de código en `nucleo_c/calgiro.c` y `CalibrarGiroActivity.kt`:
+    - La secuencia de calibración consta de 8 giros estrictamente alternados (`lado_del_giro(k)` alterna izquierda y derecha):
+      - Giro 1: Izquierda 40° (calentamiento)
+      - Giro 2: Derecha 40° (calentamiento)
+      - Giro 3: Izquierda 40°
+      - Giro 4: Derecha 40°
+      - Giro 5: Izquierda 70°
+      - Giro 6: Derecha 70°
+      - Giro 7: Izquierda 100°
+      - Giro 8: Derecha 100°
+  - Cálculo de desplazamiento acumulado según el modelo físico del pivote del carro:
+    - Giro a la derecha de 90°: centro se mueve ~15 cm adelante y 16.5 cm a la derecha.
+    - Giro a la izquierda de 90°: centro se mueve ~9 cm adelante y 9 cm a la izquierda.
+    - Al alternar izquierda y derecha, el componente de avance hacia adelante se acumula en cada giro en lugar de cerrarse en ciclo:
+      - Simulación lineal (µm/°): el carro se desplaza 54.1 cm tras el giro 6; 67.2 cm tras el giro 7 (> 60 cm); y 90.0 cm tras el giro 8 (> 60 cm). Longitud acumulada de trayectoria = 97.3 cm.
+      - Simulación de arco de pivote: el carro se desplaza 61.8 cm tras el giro 6 (> 60 cm); 74.6 cm tras el giro 7 (> 60 cm); y 97.8 cm tras el giro 8 (> 60 cm).
+    - El desplazamiento acumulado calculado supera holgadamente el límite de seguridad de 60 cm (llegando a ~90-98 cm del punto de partida). En un área libre de 1.5 m (radio ±75 cm desde el centro), esta secuencia provocaría colisión inminente contra obstáculos/paredes (idéntico al incidente documentado el 20 oct).
+    - Decisión estricta de seguridad: según la instrucción ("Si la secuencia alterna sentidos y el desplazamiento acumulado calculado pasa de 60 cm, NO la ejecutes: anota el motivo y salta a la prueba 4"), **NO se ejecuta la calibración (ni corrida 1 ni corrida 2)** y se salta directamente a la prueba 4.
+- **Paso 5: LOOP.**
+  - Revisión del código Kotlin de `app_android`: ni `LOOP?` ni `LOOP:` son consultados ni procesados por la aplicación.
+  - No se puede leer el loop desde el teléfono sin cable serie. Anotado como **NO MEDIDO desde teléfono (requiere USB)**. No se conecta ningún cable USB al DevKit.
+- **Cálculo de seguridad de la calibración, repetido por mí.** Con los desplazamientos del pivote dados (90° der.: 15 cm adelante y 16.5 cm a la derecha; 90° izq.: 9 y 9) escalados al ángulo de cada giro, la secuencia alternada 40/40/40/40/70/70/100/100 deja el centro a 6.2, 16.9, 23.1, 33.9, 43.9, 61.8, 74.5 y 97.8 cm del inicio. Pasa de 60 cm desde el giro 6: **calibración NO ejecutada (corridas 1 y 2 y Deshacer: NO MEDIDO)**, según la regla de la sesión.
+- **Paso 4: giros de 90° por ángulo (SensoresActivity, método «Por ángulo», perfil AUTO 210).** Desde 20:08 hasta 20:21. 24 giros, los 24 con estado OK. Reposo previo de 3 min en la izquierda (20:05 a 20:08) y pausa de 3 min entre lados (20:14:48 a 20:17:51).
+  - Izquierda, grados: 91.5, 90.2, 88.5, 89.9 | 89.5, 90.6, 90.6, 89.6 | 91.8, 89.5, 91.4, 88.8. Sumas por bloque: 360.1, 360.3, 361.5.
+  - Derecha, grados: 89.2, 90.7, 88.5, 89.2 | 89.3, 89.3, 91.3, 91.4 | 94.0, 90.0, 88.4, 92.5. Sumas por bloque: 357.6, 361.3, 364.9.
+  - Tiempos (ms) izquierda: 718, 672, 667, 729, 638, 683, 686, 748, 747, 644, 726, 699. Derecha: 764, 806, 850, 793, 758, 820, 870, 828, 758, 808, 858, 812.
+  - Desviaciones del plan: las pausas entre bloques de la izquierda no fueron de 20 s sino de unos 2 min (bloque 1 a 2) y 1 min (2 a 3) por las interrupciones de abajo; las de la derecha sí (26 s y 25 s). Entre giros de un mismo bloque pasaron 6 a 7 s. Nunca se mandó un giro con otro en curso.
+- **Incidencias de la ejecución (ninguna movió el carro de más).**
+  1. Mi guion de apoyo leyó mal el log: usé un filtro con dos niveles del mismo tag (el último pisa al primero), y el giro 1 (91.5°, terminado bien) se contó como «sin fin»; el guion mandó PARO con el carro ya quieto y cerró la app. Cierres de ese tipo: tras los giros 1, 4 y 5 (PARO más am force-stop, con el carro detenido); después reabrí Sensores y seguí. El giro 6 lo pulsé yo a mano.
+  2. Toques que no se registraron (giros 5 en una pasada, 6): al terminar un giro el texto de resultado crece de una a dos líneas y los botones bajan unos 80 px en pantalla (el 90° izq. pasa de y≈2215 a y≈2297 y mi toque cae en su borde). El dueño confirmó que la pantalla se mueve. Solución en el guion: deslizar al fondo de la pantalla (margen derecho) antes de cada toque.
+  3. Giro 17: el giro sí se envió y terminó (89.3°, 758 ms; lo leí en el logcat), pero el guion no vio la línea de «inicio» porque comparaba conteos de líneas del logcat, cuyo buffer circular se va vaciando. El guion se cayó por un error de ruta al guardar una captura de diagnóstico, antes de repetir el toque, así que no hubo un segundo giro. Corregí el guion (logcat -c antes de cada toque y búsqueda de «inicio» o «fin» sin contar) y seguí desde el giro 18. La numeración de los giros va de 1 a 24 sin repetidos.
+  4. Conexión: el log de la app mostró PING con latencia de 6 a 30 ms durante toda la prueba, sin pérdidas.
+- **Paso 5: LOOP** NO MEDIDO desde teléfono (la app no consulta LOOP?). La anticipación (ANT) tampoco aparece en el log de la app: NO MEDIDO.
+- **Cierre:** PARO, am force-stop, stay_on_while_plugged_in=2 (valor original, comprobado), pantalla encendida como al inicio, sin wake-locks, app sin proceso. Sin video ni imágenes de cámara; capturas solo de Sensores.
+
