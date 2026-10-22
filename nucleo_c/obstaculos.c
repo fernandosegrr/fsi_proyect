@@ -1481,17 +1481,25 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
             filtrados.peso[filtrados.grupos] = grupos.peso[g];
             filtrados.grupos++;
         } else {
-            /* Si no aparece en la franja inmediata, solo se acepta si abarca una franja continua a lo ancho de la imagen (un segundo color de piso real: tapete, loseta de otro tono) y no una mancha aislada (como una caja u obstáculo). */
+            /* Si no aparece en la franja inmediata, solo se acepta si abarca una franja continua a lo ancho de la imagen
+             * (un segundo color de piso real: tapete, loseta de otro tono) y no una mancha aislada (como una caja u obstáculo).
+             * Regla J10c: un segundo color de piso NUNCA se acepta si toca las filas cercanas al carro (filas >= 7 de 10),
+             * pues una caja ancha frente al carro no debe aprenderse como piso. */
             int es_franja_continua = 0;
+            int toca_cercanas = 0;
 
             for (fila = acumulador->fila_minima; fila < rejilla.filas; fila++) {
                 int racha_actual = 0, max_racha = 0;
                 int col_primera = -1, col_ultima = -1;
+                int es_cercana = (fila * OBS_MASC_FILAS / rejilla.filas >= 7) ? 1 : 0;
 
                 for (columna = 0; columna < rejilla.columnas; columna++) {
                     int idx = (fila - acumulador->fila_minima) * rejilla.columnas + columna;
 
                     if (centro_mas_cercano(muestras[idx], grupos.color, grupos.grupos) == g) {
+                        if (es_cercana) {
+                            toca_cercanas = 1;
+                        }
                         if (col_primera < 0) {
                             col_primera = columna;
                         }
@@ -1504,12 +1512,11 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
                         racha_actual = 0;
                     }
                 }
-                if (max_racha >= rejilla.columnas - 2 && col_primera <= 1 && col_ultima >= rejilla.columnas - 2) {
+                if (!es_cercana && max_racha >= rejilla.columnas - 2 && col_primera <= 1 && col_ultima >= rejilla.columnas - 2) {
                     es_franja_continua = 1;
-                    break;
                 }
             }
-            if (es_franja_continua && filtrados.grupos < OBS_MAX_GRUPOS) {
+            if (es_franja_continua && !toca_cercanas && filtrados.grupos < OBS_MAX_GRUPOS) {
                 for (c = 0; c < 3; c++) {
                     filtrados.color[filtrados.grupos][c] = grupos.color[g][c];
                 }

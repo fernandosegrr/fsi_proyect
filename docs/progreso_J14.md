@@ -31,3 +31,10 @@ Fase A4: terminada.
 - Loop del firmware documentado en docs/limites_conocidos.md sin tocar código de firmware.
 - Se documentaron las mediciones de J13: reposo sin cliente 1.7 ms (0 excesos), en el aire con motores 3.25 ms (0 excesos), app conectada 6.8 a 8.4 ms (2 a 3 excesos), y arranque 12.8 a 12.9 ms (pico inicial transitorio con 1 exceso).
 - Se documentó la hipótesis de que los excesos provienen del tráfico asíncrono y serialización de WebSocket de la app (PING, MODO_AUTO, telemetría SENS) y que los giros no se ven afectados, manteniendo la precisión requerida de +-3°.
+
+Fase A5: terminada.
+- J10c reproducido y corregido:
+  * Se reprodujo con prueba sintética en nucleo_c/pruebas_pisos_dificiles.c donde una caja muy ancha en filas cercanas (filas 5 a 7, ancho casi completo) era aceptada indebidamente como segundo color de piso (grupos=3, descartado=0 %, muy_variado=0), haciendo que el detector no la viera como obstáculo.
+  * Se implementó la corrección mínima en nucleo_c/obstaculos.c (obstaculos_aprender_terminar): un segundo color de piso solo se acepta como franja continua si ninguna de sus celdas toca las filas cercanas al carro (filas >= 7 de 10).
+  * Con la corrección, la caja ancha se descarta (> 5 %, muy_variado = 1) y en detección cuenta como obstáculo en la zona centro. Los casos legítimos de dos colores (tapete lejos en filas 4 a 6) siguen pasando con 0 falsos positivos (32 casos, 0 fallos).
+  * Compromiso y riesgos documentados en docs/limites_conocidos.md: obstáculos anchos a más de 50 cm que no toquen filas cercanas podrían asimilarse a tapetes lejanos si el láser está apagado (se resolverán al avanzar); y tapetes reales que comiencen exactamente en fila 7 sin tocar filas 8-9 exigirán recolocar el carro.

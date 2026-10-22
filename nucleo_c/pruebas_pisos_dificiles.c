@@ -496,6 +496,57 @@ static void pruebas_aprender(void)
         caso("... y al recorrer ese piso de 2 colores: 0 falsos positivos (el tapete no se marca como obstaculo)", falsos_tapete == 0);
     }
 
+    /* J10c: caja muy ancha de otro color en las filas cercanas al carro (casi todo el ancho de la imagen).
+     * No debe aceptarse como segundo color de piso (debe dar descartado_pct > 5 % y muy_variado = 1),
+     * y debe contar como OBSTÁCULO en la zona centro. */
+    {
+        static AcumuladorPiso ac_ancha;
+        InformePiso inf_ancha;
+        ModeloPiso mod_ancha;
+        ResultadoObstaculos r_ancha;
+        int i, x, y;
+
+        obstaculos_aprender_iniciar(&ac_ancha);
+        for (i = 0; i < 6; i++) {
+            EscenaSintetica e = base(PS_LISO);
+
+            e.sigma = 4; e.semilla = (unsigned long)(i + 1) * 89UL;
+            ps_dibujar(&e, imagen);
+            /* Caja muy ancha (x = 10..230 de 240, casi todo el ancho) en filas cercanas al carro (y = 95..136 de 176, filas 5 a 7). */
+            for (y = 95; y < 136; y++) {
+                for (x = 10; x < 230; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 40;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 190;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 50;
+                }
+            }
+            obstaculos_aprender_cuadro(&ac_ancha, &cfg, imagen, PS_ANCHO, PS_ALTO);
+        }
+        obstaculos_modelo_iniciar(&mod_ancha);
+        obstaculos_aprender_terminar(&ac_ancha, &cfg, &mod_ancha, &inf_ancha);
+        printf("     caja muy ancha en filas cercanas: grupos=%d descartado=%d %% muy_variado=%d\n",
+               inf_ancha.grupos, inf_ancha.descartado_pct, inf_ancha.muy_variado);
+        caso("J10c: caja muy ancha en filas cercanas NO se acepta como segundo color de piso (descartado > 5 %, muy_variado = 1)",
+             inf_ancha.grupos == 1 && inf_ancha.descartado_pct > 5 && inf_ancha.muy_variado == 1);
+
+        /* Comprobar que en la detección cuenta como obstáculo en zona centro */
+        {
+            EscenaSintetica e = base(PS_LISO);
+            e.sigma = 4; e.semilla = 123UL;
+            ps_dibujar(&e, imagen);
+            for (y = 95; y < 136; y++) {
+                for (x = 10; x < 230; x++) {
+                    imagen[(y * PS_ANCHO + x) * 3] = 40;
+                    imagen[(y * PS_ANCHO + x) * 3 + 1] = 190;
+                    imagen[(y * PS_ANCHO + x) * 3 + 2] = 50;
+                }
+            }
+            obstaculos_analizar_modelo(&cfg, &mod_ancha, imagen, PS_ANCHO, PS_ALTO, 0, 100, &r_ancha);
+            caso("... y la caja muy ancha cuenta como obstaculo en la zona centro",
+                 r_ancha.zona[ZONA_CENTRO].hay_obstaculo == 1);
+        }
+    }
+
     /* J10 Punto 2: tras terminar el aprendizaje (en CONFIRMAR y CUENTA), con piso_fijo = 1 una pared o caja uniforme durante > 1 s NO sobrescribe el piso. */
     {
         static AcumuladorPiso ac;

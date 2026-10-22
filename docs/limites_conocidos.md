@@ -90,7 +90,9 @@ El giroscopio ahora reintenta el sesgo tras motivo 4 con motores detenidos; no e
 
 La autoridad opcional del láser decide a 400 mm solo en columnas 3 a 6. Está apagada por defecto y solo se ha probado en PC. Requiere lectura válida y fresca; sin ella vuelve a la cámara. El láser sigue viendo un punto: habilitarlo puede ignorar un objeto central que la cámara ve pero queda fuera del haz. La cámara conserva la elección del lado y los obstáculos fuera del carril. TOF_PARO del firmware se conserva a 120 mm, independiente del nuevo umbral de navegación.
 
-J10c queda fuera de J13: sigue la aceptación de una franja horizontal casi del ancho completo como segundo color de piso (obstaculos_aprender_terminar). No aparece un arreglo posterior que distinga ese caso de un obstáculo que llena el ancho; pendiente revisar y validar. El modelo de objetos sigue apagado por defecto (ConfigVision.usarModelo = false); no se cambió ese valor.
+J10c resuelto en J14: se refinó la regla en obstaculos_aprender_terminar. Un segundo color de piso solo se acepta como franja continua si ninguna de sus muestras toca las filas cercanas al carro (filas >= 7 de 10). Compromiso y riesgos conocidos:
+- Un obstáculo muy ancho (como una pared o caja transversal) situado a más de 50 cm (filas 4 a 6) que abarque todo el ancho podría seguir confundiéndose con un tapete lejano durante el aprendizaje si el láser está apagado. Al avanzar el carro y aproximarse, entrará en filas cercanas o el láser lo detectará.
+- Un tapete legítimo que empiece exactamente en la fila 7 (a unos 35-45 cm del carro) sin tocar las filas 8 y 9 no se aceptará como segundo piso (dará descartado > 5 % y muy_variado = 1), exigiendo colocar el carro con las filas cercanas despejadas o completamente sobre el tapete. El modelo de objetos sigue apagado por defecto (ConfigVision.usarModelo = false).
 
 ## 13. Tiempos del loop del firmware (mediciones J13)
 
