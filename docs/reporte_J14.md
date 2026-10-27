@@ -37,9 +37,10 @@ Copia local, no publicada:
 - dist/firmware_carro_453ed20-20261027.bin (contiene la contraseña del WiFi)
 
 Git:
-- La rama main se publicó en origin/main en el commit c593910 (J14: reporte final, documentacion y entrega).
-- GitHub Actions «sanitizadores», ejecución 11, terminó en success para c593910.
-- El tag v1.0 se crea sobre el commit de cierre documental posterior a c593910, que incluye esta nota.
+- La rama main se publicó en origin/main; el commit de entrega es c593910 (J14: reporte final, documentacion y entrega) y el cierre documental es eb88151 (J14: registrar publicacion en GitHub).
+- GitHub Actions «sanitizadores» terminó en success en la ejecución 11 (c593910) y en la ejecución 12 (eb88151, tag v1.0).
+- El tag v1.0 apunta a eb88151.
+- Después del tag se corrigió en main el conteo del verificador a 10 pruebas en un commit solo de documentación; no cambia el APK ni el firmware.
 - Los commits principales de J14 van de da745af (etapa 0) a 699fcc5 (README con el estado final), más el cierre documental y de dist/.
 - El APK se compiló desde 699fcc5. Los commits posteriores son solo documentación, artefactos de entrega y los dos archivos del verificador; el verificador los acepta sin ocultar cambios de producto.
 
@@ -49,7 +50,7 @@ Git:
 - Firmware: 152 + 246 + 15 + 34 = 447 casos, 0 fallos.
 - Estrés de 2 hilos: 100000 comandos con GIRAR mezclado; 12472 STOP enviados, 0 STOP perdidos, 0 giros terminados solos y 0 watchdogs. La cola se mantuvo coherente y el estado final de los motores coincidió con el último comando.
 - Servidor falso: 46 casos, 0 fallos.
-- Verificador de versiones: 8 pruebas, 0 fallos. Se añadió el caso que acepta dist/ como artefacto de entrega.
+- Verificador de versiones: 10 pruebas, 0 fallos. Cubren docs/, dist/, README y los dos archivos del verificador, y rechazan cambios en firmware_carro/, app_android/, nucleo_c/ y otros scripts.
 - Hash de la página del carro: correcto.
 - APK: compilación correcta, instalación correcta y hash instalado igual al de dist/.
 - Las suites de C se volvieron a correr al final y siguen en verde; los últimos cambios fueron de texto de la app, README, verificador y documentación, y no tocan el código C. La app se recompiló e instaló después del cambio de texto. No se hizo push con pruebas rojas.
