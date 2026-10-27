@@ -105,3 +105,12 @@ Etapa 2, comprobaciones sin hardware del 27 de octubre:
 A1, revisión del 27 de octubre: la estimación previa de 61 cm no tiene cálculo verificable para los ángulos realmente programados; falta medir la secuencia nueva en el carro.
 
 Etapa 3: guía de conexión y parada preparada en docs/guia_conexion.md; COM6 es referencia histórica y se verificará la identidad de la única placa. No se ha conectado hardware.
+
+Etapa 4, 27 de octubre de 2026: terminada sin movimiento.
+- Una sola placa serie COM6; esptool confirmó que su identidad corresponde al DevKit registrado antes de cargar. Teléfono autorizado por ADB, pantalla encendida y stay_on_while_plugged_in=2 antes de la operación.
+- Fuentes 453ed20: compilados FW:453ed20-20261027 y APP:0.4-453ed20. Firmware cargado con scripts/cargar.ps1 nuevo; verify-flash confirmó bootloader, particiones, boot_app0 y aplicación, sin borrado completo de flash ni ANT_BORRAR.
+- SHA-256 firmware: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E. SHA-256 APK: 1FB3264EF0D9D8D91759F4A658B2763068B3AA0DE3DEA6E44DAF6A6DE0FA44C4.
+- adb install -r: Success sin diálogos. verificar_version.py: firmware, APK instalada y HEAD 453ed20 coinciden; APK instalada idéntica al archivo compilado, fuentes versionadas limpias. Este registro posterior solo cambia documentos.
+- ANT antes y después: 126,144,20,20 ms. CAPS IMU=1, TOF=1; IMU lista, sesgo -0.45 grados/s; TOF libre a 1200 mm (no es una prueba de distancia con referencia).
+- La pantalla Sensores confirmó versiones, ambos sensores y autoridad láser apagada; los interruptores de giroscopio y distancia estaban encendidos. La app registró ANT por WiFi. Se reconectó el teléfono a la red guardada del carro tras el reinicio, sin contraseña.
+- App cerrada, teléfono despierto y stay-on conservado en 2. Batería del teléfono 7 %, cargando por USB: cargar antes de pruebas físicas. No se mandó ningún comando de movimiento.
