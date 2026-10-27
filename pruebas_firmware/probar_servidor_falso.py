@@ -117,12 +117,14 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? se contesta CAPS:IMU=1,TOF=1", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0")
+            caso("sensores: CAPS? incluye capacidades y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,FW:simulado")
+            await ws.send("ANT?")
+            caso("sensores: ANT? informa los cuatro valores", await siguiente(ws, "ANT:") == "ANT:100,100,20,20")
             sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]
             caso("sensores: SENS llega solo, cada ~100 ms, con perfil AUTO (8 en menos de 3.2 s)", len(sens) == 8 and sens[-1].count(",") == 2)
             await ws.send("GIRAR:90")
             ok = await siguiente(ws, "GIRO_", 3)
-            caso("sensores: GIRAR:90 termina con GIRO_OK:90:<real x10>:<ms>", ok is not None and ok.startswith("GIRO_OK:90:") and 880 <= int(ok.split(":")[2]) <= 930)
+            caso("sensores: GIRAR:90 incluye angulo, duracion y ANT", ok is not None and ok.startswith("GIRO_OK:90:") and len(ok.split(":")) == 5 and ok.endswith(":100") and 880 <= int(ok.split(":")[2]) <= 930)
             for malo in ("GIRAR:4", "GIRAR:201", "GIRAR:abc"):
                 await ws.send(malo)
                 caso("sensores: %s -> GIRO_ERROR:angulo" % malo, await siguiente(ws, "GIRO_") == "GIRO_ERROR:angulo")
@@ -131,8 +133,13 @@ async def probar_sensores():
             await ws.send("GIRAR:45")
             caso("sensores: un GIRAR con otro en curso -> GIRO_ERROR:ocupado", await siguiente(ws, "GIRO_") == "GIRO_ERROR:ocupado")
             await ws.send("STOP")
+            caso("sensores: STOP informa ANT_IGNORADO", await siguiente(ws, "ANT_IGNORADO:") == "ANT_IGNORADO:interrumpido")
             abortado = await siguiente(ws, "GIRO_")
-            caso("sensores: STOP a mitad de un giro lo aborta con GIRO_ERROR:abortado:-180:<real>:<ms>", abortado is not None and abortado.startswith("GIRO_ERROR:abortado:-180:"))
+            caso("sensores: STOP a mitad de un giro informa tambien ANT", abortado is not None and abortado.startswith("GIRO_ERROR:abortado:-180:") and len(abortado.split(":")) == 6 and abortado.endswith(":100"))
+            await ws.send("ANT?")
+            caso("sensores: la interrupcion no cambia ANT", await siguiente(ws, "ANT:") == "ANT:100,100,20,20")
+            await ws.send("ANT_BORRAR")
+            caso("sensores: ANT_BORRAR confirma", await siguiente(ws, "ACK_ANT_BORRAR") == "ACK_ANT_BORRAR")
             await ws.send("IMU_CERO")
             caso("sensores: IMU_CERO -> ACK_IMU_CERO", await siguiente(ws, "ACK_IMU_CERO") == "ACK_IMU_CERO")
             await ws.send("IMU_CAL")

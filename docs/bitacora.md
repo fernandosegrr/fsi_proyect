@@ -465,3 +465,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — Auditoría J14: base 96aede7 y comprobación de código y commits de A1-A8; A3 requiere fijar altura y el servidor falso quedó atrasado respecto al protocolo. Sin hardware conectado. Registros CTest anteriores guardados en rama local j14-wip-20261027.
 
 27 oct 2026 — A3: altura del resultado de Sensores fijada a cuatro líneas; compilación Android correcta, revisión visual pendiente en el teléfono.
+
+27 oct 2026 — Integración J14: servidor falso adaptado a los campos de giro y consultas ANT; 46 casos sin fallos. No simula aprendizaje ni timeout.

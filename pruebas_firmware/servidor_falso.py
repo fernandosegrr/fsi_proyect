@@ -17,7 +17,8 @@ GUIA DE LECTURA
  6. Cada mensaje se imprime con la hora y los ms desde el mensaje anterior.
 
  7. SENSORES (J11, opcional con --sensores): imita al firmware con el giroscopio y el laser. CAPS? -> CAPS:IMU=1,TOF=1; SENS:<angulo x10>,<mm>,<banderas> cada 100 ms con perfil AUTO; GIRAR:<grados> ->
-    GIRO_OK:<objetivo>:<real x10>:<ms> (o GIRO_ERROR:angulo / sin_imu / ocupado; un STOP o un movimiento lo aborta con GIRO_ERROR:abortado); IMU?, TOF?, IMU_CERO, IMU_CAL (-> ACK_IMU_CAL y,
+    GIRO_OK:<objetivo>:<real x10>:<ms>:<ant> (o GIRO_ERROR:angulo / sin_imu / ocupado; un STOP o un movimiento emite ANT_IGNORADO:interrumpido y GIRO_ERROR:abortado con datos); ANT? y ANT_BORRAR;
+    los valores de ANT son fijos en esta simulación, no simula el aprendizaje. IMU?, TOF?, IMU_CERO, IMU_CAL (-> ACK_IMU_CAL y,
     un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser) y TOF_PARO:<mm>. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
     "ve" el laser; con FORWARD en AUTO y menos de 120 mm dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
     porta como un firmware viejo: esos mensajes se tratan como desconocidos (sin respuesta).
@@ -55,6 +56,7 @@ estado = {
     "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
     "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None},   # sensores (J11), solo con --sensores
     "balance": {"AUTO": 986, "MANUAL": 988},   # factor del lado izquierdo de cada perfil (milesimas); como la memoria no volatil del carro, no se pierde al desconectar
+    "ant": {"AUTO": [100, 100], "MANUAL": [20, 20]},
 }
 
 
@@ -95,6 +97,7 @@ def abortar_giro():
 async def hacer_giro(conexion, grados):
     """El giro por angulo: dura ~250 ms + 5.5 ms por grado; termina con el angulo real (1 % de mas) y GIRO_OK. Si lo cortan informa lo girado hasta ahi."""
     s = estado["sens"]
+    ant = estado["ant"][estado["perfil"]][0 if grados > 0 else 1]
     total_ms = 250 + 5.5 * abs(grados)
     inicio = time.monotonic()
     estado["motores_en_marcha"] = True
@@ -104,14 +107,15 @@ async def hacer_giro(conexion, grados):
         real_x10 = int(grados * 10 * 1.01)
         s["angulo_x10"] += real_x10
         estado["motores_en_marcha"] = False
-        await mandar(conexion, "GIRO_OK:%d:%d:%d" % (grados, real_x10, ms))
+        await mandar(conexion, "GIRO_OK:%d:%d:%d:%d" % (grados, real_x10, ms, ant))
     except asyncio.CancelledError:
         ms = int((time.monotonic() - inicio) * 1000)
         real_x10 = int(grados * 10 * 1.01 * min(1.0, ms / total_ms))
         s["angulo_x10"] += real_x10
         estado["motores_en_marcha"] = False
         try:
-            await mandar(conexion, "GIRO_ERROR:abortado:%d:%d:%d" % (grados, real_x10, ms))
+            await mandar(conexion, "ANT_IGNORADO:interrumpido")
+            await mandar(conexion, "GIRO_ERROR:abortado:%d:%d:%d:%d" % (grados, real_x10, ms, ant))
         except Exception:
             pass
     finally:
@@ -122,7 +126,12 @@ async def procesar_sensores(conexion, mensaje):
     """Los mensajes del giroscopio y del laser (solo con --sensores). Devuelve True si el mensaje era de los sensores."""
     s = estado["sens"]
     if mensaje == "CAPS?":
-        await mandar(conexion, "CAPS:IMU=%d,TOF=%d,TOFR=0" % (1 if s["imu"] else 0, 1 if s["tof"] else 0))
+        await mandar(conexion, "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,FW:simulado" % (1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3))
+    elif mensaje == "ANT?":
+        await mandar(conexion, "ANT:%d,%d,%d,%d" % tuple(estado["ant"]["AUTO"] + estado["ant"]["MANUAL"]))
+    elif mensaje == "ANT_BORRAR":
+        estado["ant"] = {"AUTO": [100, 100], "MANUAL": [20, 20]}
+        await mandar(conexion, "ACK_ANT_BORRAR")
     elif mensaje == "ARR?":
         await mandar(conexion, "ARR:5,0,00000,0")   # los ultimos 5 arranques sin reintentos del laser
     elif mensaje == "IMU?":
@@ -194,7 +203,7 @@ async def procesar(conexion, mensaje):
         return
 
     intervalo = ms_desde_anterior()
-    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL") or mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:"))):
+    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL", "ANT?", "ANT_BORRAR") or mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:"))):
         imprimir("%s  %s" % (intervalo, mensaje))
         await procesar_sensores(conexion, mensaje)
         return
