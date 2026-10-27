@@ -38,6 +38,12 @@ class Versiones(unittest.TestCase):
         self.assertTrue(v.coincide_revision("abc", "HEAD"))
 
     @patch.object(v.subprocess, "run")
+    @patch.object(v, "ejecutar", side_effect=["abc", "def", "docs/reporte_J14.md\ndist/SHA256SUMS.txt\n"])
+    def test_solo_documentacion_y_entrega(self, ejecutar, proceso):
+        proceso.return_value.returncode = 0
+        self.assertTrue(v.coincide_revision("abc", "HEAD"))
+
+    @patch.object(v.subprocess, "run")
     @patch.object(v, "ejecutar", side_effect=["abc", "def", "firmware_carro/imu.c\n"])
     def test_cambio_codigo(self, ejecutar, proceso):
         proceso.return_value.returncode = 0

@@ -9,6 +9,8 @@ app_android/app/.cxx/
 app_android/local.properties
 app_android/.kotlin/
 *.apk
+# El APK de entrega de dist/ sí se versiona; es el binario final, no un build temporal.
+!dist/*.apk
 original_backup/
 firmware_carro/secretos.h
 pruebas_firmware/.venv/
