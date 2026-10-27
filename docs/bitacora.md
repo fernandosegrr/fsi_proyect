@@ -485,3 +485,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — Etapa 3: guía de conexión y parada preparada para ambas configuraciones; pendiente la confirmación indicada por el dueño antes de cargar o instalar.
 
 27 oct 2026 — Etapa 4 sin movimiento: DevKit conocido COM6, FW y APK de 453ed20 cargados e instalados; verify-flash y verificar_version.py pasan. ANT 126,144,20,20 antes/después; ambos sensores funcionan, autoridad láser apagada. App cerrada, stay-on 2 conservado; teléfono al 7 % cargando por USB. Detalle en progreso_J14.md.
+
+27 oct 2026 — B0 sin movimiento: placa sin USB, teléfono reconectado a red del carro, placa y cámara responden; versiones 453ed20, sensores bien, ANT 126,144,20,20 y autoridad apagada. Teléfono 9 %, cargando por USB. Falta LISTO y reposo antes de B1.
