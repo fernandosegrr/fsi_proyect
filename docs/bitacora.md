@@ -489,3 +489,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — B0 sin movimiento: placa sin USB, teléfono reconectado a red del carro, placa y cámara responden; versiones 453ed20, sensores bien, ANT 126,144,20,20 y autoridad apagada. Teléfono 9 %, cargando por USB. Falta LISTO y reposo antes de B1.
 
 27 oct 2026 — B1: doce giros derechos de 90°, 12/12 dentro de ±3°; sumas de bloques 360.7°, 360.8° y 356.6°. ANT AUTO derecha 144→142 ms; resto sin cambios. Carro quieto; pendiente confirmación visual del frente respecto a la cinta.
+
+27 oct 2026 — Tras B1 el dueño observa el frente casi idéntico a la posición inicial, sin ángulo numérico. B2 pausada antes de empezar: la app instalada no expone cada ángulo antes del siguiente giro, por lo que no permite verificar oportunamente el límite de ±25°; app cerrada y carro quieto.

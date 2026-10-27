@@ -123,3 +123,5 @@ Etapa 5 B1, 27 de octubre: tras tres minutos en reposo, tres bloques de cuatro g
 - Bloque 3: 89.5°, 89.8°, 89.8°, 87.5°; suma 356.6°.
 - ANT AUTO derecha: 144 ms antes y 142 ms después; los otros valores continuaron en 126, 20 y 20 ms. Relectura por la app: ANT:126,142,20,20; ambos sensores siguen respondiendo.
 - Pendiente respuesta del dueño sobre el paralelismo del frente con la cinta. Carro quieto al concluir; ningún ángulo excedió el límite de aborto.
+- Confirmación del dueño tras B1: el frente quedó prácticamente como al inicio y paralelo a la cinta; no pudo estimar un ángulo numérico.
+- B2 quedó pendiente: la calibración instalada no publica los ángulos de cada giro hasta terminar los ocho, por lo que no se puede comprobar a tiempo el límite de aborto de ±25° entre giros. El carro permanece quieto y la app cerrada.
