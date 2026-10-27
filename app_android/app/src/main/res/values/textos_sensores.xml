@@ -5,7 +5,7 @@
 <resources>
     <string name="camara_prueba">CÁMARA DE PRUEBA</string>
     <string name="sens_autoridad_laser">Autoridad del láser</string>
-    <string name="sens_autoridad_detalle">Experimental, apagado por defecto. En el carril central el láser decide a 40 cm y la cámara elige el lado. Si falta lectura válida, decide la cámara. Requiere «Usar sensor de distancia». Pendiente de validar en el carro.</string>
+    <string name="sens_autoridad_detalle">Experimental. En J14 el dueño decidió dejarla siempre encendida. En el carril central el láser decide a 40 cm y la cámara elige el lado. Si falta lectura válida, decide la cámara. Requiere «Usar sensor de distancia». La comparación pareada quedó pendiente.</string>
     <string name="sens_titulo">Sensores (giroscopio y láser)</string>
     <string name="sens_titulo_corto">Sensores</string>
     <string name="sens_en_lista_detalle">Giroscopio y sensor de distancia del carro: interruptores, estado y prueba de giro.</string>
