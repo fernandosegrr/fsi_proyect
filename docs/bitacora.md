@@ -469,3 +469,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — Integración J14: servidor falso adaptado a los campos de giro y consultas ANT; 46 casos sin fallos. No simula aprendizaje ni timeout.
 
 27 oct 2026 — A6: el hilo captura fallos al construir el detector, además de al abrirlo; compilación Android correcta. El respaldo necesita prueba en el teléfono.
+
+27 oct 2026 — A4: los límites distinguen las mediciones del loop, la hipótesis de tráfico y el impacto observado en J13.

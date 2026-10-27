@@ -86,3 +86,5 @@ A3, revisión del 27 de octubre: el resultado de Sensores reserva exactamente cu
 Etapa 2, integración: servidor falso actualizado para CAPS con campos actuales, ANT?, ANT_BORRAR, ANT en las respuestas de giro y ANT_IGNORADO:interrumpido. La simulación mantiene ANT fijo y no reproduce el aprendizaje ni timeout; esos filtros se prueban en pruebas_sensores.c. Servidor falso: 46 casos, 0 fallos (antes 42).
 
 A6, revisión del 27 de octubre: DetectorTflite carga el modelo en su constructor. Se movió su construcción dentro del try del hilo para registrar también un fallo al leer el archivo y mantener el detector de color. APK compilada; falta comprobar el caso en el teléfono.
+
+A4, revisión del 27 de octubre: se precisa que la causa de los picos del loop es una hipótesis y que la ausencia de impacto se limita a lo observado en J13; no se cambió el firmware.
