@@ -80,3 +80,5 @@ A7 | hecha en código; pendiente prueba real | RutasPredefinidas.kt, RutasFragme
 A8 | hecha | Ajustes.kt y ControlLogica.kt; 69fbd1b. La preferencia guardada puede prevalecer sobre el valor por defecto.
 La carga de A9 es un registro histórico; no hay dispositivos conectados y no se conoce su estado actual.
 Los registros CTest sin seguimiento se guardaron en la rama local j14-wip-20261027, commit af0bfb5.
+
+A3, revisión del 27 de octubre: el resultado de Sensores reserva exactamente cuatro líneas y limita el texto al espacio disponible; los botones ya no cambian de posición cuando crece el mensaje. La APK compiló; falta comprobar el diseño en el teléfono.

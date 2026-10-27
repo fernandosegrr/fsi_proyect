@@ -243,7 +243,8 @@
                         style="@style/Texto.Cifras"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minLines="2"
+                        android:lines="4"
+                        android:ellipsize="end"
                         android:layout_marginTop="@dimen/e1" />
 
                     <RadioGroup

@@ -463,3 +463,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 - Cierre: app cerrada con force-stop, stay_on_while_plugged_in=2. Sin cambios en firmware; la NVS cambió solo por el aprendizaje normal de ANT.
 
 27 oct 2026 — Auditoría J14: base 96aede7 y comprobación de código y commits de A1-A8; A3 requiere fijar altura y el servidor falso quedó atrasado respecto al protocolo. Sin hardware conectado. Registros CTest anteriores guardados en rama local j14-wip-20261027.
+
+27 oct 2026 — A3: altura del resultado de Sensores fijada a cuatro líneas; compilación Android correcta, revisión visual pendiente en el teléfono.
