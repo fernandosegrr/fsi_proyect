@@ -4,6 +4,15 @@ Carro de 4 ruedas con ESP32, controlado desde el celular por WiFi y
 WebSocket. Este repositorio tiene el firmware, su lógica en C, un módulo para
 convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 
+## Estado J14 (27 de octubre de 2026)
+
+- El dueño detuvo las pruebas físicas que faltaban: B0 a B6 se hicieron; B7, B8, B9 y B2 no se realizaron por su decisión. No se presentan como validadas.
+- La Autoridad del láser queda siempre encendida por decisión del dueño. El valor por defecto de la app es verdadero; el núcleo en C conserva 0 para sus pruebas.
+- J10c quedó corregido solo en simulación. Falta probarlo con una caja ancha real.
+- Pruebas sin hardware: núcleo 20 programas y 1577 casos; firmware 152 + 246 + 15 + 34 = 447; servidor falso 46; verificador de versiones 8. Todo en cero fallos. Estrés de 100000 comandos sin ningún STOP perdido y hash de la página correcto.
+- La entrega está en `dist/`: firmware, APK y `SHA256SUMS.txt`. El detalle de resultados, límites y pasos pendientes está en `docs/reporte_J14.md` y `docs/entrega.md`.
+- Pendiente real: leer FW y APK en Sensores con el carro encendido y conectado; B7, B8, B9 y B2; una caja ancha real para J10c; una medición numérica del error final de B5.
+
 ## Qué hay en cada carpeta
 
 - `firmware_carro/` — el sketch de Arduino (la carpeta se llama igual que el `.ino`).
@@ -26,7 +35,7 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
   Trae la pantalla de visión (`VisionActivity`: cámara del teléfono + detector de obstáculos con umbrales ajustables), la pantalla de control (`ControlActivity`: botones + WebSocket) y el benchmark del detector de objetos (`BenchmarkActivity`, modelo en `app/src/main/assets/`).
 - `docs/` — `vision_huawei.md` (probar el detector con la cámara del teléfono sobre el piso real), `navegador.md` (modo semiautónomo: estados, parámetros y límites), `obstaculos.md` (detector de obstáculos por color de piso), `pruebas_control.md` (pruebas de la pantalla de control), `benchmark_ELS-NX9.md` (cuánto tarda el detector en el Huawei, datos en `datos_benchmark/`),
   `instalar_app_huawei.md` (cómo instalar la app), `pendientes_firmware.md` (problemas por resolver con la placa y diferencias con el
-  original), `bitacora.md` (decisiones), `progreso.md` y `resumen_sesion.md`.
+  original), `bitacora.md` (decisiones), `progreso.md`, `reporte_J14.md` (cierre de J14) y `entrega.md` (qué se entrega y cómo comprobarlo).
 - `original_backup/` — el código y el PDF originales. No se modifica y **no se publica en GitHub**
   (está en `.gitignore`) porque contienen la contraseña del WiFi; solo existe en el equipo local.
 
@@ -56,7 +65,7 @@ compila igual, pero con el nombre y la clave de ejemplo.
 arduino-cli compile --fqbn esp32:esp32:esp32 firmware_carro
 ```
 
-Para subirlo hace falta la placa (`arduino-cli upload`); todavía no se ha probado en hardware.
+Para subirlo hace falta la placa (`arduino-cli upload`). En J14 el firmware se cargó y probó en el DevKit; los resultados y los límites están en `docs/reporte_J14.md`.
 
 ## Cómo compilar la app Android (requiere Android Studio y el SDK; ver docs/instalar_app_huawei.md)
 
