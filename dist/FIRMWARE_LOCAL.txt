@@ -1,0 +1,15 @@
+Firmware de la entrega local (no se publica en GitHub)
+
+Archivo: firmware_carro_453ed20-20261027.bin
+Versión: FW:453ed20-20261027
+Tamaño: 1,031,712 bytes
+SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E
+
+Motivo: el binario contiene la contraseña del WiFi del carro. Publicarlo revelaría esa
+contraseña, así que solo se conserva en la copia local de entrega. El repositorio publica
+el código fuente y el APK; el firmware se reconstruye con firmware_carro/secretos.h.
+
+Para reconstruirlo:
+  1. Copiar firmware_carro/secretos.ejemplo.h como firmware_carro/secretos.h y poner la
+     red y la contraseña reales.
+  2. Ejecutar .\scripts\cargar.ps1 nuevo -Puerto COM6 desde la carpeta del proyecto.

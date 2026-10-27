@@ -103,3 +103,14 @@ J10c resuelto en simulación en J14 (no se probó con una caja ancha real): se r
   * Arranque inicial del sistema: 12.8 a 12.9 ms (pico transitorio único de inicialización con 1 exceso, observado en 12856, 12858 y 12935 us).
 - Hipótesis de tráfico de la app: los mensajes periódicos y la serialización WebSocket podrían explicar el incremento con la app conectada. En el aire con motores y sensores se observaron 3.25 ms sin excesos, pero esas mediciones no aíslan todas las causas; la hipótesis no está demostrada.
 - Impacto observado en giros: los giros por ángulo validados en J13 no mostraron una afectación atribuible a esos picos. Esto no demuestra que ninguna condición de tráfico afecte la precisión; sigue pendiente medirla en las rutas reales.
+
+## 14. Cierre de J14 (27 de octubre de 2026)
+
+- B7, B8, B9 y B2 no se realizaron por decisión del dueño. B7 se consideró cubierta por B6 porque la caja ya estaba a ~100 cm; B8 (caja lateral a 25 cm) y B9 (corte de WiFi) se cancelaron; B2 queda NO MEDIDA. No se debe afirmar que el watchdog de WiFi, la caja lateral o la calibración nueva por bloques estén validados físicamente.
+- B5 no tiene una medición numérica del dueño. Las estimaciones de navegación dejan un error lateral de ~20 a 24 cm; la valoración cualitativa fue «relativamente bien».
+- B6: la corrida 2 probablemente tocó la caja y terminó en «Necesito ayuda» en 3/10; la corrida 4 quedó ~40 cm a la derecha de la recta. La reincorporación después de esquivar sigue siendo un fallo real: se enreda con obstáculos lejanos en vez de hacer el rodeo limpio.
+- La Autoridad del láser siempre encendida es una decisión del dueño, no una conclusión de una comparación pareada. El valor por defecto de la app es verdadero; el C conserva 0. El láser ve un punto y puede no ver un objeto central fuera de su haz. La comparación pareada B7/B8 y la validación con objetos fuera del haz quedan pendientes.
+- J10c está corregido solo en simulación (commit bce7b37). Una caja muy ancha a más de 50 cm podría confundirse con un tapete lejano durante el aprendizaje; acercarse no garantiza que el detector de color la recupere. El láser podría verla si está habilitado y su haz la alcanza, pero falta comprobarlo.
+- La verificación final de FW y APK en Sensores con el carro encendido y conectado quedó pendiente. El APK instalado se verificó por hash (APP:0.4-699fcc5); el FW conserva la versión y el hash de la Etapa 4 (FW:453ed20-20261027). Al cierre el punto de acceso CarroFSI no estaba visible y no había puerto COM.
+- La cámara puede dejar de responder en el puerto HTTP 80 aunque el ping siga funcionando. La recuperación observada fue apagar y encender la cámara y esperar unos 15 s.
+- Los picos del loop de J13 no se volvieron a medir en J14; siguen pendientes de aislar.

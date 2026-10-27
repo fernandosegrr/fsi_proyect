@@ -44,6 +44,18 @@ class Versiones(unittest.TestCase):
         self.assertTrue(v.coincide_revision("abc", "HEAD"))
 
     @patch.object(v.subprocess, "run")
+    @patch.object(v, "ejecutar", side_effect=["abc", "def", "README.md\nscripts/verificar_version.py\nscripts/probar_version.py\n"])
+    def test_readme_y_verificador(self, ejecutar, proceso):
+        proceso.return_value.returncode = 0
+        self.assertTrue(v.coincide_revision("abc", "HEAD"))
+
+    @patch.object(v.subprocess, "run")
+    @patch.object(v, "ejecutar", side_effect=["abc", "def", "scripts/cargar.ps1\n"])
+    def test_otro_script(self, ejecutar, proceso):
+        proceso.return_value.returncode = 0
+        self.assertFalse(v.coincide_revision("abc", "HEAD"))
+
+    @patch.object(v.subprocess, "run")
     @patch.object(v, "ejecutar", side_effect=["abc", "def", "firmware_carro/imu.c\n"])
     def test_cambio_codigo(self, ejecutar, proceso):
         proceso.return_value.returncode = 0

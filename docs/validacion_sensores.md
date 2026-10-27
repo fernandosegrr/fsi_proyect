@@ -209,3 +209,9 @@ B6, caja delante, ruta Recta 200 cm, 4 corridas:
 B7, B8, B9 y B2: no realizadas por decisión del dueño el 27 de octubre. B7 se consideró cubierta por B6 porque la caja ya estaba a ~100 cm; B8 (caja lateral) y B9 (corte de WiFi) se cancelaron; B2 queda NO MEDIDA. Por eso no se puede afirmar que el watchdog de WiFi, la caja lateral o la calibración nueva por bloques estén validados físicamente en J14.
 
 B10: el dueño decidió que la Autoridad del láser quede siempre ENCENDIDA. No es una conclusión de una comparación pareada B4-B8; es una decisión del dueño y así se registra. Se cambió el valor por defecto de la app a true.
+
+Cierre de J14, 27 de octubre de 2026, ~15:10:
+- La APK final es APP:0.4-699fcc5 (14,500,144 bytes, SHA-256 C50A9757DE59B1B604680BE9731D8C610F9EC4A66780EB18ECEB558E6E00312A), instalada con adb install -r y verificada por hash al extraerla del teléfono. Sensores muestra App 0.4 (699fcc5), los dos sensores encendidos y la Autoridad del láser encendida.
+- El firmware de entrega es FW:453ed20-20261027 (1,031,712 bytes, SHA-256 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E), cargado en la Etapa 4. La lectura final por Sensores no se pudo repetir porque el punto de acceso CarroFSI no estaba visible y no había puerto COM; no se inventa ese resultado.
+- El teléfono quedó con la app cerrada por am force-stop, stay_on_while_plugged_in=2, pantalla encendida, WiFi habilitado y batería al 82 % cargando por USB. Quedó en la red normal INFINITUM porque CarroFSI no estaba visible; no se escribió ninguna contraseña ni PIN. El carro quedó quieto y apagado.
+- Se conservan solo capturas de Sensores y Calibración. Dos capturas de la pantalla de rutas incluyeron por error la vista en vivo de la cámara y se borraron inmediatamente; no se guardaron ni publicaron imágenes reales.

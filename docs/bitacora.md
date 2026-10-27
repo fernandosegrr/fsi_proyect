@@ -495,3 +495,21 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — B2: la protección experimental no pasó tres comprobaciones (un caso de inconsistencia seguía fallando); se restauró el último commit bueno y se guardó el parche fuera del repositorio. No se instaló; B2 sigue sin medir.
 
 27 oct 2026 — B3: 8/8 giros izquierdos y 8/8 derechos dentro de ±3°, usando la calibración previa porque B2 quedó sin medir. Carro quieto al terminar.
+
+27 oct 2026 - J14 B4: cuatro corridas de 150 cm. Autoridad apagada: desvíos de ~15 y ~20 cm; encendida: ~5.5 y ~18 cm. 4/4 rutas terminadas, 0 esquivas y 0 falsos paros. La cámara dejó de responder en el puerto HTTP 80 en dos preparaciones; se recuperó apagando y encendiendo la cámara.
+
+27 oct 2026 - J14 B5: tres corridas válidas en L (dos con giroscopio y una por tiempo), 7 a 8 s, 0 esquivas, giros de ~90 a 93 grados. Posiciones finales estimadas x=1406/1389/1394 mm, y=209/203/244 mm, rumbo 91/90/93 grados. Error lateral estimado de ~20 a 24 cm; el dueño no dio una cifra y dijo «relativamente bien».
+
+27 oct 2026 - J14 B6: cuatro corridas con caja a ~100 cm. Autoridad apagada: corrida 1 sin tocar pero con reincorporación sucia; corrida 2 con 3 esquivas, probable toque y «Necesito ayuda» en 3/10. Autoridad encendida: corridas 3 y 4 sin tocar; la 3 terminó con rumbo 119 grados y la 4 unos 40 cm a la derecha de la recta. El intento a 40 cm no arrancó por la protección de aprendizaje del piso. La vuelta a la ruta después de esquivar sigue fallando.
+
+27 oct 2026 - J14 cierre por decisión del dueño: B7 no se repitió porque B6 ya estaba a ~100 cm; B8 y B9 se cancelaron; B2 queda NO MEDIDA. B10: la Autoridad del láser queda siempre encendida por decisión del dueño, no por comparación pareada. Se cambió el valor por defecto de la app a true; el C conserva 0. El texto de Sensores se corrigió para no decir «apagado por defecto».
+
+27 oct 2026 - J14 cambios de producto: ConfigVision usa REF_ANCHO_MIL_APP=600 y GRUPOS_PISO_APP=3; el C conserva 800 y 4. puente.c limpia la configuración con memset. build.gradle.kts añade el arnés de instrumentación por resource-id y comprime las bibliotecas nativas para que el APK quede bajo 15 MB. J10c se corrigió solo en simulación (commit bce7b37).
+
+27 oct 2026 - J14 pruebas finales: núcleo 20 programas / 1577 casos / 0 fallos; firmware 152 + 246 + 15 + 34 = 447 / 0; estrés de 100000 comandos sin STOP perdido; servidor falso 46 / 0; verificador de versiones 8 / 0; hash de página correcto. APK final APP:0.4-699fcc5, 14,500,144 bytes, SHA-256 C50A9757DE59B1B604680BE9731D8C610F9EC4A66780EB18ECEB558E6E00312A; instalada y extraída con el mismo hash. Sensores muestra App 0.4 (699fcc5) y la Autoridad encendida.
+
+27 oct 2026 - J14 entrega: la copia local de dist/ contiene el binario del firmware FW:453ed20-20261027 (1,031,712 bytes, SHA-256 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E), el APK APP:0.4-699fcc5, SHA256SUMS.txt, LEEME.txt y FIRMWARE_LOCAL.txt. El APK de dist/ se versiona con una excepción en .gitignore. El binario del firmware NO se publica porque contiene la contraseña del WiFi como texto; se retiró del commit de entrega antes del push y queda solo en la copia local. SHA256SUMS.txt cubre solo la APK. La verificación final de FW por Sensores quedó pendiente porque el punto de acceso CarroFSI no estaba visible y no había puerto COM; no se inventa ese resultado.
+
+27 oct 2026 - J14 seguridad: firmware_carro/secretos.h y original_backup/ no están versionados ni aparecen en el historial; no hay archivos >15 MB en el árbol ni en los blobs; todos los commits usan identidad noreply. La búsqueda literal de la clave actual encontró dos coincidencias incidentales dentro de un alfabeto hexadecimal de validación; no se publica la contraseña, pero es corta y debe cambiarse antes de la demo. No se reescribió el historial.
+
+27 oct 2026 - J14 transparencia: dos capturas de la pantalla de rutas incluyeron por error la vista en vivo de la cámara y se borraron inmediatamente; no se guardaron ni publicaron imágenes reales. El teléfono quedó con la app cerrada por force-stop, stay_on=2, pantalla encendida, WiFi habilitado y batería al 82 % cargando por USB. El carro quedó quieto y apagado. No se escribió ningún PIN ni contraseña.

@@ -39,7 +39,7 @@ def version_apk(datos):
 
 
 def coincide_revision(hash_corto, revision):
-    """Tolera commits posteriores solo de documentación y artefactos de entrega, sin ocultar cambios de producto."""
+    """Tolera commits posteriores de documentación, entrega y del propio verificador, sin ocultar cambios de producto."""
     construido = ejecutar(["git", "rev-parse", hash_corto]).strip()
     objetivo = ejecutar(["git", "rev-parse", revision]).strip()
     if construido == objetivo:
@@ -49,7 +49,14 @@ def coincide_revision(hash_corto, revision):
                       cwd=str(RAIZ), capture_output=True).returncode != 0:
         return False
     nombres = ejecutar(["git", "diff", "--name-only", construido, objetivo]).splitlines()
-    return all(n.startswith("docs/") or n.startswith("dist/") for n in nombres)
+    return all(_solo_documentacion(n) for n in nombres)
+
+
+def _solo_documentacion(nombre):
+    """README, docs/, dist/ y los dos archivos del verificador no cambian el APK ni el firmware."""
+    prefijos = ("docs/", "dist/")
+    exactos = {"README.md", "scripts/verificar_version.py", "scripts/probar_version.py"}
+    return nombre.startswith(prefijos) or nombre in exactos
 
 
 def consultar_caps(puerto):

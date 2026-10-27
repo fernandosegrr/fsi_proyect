@@ -1,0 +1,24 @@
+Entrega J14 - Carro FSI
+27 de octubre de 2026
+
+APK: APP:0.4-699fcc5 (14,500,144 bytes)
+SHA-256: C50A9757DE59B1B604680BE9731D8C610F9EC4A66780EB18ECEB558E6E00312A
+
+Firmware: FW:453ed20-20261027 (1,031,712 bytes)
+SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E
+El binario del firmware NO se publica en GitHub porque contiene la contraseña del WiFi.
+Se conserva en la copia local de entrega; ver FIRMWARE_LOCAL.txt.
+
+Verificar la APK en Windows:
+  Get-FileHash carro_fsi_0.4-699fcc5.apk -Algorithm SHA256
+Verificar la APK en Linux, Git Bash o WSL:
+  sha256sum -c SHA256SUMS.txt
+
+Instalar la APK (conserva datos):
+  adb install -r carro_fsi_0.4-699fcc5.apk
+
+El firmware se carga con scripts/cargar.ps1 nuevo -Puerto COM6 desde la carpeta del proyecto.
+No se incluye firmware_carro/secretos.h ni ninguna contraseña. Crear secretos.h a partir de
+secretos.ejemplo.h antes de compilar el firmware.
+
+Los resultados, los limites y los pendientes estan en docs/reporte_J14.md y docs/entrega.md.

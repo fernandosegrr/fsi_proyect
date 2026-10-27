@@ -10,7 +10,7 @@ convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 - La Autoridad del láser queda siempre encendida por decisión del dueño. El valor por defecto de la app es verdadero; el núcleo en C conserva 0 para sus pruebas.
 - J10c quedó corregido solo en simulación. Falta probarlo con una caja ancha real.
 - Pruebas sin hardware: núcleo 20 programas y 1577 casos; firmware 152 + 246 + 15 + 34 = 447; servidor falso 46; verificador de versiones 8. Todo en cero fallos. Estrés de 100000 comandos sin ningún STOP perdido y hash de la página correcto.
-- La entrega está en `dist/`: firmware, APK y `SHA256SUMS.txt`. El detalle de resultados, límites y pasos pendientes está en `docs/reporte_J14.md` y `docs/entrega.md`.
+- La entrega local está en `dist/`: el APK, `SHA256SUMS.txt`, `LEEME.txt` y `FIRMWARE_LOCAL.txt`. El binario del firmware no se publica porque contiene la contraseña del WiFi; se reconstruye con `firmware_carro/secretos.h`. El detalle de resultados, límites y pasos pendientes está en `docs/reporte_J14.md` y `docs/entrega.md`.
 - Pendiente real: leer FW y APK en Sensores con el carro encendido y conectado; B7, B8, B9 y B2; una caja ancha real para J10c; una medición numérica del error final de B5.
 
 ## Qué hay en cada carpeta
