@@ -513,6 +513,7 @@ class ControlLogica(
                     imuEstado = Regex("IMUE=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     versionFirmware = texto.substringAfter("FW:", "").takeIf { it.isNotEmpty() }?.let { "FW:$it" } ?: "sin versión (firmware anterior)"
                     enviar("ARR?")   // actualiza el historial también tras un reintento en esta sesión
+                    enviar("ANT?")   // deja las anticipaciones en SENS_DIAG para las pruebas sin USB del carro
                     Log.i("SENS_DIAG", texto)
                     Log.i("SENS_DIAG", "capacidades del firmware: giroscopio=$imu laser=$tof (interruptores: giroscopio=$usarGiroscopio laser=$usarSensorDistancia)")
                     alCambiar()
@@ -544,6 +545,9 @@ class ControlLogica(
                     Log.i("SENS_DIAG", "TOF_PARO: el laser freno el carro con algo a $mm mm")
                     alTofParo?.invoke(mm)
                     alCambiar()
+                }
+                texto.startsWith("ANT:") || texto.startsWith("ANT_IGNORADO:") -> {
+                    Log.i("SENS_DIAG", "firmware: $texto")
                 }
                 texto.startsWith("ARR:") -> {
                     val p = texto.substring(4).split(",")

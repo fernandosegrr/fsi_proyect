@@ -90,3 +90,5 @@ A6, revisión del 27 de octubre: DetectorTflite carga el modelo en su constructo
 A4, revisión del 27 de octubre: se precisa que la causa de los picos del loop es una hipótesis y que la ausencia de impacto se limita a lo observado en J13; no se cambió el firmware.
 
 A5, revisión del 27 de octubre: la prueba sintética pasa, pero no se ha probado la caja real. Se corrigió el límite: si el color de una caja lejana ya se aprendió como piso, acercarse no garantiza que el detector de color la recupere.
+
+A2, revisión del 27 de octubre: la app consulta ANT? al recibir CAPS y registra en SENS_DIAG tanto ANT como ANT_IGNORADO. Así se pueden leer esos datos sin USB en las pruebas físicas. APK compilada; falta verificarlo con los dispositivos.
