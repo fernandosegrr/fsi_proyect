@@ -126,8 +126,9 @@ class ModeloEnHilo(private val contexto: Context) {
     // ── El hilo del modelo ────────────────────────────────────────────────
 
     private fun bucle() {
-        val detector = DetectorTflite(contexto)
+        val detector: DetectorTflite
         try {
+            detector = DetectorTflite(contexto)
             detector.abrir(Configuracion("CPU 1 hilo", Delegado.CPU, 1))
             etiquetas = detector.etiquetas
             Log.i(ETIQUETA, "modelo abierto: ${detector.descripcionTensores}")

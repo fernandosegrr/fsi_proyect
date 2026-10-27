@@ -84,3 +84,5 @@ Los registros CTest sin seguimiento se guardaron en la rama local j14-wip-202610
 A3, revisión del 27 de octubre: el resultado de Sensores reserva exactamente cuatro líneas y limita el texto al espacio disponible; los botones ya no cambian de posición cuando crece el mensaje. La APK compiló; falta comprobar el diseño en el teléfono.
 
 Etapa 2, integración: servidor falso actualizado para CAPS con campos actuales, ANT?, ANT_BORRAR, ANT en las respuestas de giro y ANT_IGNORADO:interrumpido. La simulación mantiene ANT fijo y no reproduce el aprendizaje ni timeout; esos filtros se prueban en pruebas_sensores.c. Servidor falso: 46 casos, 0 fallos (antes 42).
+
+A6, revisión del 27 de octubre: DetectorTflite carga el modelo en su constructor. Se movió su construcción dentro del try del hilo para registrar también un fallo al leer el archivo y mantener el detector de color. APK compilada; falta comprobar el caso en el teléfono.
