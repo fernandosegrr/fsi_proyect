@@ -55,6 +55,14 @@ android {
     buildFeatures { buildConfig = true }
     sourceSets["main"].assets.directories.add(layout.buildDirectory.dir("generated/versionAssets").get().asFile.absolutePath)
 
+    // J14: comprimir las bibliotecas nativas dentro del APK. Sin esto el APK de entrega supera
+    // los 15 MB; Android las extrae al instalar y System.loadLibrary las sigue encontrando.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
