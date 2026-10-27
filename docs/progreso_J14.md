@@ -67,3 +67,16 @@ Fase A9: terminada.
   * Sensores y hardware verificados en reposo absoluto sin movimiento: giroscopio MPU6050 ok (IMU=1, estado calibrado), sensor láser VL53L0X ok (TOF=1, listo), y anticipación ANT intacta en memoria no volátil (AUTO izq 126 ms, AUTO der 144 ms, MANUAL 20 ms).
   * Pantalla Sensores abierta por adb y validada; app cerrada con am force-stop y stay_on_while_plugged_in restaurado.
 - Etapa A completa con 100 % de pruebas unitarias y suites en verde; sin ningún comando de movimiento enviado.
+
+Auditoría J14, 27 de octubre de 2026 (base 96aede7):
+Fase | Estado | Evidencia en código y commit
+A1 | hecha | calgiro.c, pruebas_calgiro.c, CalibrarGiroActivity.kt; dfeab24.
+A2 | hecha en firmware; integración falsa pendiente | giro.c, pruebas_sensores.c y navegador.c; 76f1d5f. El servidor falso no implementa ANT ni el formato actual de giro.
+A3 | parcial | identificadores en activity_sensores.xml, activity_calibrar_giro.xml y fragment_ejecutar.xml; 5995775. minLines no fija la altura máxima del resultado.
+A4 | hecha | limites_conocidos.md; 1877058.
+A5 | hecha en simulación; pendiente prueba real | obstaculos.c y pruebas_pisos_dificiles.c; bce7b37.
+A6 | hecha | ConfigVision.kt, CamaraObstaculos.kt y ModeloEnHilo.kt; 4364d27.
+A7 | hecha en código; pendiente prueba real | RutasPredefinidas.kt, RutasFragment.kt y pruebas_navegador.c; 69fbd1b.
+A8 | hecha | Ajustes.kt y ControlLogica.kt; 69fbd1b. La preferencia guardada puede prevalecer sobre el valor por defecto.
+La carga de A9 es un registro histórico; no hay dispositivos conectados y no se conoce su estado actual.
+Los registros CTest sin seguimiento se guardaron en la rama local j14-wip-20261027, commit af0bfb5.
