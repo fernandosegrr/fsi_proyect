@@ -116,3 +116,10 @@ Etapa 4, 27 de octubre de 2026: terminada sin movimiento.
 - App cerrada, teléfono despierto y stay-on conservado en 2. Batería del teléfono 7 %, cargando por USB: cargar antes de pruebas físicas. No se mandó ningún comando de movimiento.
 
 Etapa 5 B0, 27 de octubre, 12:43: pre-vuelo sin movimiento. DevKit sin USB; teléfono por USB y cargando con 9 % de batería. El teléfono estaba inicialmente en otra red; se reconectó a la red guardada del carro sin introducir contraseña. DevKit y cámara respondieron a ping. Pantalla Sensores: FW:453ed20-20261027 y APP:0.4-453ed20 (revisión del producto; HEAD posterior solo documentación), ambos sensores funcionan, interruptores de giroscopio y distancia encendidos, autoridad del láser apagada. ANT:126,144,20,20 ms. Pendiente colocación y LISTO antes de B1; no se ha movido el carro.
+
+Etapa 5 B1, 27 de octubre: tras tres minutos en reposo, tres bloques de cuatro giros de 90° a la derecha, con al menos 20 s entre bloques y sin mover manualmente el carro entre ellos. Todos con resultado OK y dentro de ±3°.
+- Bloque 1: 88.8°, 91.3°, 89.2°, 91.4°; suma 360.7°.
+- Bloque 2: 90.7°, 89.3°, 90.7°, 90.1°; suma 360.8°.
+- Bloque 3: 89.5°, 89.8°, 89.8°, 87.5°; suma 356.6°.
+- ANT AUTO derecha: 144 ms antes y 142 ms después; los otros valores continuaron en 126, 20 y 20 ms. Relectura por la app: ANT:126,142,20,20; ambos sensores siguen respondiendo.
+- Pendiente respuesta del dueño sobre el paralelismo del frente con la cinta. Carro quieto al concluir; ningún ángulo excedió el límite de aborto.
