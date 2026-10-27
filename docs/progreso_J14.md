@@ -103,3 +103,5 @@ Etapa 2, comprobaciones sin hardware del 27 de octubre:
 - Pendiente hardware: versiones y credenciales efectivas, NVS/ANT, sensores, pantalla, modelo ante fallo, rutas y las pruebas físicas B0-B10. No se ha cargado ni instalado nada en esta sesión.
 
 A1, revisión del 27 de octubre: la estimación previa de 61 cm no tiene cálculo verificable para los ángulos realmente programados; falta medir la secuencia nueva en el carro.
+
+Etapa 3: guía de conexión y parada preparada en docs/guia_conexion.md; COM6 es referencia histórica y se verificará la identidad de la única placa. No se ha conectado hardware.

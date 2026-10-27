@@ -481,3 +481,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — A1: la distancia máxima de la secuencia en bloques se señala como estimación, pendiente de medida física.
 
 27 oct 2026 — A1: no se encontró el cálculo previo para los ángulos reales de calibración; el máximo de desplazamiento queda sin verificar hasta una medición o cálculo reproducible.
+
+27 oct 2026 — Etapa 3: guía de conexión y parada preparada para ambas configuraciones; pendiente la confirmación indicada por el dueño antes de cargar o instalar.
