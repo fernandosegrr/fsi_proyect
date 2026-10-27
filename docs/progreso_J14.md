@@ -88,3 +88,5 @@ Etapa 2, integración: servidor falso actualizado para CAPS con campos actuales,
 A6, revisión del 27 de octubre: DetectorTflite carga el modelo en su constructor. Se movió su construcción dentro del try del hilo para registrar también un fallo al leer el archivo y mantener el detector de color. APK compilada; falta comprobar el caso en el teléfono.
 
 A4, revisión del 27 de octubre: se precisa que la causa de los picos del loop es una hipótesis y que la ausencia de impacto se limita a lo observado en J13; no se cambió el firmware.
+
+A5, revisión del 27 de octubre: la prueba sintética pasa, pero no se ha probado la caja real. Se corrigió el límite: si el color de una caja lejana ya se aprendió como piso, acercarse no garantiza que el detector de color la recupere.
