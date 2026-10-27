@@ -479,3 +479,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — Pruebas sin hardware: núcleo 1577, firmware 447, servidor falso 46 y lector de versiones 7; cero fallos, estrés de 100000 sin STOP perdido. El nombre de red ya aparece en el historial y la búsqueda literal de la clave tiene dos coincidencias incidentales dentro de alfabetos hexadecimales; no se hace push ni se reescribe historial.
 
 27 oct 2026 — A1: la distancia máxima de la secuencia en bloques se señala como estimación, pendiente de medida física.
+
+27 oct 2026 — A1: no se encontró el cálculo previo para los ángulos reales de calibración; el máximo de desplazamiento queda sin verificar hasta una medición o cálculo reproducible.
