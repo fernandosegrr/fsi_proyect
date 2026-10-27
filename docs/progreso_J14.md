@@ -126,3 +126,8 @@ Etapa 5 B1, 27 de octubre: tras tres minutos en reposo, tres bloques de cuatro g
 - Confirmación del dueño tras B1: el frente quedó prácticamente como al inicio y paralelo a la cinta; no pudo estimar un ángulo numérico.
 - B2 quedó pendiente: la calibración instalada no publica los ángulos de cada giro hasta terminar los ocho, por lo que no se puede comprobar a tiempo el límite de aborto de ±25° entre giros. El carro permanece quieto y la app cerrada.
 - Intento de protección adicional en una rama local: tras tres comprobaciones, las pruebas de calibración quedaron con un caso de inconsistencia en rojo. Se restauró el último commit bueno; la propuesta no validada se guardó en %TEMP%/fsi_j14_b2_seguridad_experimental.patch y no se instaló ni se publicó. B2 queda NO MEDIDA; se continúa con las comprobaciones que permiten vigilar cada giro.
+
+Etapa 5 B3, 27 de octubre: giros de verificación con la calibración anterior, ya que B2 quedó sin medir. Dos bloques de cuatro por lado; los 16 terminaron OK y dentro de ±3°.
+- Izquierda, bloque 1: 88.5°, 89.1°, 89.5°, 90.0°; bloque 2: 92.0°, 91.4°, 91.6°, 88.5°. Total 8/8.
+- Derecha, bloque 1: 88.8°, 90.1°, 90.6°, 90.6°; bloque 2: 90.7°, 89.2°, 90.4°, 89.7°. Total 8/8.
+- Carro quieto al terminar; sin giros por tiempo ni calibración B2.

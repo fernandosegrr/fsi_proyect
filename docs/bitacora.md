@@ -493,3 +493,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — Tras B1 el dueño observa el frente casi idéntico a la posición inicial, sin ángulo numérico. B2 pausada antes de empezar: la app instalada no expone cada ángulo antes del siguiente giro, por lo que no permite verificar oportunamente el límite de ±25°; app cerrada y carro quieto.
 
 27 oct 2026 — B2: la protección experimental no pasó tres comprobaciones (un caso de inconsistencia seguía fallando); se restauró el último commit bueno y se guardó el parche fuera del repositorio. No se instaló; B2 sigue sin medir.
+
+27 oct 2026 — B3: 8/8 giros izquierdos y 8/8 derechos dentro de ±3°, usando la calibración previa porque B2 quedó sin medir. Carro quieto al terminar.
