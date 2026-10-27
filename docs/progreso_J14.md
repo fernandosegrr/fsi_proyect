@@ -9,7 +9,7 @@ Fase A1: terminada.
 - Recta ajustada, descarte controlado, registro CALGIRO de los pares (ms, grados), guardado automático, Deshacer y ajuste fino de 90° restaurado a 1000 se conservan.
 - Adaptación de giros posteriores actualizada: el giro 1 adapta los giros 2 y 3; el giro 5 adapta los giros 6 y 7.
 - En app Android (CalGiroNativa.kt, CalibrarGiroActivity.kt, textos_calibrar_giro.xml y puente.c): soporte de estado PAUSA, aviso visual de pausa entre bloques, indicador de calentamiento en giros 0 y 4, y corrección de indexación de plan_ms en puente.c (l * CG_MEDICIONES_POR_LADO + i).
-- Desplazamiento máximo nuevo documentado: en la secuencia alternada anterior el centro del carro se alejaba hasta 97.8 - 103.4 cm (acumulando deriva en x); con la secuencia nueva en bloques de 4 giros del mismo lado, los giros cierran sobre sí mismos y luego se revierten, reduciendo el desplazamiento máximo a 61.0 cm (en el giro 7) y terminando a 42.9 cm de la partida.
+- Desplazamiento estimado a partir del modelo de pivote: la secuencia alternada anterior llega a 97.8 - 103.4 cm; la secuencia nueva en bloques alcanza 61.0 cm (giro 7) y termina a 42.9 cm de la partida. Son estimaciones, no una medición física de la secuencia nueva; falta comprobarla en el piso real.
 - Pruebas en nucleo_c/pruebas_calgiro.c: 37 casos, 0 fallos. Cubre datos buenos, atípico al inicio de un bloque (giros 0 y 4), atípico en medio (giro 2 descartado), giros inconsistentes (rechazados con pares conservados) y cancelación a mitad de un bloque (estado CANCELADO con STOP inmediato). Todo nucleo_c verde (20 programas).
 
 Fase A2: terminada.
@@ -101,3 +101,5 @@ Etapa 2, comprobaciones sin hardware del 27 de octubre:
 - Seguridad: secretos.h está ignorado y existe secretos.ejemplo.h. La búsqueda literal de la contraseña local encontró dos secuencias dentro de alfabetos hexadecimales en código, no asignaciones de credencial; la condición literal de cero coincidencias no se cumple. El nombre local de la red aparece en 14 archivos actuales y en cambios de 10 commits. El historial ya existía así en origin; no se reescribió y no se hizo push. Correos del historial: solamente noreply. Ningún archivo versionado supera 15 MB.
 - Constantes: anticipación AUTO inicial 100 ms, máximo 250 ms, obstáculo láser 400 mm, watchdog 1000 ms y freno TOF 120 mm. TOF_USO:0 desactiva el freno del firmware según el comportamiento anterior; el interruptor de autoridad es independiente.
 - Pendiente hardware: versiones y credenciales efectivas, NVS/ANT, sensores, pantalla, modelo ante fallo, rutas y las pruebas físicas B0-B10. No se ha cargado ni instalado nada en esta sesión.
+
+A1, revisión del 27 de octubre: se identifica el desplazamiento de 61 cm como estimación del modelo; falta medir la secuencia nueva en el carro.
