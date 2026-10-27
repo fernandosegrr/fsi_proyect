@@ -37,9 +37,11 @@ Copia local, no publicada:
 - dist/firmware_carro_453ed20-20261027.bin (contiene la contraseña del WiFi)
 
 Git:
-- La entrega se publica en la rama main y se marca con el tag v1.0.
+- La rama main se publicó en origin/main en el commit c593910 (J14: reporte final, documentacion y entrega).
+- GitHub Actions «sanitizadores», ejecución 11, terminó en success para c593910.
+- El tag v1.0 se crea sobre el commit de cierre documental posterior a c593910, que incluye esta nota.
 - Los commits principales de J14 van de da745af (etapa 0) a 699fcc5 (README con el estado final), más el cierre documental y de dist/.
-- El APK se compiló desde 699fcc5. Los commits posteriores son solo documentación y artefactos de entrega, que el verificador acepta sin ocultar cambios de producto.
+- El APK se compiló desde 699fcc5. Los commits posteriores son solo documentación, artefactos de entrega y los dos archivos del verificador; el verificador los acepta sin ocultar cambios de producto.
 
 3. Pruebas de PC y de la app
 

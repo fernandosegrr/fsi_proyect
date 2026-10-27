@@ -512,4 +512,6 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 
 27 oct 2026 - J14 seguridad: firmware_carro/secretos.h y original_backup/ no están versionados ni aparecen en el historial; no hay archivos >15 MB en el árbol ni en los blobs; todos los commits usan identidad noreply. La búsqueda literal de la clave actual encontró dos coincidencias incidentales dentro de un alfabeto hexadecimal de validación; no se publica la contraseña, pero es corta y debe cambiarse antes de la demo. No se reescribió el historial.
 
+27 oct 2026 - J14 publicación: main se publicó en origin/main (c593910) y GitHub Actions «sanitizadores» ejecución 11 terminó en success. El tag v1.0 se crea sobre el commit de cierre documental posterior.
+
 27 oct 2026 - J14 transparencia: dos capturas de la pantalla de rutas incluyeron por error la vista en vivo de la cámara y se borraron inmediatamente; no se guardaron ni publicaron imágenes reales. El teléfono quedó con la app cerrada por force-stop, stay_on=2, pantalla encendida, WiFi habilitado y batería al 82 % cargando por USB. El carro quedó quieto y apagado. No se escribió ningún PIN ni contraseña.

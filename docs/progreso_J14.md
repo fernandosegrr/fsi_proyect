@@ -173,4 +173,4 @@ Etapa 6, cierre documental y entrega, 27 de octubre de 2026, ~15:10:
 - El teléfono quedó con la app cerrada por am force-stop, stay_on_while_plugged_in=2, pantalla encendida, WiFi habilitado y batería al 82 % cargando por USB. Quedó en la red normal INFINITUM porque CarroFSI no estaba visible; no se escribió ninguna contraseña ni PIN.
 - El carro quedó quieto y apagado. No se dejaron ayudantes de reset ni procesos de prueba.
 - Revisión de seguridad: firmware_carro/secretos.h y original_backup/ no están versionados ni aparecen en el historial; no hay archivos >15 MB en el árbol ni en los blobs; todos los commits usan identidad noreply. La búsqueda literal de la clave actual encontró dos coincidencias incidentales dentro de un alfabeto hexadecimal de validación; no se publica la contraseña, pero es corta y debe cambiarse antes de la demo. No se reescribió el historial.
-- Push a main y tag v1.0: pendiente al escribir esta nota; se confirma en el cierre de la sesión.
+- Push a main: publicado en origin/main en el commit c593910. GitHub Actions «sanitizadores», ejecución 11: success. El tag v1.0 se crea sobre el commit de cierre documental posterior a c593910.
