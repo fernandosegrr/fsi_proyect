@@ -475,3 +475,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — A5: se aclara el riesgo de una caja ancha lejana que haya sido aprendida como piso; la prueba física sigue pendiente.
 
 27 oct 2026 — A2: la app consulta y registra las anticipaciones y registra los avisos de aprendizaje ignorado; compilación correcta.
+
+27 oct 2026 — Pruebas sin hardware: núcleo 1577, firmware 447, servidor falso 46 y lector de versiones 7; cero fallos, estrés de 100000 sin STOP perdido. El nombre de red ya aparece en el historial y la búsqueda literal de la clave tiene dos coincidencias incidentales dentro de alfabetos hexadecimales; no se hace push ni se reescribe historial.

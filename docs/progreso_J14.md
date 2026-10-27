@@ -92,3 +92,12 @@ A4, revisión del 27 de octubre: se precisa que la causa de los picos del loop e
 A5, revisión del 27 de octubre: la prueba sintética pasa, pero no se ha probado la caja real. Se corrigió el límite: si el color de una caja lejana ya se aprendió como piso, acercarse no garantiza que el detector de color la recupere.
 
 A2, revisión del 27 de octubre: la app consulta ANT? al recibir CAPS y registra en SENS_DIAG tanto ANT como ANT_IGNORADO. Así se pueden leer esos datos sin USB en las pruebas físicas. APK compilada; falta verificarlo con los dispositivos.
+
+Etapa 2, comprobaciones sin hardware del 27 de octubre:
+- Núcleo: 20 programas, 1577 casos, 0 fallos (J13: 1570).
+- Firmware en PC: 152 + 246 + 15 + 34 = 447 casos, 0 fallos (J13: 442). Estrés de 100000 comandos: 0 STOP perdidos; hash de página correcto.
+- Servidor falso actualizado: 46 casos, 0 fallos (antes 42). Verificador de versiones: 7, 0 fallos.
+- Compilación de Android: correcta; falta compilar de nuevo y calcular hashes del último commit. La compilación del firmware sigue en curso.
+- Seguridad: secretos.h está ignorado y existe secretos.ejemplo.h. La búsqueda literal de la contraseña local encontró dos secuencias dentro de alfabetos hexadecimales en código, no asignaciones de credencial; la condición literal de cero coincidencias no se cumple. El nombre local de la red aparece en 14 archivos actuales y en cambios de 10 commits. El historial ya existía así en origin; no se reescribió y no se hizo push. Correos del historial: solamente noreply. Ningún archivo versionado supera 15 MB.
+- Constantes: anticipación AUTO inicial 100 ms, máximo 250 ms, obstáculo láser 400 mm, watchdog 1000 ms y freno TOF 120 mm. TOF_USO:0 desactiva el freno del firmware según el comportamiento anterior; el interruptor de autoridad es independiente.
+- Pendiente hardware: versiones y credenciales efectivas, NVS/ANT, sensores, pantalla, modelo ante fallo, rutas y las pruebas físicas B0-B10. No se ha cargado ni instalado nada en esta sesión.
