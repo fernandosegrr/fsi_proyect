@@ -491,3 +491,5 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 27 oct 2026 — B1: doce giros derechos de 90°, 12/12 dentro de ±3°; sumas de bloques 360.7°, 360.8° y 356.6°. ANT AUTO derecha 144→142 ms; resto sin cambios. Carro quieto; pendiente confirmación visual del frente respecto a la cinta.
 
 27 oct 2026 — Tras B1 el dueño observa el frente casi idéntico a la posición inicial, sin ángulo numérico. B2 pausada antes de empezar: la app instalada no expone cada ángulo antes del siguiente giro, por lo que no permite verificar oportunamente el límite de ±25°; app cerrada y carro quieto.
+
+27 oct 2026 — B2: la protección experimental no pasó tres comprobaciones (un caso de inconsistencia seguía fallando); se restauró el último commit bueno y se guardó el parche fuera del repositorio. No se instaló; B2 sigue sin medir.
