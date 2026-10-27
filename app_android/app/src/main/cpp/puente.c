@@ -332,6 +332,10 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
     jintArray arreglo;
     int codigo, i, fila, columna, largo, g;
 
+    /* La configuración se llena campo por campo: hay que dejar en cero los que no vienen en el arreglo
+     * (mascara_activa y mascara). Si no, config_es_valida() puede ver basura del stack y devolver
+     * OBS_ERR_CONFIG de forma intermitente (visto en J14: PISO_DIAG error_detector=-4). */
+    memset(&cfg, 0, sizeof cfg);
     for (i = 0; i < ENTEROS_DETALLE_MAXIMO; i++) {
         salida[i] = 0;
     }

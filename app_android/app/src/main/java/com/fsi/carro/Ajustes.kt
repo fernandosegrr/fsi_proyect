@@ -68,7 +68,9 @@ class Ajustes(contexto: Context) {
         set(valor) = preferencias.edit().putBoolean("usar_sensor_distancia", valor).apply()
 
     var autoridadLaser: Boolean
-        get() = preferencias.getBoolean("autoridad_laser", false)
+        // J14: el dueño decidió que la Autoridad del láser quede siempre encendida.
+        // El valor guardado en el teléfono manda; este es solo el valor de una instalación nueva.
+        get() = preferencias.getBoolean("autoridad_laser", true)
         set(valor) = preferencias.edit().putBoolean("autoridad_laser", valor).apply()
 
     var vibracion: Boolean

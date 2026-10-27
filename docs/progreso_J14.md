@@ -56,7 +56,7 @@ Fase A7 & A8: terminada.
   * Lanzamiento por Intent ADB: --es ruta_predefinida <recta_150|recta_200|ruta_l|obstaculo> en MainActivity abre directamente EjecutarRutaFragment con la ruta elegida. Soporte opcional de --ez auto_iniciar true.
   * Control de parada por ADB: --es accion parar dispara SesionCarro.pararTodo("Paro por comando externo (ADB)").
   * Botones de parada y cancelación en EjecutarRutaFragment: ej_paro (contentDescription="Parar ruta") y ej_cancelar cancelan limpiamente enviando STOP inmediato y deteniendo el temporizador semiautónomo.
-- Autoridad del láser (A8): mantenida apagada por defecto en Ajustes.kt (autoridad_laser = false) y ControlLogica.kt (autoridadLaser = false).
+- Autoridad del láser (A8): mantenida apagada por defecto en Ajustes.kt (autoridad_laser = false) y ControlLogica.kt (autoridadLaser = false). J14: al final el dueño decidió dejarla siempre encendida; el valor por defecto de la app se cambió a true (ver cierre de Etapa 5).
 - Pruebas unitarias de la recta predefinida añadidas en nucleo_c/pruebas_navegador.c (validando override de 1500 mm, tiempo con cal_cm_a_ms_tramo, término y distancia). Todas las pruebas en verde (380 casos nucleo_c).
 
 Fase A9: terminada.
@@ -131,3 +131,34 @@ Etapa 5 B3, 27 de octubre: giros de verificación con la calibración anterior, 
 - Izquierda, bloque 1: 88.5°, 89.1°, 89.5°, 90.0°; bloque 2: 92.0°, 91.4°, 91.6°, 88.5°. Total 8/8.
 - Derecha, bloque 1: 88.8°, 90.1°, 90.6°, 90.6°; bloque 2: 90.7°, 89.2°, 90.4°, 89.7°. Total 8/8.
 - Carro quieto al terminar; sin giros por tiempo ni calibración B2.
+
+Etapa 5 B4, corrida 1, 27 de octubre, 13:53: Autoridad APAGADA. Ruta «Recta 150 cm» terminada en 5 s, 0 esquivas, sin paros ni eventos STOP/TOF; el carro quedó quieto. Medición del dueño: 150 cm recorridos, desvío lateral ~15 cm a la derecha. A las 13:57 el dueño amplió el límite de 90 min; nuevo límite ~15:27.
+- Corrida 2, 14:02, Autoridad APAGADA: 150 cm recorridos, desvío lateral ~20 cm; 5 s, 0 esquivas, sin paros.
+- Intento de corrida 3, 14:04: no arrancó porque la cámara no respondió en la preparación; el carro no se movió. Reintento a las 14:05 correcto.
+- Corrida 3, 14:05, Autoridad ENCENDIDA: 5 s, 0 esquivas, sin paros ni eventos STOP/TOF; medición del dueño: 5.5 cm de desvío, distancia correcta (150 cm).
+- Corrida 4, intentos 14:08 y 14:10: no arrancó; la cámara dejó de entregar video y luego su servidor HTTP (puerto 80) dejó de responder aunque el ping seguía. El carro no se movió. Se pidió apagar y encender la cámara.
+- Corrida 4, 14:12, Autoridad ENCENDIDA: 5 s, 0 esquivas, sin paros ni eventos STOP/TOF; medición del dueño: ~18 cm de desvío, distancia correcta (150 cm).
+- B4 completo: APAGADA 15 y 20 cm; ENCENDIDA 5.5 y 18 cm; 4/4 rutas terminadas, 0 falsos paros, 0 esquivas.
+
+Etapa 5 B5, intento 1, 14:15: la ruta en L llegó al punto 6/10 (100 cm y giro de 90° hecho) pero el arnés de prueba cortó al leer «Detenido», un estado pasajero entre tramos; no cuenta como corrida. Se corrigió el arnés para no cortar por ese texto y esperar a Terminado/Error o 1.5 s con la ruta parada.
+- Intento 2, 14:20: el arnés cortó durante la cuenta 3-2-1; el carro no se movió. Se corrigió para no contar la cuenta como ruta parada.
+- Corrida 1 válida, 14:21, giroscopio ENCENDIDO: terminó en 17 s, 1 esquiva, giro derecho ~90°, 4 giros por giroscopio. El dueño indica que al final de la L había un sillón; la esquiva fue por ese obstáculo. Posición final estimada x=1418 mm, y=189 mm, rumbo=324°; el dueño la vio «relativamente bien», sin cifra. Se repite con la zona despejada.
+- Corrida 1 limpia, 14:24, giroscopio ENCENDIDO: terminó en 7 s, 0 esquivas, giro derecho pedido 90° hecho ~91°; posición final estimada x=1406 mm, y=209 mm, rumbo=91°. Falta la medición del dueño.
+- Corrida 2, 14:26, giroscopio ENCENDIDO: terminó en 8 s, 0 esquivas, giro ~90°; posición final estimada x=1389 mm, y=203 mm, rumbo=90°. Falta la medición del dueño.
+- Corrida 3, 14:27, giroscopio APAGADO: terminó en 7 s, 0 esquivas, giro por tiempo pedido 90° hecho ~93°; posición final estimada x=1394 mm, y=244 mm, rumbo=93°. Falta la medición del dueño.
+
+Etapa 5 B6, intento a 40 cm, 14:31: la app no arrancó; el aprendizaje del piso detectó la caja («Hay algo frente al carro», piso muy variado) y pidió despejar. El carro no se movió. Es una protección de la app; se repite con la caja más lejos y se anota la desviación del método. El dueño aclara después que en todas las corridas siguientes la caja estuvo a ~100 cm del frente, no a 70 cm.
+- Corrida 1, 14:33, Autoridad APAGADA, caja a ~100 cm (aclarado por el dueño): el carro no la embistió; hizo 2 esquivas, terminó los 200 cm en 23 s y quedó en x=394 mm, y=5 mm, rumbo=117°. El dueño confirma que no la tocó, pero vio que al volver a la ruta detectó un obstáculo lejano y no logró reincorporarse.
+- Corrida 2, 14:35, Autoridad APAGADA, caja a ~100 cm (aclarado por el dueño): 3 esquivas y terminó en «Necesito ayuda: toma el control» en el punto 3/10 (x=659 mm, y=780 mm, rumbo=306°), sin completar la ruta. El dueño cree que sí tocó la caja.
+- Corrida 3, 14:38, Autoridad ENCENDIDA, caja a ~100 cm (aclarado por el dueño): 26 s, 2 esquivas, ruta terminada; posición final estimada x=393 mm, y=-12 mm, rumbo=119°. El dueño confirma que no tocó la caja; quedó cerca del objetivo pero mirando hacia abajo-izquierda (rumbo final ~119° en vez de 0°).
+- Corrida 4, 14:40, Autoridad ENCENDIDA, caja a ~100 cm (aclarado por el dueño): 15 s, 1 esquiva, ruta terminada; posición final estimada x=409 mm, y=6 mm, rumbo=0°. El dueño confirma que no tocó la caja, pero quedó unos 40 cm a la derecha de la línea recta.
+- B6 completo (4 corridas): APAGADA 2 (corrida 1 sin tocar; corrida 2 probable toque y terminó en «Necesito ayuda»), ENCENDIDA 2 (sin tocar; 2 y 1 esquivas). El dueño decidió que a partir de ahora todas las pruebas y la entrega serán con la Autoridad del láser ENCENDIDA; no se harán más corridas con ella apagada. Se anota como decisión del dueño y desviación del plan B7/B10.
+- Observación del dueño sobre la esquiva: el carro tenía espacio para hacer el rodeo limpio (90°, 50 cm, 90°, 50 cm, 90° y volver a la línea), pero en la corrida 2 se enredó detectando obstáculos lejanos durante la reincorporación. Es un fallo real del algoritmo de vuelta a la ruta, no falta de espacio.
+
+Etapa 5, cierre por decisión del dueño, 27 de octubre de 2026, ~14:50:
+- B7 no se ejecutó como prueba separada. El dueño indicó que las corridas de B6 ya se hicieron con la caja a ~100 cm y que no hacía falta repetirlas; no se hicieron las 3 corridas con Autoridad encendida que pedía el plan.
+- B8 (caja lateral a 25 cm) y B9 (corte de WiFi) no se ejecutaron: el dueño decidió que ya no eran necesarias.
+- B2 (calibración nueva por bloques) no se ejecutó: queda NO MEDIDA.
+- B10: el dueño decidió que la Autoridad del láser quede siempre ENCENDIDA. No hubo una comparación B4-B8 con ella apagada y encendida suficiente para decidir por datos; la decisión es del dueño y así se documenta. Se cambió el valor por defecto de la app a encendido.
+- Resumen físico J14: B4 4 corridas, B5 3, B6 4 = 11 corridas; B0-B3 sin movimiento; B7-B9 y B2 no realizadas. El carro quedó quieto, la app cerrada y el WiFi del teléfono reactivado.
+- El dueño no dio cifras de error final para B5; se conservan las estimaciones de navegación (x=1406/1389/1394 mm, y=209/203/244 mm, rumbo 91/90/93°) y su valoración cualitativa.

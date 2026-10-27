@@ -43,6 +43,9 @@ android {
         versionCode = 3
         versionName = nombreVersion
         buildConfigField("String", "GIT_HASH", "\"$hashGit\"")
+        // Prueba de instrumentación para las pruebas físicas J14: pulsa botones por resource-id
+        // (sin coordenadas fijas ni capturas de la pantalla con cámara).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -75,4 +78,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.fragment:fragment:1.8.5")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    // Solo para las pruebas físicas por ADB (src/androidTest): pulsar por resource-id.
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

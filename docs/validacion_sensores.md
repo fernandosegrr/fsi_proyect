@@ -182,3 +182,30 @@ Segundo intento en el piso con el cable USB, 21 de octubre de 2026, 20:57 a 21:0
 - Con esta explicación, el atasco del primer intento (giro 4, 24.3 grados) también pudo ser por manipular el carro o el cable; no se confirmó cuál.
 - LOOP en el piso, resumen de las tres mediciones con la app conectada: carro en el aire 3.251 ms y cero excesos; reposo 8.431 ms y dos excesos; piso 6.783 ms y dos excesos. Siguen siendo pocos datos: el límite de 5 ms NO pasa y la causa se mantiene como el tráfico de la app (sin demostrar).
 - Cierre: app cerrada con force-stop, stay_on_while_plugged_in=2. Sin cambios en firmware; la NVS cambió solo por el aprendizaje normal de ANT.
+
+## J14 con movimiento (27 de octubre de 2026)
+
+Condiciones: FW:453ed20-20261027 y APP:0.4-453ed20 (después se instaló la APK final de J14 con los cambios de código de esta sesión); teléfono Huawei ELS-NX9; carro con pilas y powerbank; app manejada por ADB con identificadores estables. No se vieron ni guardaron imágenes de la cámara; solo se usaron las pantallas Sensores y Calibración. El dueño colocó el carro y las cajas y dio LISTO antes de cada corrida.
+
+B0 a B3, sin movimiento: versiones y sensores correctos; ANT 126,144,20,20 ms al inicio (B1 terminó en 126,142,20,20; B3 no volvió a leer ANT). Tres bloques de cuatro giros a la derecha en B1 y dos bloques por lado en B3, todos dentro de ±3°. B2 no se midió porque la calibración instalada no publica los ángulos de cada giro hasta terminar los ocho.
+
+B4, recta de 150 cm, 4 corridas:
+- Autoridad APAGADA: desvío lateral ~15 cm y ~20 cm; 150 cm recorridos; 5 s; 0 esquivas; sin paros ni eventos STOP/TOF.
+- Autoridad ENCENDIDA: desvío ~5.5 cm y ~18 cm; 150 cm recorridos; 5 s; 0 esquivas; sin paros.
+- 4 de 4 rutas terminadas; 0 falsos paros en piso vacío.
+
+B5, ruta en L (100 cm, giro 90° a la derecha, 100 cm), 3 corridas:
+- Con giroscopio: 7 s y 8 s, 0 esquivas, giros de ~91° y ~90°; posición final estimada x=1406 mm, y=209 mm, rumbo 91° y x=1389 mm, y=203 mm, rumbo 90°.
+- Sin giroscopio: 7 s, 0 esquivas, giro por tiempo ~93°; posición final estimada x=1394 mm, y=244 mm, rumbo 93°.
+- Las 3 corridas válidas terminaron. El dueño no dio una cifra de error final; contra el objetivo y=0, las estimaciones de navegación dejan un error lateral de ~20 a 24 cm. Una corrida previa con un sillón al final de la L hizo una esquiva y terminó con rumbo 324°; no se cuenta como corrida limpia.
+
+B6, caja delante, ruta Recta 200 cm, 4 corridas:
+- Con la caja a 40 cm la app no arrancó: el aprendizaje del piso detectó la caja y pidió despejar; el carro no se movió. Es una protección de la app, no un fallo.
+- La caja quedó finalmente a ~100 cm del frente (el dueño aclaró que todas las corridas siguientes fueron a ~100 cm, no a 70 cm).
+- Autoridad APAGADA: corrida 1, 23 s, 2 esquivas, sin tocar la caja; terminó en x=394 mm, y=5 mm, rumbo 117°, pero al reincorporarse detectó un obstáculo lejano y no volvió limpio. Corrida 2, 56 s, 3 esquivas, terminó en «Necesito ayuda: toma el control» en el punto 3/10; el dueño cree que sí tocó la caja.
+- Autoridad ENCENDIDA: corrida 3, 26 s, 2 esquivas, sin tocar; x=393 mm, y=-12 mm, rumbo 119° (cerca del objetivo pero mal orientado). Corrida 4, 15 s, 1 esquiva, sin tocar; x=409 mm, y=6 mm, rumbo 0°, pero el dueño la vio 40 cm a la derecha de la línea recta.
+- El algoritmo de esquiva no hizo el rodeo limpio que el dueño esperaba (90°, 50 cm, 90°, 50 cm, 90°): durante la reincorporación se enredó con obstáculos lejanos. Es un fallo real de la vuelta a la ruta, no falta de espacio.
+
+B7, B8, B9 y B2: no realizadas por decisión del dueño el 27 de octubre. B7 se consideró cubierta por B6 porque la caja ya estaba a ~100 cm; B8 (caja lateral) y B9 (corte de WiFi) se cancelaron; B2 queda NO MEDIDA. Por eso no se puede afirmar que el watchdog de WiFi, la caja lateral o la calibración nueva por bloques estén validados físicamente en J14.
+
+B10: el dueño decidió que la Autoridad del láser quede siempre ENCENDIDA. No es una conclusión de una comparación pareada B4-B8; es una decisión del dueño y así se registra. Se cambió el valor por defecto de la app a true.

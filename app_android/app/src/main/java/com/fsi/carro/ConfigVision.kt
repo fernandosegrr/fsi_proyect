@@ -30,6 +30,14 @@ class ConfigVision(contexto: Context) {
         const val PORCENTAJE_FILA_MAXIMO = 100   // la barra de fila mínima va de 0 a 100 %
         const val GRUPOS_MAXIMO = 4              // K máximo (OBS_MAX_GRUPOS en el código en C)
         const val APRENDIZAJE_MAXIMO_MIL = 100   // tope de la barra de aprendizaje (el máximo del detector es 1000)
+        // J14: la franja de referencia de 80 % del ancho incluía el borde izquierdo del propio carro
+        // (la cámara lo marca fijo) y el aprendizaje del piso descartaba 8 % con el piso uniforme.
+        // Con 60 % la franja toma solo el piso del centro del camino.
+        const val REF_ANCHO_MIL_APP = 600
+        // J14: en el piso real, con la franja de referencia al 60 %, K=4 seguía descartando sombras
+        // del propio carro; con K=3 el piso uniforme quedó con descartado_pct=0. Es un valor de la app;
+        // el valor por defecto del núcleo en C sigue siendo 4.
+        const val GRUPOS_PISO_APP = 3
 
         // Valores de partida del corredor (los mismos de corredor.h: ANCHO_CARRO_CM, ALTURA_CAMARA_CM, INCLINACION_GRADOS, FOV_GRADOS...). SIN MEDIR.
         const val CORREDOR_ANCHO_CM = 18
@@ -65,7 +73,7 @@ class ConfigVision(contexto: Context) {
 
     /** K: cuántos colores distintos puede tener el piso (baldosas, vetas...). */
     var gruposPiso: Int
-        get() = preferencias.getInt("grupos_piso", defecto[ObstaculosNativa.CFG_GRUPOS_PISO]).coerceIn(1, GRUPOS_MAXIMO)
+        get() = preferencias.getInt("grupos_piso", GRUPOS_PISO_APP).coerceIn(1, GRUPOS_MAXIMO)
         set(valor) = preferencias.edit().putInt("grupos_piso", valor.coerceIn(1, GRUPOS_MAXIMO)).apply()
 
     /** Velocidad de aprendizaje del modelo del piso, en milésimas por cuadro (0 = no aprende). */
@@ -200,6 +208,7 @@ class ConfigVision(contexto: Context) {
         config[ObstaculosNativa.CFG_FILA_MINIMA_MIL] = filaMinimaMil
         config[ObstaculosNativa.CFG_GRUPOS_PISO] = gruposPiso
         config[ObstaculosNativa.CFG_APRENDIZAJE_MIL] = aprendizajeMil
+        config[ObstaculosNativa.CFG_REF_ANCHO_MIL] = REF_ANCHO_MIL_APP
         return config
     }
 }
