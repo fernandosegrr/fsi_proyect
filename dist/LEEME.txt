@@ -3,7 +3,8 @@ Entrega J15 en preparacion - Carro FSI
 
 APK: APP:0.4-074c9fd (14,852,386 bytes)
 SHA-256: 36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA
-Compilada desde el commit limpio 074c9fd. Pendiente instalar y probar en el carro.
+Compilada desde el commit limpio 074c9fd. Instalada y verificada por hash en etapa 4 de J15.
+Pendiente la prueba fisica del esquive; aun no se presenta como validada en el carro.
 
 Firmware: FW:453ed20-20261027 (1,031,712 bytes)
 SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E
