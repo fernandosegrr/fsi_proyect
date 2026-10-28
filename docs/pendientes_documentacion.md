@@ -20,8 +20,8 @@
 
 | Asunto | Descripción del pendiente | Acción requerida por el equipo |
 |---|---|---|
-| **Integrantes del equipo** | En los documentos y portada del manual se conserva como `[PENDIENTE: nombres del equipo]`. | El equipo debe proporcionar la lista completa de nombres y matrículas antes de la entrega formal del 1 de diciembre de 2026. |
-| **Licencia del repositorio** | El repositorio es público en GitHub (`github.com/fernandosegrr/fsi_proyect`), pero carece de archivo `LICENSE` formal. | El equipo debe definir y registrar la licencia deseada (por ejemplo, MIT, Apache 2.0 o GPLv3). Por regla, no se agrega ninguna licencia de manera autónoma. |
+| **Integrantes del equipo** | Se incorporaron los 4 integrantes del equipo (Jaime Fernando Guerrero Segoviano, Melanie Contreras Solis, Vitto Eduardo Rangel Fortuna, Azul Abril Cadena Campos) en README, portada del manual y documentación. | Resuelto el 27 de octubre de 2026. |
+| **Licencia del repositorio** | Se incorporó la licencia formal MIT con titular Jose Ruben Guerrero Esparza (año 2026) en archivo `LICENSE` y referencia en README. | Resuelto el 27 de octubre de 2026. |
 
 ---
 
@@ -29,7 +29,7 @@
 
 | Archivo de referencia | Parámetro o elemento | Duda técnica | Impacto |
 |---|---|---|---|
-| `firmware_carro/config.h:148` | `PIN_KEEPALIVE 2` | El código emite un pulso en alto cada 2 s (50 ms de duración) en el GPIO 2 para evitar que la powerbank entre en modo reposo. Falta confirmar qué circuito físico o carga resistiva está conectada a dicho pin. | Riesgo de que ciertas powerbanks se apaguen durante recorridos autónomos si la carga no es suficiente. |
+| `firmware_carro/config.h:148` | `PIN_KEEPALIVE 2` | El código emite un pulso en alto cada 2 s (50 ms de duración) en el GPIO 2 para evitar que la powerbank entre en modo reposo. Existe una discrepancia documental previa sobre si el pulso es activo en alto o en bajo. | PENDIENTE de confirmación física con osciloscopio o multímetro con el carro encendido. |
 | `firmware_carro/config.h:96, 126` | `PERFIL_AUTO_BALANCE_DEFECTO` | El balance de motores para el perfil AUTO (207 motor izquierdo, 210 motor derecho) se calculó escalando el balance validado de 255. Está **NO MEDIDO** en pista física. | El carro podría presentar una ligera deriva lateral acumulada al avanzar a baja velocidad en modo autónomo. |
 | Chasis y consumo | Corriente total pico del sistema | El consumo con los cuatro motores bloqueados y la transmisión WiFi simultánea no se ha medido con osciloscopio o multímetro (**NO MEDIDO**). | Recomendación de usar pilas alcalinas nuevas de buena calidad para evitar caídas de tensión en el driver. |
 
@@ -37,9 +37,13 @@
 
 ## 4. Estado de fotografías y capturas de pantalla
 
-Todas las 17 imágenes catalogadas en `docs/lista_de_fotos.md` permanecen como **PENDIENTES** debido a que en el repositorio no existen fotos del hardware real (únicamente esquemas vectoriales generados por software):
-- 9 fotografías del chasis físico, cableado, placas y escenario de pruebas.
-- 8 capturas de pantalla de la interfaz de usuario de la app Android.
+De las 17 imágenes catalogadas en `docs/lista_de_fotos.md`, 9 imágenes están **DISPONIBLES** (4 fotos del hardware físico y 5 capturas de la app Android) y 8 permanecen **PENDIENTES**:
+- 4 fotografías del carro disponibles (`FOTO_01` frontal, `FOTO_02` lateral, `FOTO_03` superior y `FOTO_04` electrónica) procesadas a JPEG sin metadatos EXIF.
+- 5 capturas de pantalla de la app Android disponibles (`FOTO_10` inicio conectado, `FOTO_12` editor rutas, `FOTO_14` calibración recta, `FOTO_15` calibración giro y `FOTO_17` ajustes red) capturadas vía ADB.
+- 5 fotografías de hardware pendientes (`FOTO_05` detalle sensores, `FOTO_06` cámara Freenove, `FOTO_07` portapilas, `FOTO_08` powerbank, `FOTO_09` escenario de pruebas).
+- 3 capturas de app pendientes (`FOTO_11` control manual con video, `FOTO_13` semiautónomo en ejecución, `FOTO_16` visión/detección) omitidas conforme a las reglas de seguridad (prohibido ejecutar rutas/movimiento y visualizador de video en vivo).
+
+
 
 ---
 
