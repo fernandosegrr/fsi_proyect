@@ -21,3 +21,33 @@ La persona conserva la responsabilidad de supervisar el espacio y poder detener 
 El movimiento recto se estima a partir del tiempo, no de una medición directa de distancia mediante encoders. El giroscopio ayuda a estimar el rumbo; no mide directamente el desplazamiento lateral. La corrección de pose y reincorporación de J15 cuenta con resultados de simulación, pero su validación física permanece **NO MEDIDA**.
 
 Dónde está en el código: `firmware_carro.ino`, `config.h`, `camara_prueba.ino`, `navegador.c`.
+
+## Responsabilidad de cada enlace
+
+El enlace de control transporta órdenes y respuestas entre la aplicación y la DevKit. El flujo de video transporta imágenes entre el teléfono y la cámara. Ambos utilizan la misma red local, pero son servicios distintos: el estado de uno no prueba el del otro. Esta separación permite diagnosticar, por ejemplo, un carro controlable sin imagen o una imagen disponible mientras falla el control.
+
+La comunicación de los sensores montados en el carro se realiza localmente con la DevKit. I2C comparte las líneas de datos y reloj entre dispositivos compatibles, mientras que el puente H recibe señales de mando para cada lado de los motores. Un fallo del bus puede afectar a las lecturas aunque la red inalámbrica siga funcionando.
+
+## Qué sucede durante una ruta
+
+El operador construye una secuencia de posiciones en la cuadrícula. El núcleo interpreta esa secuencia, determina la maniobra correspondiente y actualiza una pose estimada: posición y orientación calculadas. La aplicación traduce las decisiones del núcleo en órdenes para el carro y aporta información de los sensores y de la cámara cuando están disponibles.
+
+La DevKit sigue siendo responsable de ejecutar las órdenes y de sus protecciones locales. La cámara, por su parte, no maneja el puente H. Esta división aclara dónde investigar un problema: una orden equivocada puede originarse en la planificación o en su traducción; una orden correcta sin movimiento puede apuntar al enlace, el firmware, la alimentación o la mecánica.
+
+## Señales, energía y referencia eléctrica
+
+Una señal de control indica al driver lo que debe hacer; no es la fuente de energía principal de los motores. Las pilas proporcionan esa energía a través del driver. La tierra común entre el controlador y el driver permite que el nivel de las señales tenga una referencia compartida. La conexión de tierras debe comprobarse con el sistema apagado y de acuerdo con el esquema del montaje.
+
+La cámara tiene una batería portátil distinta y se comunica por WiFi. Que ambas placas usen USB no convierte sus baterías en una sola fuente. Tampoco debe suponerse que las baterías y el portapilas tienen el mismo estado de carga; un circuito puede funcionar mientras otro queda sin energía.
+
+## Separación entre decisión y observación
+
+Una imagen es una observación del entorno; una región marcada por el procesamiento es una interpretación de esa imagen. La distancia del láser es otra observación, limitada a la zona que cubre su orientación. La fusión combina información disponible según reglas del software, pero no garantiza una visión completa de todo el espacio alrededor del carro.
+
+La pose de navegación también es una interpretación. En un tramo recto, el programa estima la distancia con el tiempo y una calibración; el giroscopio aporta información del giro. Si una rueda patina, la distancia estimada puede diferir de la real sin que el sistema conozca inmediatamente esa diferencia.
+
+## Secuencia de fallos para razonar
+
+Considere una ruta iniciada con video ausente. Primero hay que distinguir si el modo elegido exige cámara y qué protección se activa con esa configuración. Después se verifica la alimentación de la cámara, su conexión a la red y la recepción de imágenes. No es correcto concluir que el puente H está averiado solo porque no aparece video.
+
+Si hay video pero la orden de avance no produce movimiento, la investigación cambia: conexión de control, estado del carro, alimentación de motores, señales al driver y mecánica son áreas distintas de comprobación. En ambos casos se detiene el carro antes de manipular cables.

@@ -1,5 +1,9 @@
 # Plan editorial del manual v2
 
+## Ampliación solicitada
+
+El lector espera un manual mucho más detallado, con una extensión cercana a 200 páginas. La ampliación debe aportar procedimientos, ejemplos explicados, decisiones, diagnóstico, interpretación de telemetría, calibración, pruebas y trazabilidad; no debe obtenerse repitiendo texto ni copiando documentos completos. La cifra es una meta editorial y no una autorización para inventar datos. Cada bloque ampliado debe contrastarse con el código o los reportes y distinguir configuración, resultado histórico, simulación y medición pendiente. El borrador previo de 22 páginas es un resumen insuficiente para esta nueva expectativa y no debe publicarse como entrega final.
+
 Base: `origin/main` en c6ee161. Se redactará contenido propio por capítulo; las fuentes citadas son puntos de partida y sus afirmaciones se contrastarán con el código y los reportes antes de incorporarlas. Las cifras de simulación no se presentarán como mediciones físicas.
 
 ## Estructura y fuentes

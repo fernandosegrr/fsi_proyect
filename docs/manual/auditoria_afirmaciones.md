@@ -20,6 +20,7 @@ Esta auditoría es parcial; no equivale a una revisión completa de los capítul
 - Vigilancia, `firmware_carro/config.h:138-143`: 1000 ms para comunicación y 5000 ms para watchdog de hardware son valores de configuración, no mediciones universales de tiempo de respuesta.
 - Vigilancia, `firmware_carro/carro.c:320-335,506-524,619-625`: PING y consultas de sensores no renuevan el temporizador, pero texto desconocido y otros mensajes pueden renovarlo; el giro por ángulo tiene supervisión propia. Se corrigió el borrador que atribuía el reinicio exclusivamente a órdenes válidas de movimiento.
 - Percepción, `docs/obstaculos.md:77-110`: el modelo admite varios colores y documenta que una pared que llena la imagen puede reaprenderse como piso. `docs/fusion.md:20-30` describe la prioridad de color y el aumento de severidad por el modelo.
+- Calibración histórica, `docs/calibracion.md:3-4` afirma que no había IMU; `nucleo_c/navegador.h:15,187-190` y `firmware_carro/config.h:156-177` documentan el giroscopio en la implementación posterior. Se conserva la estimación de distancia por tiempo y se describe el rumbo observado por el giroscopio.
 
 ## Fuentes revisadas por capítulo
 
@@ -37,3 +38,7 @@ Esta auditoría es parcial; no equivale a una revisión completa de los capítul
 - Desarrollo y solución de problemas: `docs/bitacora.md`, `docs/historia.md`, `docs/camara_prueba.md`, `docs/reporte_J15.md` y `docs/conexiones.md`; se omiten justificaciones categóricas que no quedaron respaldadas por mediciones.
 
 No se corrigió ningún documento fuente ni se realizaron pruebas físicas. Esta relación no equivale a un ensayo nuevo del sistema.
+
+## Nota adicional de seguridad en compilación
+
+`scripts/cargar.ps1:12-18` advierte que la identificación automática en los modos baseline y camara puede cargar una sonda y sobrescribir el firmware de una placa no reconocida. `-SoloCompilar` se detiene antes de esa etapa. Se documenta esta distinción para evitar describir toda detección como no destructiva.

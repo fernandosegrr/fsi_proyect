@@ -51,8 +51,7 @@ class Manual(SimpleDocTemplate):
             level,key = flowable._outline
             self.canv.bookmarkPage(key)
             self.canv.addOutlineEntry(flowable.getPlainText(), key, level=level, closed=False)
-            if level == 0:
-                self.notify('TOCEntry', (level, flowable.getPlainText(), self.page, key))
+            self.notify('TOCEntry', (level, flowable.getPlainText(), self.page, key))
 
 def heading(text, level, key):
     p=Paragraph(html_text(text),styles['h1' if level == 0 else 'h2'])
@@ -79,7 +78,7 @@ figures = {
 }
 
 def add_figure(story, name, caption, number):
-    story.append(Paragraph(f'La Figura {number} resume este aspecto del sistema.', styles['body']))
+    story.append(Paragraph(f'La Figura {number} presenta: {html.escape(caption)}', styles['body']))
     pic=sized(FIG/(name+'.png'), 450, 250)
     story.append(KeepTogether([pic, Paragraph(f'Figura {number}. {html.escape(caption)}',styles['caption'])]))
 
