@@ -11,7 +11,7 @@
 - Melanie Contreras Solis
 - Vitto Eduardo Rangel Fortuna
 - Azul Abril Cadena Campos  
-**Manual completo en PDF:** [`docs/manual/Manual_Proyecto_Carro_FSI.pdf`](file:///e:/Dev/fsi_proyecto/docs/manual/Manual_Proyecto_Carro_FSI.pdf)  
+**Manual técnico en PDF:** [Manual del Carro FSI](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
 **Centro de documentación:** [`docs/`](file:///e:/Dev/fsi_proyecto/docs/README.md) e [`docs/index.md`](file:///e:/Dev/fsi_proyecto/docs/index.md)  
 
 ---
@@ -187,5 +187,5 @@ Para consultar el diagnóstico de incidencias, véase [`docs/solucion_problemas.
 
 ## 8. Licencia
 
-Este proyecto se distribuye bajo la Licencia MIT (titular Jose Ruben Guerrero Esparza, 2026). Consulte el archivo [`LICENSE`](LICENSE) para más detalles.
+Este proyecto se distribuye bajo la Licencia MIT (titular Jaime Fernando Guerrero Segoviano, 2026). Consulte el archivo [`LICENSE`](LICENSE) para más detalles.
 

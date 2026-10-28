@@ -54,7 +54,7 @@ Análisis minucioso archivo por archivo con explicación pedagógica, estructura
 ### 2.4 Figuras, imágenes y manual
 - [`docs/figuras/`](file:///e:/Dev/fsi_proyecto/docs/figuras/README.md): Catálogo y scripts reproducibles de las 12 figuras técnicas en PNG y SVG.
 - [`docs/imagenes/`](file:///e:/Dev/fsi_proyecto/docs/imagenes/README.md): Fotografías físicas y capturas reales del sistema.
-- [`docs/manual/`](file:///e:/Dev/fsi_proyecto/docs/manual/): Script generador y documento PDF consolidado para entrega y exposición.
+- [Manual técnico del Carro FSI](manual/Manual_Proyecto_Carro_FSI.pdf): arquitectura, operación, resultados y límites del proyecto.
 
 ---
 
