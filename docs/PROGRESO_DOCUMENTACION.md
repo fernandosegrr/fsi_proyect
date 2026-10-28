@@ -17,8 +17,8 @@
 | **Fase 1** | Ocho referencias técnicas | **Completado** | En `docs/referencia/` (`hardware.md`, `firmware.md`, `nucleo.md`, `app.md`, `camara.md`, `compilacion.md`, `pruebas.md`, `simulador.md`), commit `3f3cb02`. |
 | **Fase 2** | Figuras del manual | **Completado** | 12 figuras generadas en PNG (170 dpi) y SVG con `docs/figuras/generar_figuras.py`. Catálogo en `catalogo.py` y ficha en `docs/figuras/README.md`. |
 | **Fase 3** | Imágenes y lista de fotos | **Completado** | Creados `docs/imagenes/README.md`, `docs/lista_de_fotos.md` (17 fotos/capturas catalogadas) y `docs/pendientes_documentacion.md`. |
-| **Fase 4** | Documentación en el repo | **Pendiente** | README principal, READMEs por carpeta, docs temáticos y recorridos de código en `docs/codigo/`. |
-| **Fase 5** | Manual en PDF | **Pendiente** | Script generador `docs/manual/generar_manual.py` y PDF final verificado visualmente (<15 MB). |
+| **Fase 4** | Documentación en el repo | **Completado** | Creados README principal, READMEs por carpeta (7), documentos temáticos (11) y recorridos de código en `docs/codigo/` (10). Script de validación de enlaces en `docs/verificar_enlaces.py`. |
+| **Fase 5** | Manual en PDF | **En progreso** | Script generador `docs/manual/generar_manual.py` y PDF final verificado visualmente (<15 MB). |
 | **Fase 6** | Auditoría y cierre | **Pendiente** | Verificación de ≥40 afirmaciones técnicas, escaneo de secretos y preparación para entrega. |
 
 ---
