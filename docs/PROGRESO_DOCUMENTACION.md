@@ -18,8 +18,8 @@
 | **Fase 2** | Figuras del manual | **Completado** | 12 figuras generadas en PNG (170 dpi) y SVG con `docs/figuras/generar_figuras.py`. Catálogo en `catalogo.py` y ficha en `docs/figuras/README.md`. |
 | **Fase 3** | Imágenes y lista de fotos | **Completado** | Creados `docs/imagenes/README.md`, `docs/lista_de_fotos.md` (17 fotos/capturas catalogadas) y `docs/pendientes_documentacion.md`. |
 | **Fase 4** | Documentación en el repo | **Completado** | Creados README principal, READMEs por carpeta (7), documentos temáticos (11) y recorridos de código en `docs/codigo/` (10). Script de validación de enlaces en `docs/verificar_enlaces.py`. |
-| **Fase 5** | Manual en PDF | **En progreso** | Script generador `docs/manual/generar_manual.py` y PDF final verificado visualmente (<15 MB). |
-| **Fase 6** | Auditoría y cierre | **Pendiente** | Verificación de ≥40 afirmaciones técnicas, escaneo de secretos y preparación para entrega. |
+| **Fase 5** | Manual en PDF | **Completado** | Generado `docs/manual/Manual_Proyecto_Carro_FSI.pdf` (76 páginas, 1.77 MB < 15 MB) mediante script reproducible `generar_manual.py` con dos pasadas, índice paginado, 12 figuras vectoriales y recuadros de fotos pendientes. |
+| **Fase 6** | Auditoría y cierre | **Completado** | 42 afirmaciones técnicas auditadas (100% de éxito), cero enlaces rotos, escaneo de secretos sin incidencias y verificación de diff estricta de solo documentación. |
 
 ---
 
