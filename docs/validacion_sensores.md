@@ -215,3 +215,13 @@ Cierre de J14, 27 de octubre de 2026, ~15:10:
 - El firmware de entrega es FW:453ed20-20261027 (1,031,712 bytes, SHA-256 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E), cargado en la Etapa 4. La lectura final por Sensores no se pudo repetir porque el punto de acceso CarroFSI no estaba visible y no había puerto COM; no se inventa ese resultado.
 - El teléfono quedó con la app cerrada por am force-stop, stay_on_while_plugged_in=2, pantalla encendida, WiFi habilitado y batería al 82 % cargando por USB. Quedó en la red normal INFINITUM porque CarroFSI no estaba visible; no se escribió ninguna contraseña ni PIN. El carro quedó quieto y apagado.
 - Se conservan solo capturas de Sensores y Calibración. Dos capturas de la pantalla de rutas incluyeron por error la vista en vivo de la cámara y se borraron inmediatamente; no se guardaron ni publicaron imágenes reales.
+
+J15 esquive con movimiento (27 de octubre de 2026)
+
+Estado físico: NO MEDIDO. Cero corridas con movimiento en J15. El dueño pidió el reporte al terminar la instalación y realizará las pruebas con otro modelo. No se obtuvo resultado del criterio de al menos 5/6 corridas sin tocar la caja y con desvío final menor de 25 cm. No se creó v1.1.
+
+Comparación real disponible: J14 B6, corrida 2 con probable contacto y AYUDA 3/10; corrida 4 sin contacto, pero aproximadamente 40 cm a la derecha. No hay una nueva medición real para afirmar que esas fallas se corrigieron en el carro.
+
+Simulación J15: PASA el escenario de 400 rutas; 400/400 terminadas sin contacto y a menos de 20 cm. Media/p50/p95 lateral: antes 13.2/13.5/21.9 cm, después 1.9/1.7/4.6 cm. No se cuentan como corridas físicas. El modelo no reproduce exactamente los 40 cm ni las esquivas múltiples observadas en J14.
+
+Instalación sin movimiento: PASA. APP:0.4-074c9fd instalada con adb install -r y bytes verificados contra dist/. FW no modificado; lectura actual de FW, sensores y ANT: NO MEDIDA/PENDIENTE para la continuación. El teléfono se dejó con la app cerrada, stay-on=2 y pantalla apagada. Detalle, hashes y límites en docs/reporte_J15.md.

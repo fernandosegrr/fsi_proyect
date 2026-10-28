@@ -4,7 +4,15 @@ Carro de 4 ruedas con ESP32, controlado desde el celular por WiFi y
 WebSocket. Este repositorio tiene el firmware, su lógica en C, un módulo para
 convertir rutas de una cuadrícula en pasos con tiempos, y las pruebas de PC.
 
-## Estado J14 (27 de octubre de 2026)
+## Estado J15 (27 de octubre de 2026)
+
+- Se corrigió la pose para integrar el rumbo recibido por SENS durante avances. El firmware no cambió y la Autoridad del láser sigue encendida por defecto.
+- Simulación B6, 400 rutas: error lateral medio 13.2 → 1.9 cm y p95 21.9 → 4.6 cm; 400/400 corregidas sin contacto y a menos de 20 cm. Son resultados simulados; la prueba física J15 queda NO MEDIDA y el dueño la continuará con otro modelo.
+- Últimas pruebas de PC: núcleo 21 programas/1598 casos, firmware 447, servidor falso 46 y verificador 13; cero fallos. Estrés de 100000 comandos sin STOP perdido; sanitizadores success en 074c9fd. No se repitieron las pruebas durante el cierre documental por indicación del dueño.
+- APK instalada y verificada por hash: APP:0.4-074c9fd, disponible en dist/. FW conservado: FW:453ed20-20261027; falta su lectura actual en Sensores. v1.1 no se creó; v1.0 permanece intacta.
+- Reporte: docs/reporte_J15.md. Guía y límites de las pruebas pendientes: docs/guia_conexion_J15.md. Entrega vigente: docs/entrega.md.
+
+## Antecedente J14 (27 de octubre de 2026)
 
 - El dueño detuvo las pruebas físicas que faltaban: B0 a B6 se hicieron; B7, B8, B9 y B2 no se realizaron por su decisión. No se presentan como validadas.
 - La Autoridad del láser queda siempre encendida por decisión del dueño. El valor por defecto de la app es verdadero; el núcleo en C conserva 0 para sus pruebas.

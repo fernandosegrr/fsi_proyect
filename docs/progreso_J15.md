@@ -84,3 +84,15 @@ Incidente de verificación: verificar_version.py seguía leyendo cuando se resta
 Tras el segundo LISTO del dueño, ADB recuperado. Se mantuvo la pantalla encendida hasta completar la lectura. scripts/verificar_version.py --solo-apk --apk dist/carro_fsi_0.4-074c9fd.apk --revision HEAD: PASA; APP:0.4-074c9fd, versionName 0.4, versionCode 3, APK instalada idéntica byte por byte al build publicado y fuentes versionadas limpias (solo este registro documental estaba pendiente). Por tanto su SHA-256 es 36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA. El verificador declaró FW PENDIENTE, como corresponde a 1B.
 
 Cierre de etapa 4 comprobado: app cerrada con am force-stop y sin proceso; stay-on restaurado a 2 y pantalla Asleep/OFF, igual al inicio. No se cambió WiFi ni se mandó movimiento. No se leyeron ni guardaron imágenes de cámara, ni se necesitó ningún diálogo de instalación. La etapa termina y espera EMPIEZA B tras cambiar a configuración 2; la prueba física todavía NO MEDIDA.
+
+Fase 5. No ejecutada por decisión del dueño.
+
+Tras la etapa 4 el dueño pidió el reporte y señaló que correrá las pruebas con otro modelo. Cero corridas físicas J15; el criterio 5/6 queda NO MEDIDO. No se manda movimiento ni se vuelve a operar el teléfono en este cierre. La continuación y sus condiciones quedan en reporte_J15.md y guia_conexion_J15.md; no se transfiere autorización mediante mensajes a otros chats.
+
+Fase 6. Cierre documental y reporte, con pruebas pendientes.
+
+Se crea docs/reporte_J15.md y se actualizan validacion_sensores.md, limites_conocidos.md, entrega.md, README, LEEME y bitácora. Se separan resultados simulados, pruebas de software anteriores, instalación comprobada y resultados físicos inexistentes. Por la indicación más reciente del dueño no se repiten las suites ni se inicia la etapa física: los últimos resultados conservados son núcleo 1598, firmware 447, servidor falso 46 y verificador 13, todos sin fallos; estrés sin STOP perdido.
+
+GitHub Actions del último commit con código (074c9fd), ejecución 40613481109, comprobado de nuevo en success. APK de dist/ mantiene su SHA-256 publicado. La auditoría de metadatos del historial encontró cero blobs mayores de 15,000,000 bytes. v1.0 no se mueve y v1.1 no se crea porque falta la prueba física. El cierre se publica solo como documentación, sin afirmar que la etapa 5 pasó ni que se ejecutaron nuevas pruebas.
+
+Auditoría final de 367 archivos versionados: cero coincidencias reales de la contraseña, cuatro incidentales en alfabetos hexadecimales; cero archivos mayores de 15,000,000 bytes, cero archivos prohibidos versionados y cero identidades con correo personal. Ningún cambio en firmware, app, núcleo o scripts durante el cierre; solo documentos y LEEME de la entrega.

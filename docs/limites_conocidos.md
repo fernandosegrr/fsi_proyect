@@ -114,3 +114,11 @@ J10c resuelto en simulación en J14 (no se probó con una caja ancha real): se r
 - La verificación final de FW y APK en Sensores con el carro encendido y conectado quedó pendiente. El APK instalado se verificó por hash (APP:0.4-699fcc5); el FW conserva la versión y el hash de la Etapa 4 (FW:453ed20-20261027). Al cierre el punto de acceso CarroFSI no estaba visible y no había puerto COM.
 - La cámara puede dejar de responder en el puerto HTTP 80 aunque el ping siga funcionando. La recuperación observada fue apagar y encender la cámara y esperar unos 15 s.
 - Los picos del loop de J13 no se volvieron a medir en J14; siguen pendientes de aislar.
+
+J15 — Corrección de pose y validación pendiente (27 de octubre de 2026)
+
+Con giroscopio activo, el avance ahora integra el cambio de rumbo SENS y la reincorporación recibe esa pose corregida. La distancia sigue por tiempo. Un deslizamiento lateral puro no se observa con el giroscopio, y una calibración de velocidad o pivote distinta de la efectiva conserva error de posición.
+
+La simulación B6 pasó 400/400 sin contacto y a menos de 20 cm, con p95 lateral de 4.6 cm frente a 21.9 cm antes. Usa dimensiones y dispersión del pivote supuestas y una cámara aproximada por zonas; no reproduce exactamente los 40 cm ni las esquivas múltiples de B6 real. No demuestra una mejora física ni una precisión longitudinal determinada.
+
+J15 con movimiento queda NO MEDIDO: el dueño continuará las pruebas con otro modelo. El criterio físico 5/6 sigue pendiente; no se crea v1.1. La alternativa de llegar al punto final sin orientación final exacta sigue existiendo cuando la geometría no permite ambas cosas. La APK instalada es APP:0.4-074c9fd; FW conservado FW:453ed20-20261027, pendiente de lectura actual en Sensores. La Autoridad del láser mantiene su valor por defecto encendido. Ver docs/reporte_J15.md.

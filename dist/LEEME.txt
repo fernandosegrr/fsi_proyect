@@ -23,5 +23,5 @@ En J15 no cambio el firmware: NO hace falta cargarlo. Se conserva FW:453ed20-202
 Instalacion: configuracion 1B de docs/guia_conexion_J15.md, solo telefono por USB.
 No se incluye firmware_carro/secretos.h ni ninguna contraseña.
 
-Los resultados simulados J15 estan en docs/progreso_J15.md. El criterio fisico sigue NO MEDIDO.
-La entrega e instalacion J14 se conservan como antecedente en docs/entrega.md y docs/reporte_J14.md.
+Reporte J15: docs/reporte_J15.md. El criterio fisico sigue NO MEDIDO; el dueño continuara
+las pruebas con otro modelo. Entrega vigente: docs/entrega.md. Antecedente: docs/reporte_J14.md.

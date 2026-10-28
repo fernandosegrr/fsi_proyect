@@ -1,114 +1,79 @@
-J14 — Entrega del proyecto Carro FSI
+J15 — Entrega y estado de validación del proyecto Carro FSI
 
-27 de octubre de 2026.
+27 de octubre de 2026, hora de Ciudad de México.
 
-Esta carpeta y dist/ contienen lo necesario para reconstruir, instalar y comprobar la entrega de J14. El reporte completo de pruebas y límites está en docs/reporte_J14.md.
+La APK con la corrección de pose está instalada y verificada. La prueba física del esquive queda NO MEDIDA: el dueño la continuará con otro modelo. Este paquete no acredita que el carro ya cumpla el criterio físico. Reporte completo: docs/reporte_J15.md; antecedente: docs/reporte_J14.md.
 
-1. Contenido de dist/
+1. Contenido publicado de dist/
 
-- carro_fsi_0.4-699fcc5.apk
-  APK de la app. Versión APP:0.4-699fcc5, versionName 0.4, versionCode 3. Tamaño 14,500,144 bytes.
-  SHA-256: C50A9757DE59B1B604680BE9731D8C610F9EC4A66780EB18ECEB558E6E00312A.
+carro_fsi_0.4-074c9fd.apk
+Versión: APP:0.4-074c9fd, versionName 0.4, versionCode 3.
+Tamaño: 14,852,386 bytes.
+SHA-256: 36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA.
 
-- SHA256SUMS.txt
-  El hash de la APK en formato sha256sum, con el nombre de archivo.
+SHA256SUMS.txt contiene solo el hash y nombre de esa APK.
+LEEME.txt resume instalación y estado de validación.
+FIRMWARE_LOCAL.txt identifica el firmware conservado y explica por qué no se publica.
 
-- LEEME.txt
-  Resumen corto de versiones y comandos.
+El binario del firmware NO se publica porque contiene la contraseña del WiFi. Tampoco se publica secretos.h ni original_backup/. Todos los archivos publicados quedan por debajo de 15,000,000 bytes. El APK anterior de J14 se conserva en el historial y en v1.0, no como APK vigente de dist/.
 
-- FIRMWARE_LOCAL.txt
-  Explica que el binario del firmware no se publica y da su versión, tamaño y hash.
+2. Verificar la APK publicada
 
-El binario del firmware, firmware_carro_453ed20-20261027.bin, NO se publica en GitHub porque contiene la contraseña del WiFi del carro como texto. Solo se conserva en la copia local de dist/. Su versión es FW:453ed20-20261027, pesa 1,031,712 bytes y su SHA-256 es 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E. El repositorio publica el código fuente y la APK; el firmware se reconstruye con firmware_carro/secretos.h.
+Desde la carpeta del proyecto, en PowerShell:
 
-Los archivos de dist/ pesan menos de 15 MB. No se incluye firmware_carro/secretos.h ni ninguna contraseña. Para compilar el firmware hace falta crear secretos.h a partir de secretos.ejemplo.h.
+    Get-FileHash dist\carro_fsi_0.4-074c9fd.apk -Algorithm SHA256
 
-2. Verificar la entrega
+Debe coincidir con el SHA-256 de la sección 1. SHA256SUMS.txt también admite sha256sum -c desde dist/ en un entorno que tenga esa herramienta.
 
-En Windows, desde la carpeta del proyecto:
+3. Instalación ya realizada y comprobación
 
-    Get-FileHash dist\carro_fsi_0.4-699fcc5.apk -Algorithm SHA256
+La etapa 4 de J15 instaló con adb install -r, conservando datos. No hace falta reinstalar para continuar las pruebas si la versión sigue siendo la indicada. Nunca desinstalar ni borrar las preferencias.
 
-En Linux, Git Bash o WSL:
+Comando de instalación, si se necesita repetirla con la configuración 1B autorizada:
 
-    cd dist
-    sha256sum -c SHA256SUMS.txt
+    adb install -r dist\carro_fsi_0.4-074c9fd.apk
 
-El hash debe coincidir exactamente con el de la sección 1. Si no coincide, no instalar la APK.
+Comando de verificación sin placa serie:
 
-El firmware no se publica. Si se conserva la copia local, su hash se comprueba con:
+    pruebas_firmware\.venv\Scripts\python.exe scripts\verificar_version.py --solo-apk --apk dist\carro_fsi_0.4-074c9fd.apk --revision HEAD
 
-    Get-FileHash dist\firmware_carro_453ed20-20261027.bin -Algorithm SHA256
+Ese comando ya dio PASA: APK instalada idéntica a la publicada y revisión de fuentes correcta. Deja explícitamente el FW pendiente. Mantener la pantalla encendida hasta que termine de leer la APK y solo después restaurarla. En Sensores debe verse App 0.4 (074c9fd).
 
-y debe coincidir con el de FIRMWARE_LOCAL.txt.
+4. Firmware conservado
 
-3. Instalar la APK
+J15 no cambió firmware_carro ni requirió carga. Versión esperada por el registro anterior: FW:453ed20-20261027.
+Copia local: firmware_carro_453ed20-20261027.bin, 1,031,712 bytes.
+SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E.
 
-Con el teléfono desbloqueado, depuración USB activada y el cable de datos conectado:
+No se comprobó la versión actual en el DevKit durante J15, porque se usó la configuración 1B (solo teléfono). Leerla en Sensores antes de mover el carro; no confundir un hash local con una lectura de la placa. No hace falta conectar ni cargar el DevKit para continuar con este mismo firmware.
 
-    adb install -r dist\carro_fsi_0.4-699fcc5.apk
+5. Pruebas y validación
 
-La instalación debe decir Success y conservar los datos. No se debe desinstalar la app ni borrar sus preferencias. Si Android pide confirmación, aceptar solo la instalación de esta APK.
+Últimas pruebas de software realizadas: núcleo 21 programas/1598 casos, firmware 447, servidor falso 46 y verificador 13; cero fallos. Estrés de 100000 comandos sin STOP perdido y hash de página correcto. Sanitizadores success en el último commit con código, 074c9fd. No se volvieron a ejecutar pruebas durante el cierre documental, por indicación del dueño.
 
-Para comprobar la versión instalada:
+Simulación B6: error lateral medio 13.2 a 1.9 cm, p50 13.5 a 1.7 cm y p95 21.9 a 4.6 cm. Después: 400/400 sin contacto y con error menor de 20 cm. No reproduce exactamente los 40 cm ni las esquivas múltiples de J14 y no demuestra el resultado físico.
 
-    adb shell dumpsys package com.fsi.carro
+Prueba física J15: NO MEDIDA, cero corridas. Pendiente el criterio de al menos 5/6 sin contacto y a menos de 25 cm. No se creó v1.1; v1.0 sigue en eb88151.
 
-Debe aparecer versionName=0.4 y versionCode=3. En la pantalla Sensores de la app debe verse App 0.4 (699fcc5).
+6. Continuación de las pruebas con otro modelo
 
-4. Cargar el firmware
+Usar la configuración 2 y las condiciones de parada de docs/guia_conexion_J15.md. Antes de mover: verificar FW, APP, sensores, ANT, Autoridad del láser encendida y aprender el piso despejado. Continuar con dos rectas de 200 cm sin caja y seis con la misma caja de B6 a aproximadamente 100 cm, registrando contacto, desvío real, lado y diagnósticos. El reporte no inicia ni autoriza por sí mismo una ruta.
 
-El binario del firmware no se publica en GitHub porque contiene la contraseña del WiFi del carro como texto. La copia local de entrega lo conserva, pero para cargarlo se recomienda reconstruirlo desde el código fuente con firmware_carro/secretos.h. Ese archivo no se publica.
+La distancia sigue por tiempo; el giroscopio no observa deslizamiento lateral puro. No se ha demostrado que la corrección resuelva toda la desviación real de B6. Los límites de percepción y de orientación al final de ruta siguen descritos en docs/limites_conocidos.md.
 
-Desde la carpeta del proyecto:
+7. Antes de la demo
 
-    .\scripts\cargar.ps1 nuevo -Puerto COM6
-
-El script compila el firmware desde firmware_carro/, busca la placa, carga y escucha el puerto serie. No cambia la red WiFi de la PC y oculta la contraseña en su salida. Si no hay puerto COM, revisar el cable de datos y el driver CP210x.
-
-Para comprobar la versión por USB:
-
-    pruebas_firmware\.venv\Scripts\python.exe scripts\verificar_version.py --puerto COM6
-
-Debe reportar FW:453ed20-20261027. La comparación completa con la APK instalada también puede usar --apk y --revision.
-
-5. Configuración del teléfono y del carro
-
-- El teléfono debe estar unido a la red CarroFSI del carro. No hace falta escribir la contraseña si la red ya está guardada.
-- El carro debe estar encendido, con pilas y powerbank, y la cámara debe responder.
-- Abrir la app y entrar a Calibración → Sensores. Comprobar FW:453ed20-20261027, App 0.4 (699fcc5), giroscopio y láser funcionando, y la Autoridad del láser encendida.
-- En Ajustes → Red, restablecer las direcciones si el teléfono o el carro cambiaron de red.
-- Aprender el piso en el lugar de la demo antes de ejecutar una ruta.
-- Dejar libre la zona de prueba y probar primero una recta corta y el botón PARO.
-
-6. Checklist antes de la demo
-
-- Cambiar la contraseña del WiFi del carro.
-- Restablecer las direcciones en Ajustes → Red.
-- Volver a configurar el PIN.
-- Poner pilas nuevas.
-- Borrar la copia de OneDrive solo después de confirmar que el push a GitHub terminó bien.
-- Confirmar en Sensores el FW y la APK instalados.
-- Revisar batería del teléfono, cable USB y respuesta de la cámara.
-- Tener el área despejada y el carro quieto antes de moverlo.
-
-7. Límites que se deben decir al usuario
-
-- B7, B8, B9 y B2 no se hicieron por decisión del dueño. No están validados físicamente.
-- B5 no tiene una medición numérica del dueño; el error lateral de ~20 a 24 cm es una estimación de navegación.
-- En B6, la corrida 2 probablemente tocó la caja y la corrida 4 quedó ~40 cm a la derecha. La reincorporación después de esquivar sigue siendo un fallo real.
-- La Autoridad del láser siempre encendida es una decisión del dueño, no una conclusión pareada. El láser ve un punto y puede no ver un objeto central fuera de su haz.
-- J10c está corregido solo en simulación. Falta una caja ancha real.
-- La verificación final de FW por Sensores quedó pendiente porque al cierre el punto de acceso del carro no estaba visible. El APK instalado sí se verificó por hash.
-- El binario del firmware no se publica en GitHub porque contiene la contraseña del WiFi como texto. Se conserva solo en la copia local de dist/; el repositorio publica el código fuente y la APK. Para cargarlo hay que crear firmware_carro/secretos.h y reconstruirlo.
-- La cámara puede dejar de responder en el puerto HTTP 80 aunque el ping siga. Apagar y encender la cámara y esperar unos 15 s.
+Restablecer direcciones en Ajustes → Red.
+Poner pilas nuevas.
+Aprender el piso en el lugar, con la zona despejada.
+Volver a poner el PIN al teléfono.
+Confirmar versiones y sensores con el carro conectado y realizar la validación física pendiente.
+Conservar la contraseña del WiFi y secretos.h por decisión del dueño. No modificar original_backup/ ni la copia antigua de OneDrive.
 
 8. Documentos relacionados
 
-- docs/reporte_J14.md: resultados completos, decisiones e incidentes.
-- docs/progreso_J14.md: bitácora de la sesión J14.
-- docs/validacion_sensores.md: sección J14 de la validación física.
-- docs/limites_conocidos.md: límites vigentes.
-- docs/bitacora.md: decisiones acumuladas.
-- docs/instalar_app_huawei.md: instalación de la app en el Huawei.
-- docs/hardware_cargar.md: carga del firmware por USB.
+Reporte y límites: docs/reporte_J15.md y docs/limites_conocidos.md.
+Registro por fase: docs/progreso_J15.md.
+Conexión y parada: docs/guia_conexion_J15.md.
+Resultados físicos, con estado NO MEDIDO en J15: docs/validacion_sensores.md.
+Antecedentes B4/B5/B6: docs/reporte_J14.md y docs/progreso_J14.md.
