@@ -164,7 +164,7 @@ La versión conservada en J15 es **FW:453ed20-20261027**. Su binario no se publi
 - El perfil AUTO no se calibró en el carro: 207/210 es una extrapolación del ajuste manual (`config.h:96`).
 - El firmware no distingue un comando desconocido de uno válido para el watchdog: un texto raro renueva el reloj y se guarda como comando actual (`carro.c:330-335`). Es el comportamiento original y está anotado en `docs/pendientes_firmware.md`.
 - No se ha medido el consumo, la autonomía ni la temperatura del driver (ver `docs/referencia/hardware.md`).
-- El pulso keep-alive en GPIO 2 conmuta a nivel alto durante 50 ms cada 2 s en el código, pero existe una discrepancia documental sobre su polaridad lógica y no se ha comprobado físicamente con osciloscopio: queda **PENDIENTE de confirmación física con osciloscopio o multímetro con el carro encendido**.
+- La señal keep-alive en GPIO 2 está configurada en el firmware como pulso de mantenimiento periódico, pero queda **no verificada físicamente** (sin medición de osciloscopio ni caracterización del circuito de carga).
 
 ## 13. Para seguir leyendo
 

@@ -29,7 +29,7 @@
 
 | Archivo de referencia | Parámetro o elemento | Duda técnica | Impacto |
 |---|---|---|---|
-| `firmware_carro/config.h:148` | `PIN_KEEPALIVE 2` | El código emite un pulso en alto cada 2 s (50 ms de duración) en el GPIO 2 para evitar que la powerbank entre en modo reposo. Existe una discrepancia documental previa sobre si el pulso es activo en alto o en bajo. | PENDIENTE de confirmación física con osciloscopio o multímetro con el carro encendido. |
+| `firmware_carro/config.h:148` | `PIN_KEEPALIVE 2` | Señal de mantenimiento en GPIO 2 configurada en firmware para emitir un pulso periódico. | No verificado físicamente (polaridad lógica y circuito no determinados). |
 | `firmware_carro/config.h:96, 126` | `PERFIL_AUTO_BALANCE_DEFECTO` | El balance de motores para el perfil AUTO (207 motor izquierdo, 210 motor derecho) se calculó escalando el balance validado de 255. Está **NO MEDIDO** en pista física. | El carro podría presentar una ligera deriva lateral acumulada al avanzar a baja velocidad en modo autónomo. |
 | Chasis y consumo | Corriente total pico del sistema | El consumo con los cuatro motores bloqueados y la transmisión WiFi simultánea no se ha medido con osciloscopio o multímetro (**NO MEDIDO**). | Recomendación de usar pilas alcalinas nuevas de buena calidad para evitar caídas de tensión en el driver. |
 
@@ -37,11 +37,11 @@
 
 ## 4. Estado de fotografías y capturas de pantalla
 
-De las 17 imágenes catalogadas en `docs/lista_de_fotos.md`, 9 imágenes están **DISPONIBLES** (4 fotos del hardware físico y 5 capturas de la app Android) y 8 permanecen **PENDIENTES**:
-- 4 fotografías del carro disponibles (`FOTO_01` frontal, `FOTO_02` lateral, `FOTO_03` superior y `FOTO_04` electrónica) procesadas a JPEG sin metadatos EXIF.
-- 5 capturas de pantalla de la app Android disponibles (`FOTO_10` inicio conectado, `FOTO_12` editor rutas, `FOTO_14` calibración recta, `FOTO_15` calibración giro y `FOTO_17` ajustes red) capturadas vía ADB.
+De las 17 imágenes catalogadas en `docs/lista_de_fotos.md`, 8 imágenes están **DISPONIBLES** (4 fotos del vehículo físico y 4 capturas de la app Android) y 9 permanecen **no incluidas en esta versión**:
+- 4 fotografías del carro disponibles: `FOTO_01` (frontal), `FOTO_02` (lateral en tres cuartos), `FOTO_03` (superior cenital) y `FOTO_04` (perspectiva de tres cuartos), procesadas a JPEG sin metadatos EXIF.
+- 4 capturas de pantalla de la app Android disponibles: `FOTO_10` (inicio conectada), `FOTO_12` (editor de rutas con cuadrícula), `FOTO_15` (calibración de giro en reposo) y `FOTO_17` (ajustes de red).
 - 5 fotografías de hardware pendientes (`FOTO_05` detalle sensores, `FOTO_06` cámara Freenove, `FOTO_07` portapilas, `FOTO_08` powerbank, `FOTO_09` escenario de pruebas).
-- 3 capturas de app pendientes (`FOTO_11` control manual con video, `FOTO_13` semiautónomo en ejecución, `FOTO_16` visión/detección) omitidas conforme a las reglas de seguridad (prohibido ejecutar rutas/movimiento y visualizador de video en vivo).
+- 4 capturas de app no incluidas: `FOTO_11` (control manual con video), `FOTO_13` (semiautónomo en ejecución), `FOTO_14` (calibración de avance; descartada por capturar el panel de control del sistema) y `FOTO_16` (visión/detección).
 
 
 

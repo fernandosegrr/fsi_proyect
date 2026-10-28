@@ -288,8 +288,7 @@ def md_a_xml(texto):
     return txt
 
 def crear_caja_foto_pendiente(foto_id, titulo, encuadre, archivo_sugerido, estilos):
-    """Genera un Flowable visualmente destacado para fotos pendientes de captura."""
-    # Verificar si la foto ya existe en docs/imagenes/
+    """Inserta una foto disponible con escalado proporcional y pie de figura."""
     ruta_real = os.path.join('docs', 'imagenes', archivo_sugerido)
     if os.path.exists(ruta_real):
         try:
@@ -311,24 +310,8 @@ def crear_caja_foto_pendiente(foto_id, titulo, encuadre, archivo_sugerido, estil
             return [Spacer(1, 4), img, caption, Spacer(1, 6)]
         except Exception:
             pass
-
-    # Si no existe, genera el recuadro 'FOTO PENDIENTE'
-    contenido_tabla = [
-        [Paragraph(f"<b>[FOTO PENDIENTE: {foto_id}] — {titulo}</b>", estilos['CeldaEncabezado'])],
-        [Paragraph(f"<b>Encuadre requerido:</b> {encuadre}<br/><b>Archivo esperado:</b> <code>docs/imagenes/{archivo_sugerido}</code>", estilos['CeldaTabla'])]
-    ]
-    t = Table(contenido_tabla, colWidths=[ANCHO_UTIL - 20])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_AVISO),
-        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#fff3cd')),
-        ('BOX', (0, 0), (-1, -1), 1.0, COLOR_AVISO),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-    ]))
-    return [Spacer(1, 4), t, Spacer(1, 6)]
+    # Si no existe, no genera marcadores vacíos ni huecos en la maquetación
+    return []
 
 def crear_figura_flujo(fig_id, catalogo_dict, estilos):
     """Genera un bloque con la figura numerada y su pie."""
@@ -342,7 +325,7 @@ def crear_figura_flujo(fig_id, catalogo_dict, estilos):
 
     # Ajuste de tamaño: ancho proporcional a 460 pt (alto ~258 pt para relación 16:9)
     img = RLImage(ruta_png, width=460, height=258)
-    pie_txt = f"<b>Figura {info.get('num', '')}:</b> {info['titulo']}. {info['resumen']} <i>({info['nota']})</i>"
+    pie_txt = f"**Figura {info.get('num', '')}:** {info['titulo']}. {info['resumen']} *({info['nota']})*"
     pie_par = Paragraph(md_a_xml(pie_txt), estilos['PieFigura'])
 
     return [Spacer(1, 4), img, pie_par, Spacer(1, 6)]
@@ -471,7 +454,7 @@ def procesar_markdown_a_story(contenido_md, catalogo_figuras, estilos):
 
         # Listas con viñeta (- o *)
         if re.match(r'^[\*\-]\s+', linea_strip):
-            texto_item = re.sub(r'^[\*\-]\s+', '&bull; ', linea_strip)
+            texto_item = re.sub(r'^[\*\-]\s+', '• ', linea_strip)
             story.append(Paragraph(md_a_xml(texto_item), estilos['ItemLista']))
             i += 1
             continue
@@ -630,10 +613,10 @@ El vehículo ofrece dos modos principales de interacción operativa:
     # ── CAPÍTULO 4 ──
     c4_elems = []
     c4_elems.extend(crear_figura_flujo('fig_10', catalogo_fig, estilos))
-    c4_elems.extend(crear_caja_foto_pendiente('FOTO_01', 'Vista frontal completa del carro', 'Nivel de chasis mostrando ruedas delanteras, láser ToF y cámara Freenove', 'foto_01_carro_frontal.jpg', estilos))
-    c4_elems.extend(crear_caja_foto_pendiente('FOTO_02', 'Vista lateral del vehículo', 'Perfil mostrando niveles del chasis, ubicación de powerbank y soporte de móvil', 'foto_02_carro_lateral.jpg', estilos))
-    c4_elems.extend(crear_caja_foto_pendiente('FOTO_03', 'Vista superior cenital', 'Distribución de ESP32, driver TC1508A, MPU6050 y cableado', 'foto_03_carro_superior.jpg', estilos))
-    c4_elems.extend(crear_caja_foto_pendiente('FOTO_04', 'Electrónica abierta con rótulos', 'Detalle de placa DevKit, bus I2C común y clema de tierras compartidas', 'foto_04_electronica_abierta.jpg', estilos))
+    c4_elems.extend(crear_caja_foto_pendiente('FOTO_01', 'Vista frontal del carro', 'Encuadre frontal mostrando ruedas Mecanum delanteras, sensor láser ToF VL53L0X al centro y cámara ESP32-WROVER vertical', 'foto_01_carro_frontal.jpg', estilos))
+    c4_elems.extend(crear_caja_foto_pendiente('FOTO_02', 'Vista lateral en tres cuartos', 'Perspectiva lateral derecha mostrando chasis de acrílico de dos niveles, ruedas Mecanum, pack de baterías y luz interna', 'foto_02_carro_lateral.jpg', estilos))
+    c4_elems.extend(crear_caja_foto_pendiente('FOTO_03', 'Vista superior cenital (planta)', 'Vista cenital completa mostrando las cuatro ruedas Mecanum, powerbank trasera, portapilas central, ESP32 DevKit y sensor MPU6050', 'foto_03_carro_superior.jpg', estilos))
+    c4_elems.extend(crear_caja_foto_pendiente('FOTO_04', 'Vista en perspectiva de tres cuartos', 'Perspectiva exterior frontal izquierda del vehículo ensamblado con cámara frontal, sensor ToF y sensores inerciales', 'foto_04_carro_perspectiva.jpg', estilos))
     c4_elems.extend(procesar_markdown_a_story(leer_doc(os.path.join('referencia', 'hardware.md')), catalogo_fig, estilos))
     agregar_capitulo(4, "Hardware, componentes y conexiones", c4_elems)
 
@@ -669,12 +652,10 @@ El vehículo ofrece dos modos principales de interacción operativa:
     # ── CAPÍTULO 9 ──
     c9_elems = []
     c9_elems.extend(crear_figura_flujo('fig_08', catalogo_fig, estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_10', 'Pestaña Inicio de la app', 'Tarjeta de conexión 192.168.4.1, latencia ping y telemetría de sensores', 'foto_10_app_conexion.png', estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_11', 'Pestaña Control Manual', 'Cruceta direccional, visor de video MJPEG, EBRAKE y perfil', 'foto_11_app_manual_video.png', estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_12', 'Pestaña Rutas', 'Lienzo táctil de 20 cm, waypoints marcados y botones Simular/Ejecutar', 'foto_12_app_editor_rutas.png', estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_14', 'Pantalla CalibracionActivity', 'Asistente de calibración de avance recto y balance', 'foto_14_app_calibracion_recta.png', estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_15', 'Pantalla CalibrarGiroActivity', 'Prueba de giro a 90 grados y calibración ms/grado', 'foto_15_app_calibracion_giro.png', estilos))
-    c9_elems.extend(crear_caja_foto_pendiente('FOTO_17', 'Pantalla Ajustes / Red', 'Configuración de direcciones IP y streaming', 'foto_17_app_ajustes_red.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_10', 'Pestaña Inicio de la app (conectada)', 'Estado conectado con carro (latencia 14 ms, perfil Lento) y cámara (latencia 40 ms, 12.5 fps), con accesos rápidos de ruta', 'foto_10_app_conexion.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_12', 'Pestaña Rutas de la app', 'Lienzo táctil con cuadrícula cartesiana de 20 cm, plantilla cuadrada de 5 waypoints y herramientas de edición', 'foto_12_app_editor_rutas.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_15', 'Pantalla Calibrar giro (giroscopio)', 'Interfaz inicial de CalibrarGiroActivity con instrucciones de los 8 giros, botón de inicio y paro de emergencia', 'foto_15_app_calibracion_giro.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_17', 'Pantalla Ajustes / Red', 'Configuración de direcciones WebSocket ws://192.168.4.1/ws y streaming de cámara http://192.168.4.2/stream', 'foto_17_app_ajustes_red.png', estilos))
     c9_elems.extend(procesar_markdown_a_story(leer_doc(os.path.join('referencia', 'app.md')), catalogo_fig, estilos))
     agregar_capitulo(9, "Aplicación móvil Android", c9_elems)
 
@@ -756,7 +737,7 @@ El repositorio oficial se hospeda en GitHub (`github.com/fernandosegrr/fsi_proye
 - **Motor Izquierdo INA / INB:** GPIO 27 / GPIO 26 (`PIN_MOTOR_IZQ_A`, `PIN_MOTOR_IZQ_B`).
 - **Motor Derecho INC / IND:** GPIO 25 / GPIO 33 (`PIN_MOTOR_DER_A`, `PIN_MOTOR_DER_B`).
 - **Bus I2C Sensores:** SDA = GPIO 21, SCL = GPIO 22 (400 kHz).
-- **Keep-alive Powerbank:** GPIO 2 (pulso de 50 ms cada 2 s).
+- **Keep-alive Powerbank:** GPIO 2 (señal de mantenimiento periódica en firmware; no verificado físicamente).
 
 ### Apéndice D: Sumas de verificación criptográficas (SHA-256)
 - APK Oficial: `36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA` (`dist/carro_fsi_0.4-074c9fd.apk`, 14,852,386 bytes).
