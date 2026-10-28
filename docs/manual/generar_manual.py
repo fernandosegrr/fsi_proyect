@@ -95,7 +95,6 @@ def photo_grid(story, paths, labels, number, caption, height):
     story.append(KeepTogether([Paragraph(f'La Figura {number} muestra las vistas correspondientes.', styles['body']),table, Paragraph(f'Figura {number}. {html.escape(caption)}', styles['caption'])]))
 
 def tabla(story, numero, titulo, filas):
-    story.append(Paragraph(f'La Tabla {numero} reúne {html.escape(titulo.lower())}.',styles['body']))
     data=[[Paragraph(html.escape(str(c)), styles['body']) for c in row] for row in filas]
     t=Table(data,colWidths=[145,310],repeatRows=1,hAlign='CENTER')
     t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#d9efeb')),('GRID',(0,0),(-1,-1),.4,colors.HexColor('#b8cbc9')),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6)]))
@@ -126,6 +125,10 @@ def main():
                     code_line=t
                 else:
                     story.append(Paragraph(html_text(' '.join(t.splitlines())),styles['body']))
+                    if n==16 and t.startswith('La Tabla 1 resume'):
+                        tabla(story,1,'Comandos de consulta y control', [('Comando','Función'),('FORWARD / REVERSE','Avanzar / retroceder'),('LEFT / RIGHT','Pivote izquierdo / derecho'),('STOP / EBRAKE','Detener motores'),('PING','Sondeo con respuesta PONG; no renueva el temporizador'),('MODO_AUTO / MODO_MANUAL','Seleccionar perfil'),('GIRAR:<grados>','Solicitar giro por ángulo'),('CAPS? / IMU? / TOF?','Consultar estado de sensores'),('IMU_CAL / IMU_CERO','Calibrar sesgo / fijar referencia angular')])
+                    elif n==16 and t.startswith('La Tabla 2 reúne'):
+                        tabla(story,2,'Asignación de pines', [('GPIO','Función'),('27 / 26','Entradas del driver, lado izquierdo'),('25 / 33','Entradas del driver, lado derecho'),('21 / 22','I2C: SDA / SCL'),('2','Pulso de mantenimiento configurado; efecto físico no medido')])
         for name,caption in figures.get(n,[]):
             fig_num+=1; add_figure(story,name,caption,fig_num)
         if n==3:
@@ -134,9 +137,6 @@ def main():
         if n==9:
             fig_num+=1
             photo_grid(story,['foto_10_app_conexion.png','foto_12_app_editor_rutas.png','foto_17_app_ajustes_red.png'],['Conectado','Reconectando: teléfono fuera de la red','Sin conexión'],fig_num,'Pantallas capturadas en distintos estados de conexión.',205)
-        if n==16:
-            tabla(story,1,'Asignación de pines', [('GPIO','Función'),('27 / 26','Entradas del driver, lado izquierdo'),('25 / 33','Entradas del driver, lado derecho'),('21 / 22','I2C: SDA / SCL'),('2','Pulso de mantenimiento configurado; efecto físico no medido')])
-            tabla(story,2,'Comandos de consulta y control', [('Comando','Función'),('FORWARD / REVERSE','Avanzar / retroceder'),('LEFT / RIGHT','Pivote izquierdo / derecho'),('STOP / EBRAKE','Detener motores'),('PING','Sondeo con respuesta PONG; no renueva el temporizador'),('MODO_AUTO / MODO_MANUAL','Seleccionar perfil'),('GIRAR:<grados>','Solicitar giro por ángulo'),('CAPS? / IMU? / TOF?','Consultar estado de sensores'),('IMU_CAL / IMU_CERO','Calibrar sesgo / fijar referencia angular')])
         if code_line:
             story.append(Paragraph(html_text(code_line),styles['body']))
     doc.multiBuild(story, onFirstPage=header, onLaterPages=header)

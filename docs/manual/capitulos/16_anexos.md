@@ -8,11 +8,11 @@ Los anexos reúnen términos y datos de consulta para usar junto con los capítu
 
 ## Comandos principales
 
-`FORWARD`, `REVERSE`, `LEFT` y `RIGHT` solicitan movimiento. `STOP` y `EBRAKE` detienen. `PING` recibe `PONG` y no mantiene el movimiento. `MODO_AUTO` y `MODO_MANUAL` seleccionan perfiles. `GIRAR:<grados>` solicita un giro; `CAPS?`, `IMU?` y `TOF?` consultan sensores. `IMU_CAL` solicita calibración y `IMU_CERO` establece la referencia angular. La activación de la autoridad del láser se controla con `TOF_USO`.
+La Tabla 1 resume las órdenes principales. La activación de la autoridad del láser se controla con `TOF_USO`.
 
 ## Pines de la DevKit
 
-GPIO 27 y 26: canal izquierdo del driver. GPIO 25 y 33: canal derecho. GPIO 21: SDA del bus I2C. GPIO 22: SCL del bus I2C. GPIO 2: pulso configurado para mantenimiento de la powerbank, con conexión y eficacia físicas **NO MEDIDAS**.
+La Tabla 2 reúne la asignación de los pines empleados por el controlador.
 
 ## Fuentes por tema
 
