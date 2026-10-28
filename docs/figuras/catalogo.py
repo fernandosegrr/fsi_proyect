@@ -1,0 +1,103 @@
+# Catálogo de figuras del manual.
+# Este archivo es la única fuente de títulos y pies. Lo leen
+# docs/figuras/generar_figuras.py y docs/manual/generar_manual.py.
+# No se edita la imagen a mano: se cambia el dibujo y se vuelve a generar.
+
+FIGURAS = [
+    {
+        "id": "fig_01",
+        "archivo": "fig_01_sistema",
+        "titulo": "El sistema completo",
+        "resumen": "Teléfono, ESP32, cámara, sensores, driver y dos circuitos de alimentación.",
+        "capitulo": "Arquitectura del sistema",
+        "nota": "Esquema lógico, no a escala.",
+    },
+    {
+        "id": "fig_02",
+        "archivo": "fig_02_capas_firmware",
+        "titulo": "Capas del firmware",
+        "resumen": "La lógica en C se separa del hardware por las funciones hw_..., y por eso se puede probar en el PC.",
+        "capitulo": "Firmware del carro",
+        "nota": "Esquema de capas, no a escala.",
+    },
+    {
+        "id": "fig_03",
+        "archivo": "fig_03_flujo_comando",
+        "titulo": "Qué pasa cuando llega un comando",
+        "resumen": "Recorrido de un FORWARD desde la app hasta los motores, y el PING que mantiene viva la conexión.",
+        "capitulo": "Firmware del carro",
+        "nota": "Diagrama de secuencia simplificado.",
+    },
+    {
+        "id": "fig_04",
+        "archivo": "fig_04_estados_navegador",
+        "titulo": "Estados del navegador",
+        "resumen": "El navegador siempre está en un estado conocido y solo cambia con reglas explícitas.",
+        "capitulo": "Núcleo de navegación en C",
+        "nota": "En ESPERANDO, TERMINADO y ERROR el comando es siempre STOP.",
+    },
+    {
+        "id": "fig_05",
+        "archivo": "fig_05_pose_j15",
+        "titulo": "Cómo se estima la pose",
+        "resumen": "Antes todo el avance se proyectaba con un rumbo fijo; J15 integra cada tramo con el rumbo del giroscopio.",
+        "capitulo": "Núcleo de navegación en C",
+        "nota": "Concepto; cifras simuladas en docs/reporte_J15.md. La prueba física es NO MEDIDA.",
+    },
+    {
+        "id": "fig_06",
+        "archivo": "fig_06_esquive",
+        "titulo": "Esquivar y volver a la línea",
+        "resumen": "El carro se aparta 40 cm, pasa la caja y busca un punto 30 cm por delante para reincorporarse.",
+        "capitulo": "Núcleo de navegación en C",
+        "nota": "Esquema, no a escala; medidas de navegador.h.",
+    },
+    {
+        "id": "fig_07",
+        "archivo": "fig_07_corredor",
+        "titulo": "El corredor de trayectoria",
+        "resumen": "La franja de la imagen por la que el carro va a pasar se estrecha con la distancia; un objeto fuera de ella solo avisa.",
+        "capitulo": "Núcleo de navegación en C",
+        "nota": "Esquema geométrico, no a escala.",
+    },
+    {
+        "id": "fig_08",
+        "archivo": "fig_08_pantallas_app",
+        "titulo": "Mapa de pantallas de la app",
+        "resumen": "Cuatro pestañas principales y cinco pantallas completas que comparten la conexión y el video.",
+        "capitulo": "Aplicación Android",
+        "nota": "Esquema de navegación, no a escala.",
+    },
+    {
+        "id": "fig_09",
+        "archivo": "fig_09_camara_modos",
+        "titulo": "Los tres modos de la cámara",
+        "resumen": "JPEG para ver, RAW para procesar sin pérdida y CELDAS para detectar obstáculos con muy pocos bytes.",
+        "capitulo": "Cámara ESP32",
+        "nota": "Esquema de datos; la cámara atiende un cliente de video a la vez.",
+    },
+    {
+        "id": "fig_10",
+        "archivo": "fig_10_alimentacion",
+        "titulo": "Los dos circuitos de alimentación",
+        "resumen": "La electrónica va por USB y los motores por cuatro pilas AA; las tierras van unidas y el positivo de las pilas no toca la ESP32.",
+        "capitulo": "Hardware y cableado",
+        "nota": "Esquema eléctrico simplificado, no a escala.",
+    },
+    {
+        "id": "fig_11",
+        "archivo": "fig_11_protocolo",
+        "titulo": "Mensajes entre la app y el carro",
+        "resumen": "Órdenes, ACK, PING/PONG, SENS y el watchdog que frena si no llega un comando real.",
+        "capitulo": "Protocolo de comunicación",
+        "nota": "Diagrama de secuencia simplificado; los tiempos son los del código.",
+    },
+    {
+        "id": "fig_12",
+        "archivo": "fig_12_calibracion",
+        "titulo": "Navegar por tiempo",
+        "resumen": "El carro convierte distancia y ángulo en tiempo con la calibración; el arranque y el frenado se miden aparte.",
+        "capitulo": "Calibración",
+        "nota": "Ejemplo ilustrativo; los valores reales se miden con la app.",
+    },
+]

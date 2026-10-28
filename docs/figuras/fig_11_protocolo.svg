@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="486pt" viewBox="0 0 864 486" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-27T20:08:45.465696</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.9.4, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 486 
+L 864 486 
+L 864 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="line2d_1">
+    <path d="M 207.0144 348.462 
+L 207.0144 107.406 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke-dasharray: 3,3; stroke-dashoffset: 0; stroke: #6c757d"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 656.9856 348.462 
+L 656.9856 107.406 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke-dasharray: 3,3; stroke-dashoffset: 0; stroke: #6c757d"/>
+   </g>
+   <g id="patch_2">
+    <path d="M 209.015844 138.51 
+Q 432.001033 138.51 652.973762 138.51 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 648.173762 136.11 
+L 652.973762 138.51 
+L 648.173762 140.91 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 654.984156 161.838 
+Q 431.998967 161.838 211.026238 161.838 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 215.826238 164.238 
+L 211.026238 161.838 
+L 215.826238 159.438 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #2a9d8f; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 209.015844 192.942 
+Q 432.001033 192.942 652.973762 192.942 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 648.173762 190.542 
+L 652.973762 192.942 
+L 648.173762 195.342 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 654.984156 216.27 
+Q 431.998967 216.27 211.026238 216.27 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 215.826238 218.67 
+L 211.026238 216.27 
+L 215.826238 213.87 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #2a9d8f; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 209.015844 247.374 
+Q 432.001033 247.374 652.973762 247.374 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 648.173762 244.974 
+L 652.973762 247.374 
+L 648.173762 249.774 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 654.984156 278.478 
+Q 431.998967 278.478 211.026238 278.478 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 215.826238 280.878 
+L 211.026238 278.478 
+L 215.826238 276.078 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #2a9d8f; stroke-dasharray: 6.66,2.88; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 209.015844 309.582 
+Q 432.001033 309.582 652.973762 309.582 
+" clip-path="url(#p9a95b663cf)" style="fill: none; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+    <path d="M 648.173762 307.182 
+L 652.973762 309.582 
+L 648.173762 311.982 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.8; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 72.02304 418.446 
+L 791.97696 418.446 
+Q 801.6192 418.446 801.6192 413.7804 
+L 801.6192 360.9036 
+Q 801.6192 356.238 791.97696 356.238 
+L 72.02304 356.238 
+Q 62.3808 356.238 62.3808 360.9036 
+L 62.3808 413.7804 
+Q 62.3808 418.446 72.02304 418.446 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #fdf3e6; stroke: #f4a261; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 104.16384 107.406 
+L 309.86496 107.406 
+Q 319.5072 107.406 319.5072 102.7404 
+L 319.5072 80.9676 
+Q 319.5072 76.302 309.86496 76.302 
+L 104.16384 76.302 
+Q 94.5216 76.302 94.5216 80.9676 
+L 94.5216 102.7404 
+Q 94.5216 107.406 104.16384 107.406 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 554.13504 107.406 
+L 759.83616 107.406 
+Q 769.4784 107.406 769.4784 102.7404 
+L 769.4784 80.9676 
+Q 769.4784 76.302 759.83616 76.302 
+L 554.13504 76.302 
+Q 544.4928 76.302 544.4928 80.9676 
+L 544.4928 102.7404 
+Q 544.4928 107.406 554.13504 107.406 
+z
+" clip-path="url(#p9a95b663cf)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #1d3557; font: 700 10px 'DejaVu Sans'; text-anchor: middle" x="207.0144" y="94.613375" transform="rotate(-0 207.0144 94.613375)">App Android</text>
+   </g>
+   <g id="text_2">
+    <text style="fill: #1d3557; font: 700 10px 'DejaVu Sans'; text-anchor: middle" x="656.9856" y="94.613375" transform="rotate(-0 656.9856 94.613375)">ESP32 del carro</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #1d3557; font: 700 9.2px 'DejaVu Sans'; text-anchor: middle" x="432" y="374.476688" transform="rotate(-0 432 374.476688)">Watchdog de comunicación: 1000 ms sin un comando real → STOP y vuelve a AUTO.</text>
+   </g>
+   <g id="text_4">
+    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'; text-anchor: middle" x="432" y="397.544688" transform="rotate(-0 432 397.544688)">PING no renueva el watchdog. La app repite el movimiento cada 250 ms mientras el botón está apretado.</text>
+   </g>
+   <g id="patch_12">
+    <path d="M 62.3808 124.960258 
+Q 62.3808 227.934028 62.3808 329.789764 
+" style="fill: none; stroke: #6c757d; stroke-linecap: round"/>
+    <path d="M 64.3808 325.789764 
+L 62.3808 329.789764 
+L 60.3808 325.789764 
+z
+" style="fill: #6c757d; stroke: #6c757d; stroke-linecap: round"/>
+   </g>
+   <g id="text_5">
+    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'" transform="translate(80.51235 241.95775) rotate(-90)">tiempo</text>
+   </g>
+   <g id="text_6">
+    <g id="patch_13">
+     <path d="M 403.959297 132.943266 
+L 460.040703 132.943266 
+Q 461.932703 132.943266 461.932703 131.051266 
+L 461.932703 122.640734 
+Q 461.932703 120.748734 460.040703 120.748734 
+L 403.959297 120.748734 
+Q 402.067297 120.748734 402.067297 122.640734 
+L 402.067297 131.051266 
+Q 402.067297 132.943266 403.959297 132.943266 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #1d3557; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="129.023547" transform="rotate(-0 432 129.023547)">MODO_AUTO</text>
+   </g>
+   <g id="text_7">
+    <g id="patch_14">
+     <path d="M 409.061516 156.271266 
+L 454.938484 156.271266 
+Q 456.830484 156.271266 456.830484 154.379266 
+L 456.830484 145.968734 
+Q 456.830484 144.076734 454.938484 144.076734 
+L 409.061516 144.076734 
+Q 407.169516 144.076734 407.169516 145.968734 
+L 407.169516 154.379266 
+Q 407.169516 156.271266 409.061516 156.271266 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #2a9d8f; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="152.351547" transform="rotate(-0 432 152.351547)">ACK_AUTO</text>
+   </g>
+   <g id="text_8">
+    <g id="patch_15">
+     <path d="M 421.589969 187.331594 
+L 442.410031 187.331594 
+Q 444.302031 187.331594 444.302031 185.439594 
+L 444.302031 177.116406 
+Q 444.302031 175.224406 442.410031 175.224406 
+L 421.589969 175.224406 
+Q 419.697969 175.224406 419.697969 177.116406 
+L 419.697969 185.439594 
+Q 419.697969 187.331594 421.589969 187.331594 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #1d3557; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="183.651062" transform="rotate(-0 432 183.651062)">PING</text>
+   </g>
+   <g id="text_9">
+    <g id="patch_16">
+     <path d="M 419.473563 210.659594 
+L 444.526438 210.659594 
+Q 446.418438 210.659594 446.418438 208.767594 
+L 446.418438 200.444406 
+Q 446.418438 198.552406 444.526438 198.552406 
+L 419.473563 198.552406 
+Q 417.581563 198.552406 417.581563 200.444406 
+L 417.581563 208.767594 
+Q 417.581563 210.659594 419.473563 210.659594 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #2a9d8f; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="206.979062" transform="rotate(-0 432 206.979062)">PONG</text>
+   </g>
+   <g id="text_10">
+    <g id="patch_17">
+     <path d="M 356.056625 241.763594 
+L 507.943375 241.763594 
+Q 509.835375 241.763594 509.835375 239.871594 
+L 509.835375 231.548406 
+Q 509.835375 229.656406 507.943375 229.656406 
+L 356.056625 229.656406 
+Q 354.164625 229.656406 354.164625 231.548406 
+L 354.164625 239.871594 
+Q 354.164625 241.763594 356.056625 241.763594 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #1d3557; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="238.083062" transform="rotate(-0 432 238.083062)">FORWARD  (se repite cada 250 ms)</text>
+   </g>
+   <g id="text_11">
+    <g id="patch_18">
+     <path d="M 319.272141 273.039594 
+L 544.727859 273.039594 
+Q 546.619859 273.039594 546.619859 271.147594 
+L 546.619859 262.480406 
+Q 546.619859 260.588406 544.727859 260.588406 
+L 319.272141 260.588406 
+Q 317.380141 260.588406 317.380141 262.480406 
+L 317.380141 271.147594 
+Q 317.380141 273.039594 319.272141 273.039594 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #2a9d8f; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="269.359062" transform="rotate(-0 432 269.359062)">SENS:ángulo,mm,banderas  (cada 100 ms en AUTO)</text>
+   </g>
+   <g id="text_12">
+    <g id="patch_19">
+     <path d="M 420.666141 303.971594 
+L 443.333859 303.971594 
+Q 445.225859 303.971594 445.225859 302.079594 
+L 445.225859 293.756406 
+Q 445.225859 291.864406 443.333859 291.864406 
+L 420.666141 291.864406 
+Q 418.774141 291.864406 418.774141 293.756406 
+L 418.774141 302.079594 
+Q 418.774141 303.971594 420.666141 303.971594 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #1d3557; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="300.291063" transform="rotate(-0 432 300.291063)">STOP</text>
+   </g>
+  </g>
+  <g id="text_13">
+   <text style="fill: #1d3557; font: 700 18px 'DejaVu Sans'; text-anchor: middle" x="432" y="30.687187" transform="rotate(-0 432 30.687187)">Mensajes entre la app y el carro</text>
+  </g>
+  <g id="text_14">
+   <text style="fill: #6c757d; font: 10px 'DejaVu Sans'; text-anchor: middle" x="432" y="50.561562" transform="rotate(-0 432 50.561562)">Órdenes, respuestas, latido y sensores: todo viaja como texto por el mismo WebSocket.</text>
+  </g>
+  <g id="text_15">
+   <text style="fill: #6c757d; font: 7.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="473.516062" transform="rotate(-0 432 473.516062)">Diagrama de secuencia simplificado. Fuente: app_android/ControlLogica.kt, firmware_carro/carro.c y docs/protocolo.md.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p9a95b663cf">
+   <rect x="30.24" y="60.75" width="803.52" height="388.8"/>
+  </clipPath>
+ </defs>
+</svg>

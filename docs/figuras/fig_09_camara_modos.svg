@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="486pt" viewBox="0 0 864 486" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-27T20:08:45.126270</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.9.4, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 486 
+L 864 486 
+L 864 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 63.98784 185.166 
+L 800.01216 185.166 
+Q 809.6544 185.166 809.6544 180.5004 
+L 809.6544 119.8476 
+Q 809.6544 115.182 800.01216 115.182 
+L 63.98784 115.182 
+Q 54.3456 115.182 54.3456 119.8476 
+L 54.3456 180.5004 
+Q 54.3456 185.166 63.98784 185.166 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e6f4f1; opacity: 0.55"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 63.98784 286.254 
+L 800.01216 286.254 
+Q 809.6544 286.254 809.6544 281.5884 
+L 809.6544 220.9356 
+Q 809.6544 216.27 800.01216 216.27 
+L 63.98784 216.27 
+Q 54.3456 216.27 54.3456 220.9356 
+L 54.3456 281.5884 
+Q 54.3456 286.254 63.98784 286.254 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e8f0f7; opacity: 0.55"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 63.98784 387.342 
+L 800.01216 387.342 
+Q 809.6544 387.342 809.6544 382.6764 
+L 809.6544 322.0236 
+Q 809.6544 317.358 800.01216 317.358 
+L 63.98784 317.358 
+Q 54.3456 317.358 54.3456 322.0236 
+L 54.3456 382.6764 
+Q 54.3456 387.342 63.98784 387.342 
+z
+" clip-path="url(#p015684c38d)" style="fill: #fdeee9; opacity: 0.55"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 337.577082 150.174 
+Q 480.209344 150.174 620.605538 150.174 
+" clip-path="url(#p015684c38d)" style="fill: none; stroke: #2a9d8f; stroke-width: 2; stroke-linecap: round"/>
+    <path d="M 615.805538 147.774 
+L 620.605538 150.174 
+L 615.805538 152.574 
+z
+" clip-path="url(#p015684c38d)" style="fill: #2a9d8f; stroke: #2a9d8f; stroke-width: 2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 337.577082 251.262 
+Q 480.209344 251.262 620.605538 251.262 
+" clip-path="url(#p015684c38d)" style="fill: none; stroke: #1d3557; stroke-width: 2; stroke-linecap: round"/>
+    <path d="M 615.805538 248.862 
+L 620.605538 251.262 
+L 615.805538 253.662 
+z
+" clip-path="url(#p015684c38d)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 337.577082 352.35 
+Q 480.209344 352.35 620.605538 352.35 
+" clip-path="url(#p015684c38d)" style="fill: none; stroke: #e76f51; stroke-width: 2; stroke-linecap: round"/>
+    <path d="M 615.805538 349.95 
+L 620.605538 352.35 
+L 615.805538 354.75 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e76f51; stroke: #e76f51; stroke-width: 2; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 184.51584 169.614 
+L 325.93536 169.614 
+Q 335.5776 169.614 335.5776 164.9484 
+L 335.5776 135.3996 
+Q 335.5776 130.734 325.93536 130.734 
+L 184.51584 130.734 
+Q 174.8736 130.734 174.8736 135.3996 
+L 174.8736 164.9484 
+Q 174.8736 169.614 184.51584 169.614 
+z
+" clip-path="url(#p015684c38d)" style="fill: #fdf3e6; stroke: #f4a261; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 634.48704 169.614 
+L 775.90656 169.614 
+Q 785.5488 169.614 785.5488 164.9484 
+L 785.5488 135.3996 
+Q 785.5488 130.734 775.90656 130.734 
+L 634.48704 130.734 
+Q 624.8448 130.734 624.8448 135.3996 
+L 624.8448 164.9484 
+Q 624.8448 169.614 634.48704 169.614 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 184.51584 270.702 
+L 325.93536 270.702 
+Q 335.5776 270.702 335.5776 266.0364 
+L 335.5776 236.4876 
+Q 335.5776 231.822 325.93536 231.822 
+L 184.51584 231.822 
+Q 174.8736 231.822 174.8736 236.4876 
+L 174.8736 266.0364 
+Q 174.8736 270.702 184.51584 270.702 
+z
+" clip-path="url(#p015684c38d)" style="fill: #fdf3e6; stroke: #f4a261; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 634.48704 270.702 
+L 775.90656 270.702 
+Q 785.5488 270.702 785.5488 266.0364 
+L 785.5488 236.4876 
+Q 785.5488 231.822 775.90656 231.822 
+L 634.48704 231.822 
+Q 624.8448 231.822 624.8448 236.4876 
+L 624.8448 266.0364 
+Q 624.8448 270.702 634.48704 270.702 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 184.51584 371.79 
+L 325.93536 371.79 
+Q 335.5776 371.79 335.5776 367.1244 
+L 335.5776 337.5756 
+Q 335.5776 332.91 325.93536 332.91 
+L 184.51584 332.91 
+Q 174.8736 332.91 174.8736 337.5756 
+L 174.8736 367.1244 
+Q 174.8736 371.79 184.51584 371.79 
+z
+" clip-path="url(#p015684c38d)" style="fill: #fdf3e6; stroke: #f4a261; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 634.48704 371.79 
+L 775.90656 371.79 
+Q 785.5488 371.79 785.5488 367.1244 
+L 785.5488 337.5756 
+Q 785.5488 332.91 775.90656 332.91 
+L 634.48704 332.91 
+Q 624.8448 332.91 624.8448 337.5756 
+L 624.8448 367.1244 
+Q 624.8448 371.79 634.48704 371.79 
+z
+" clip-path="url(#p015684c38d)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(238.753725 147.469659)">Cámara</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(229.843163 157.514091)">192.168.4.2</text>
+   </g>
+   <g id="text_2">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(687.73005 147.469659)">Teléfono</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(689.707988 157.514091)">app FSI</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="180.35835" transform="rotate(-0 480.2112 180.35835)">ver en vivo en el teléfono</text>
+   </g>
+   <g id="text_4">
+    <text style="fill: #2a9d8f; font: 700 9px 'DejaVu Sans'; text-anchor: start" x="62.3808" y="152.657437" transform="rotate(-0 62.3808 152.657437)">JPEG</text>
+   </g>
+   <g id="text_5">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(238.753725 248.557659)">Cámara</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(229.843163 258.602091)">192.168.4.2</text>
+   </g>
+   <g id="text_6">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(687.73005 248.557659)">Teléfono</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(689.707988 258.602091)">app FSI</text>
+   </g>
+   <g id="text_7">
+    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="281.76635" transform="rotate(-0 480.2112 281.76635)">procesar sin pérdida de calidad</text>
+   </g>
+   <g id="text_8">
+    <text style="fill: #1d3557; font: 700 9px 'DejaVu Sans'; text-anchor: start" x="62.3808" y="253.745438" transform="rotate(-0 62.3808 253.745438)">RAW</text>
+   </g>
+   <g id="text_9">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(238.753725 349.645659)">Cámara</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(229.843163 359.690091)">192.168.4.2</text>
+   </g>
+   <g id="text_10">
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(687.73005 349.645659)">Teléfono</text>
+    <text style="fill: #1d3557; font: 8.4px 'DejaVu Sans'" transform="translate(689.707988 359.690091)">app FSI</text>
+   </g>
+   <g id="text_11">
+    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="382.53435" transform="rotate(-0 480.2112 382.53435)">detectar obstáculos sin mandar video</text>
+   </g>
+   <g id="text_12">
+    <text style="fill: #e76f51; font: 700 9px 'DejaVu Sans'; text-anchor: start" x="62.3808" y="354.833438" transform="rotate(-0 62.3808 354.833438)">CELDAS</text>
+   </g>
+   <g id="text_13">
+    <text style="fill: #e76f51; font: 8.2px 'DejaVu Sans'; text-anchor: start" x="78.4512" y="416.740656" transform="rotate(-0 78.4512 416.740656)">HQVGA: 240×176 px → 24×17 celdas = 1244 bytes por paquete.</text>
+   </g>
+   <g id="text_14">
+    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'; text-anchor: start" x="78.4512" y="432.33425" transform="rotate(-0 78.4512 432.33425)">La cámara atiende un solo cliente de video a la vez; la app comparte ese cliente entre pantallas.</text>
+   </g>
+   <g id="text_15">
+    <g id="patch_14">
+     <path d="M 426.039638 144.704375 
+L 534.382763 144.704375 
+Q 536.318763 144.704375 536.318763 142.768375 
+L 536.318763 134.251625 
+Q 536.318763 132.315625 534.382763 132.315625 
+L 426.039638 132.315625 
+Q 424.103638 132.315625 424.103638 134.251625 
+L 424.103638 142.768375 
+Q 424.103638 144.704375 426.039638 144.704375 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #2a9d8f; font: 700 8.8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="140.93825" transform="rotate(-0 480.2112 140.93825)">HTTP /stream · MJPEG</text>
+   </g>
+   <g id="text_16">
+    <g id="patch_15">
+     <path d="M 430.586075 245.792375 
+L 529.836325 245.792375 
+Q 531.772325 245.792375 531.772325 243.856375 
+L 531.772325 235.339625 
+Q 531.772325 233.403625 529.836325 233.403625 
+L 430.586075 233.403625 
+Q 428.650075 233.403625 428.650075 235.339625 
+L 428.650075 243.856375 
+Q 428.650075 245.792375 430.586075 245.792375 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #1d3557; font: 700 8.8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="242.02625" transform="rotate(-0 480.2112 242.02625)">HTTP /raw · RGB565</text>
+   </g>
+   <g id="text_17">
+    <g id="patch_16">
+     <path d="M 410.279388 346.880375 
+L 550.143013 346.880375 
+Q 552.079013 346.880375 552.079013 344.944375 
+L 552.079013 336.427625 
+Q 552.079013 334.491625 550.143013 334.491625 
+L 410.279388 334.491625 
+Q 408.343388 334.491625 408.343388 336.427625 
+L 408.343388 344.944375 
+Q 408.343388 346.880375 410.279388 346.880375 
+z
+" style="fill: #ffffff; opacity: 0.95"/>
+    </g>
+    <text style="fill: #e76f51; font: 700 8.8px 'DejaVu Sans'; text-anchor: middle" x="480.2112" y="343.11425" transform="rotate(-0 480.2112 343.11425)">UDP 4210 · celdas de 10×10</text>
+   </g>
+  </g>
+  <g id="text_18">
+   <text style="fill: #1d3557; font: 700 18px 'DejaVu Sans'; text-anchor: middle" x="432" y="30.687187" transform="rotate(-0 432 30.687187)">Los tres modos de la cámara</text>
+  </g>
+  <g id="text_19">
+   <text style="fill: #6c757d; font: 10px 'DejaVu Sans'; text-anchor: middle" x="432" y="48.908437" transform="rotate(-0 432 48.908437)">La misma placa puede mandar video, un cuadro sin comprimir o solo los colores del piso.</text>
+  </g>
+  <g id="text_20">
+   <text style="fill: #6c757d; font: 7.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="473.516062" transform="rotate(-0 432 473.516062)">Esquema de datos. Fuente: camara_prueba/camara_prueba.ino y nucleo_c/paquete_celdas.h.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p015684c38d">
+   <rect x="30.24" y="60.75" width="803.52" height="388.8"/>
+  </clipPath>
+ </defs>
+</svg>
