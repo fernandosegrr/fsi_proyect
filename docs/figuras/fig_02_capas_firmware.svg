@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="486pt" viewBox="0 0 864 486" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-27T20:08:43.775726</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.9.4, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 486 
+L 864 486 
+L 864 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 335.5776 142.29696 
+Q 335.5776 148.230487 335.5776 154.164015 
+" clip-path="url(#pd7d2364404)" style="fill: none; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 333.1776 147.09696 
+L 335.5776 142.29696 
+L 337.9776 147.09696 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 337.9776 149.364015 
+L 335.5776 154.164015 
+L 333.1776 149.364015 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 335.5776 208.39296 
+Q 335.5776 214.326487 335.5776 220.260015 
+" clip-path="url(#pd7d2364404)" style="fill: none; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 333.1776 213.19296 
+L 335.5776 208.39296 
+L 337.9776 213.19296 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 337.9776 215.460015 
+L 335.5776 220.260015 
+L 333.1776 215.460015 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 335.5776 282.268757 
+Q 335.5776 290.141989 335.5776 298.015221 
+" clip-path="url(#pd7d2364404)" style="fill: none; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 333.1776 287.068757 
+L 335.5776 282.268757 
+L 337.9776 287.068757 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 337.9776 293.215221 
+L 335.5776 298.015221 
+L 333.1776 293.215221 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 335.5776 352.247536 
+Q 335.5776 362.069358 335.5776 371.89118 
+" clip-path="url(#pd7d2364404)" style="fill: none; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 333.1776 357.047536 
+L 335.5776 352.247536 
+L 337.9776 357.047536 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 337.9776 367.09118 
+L 335.5776 371.89118 
+L 333.1776 367.09118 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 646.948956 243.486 
+Q 620.82801 243.486 596.495918 243.486 
+" clip-path="url(#pd7d2364404)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 601.295918 245.886 
+L 596.495918 243.486 
+L 601.295918 241.086 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 88.09344 138.51 
+L 583.06176 138.51 
+Q 592.704 138.51 592.704 133.8444 
+L 592.704 100.4076 
+Q 592.704 95.742 583.06176 95.742 
+L 88.09344 95.742 
+Q 78.4512 95.742 78.4512 100.4076 
+L 78.4512 133.8444 
+Q 78.4512 138.51 88.09344 138.51 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #e8f0f7; stroke: #1d3557; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 88.09344 204.606 
+L 583.06176 204.606 
+Q 592.704 204.606 592.704 199.9404 
+L 592.704 162.6156 
+Q 592.704 157.95 583.06176 157.95 
+L 88.09344 157.95 
+Q 78.4512 157.95 78.4512 162.6156 
+L 78.4512 199.9404 
+Q 78.4512 204.606 88.09344 204.606 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #e6f4f1; stroke: #2a9d8f; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 88.09344 278.478 
+L 583.06176 278.478 
+Q 592.704 278.478 592.704 273.8124 
+L 592.704 228.7116 
+Q 592.704 224.046 583.06176 224.046 
+L 88.09344 224.046 
+Q 78.4512 224.046 78.4512 228.7116 
+L 78.4512 273.8124 
+Q 78.4512 278.478 88.09344 278.478 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #fdeee9; stroke: #e76f51; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 88.09344 348.462 
+L 583.06176 348.462 
+Q 592.704 348.462 592.704 343.7964 
+L 592.704 306.4716 
+Q 592.704 301.806 583.06176 301.806 
+L 88.09344 301.806 
+Q 78.4512 301.806 78.4512 306.4716 
+L 78.4512 343.7964 
+Q 78.4512 348.462 88.09344 348.462 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #f1f3f5; stroke: #6c757d; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 88.09344 422.334 
+L 583.06176 422.334 
+Q 592.704 422.334 592.704 417.6684 
+L 592.704 380.3436 
+Q 592.704 375.678 583.06176 375.678 
+L 88.09344 375.678 
+Q 78.4512 375.678 78.4512 380.3436 
+L 78.4512 417.6684 
+Q 78.4512 422.334 88.09344 422.334 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #f1f3f5; stroke: #6c757d; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 658.59264 270.702 
+L 791.97696 270.702 
+Q 801.6192 270.702 801.6192 266.0364 
+L 801.6192 220.9356 
+Q 801.6192 216.27 791.97696 216.27 
+L 658.59264 216.27 
+Q 648.9504 216.27 648.9504 220.9356 
+L 648.9504 266.0364 
+Q 648.9504 270.702 658.59264 270.702 
+z
+" clip-path="url(#pd7d2364404)" style="fill: #e8f5ee; stroke: #2d6a4f; stroke-width: 1.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'; text-anchor: middle" x="335.5776" y="119.830187" transform="rotate(-0 335.5776 119.830187)">App Android / navegador web</text>
+   </g>
+   <g id="text_2">
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'" transform="translate(289.94635 177.986655)">firmware_carro.ino</text>
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'" transform="translate(238.549944 189.97772)">WiFi · HTTP · WebSocket · setup()/loop()</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'; text-anchor: middle" x="335.5776" y="253.966187" transform="rotate(-0 335.5776 253.966187)">carro.c · sensores.c · imu.c · tof.c · giro.c</text>
+   </g>
+   <g id="text_4">
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'" transform="translate(245.820319 321.842655)">firmware_carro.ino · funciones hw_...</text>
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'" transform="translate(248.770272 333.83372)">PWM · I2C · millis · NVS · keep-alive</text>
+   </g>
+   <g id="text_5">
+    <text style="fill: #1d3557; font: 9.8px 'DejaVu Sans'; text-anchor: middle" x="335.5776" y="401.710188" transform="rotate(-0 335.5776 401.710188)">Hardware: motores, TC1508A, MPU6050, VL53L0X, WiFi</text>
+   </g>
+   <g id="text_6">
+    <text style="fill: #6c757d; font: 7.4px 'DejaVu Sans'; text-anchor: end" x="311.472" y="148.23" transform="rotate(-0 311.472 148.23)">órdenes / estado</text>
+   </g>
+   <g id="text_7">
+    <text style="fill: #6c757d; font: 7.4px 'DejaVu Sans'; text-anchor: end" x="311.472" y="214.326" transform="rotate(-0 311.472 214.326)">mensajes</text>
+   </g>
+   <g id="text_8">
+    <text style="fill: #6c757d; font: 7.4px 'DejaVu Sans'; text-anchor: end" x="311.472" y="288.198" transform="rotate(-0 311.472 288.198)">hw_...</text>
+   </g>
+   <g id="text_9">
+    <text style="fill: #6c757d; font: 7.4px 'DejaVu Sans'; text-anchor: end" x="311.472" y="362.07" transform="rotate(-0 311.472 362.07)">señales</text>
+   </g>
+   <g id="text_10">
+    <text style="fill: #1d3557; font: 9px 'DejaVu Sans'" transform="translate(692.884097 240.588492)">Pruebas en PC</text>
+    <text style="fill: #1d3557; font: 9px 'DejaVu Sans'" transform="translate(691.972144 251.350383)">hardware falso</text>
+   </g>
+   <g id="text_11">
+    <text style="fill: #2d6a4f; font: 8px 'DejaVu Sans'" transform="translate(692.76355 296.54075)">La misma lógica</text>
+    <text style="fill: #2d6a4f; font: 8px 'DejaVu Sans'" transform="translate(697.460425 306.410813)">corre en el PC</text>
+    <text style="fill: #2d6a4f; font: 8px 'DejaVu Sans'" transform="translate(686.019175 316.280875)">con hardware falso.</text>
+   </g>
+   <g id="text_12">
+    <text style="fill: #6c757d; font: 8.4px 'DejaVu Sans'; text-anchor: start" x="78.4512" y="436.139063" transform="rotate(-0 78.4512 436.139063)">El .ino no decide: solo traduce órdenes y sensores.</text>
+   </g>
+  </g>
+  <g id="text_13">
+   <text style="fill: #1d3557; font: 700 18px 'DejaVu Sans'; text-anchor: middle" x="432" y="30.687187" transform="rotate(-0 432 30.687187)">Capas del firmware</text>
+  </g>
+  <g id="text_14">
+   <text style="fill: #6c757d; font: 10px 'DejaVu Sans'; text-anchor: middle" x="432" y="49.308438" transform="rotate(-0 432 49.308438)">La lógica en C no toca los pines: pide las cosas por funciones hw_... y así se puede probar en un PC.</text>
+  </g>
+  <g id="text_15">
+   <text style="fill: #6c757d; font: 7.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="473.727438" transform="rotate(-0 432 473.727438)">Esquema de capas, no a escala. Fuente: docs/referencia/firmware.md y carro.h.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pd7d2364404">
+   <rect x="30.24" y="60.75" width="803.52" height="388.8"/>
+  </clipPath>
+ </defs>
+</svg>

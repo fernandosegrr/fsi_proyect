@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="486pt" viewBox="0 0 864 486" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-27T20:08:44.369836</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.9.4, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 486 
+L 864 486 
+L 864 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="line2d_1">
+    <path d="M 111.456 409.9896 
+L 132.189321 394.68487 
+L 142.205661 387.032505 
+L 150.244213 380.655535 
+L 157.92684 374.278564 
+L 163.773137 369.176987 
+L 169.320561 364.075411 
+L 174.542716 358.973834 
+L 179.416797 353.872258 
+L 183.923847 348.770681 
+L 187.054149 344.944499 
+L 189.96479 341.118316 
+L 192.652401 337.292134 
+L 195.114999 333.465951 
+L 197.351999 329.639769 
+L 199.364219 325.813587 
+L 201.153874 321.987404 
+L 202.724565 318.161222 
+L 204.081252 314.335039 
+L 205.230225 310.508857 
+L 206.179067 306.682674 
+L 206.936604 302.856492 
+L 207.512853 299.03031 
+L 208.018594 293.928733 
+L 208.251278 288.827156 
+L 208.243228 283.72558 
+L 208.029422 278.624003 
+L 207.529757 272.247033 
+L 206.691082 264.594668 
+L 203.962487 241.637573 
+L 203.509439 235.260603 
+L 203.343661 230.159026 
+L 203.392613 225.057449 
+L 203.690644 219.955873 
+L 204.269352 214.854296 
+L 204.904847 211.028114 
+L 205.725097 207.201931 
+L 206.739729 203.375749 
+L 207.95716 199.549567 
+L 209.384547 195.723384 
+L 211.027742 191.897202 
+L 212.891254 188.071019 
+L 214.978223 184.244837 
+L 217.290401 180.418654 
+L 219.828137 176.592472 
+L 222.590381 172.76629 
+L 225.574684 168.940107 
+L 228.77722 165.113925 
+L 233.377587 160.012348 
+L 238.340618 154.910772 
+L 243.646373 149.809195 
+L 249.271124 144.707618 
+L 255.18762 139.606042 
+L 262.946801 133.229071 
+L 271.048244 126.8521 
+L 281.120508 119.199736 
+L 296.667434 107.721188 
+L 300.1536 105.1704 
+L 300.1536 105.1704 
+" clip-path="url(#p095f8a1f8b)" style="fill: none; stroke: #2a9d8f; stroke-width: 3; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 111.456 409.9896 
+L 111.456 105.1704 
+" clip-path="url(#p095f8a1f8b)" style="fill: none; stroke-dasharray: 8.88,3.84; stroke-dashoffset: 0; stroke: #e76f51; stroke-width: 2.4"/>
+   </g>
+   <g id="patch_2">
+    <path d="M 111.456 117.687811 
+Q 111.456 110.613989 111.456 105.776235 
+" style="fill: none; stroke: #e76f51; stroke-width: 2; stroke-linecap: round"/>
+    <path d="M 109.456 109.776235 
+L 111.456 105.776235 
+L 113.456 109.776235 
+z
+" style="fill: #e76f51; stroke: #e76f51; stroke-width: 2; stroke-linecap: round"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #b00020; font: 700 9px 'DejaVu Sans'; text-anchor: start" x="122.3424" y="97.9128" transform="rotate(-0 122.3424 97.9128)">error lateral</text>
+   </g>
+   <g id="patch_3">
+    <path d="M 296.811839 119.814129 
+Q 205.802736 123.314479 114.793632 126.81483 
+" style="fill: none; stroke-dasharray: 4.44,1.92; stroke-dashoffset: 0; stroke: #b00020; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 292.737928 117.969339 
+L 296.811839 119.814129 
+L 292.891661 121.966384 
+z
+" style="fill: #b00020; stroke-dasharray: 4.44,1.92; stroke-dashoffset: 0; stroke: #b00020; stroke-width: 1.2; stroke-linecap: round"/>
+    <path d="M 118.867543 128.659619 
+L 114.793632 126.81483 
+L 118.71381 124.662575 
+z
+" style="fill: #b00020; stroke-dasharray: 4.44,1.92; stroke-dashoffset: 0; stroke: #b00020; stroke-width: 1.2; stroke-linecap: round"/>
+   </g>
+   <g id="text_2">
+    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'" transform="translate(46.1376 419.940242)">Todo el avance se proyectaba con el rumbo inicial.</text>
+    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'" transform="translate(46.1376 430.057056)">Un giro a mitad de camino inventaba un desplazamiento.</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #1d3557; font: 700 13px 'DejaVu Sans'; text-anchor: middle" x="220.32" y="66.14" transform="rotate(-0 220.32 66.14)">Antes de J15</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="line2d_3">
+    <path d="M 534.816 409.9896 
+L 555.549321 394.68487 
+L 565.565661 387.032505 
+L 573.604213 380.655535 
+L 581.28684 374.278564 
+L 587.133137 369.176987 
+L 592.680561 364.075411 
+L 597.902716 358.973834 
+L 602.776797 353.872258 
+L 607.283847 348.770681 
+L 610.414149 344.944499 
+L 613.32479 341.118316 
+L 616.012401 337.292134 
+L 618.474999 333.465951 
+L 620.711999 329.639769 
+L 622.724219 325.813587 
+L 624.513874 321.987404 
+L 626.084565 318.161222 
+L 627.441252 314.335039 
+L 628.590225 310.508857 
+L 629.539067 306.682674 
+L 630.296604 302.856492 
+L 630.872853 299.03031 
+L 631.378594 293.928733 
+L 631.611278 288.827156 
+L 631.603228 283.72558 
+L 631.389422 278.624003 
+L 630.889757 272.247033 
+L 630.051082 264.594668 
+L 627.322487 241.637573 
+L 626.869439 235.260603 
+L 626.703661 230.159026 
+L 626.752613 225.057449 
+L 627.050644 219.955873 
+L 627.629352 214.854296 
+L 628.264847 211.028114 
+L 629.085097 207.201931 
+L 630.099729 203.375749 
+L 631.31716 199.549567 
+L 632.744547 195.723384 
+L 634.387742 191.897202 
+L 636.251254 188.071019 
+L 638.338223 184.244837 
+L 640.650401 180.418654 
+L 643.188137 176.592472 
+L 645.950381 172.76629 
+L 648.934684 168.940107 
+L 652.13722 165.113925 
+L 656.737587 160.012348 
+L 661.700618 154.910772 
+L 667.006373 149.809195 
+L 672.631124 144.707618 
+L 678.54762 139.606042 
+L 686.306801 133.229071 
+L 694.408244 126.8521 
+L 704.480508 119.199736 
+L 720.027434 107.721188 
+L 723.5136 105.1704 
+L 723.5136 105.1704 
+" clip-path="url(#pa9151001a6)" style="fill: none; stroke: #2a9d8f; stroke-width: 3; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_4">
+    <path d="M 534.816 409.9896 
+L 556.261393 392.134082 
+L 568.147792 381.930929 
+L 576.749679 374.278564 
+L 584.99944 366.626199 
+L 591.551405 360.249228 
+L 597.764901 353.872258 
+L 602.464708 348.770681 
+L 606.902237 343.669105 
+L 611.059048 338.567528 
+L 614.918259 333.465951 
+L 618.464881 328.364375 
+L 621.68616 323.262798 
+L 624.571929 318.161222 
+L 626.511607 314.335039 
+L 628.256568 310.508857 
+L 629.806062 306.682674 
+L 631.160519 302.856492 
+L 632.32161 299.03031 
+L 633.292304 295.204127 
+L 634.076907 291.377945 
+L 634.681105 287.551762 
+L 635.111978 283.72558 
+L 635.431738 278.624003 
+L 635.482627 273.522427 
+L 635.293004 268.42085 
+L 634.895417 263.319274 
+L 634.161915 256.942303 
+L 633.040266 249.289938 
+L 629.902764 228.883632 
+L 629.243027 222.506661 
+L 628.942657 217.405085 
+L 628.89691 212.303508 
+L 629.057528 208.477326 
+L 629.405718 204.651143 
+L 629.958703 200.824961 
+L 630.732398 196.998778 
+L 631.741242 193.172596 
+L 632.998051 189.346413 
+L 634.513873 185.520231 
+L 636.297862 181.694049 
+L 638.357169 177.867866 
+L 640.696848 174.041684 
+L 643.319778 170.215501 
+L 646.226613 166.389319 
+L 649.41574 162.563136 
+L 652.883269 158.736954 
+L 656.623041 154.910772 
+L 660.626653 151.084589 
+L 666.356604 145.983013 
+L 672.505598 140.881436 
+L 679.036421 135.779859 
+L 685.906087 130.678283 
+L 694.895894 124.301312 
+L 706.136353 116.648947 
+L 723.5136 105.1704 
+L 723.5136 105.1704 
+" clip-path="url(#pa9151001a6)" style="fill: none; stroke-dasharray: 8.14,3.52; stroke-dashoffset: 0; stroke: #e76f51; stroke-width: 2.2"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 579.769919 375.511611 
+Q 584.10392 371.727285 587.595751 368.678316 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 583.267268 369.802695 
+L 587.595751 368.678316 
+L 585.898165 372.815731 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 613.497373 340.732211 
+Q 615.813693 337.290316 617.505792 334.775972 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 613.613261 336.977834 
+L 617.505792 334.775972 
+L 616.931763 339.211115 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 629.588642 305.987684 
+Q 630.135228 302.858187 630.489454 300.830051 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 627.831072 304.4263 
+L 630.489454 300.830051 
+L 631.771424 305.114506 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 630.908571 272.807509 
+Q 630.583872 269.697617 630.375275 267.699715 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 628.801463 271.885777 
+L 630.375275 267.699715 
+L 632.779837 271.470402 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 627.113451 238.364394 
+Q 626.958479 235.261338 626.859275 233.274925 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 625.061282 237.369705 
+L 626.859275 233.274925 
+L 629.056303 237.170187 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 630.024052 204.025901 
+Q 631.072798 200.825297 631.773409 198.687144 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 628.627314 201.865523 
+L 631.773409 198.687144 
+L 632.428455 203.111047 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 647.22595 171.224358 
+Q 650.170853 167.664503 652.403105 164.966115 
+" style="fill: none; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+    <path d="M 648.312402 166.773364 
+L 652.403105 164.966115 
+L 651.394482 169.323027 
+z
+" style="fill: #1d3557; opacity: 0.65; stroke: #1d3557; stroke-linecap: round"/>
+   </g>
+   <g id="text_4">
+    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'" transform="translate(469.4976 419.940242)">Cada tramo usa el rumbo del giroscopio.</text>
+    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'" transform="translate(469.4976 430.057056)">La distancia sigue siendo por tiempo.</text>
+   </g>
+   <g id="text_5">
+    <g id="patch_11">
+     <path d="M 705.06355 125.279025 
+L 810.6048 125.279025 
+Q 813.4048 125.279025 813.4048 122.479025 
+L 813.4048 105.1704 
+Q 813.4048 102.3704 810.6048 102.3704 
+L 705.06355 102.3704 
+Q 702.26355 102.3704 702.26355 105.1704 
+L 702.26355 122.479025 
+Q 702.26355 125.279025 705.06355 125.279025 
+z
+" style="fill: #fdf3e6; stroke: #f4a261; stroke-linejoin: miter"/>
+    </g>
+    <text style="fill: #1d3557; font: 8px 'DejaVu Sans'" transform="translate(706.5823 111.24915)">Simulación: 1.9 cm medio</text>
+    <text style="fill: #1d3557; font: 8px 'DejaVu Sans'" transform="translate(705.06355 120.815275)">p95 4.6 cm (400 rutas B6)</text>
+   </g>
+   <g id="text_6">
+    <text style="fill: #1d3557; font: 700 13px 'DejaVu Sans'; text-anchor: middle" x="643.68" y="66.14" transform="rotate(-0 643.68 66.14)">Con J15</text>
+   </g>
+  </g>
+  <g id="text_7">
+   <text style="fill: #1d3557; font: 700 18px 'DejaVu Sans'; text-anchor: middle" x="432" y="31.407187" transform="rotate(-0 432 31.407187)">Cómo se estima la pose</text>
+  </g>
+  <g id="text_8">
+   <text style="fill: #6c757d; font: 10px 'DejaVu Sans'; text-anchor: middle" x="432" y="49.308438" transform="rotate(-0 432 49.308438)">El carro no tiene encoders ni GPS: la distancia sale del tiempo y la dirección, del giroscopio.</text>
+  </g>
+  <g id="text_9">
+   <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'; text-anchor: middle" x="432" y="458.294688" transform="rotate(-0 432 458.294688)">Línea verde continua: camino real simulado.   Línea naranja discontinua: pose estimada.</text>
+  </g>
+  <g id="text_10">
+   <text style="fill: #6c757d; font: 7.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="473.516062" transform="rotate(-0 432 473.516062)">Concepto, no a escala. Cifras simuladas en docs/reporte_J15.md; la prueba física es NO MEDIDA.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p095f8a1f8b">
+   <rect x="38.88" y="76.14" width="362.88" height="362.88"/>
+  </clipPath>
+  <clipPath id="pa9151001a6">
+   <rect x="462.24" y="76.14" width="362.88" height="362.88"/>
+  </clipPath>
+ </defs>
+</svg>
