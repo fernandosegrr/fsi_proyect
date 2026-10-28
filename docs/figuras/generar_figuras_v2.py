@@ -28,7 +28,7 @@ def diagrama(nombre, cajas, enlaces, notas=()):
     for x, y, texto in notas:
         ax.text(x, y, texto, ha='center', va='center', color=AZUL, fontsize=8)
     DESTINO.mkdir(exist_ok=True)
-    fig.savefig(DESTINO / (nombre + '.pdf'), bbox_inches='tight', pad_inches=.08)
+    fig.savefig(DESTINO / (nombre + '.pdf'), bbox_inches='tight', pad_inches=.08, metadata={'CreationDate': None})
     fig.savefig(DESTINO / (nombre + '.png'), dpi=200, bbox_inches='tight', pad_inches=.08)
     plt.close(fig)
 
@@ -45,7 +45,7 @@ def esquive():
     ax.text(5.4,7.2,'Reincorporación',fontsize=9,color=AZUL)
     ax.text(5.3,.2,'Ruta original',fontsize=9,color=AZUL)
     ax.text(5,9.6,'Esquema conceptual, no a escala · J15: NO MEDIDO en el carro',ha='center',fontsize=8,color=AZUL)
-    fig.savefig(DESTINO/'esquive.pdf',bbox_inches='tight',pad_inches=.08)
+    fig.savefig(DESTINO/'esquive.pdf',bbox_inches='tight',pad_inches=.08,metadata={'CreationDate': None})
     fig.savefig(DESTINO/'esquive.png',dpi=200,bbox_inches='tight',pad_inches=.08)
     plt.close(fig)
 
