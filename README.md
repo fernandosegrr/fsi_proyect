@@ -6,7 +6,11 @@
 
 **Materia:** Fundamentos de los Sistemas de Información (FSI)  
 **Profesor:** Dr. Horacio Rostro González  
-**Equipo:** `[PENDIENTE: nombres del equipo]`  
+**Equipo:**
+- Jaime Fernando Guerrero Segoviano
+- Melanie Contreras Solis
+- Vitto Eduardo Rangel Fortuna
+- Azul Abril Cadena Campos  
 **Manual completo en PDF:** [`docs/manual/Manual_Proyecto_Carro_FSI.pdf`](file:///e:/Dev/fsi_proyecto/docs/manual/Manual_Proyecto_Carro_FSI.pdf)  
 **Centro de documentación:** [`docs/`](file:///e:/Dev/fsi_proyecto/docs/README.md) e [`docs/index.md`](file:///e:/Dev/fsi_proyecto/docs/index.md)  
 
@@ -178,3 +182,10 @@ adb install -r dist\carro_fsi_0.4-074c9fd.apk
 - **Autoridad de parada ToF:** El sensor láser tiene autoridad absoluta para detener el carro de manera autónoma (`TOF_PARO`) si detecta un obstáculo a menos de la distancia crítica de seguridad.
 
 Para consultar el diagnóstico de incidencias, véase [`docs/solucion_problemas.md`](file:///e:/Dev/fsi_proyecto/docs/solucion_problemas.md) y [`docs/pendientes_documentacion.md`](file:///e:/Dev/fsi_proyecto/docs/pendientes_documentacion.md).
+
+---
+
+## 8. Licencia
+
+Este proyecto se distribuye bajo la Licencia MIT (titular Jose Ruben Guerrero Esparza, 2026). Consulte el archivo [`LICENSE`](LICENSE) para más detalles.
+

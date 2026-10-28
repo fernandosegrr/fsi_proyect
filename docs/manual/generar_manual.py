@@ -293,7 +293,20 @@ def crear_caja_foto_pendiente(foto_id, titulo, encuadre, archivo_sugerido, estil
     ruta_real = os.path.join('docs', 'imagenes', archivo_sugerido)
     if os.path.exists(ruta_real):
         try:
-            img = RLImage(ruta_real, width=420, height=236)
+            from PIL import Image as PILImage
+            with PILImage.open(ruta_real) as pimg:
+                iw, ih = pimg.size
+            aspect = ih / float(iw)
+            if aspect > 1.2:
+                render_h = 240
+                render_w = render_h / aspect
+            else:
+                render_w = 380
+                render_h = render_w * aspect
+                if render_h > 240:
+                    render_h = 240
+                    render_w = render_h / aspect
+            img = RLImage(ruta_real, width=render_w, height=render_h)
             caption = Paragraph(f"<b>Fotografía:</b> {titulo}. Archivo: <code>{archivo_sugerido}</code>", estilos['PieFigura'])
             return [Spacer(1, 4), img, caption, Spacer(1, 6)]
         except Exception:
@@ -513,9 +526,13 @@ def generar_portada(estilos, commit_hash):
         Paragraph("<b>Materia:</b> Fundamentos de los Sistemas de Información (FSI)", estilos['PortadaMetadatos']),
         Paragraph("<b>Profesor Titular:</b> Dr. Horacio Rostro González", estilos['PortadaMetadatos']),
         Paragraph("<b>Fecha de entrega y exposición:</b> 1 de diciembre de 2026", estilos['PortadaMetadatos']),
-        Paragraph("<b>Integrantes del equipo:</b> [PENDIENTE: nombres del equipo]", estilos['PortadaMetadatos']),
+        Paragraph("<b>Integrantes del equipo:</b>", estilos['PortadaMetadatos']),
+        Paragraph("&nbsp;&nbsp;• Jaime Fernando Guerrero Segoviano", estilos['PortadaMetadatos']),
+        Paragraph("&nbsp;&nbsp;• Melanie Contreras Solis", estilos['PortadaMetadatos']),
+        Paragraph("&nbsp;&nbsp;• Vitto Eduardo Rangel Fortuna", estilos['PortadaMetadatos']),
+        Paragraph("&nbsp;&nbsp;• Azul Abril Cadena Campos", estilos['PortadaMetadatos']),
         Spacer(1, 15),
-        Paragraph(f"<b>Versión del documento:</b> 1.0 · <b>Commit:</b> <code>{commit_hash}</code> · <b>Rama:</b> <code>docs/documentacion-completa</code>", estilos['PortadaMetadatos']),
+        Paragraph(f"<b>Versión del documento:</b> 1.0 · <b>Commit:</b> <code>{commit_hash}</code> · <b>Rama:</b> <code>main</code>", estilos['PortadaMetadatos']),
         HRFlowable(width="80%", thickness=0.8, color=COLOR_BORDE, spaceAfter=15, spaceBefore=20),
         Spacer(1, 30),
         Paragraph("<i>Documentación técnica de ingeniería — Prohibida su alteración sin verificación de código</i>", ParagraphStyle('AvisoP', fontName='Helvetica-Oblique', fontSize=8, leading=11, alignment=1, textColor=colors.HexColor('#6c757d'))),
@@ -655,6 +672,9 @@ El vehículo ofrece dos modos principales de interacción operativa:
     c9_elems.extend(crear_caja_foto_pendiente('FOTO_10', 'Pestaña Inicio de la app', 'Tarjeta de conexión 192.168.4.1, latencia ping y telemetría de sensores', 'foto_10_app_conexion.png', estilos))
     c9_elems.extend(crear_caja_foto_pendiente('FOTO_11', 'Pestaña Control Manual', 'Cruceta direccional, visor de video MJPEG, EBRAKE y perfil', 'foto_11_app_manual_video.png', estilos))
     c9_elems.extend(crear_caja_foto_pendiente('FOTO_12', 'Pestaña Rutas', 'Lienzo táctil de 20 cm, waypoints marcados y botones Simular/Ejecutar', 'foto_12_app_editor_rutas.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_14', 'Pantalla CalibracionActivity', 'Asistente de calibración de avance recto y balance', 'foto_14_app_calibracion_recta.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_15', 'Pantalla CalibrarGiroActivity', 'Prueba de giro a 90 grados y calibración ms/grado', 'foto_15_app_calibracion_giro.png', estilos))
+    c9_elems.extend(crear_caja_foto_pendiente('FOTO_17', 'Pantalla Ajustes / Red', 'Configuración de direcciones IP y streaming', 'foto_17_app_ajustes_red.png', estilos))
     c9_elems.extend(procesar_markdown_a_story(leer_doc(os.path.join('referencia', 'app.md')), catalogo_fig, estilos))
     agregar_capitulo(9, "Aplicación móvil Android", c9_elems)
 

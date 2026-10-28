@@ -60,3 +60,5 @@ pruebas_firmware/pruebas_*.exe
 pruebas_firmware/pruebas_*
 
 !pruebas_firmware/pruebas_*.c
+fotos_entrada/
+
