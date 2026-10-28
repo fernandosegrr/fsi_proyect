@@ -11,8 +11,8 @@
  *       ESPERANDO → SIGUIENDO → DETENIDO_OBSTACULO → ESQUIVANDO → REINCORPORANDO → SIGUIENDO
  *       ... → TERMINADO (llegó) o ERROR (no pudo seguir).
  *  4. El navegador NO tiene sensores de posición: lleva la cuenta por TIEMPO (cuánto tiempo
- *     estuvo avanzando o girando), con la calibración del carro (calibracion.h): por defecto la
- *     de ejemplo, o la medida con navegador_poner_calibracion(). Es una estimación.
+ *     estuvo avanzando o girando), con la calibración del carro (calibracion.h). J15: con
+ *     giroscopio activo, SENS orienta cada incremento de avance; la distancia sigue estimada.
  *  5. Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
  *  6. Regla de seguridad: en los estados ESPERANDO, TERMINADO y ERROR el comando es SIEMPRE STOP.
  *  7. PEDIR AYUDA (opcional, navegador_poner_pedir_ayuda): cuando el carro no puede esquivar (los dos lados ocupados, esquivadas o reintentos agotados) en vez de ERROR pasa a AYUDA:
@@ -478,6 +478,12 @@ typedef struct {
     int      sens_angulo_x10;        /* el último ángulo que dijo SENS (+ izquierda) y la hora en que llegó */
     uint32_t sens_angulo_t_ms;
     int      sens_angulo_ok;
+    /* J15: distancia por tiempo, dirección observada con SENS durante avances.
+     * Se conserva el residuo en milésimas de mm para no redondear cada tick. */
+    int      sin_rumbo_medido;        /* solo comparación de pruebas: comportamiento previo */
+    int      avance_imu_ref_ok, avance_imu_ref_x10, avance_rumbo_ref_x10;
+    int      avance_rumbo_x10, avance_mm_previo;
+    long     avance_x_mil, avance_y_mil;
     int      n_giros_angulo, n_giros_tiempo;   /* cuántos giros de la ruta fueron por ángulo y cuántos por tiempo (para el resumen final) */
     int      tof_vivo;               /* 1 si el láser funciona (según SENS) */
     int      tof_mm;                 /* última lectura (1200 = libre) */
@@ -577,6 +583,8 @@ int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);
 void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms);
+/* Igual, pero con el bit IMU lista de SENS: nunca integra un ángulo de IMU caída/calibrando. */
+void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, int imu_lista, uint32_t ahora_ms);
 
 /* MENSAJE DE GIRO PERDIDO (J12): si pasa la espera máxima sin GIRO_OK ni GIRO_TIMEOUT, antes de repetir el giro por tiempo el navegador pide IMU? (navegador_tomar_consulta_imu devuelve 1 una vez
  * para que la app lo mande) y compara el ángulo que contesta (navegador_aporte_imu, en grados por 10, + izquierda) con el del inicio del giro: si ya giró al menos NAV_GIRO_FW_YA_GIRO_PCT % de lo pedido NO

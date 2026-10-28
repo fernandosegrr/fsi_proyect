@@ -2,6 +2,7 @@
 import io
 import unittest
 import zipfile
+import contextlib
 from unittest.mock import patch
 import verificar_version as v
 
@@ -60,6 +61,30 @@ class Versiones(unittest.TestCase):
     def test_cambio_codigo(self, ejecutar, proceso):
         proceso.return_value.returncode = 0
         self.assertFalse(v.coincide_revision("abc", "HEAD"))
+
+    @patch.object(v, "consultar_caps")
+    @patch.object(v, "coincide_revision", return_value=True)
+    @patch.object(v, "ejecutar")
+    def test_solo_apk_no_abre_serie(self, ejecutar, revision, caps):
+        ejecutar.side_effect = ["package:/data/app/base.apk\n", self.apk("APP:0.4-123abcd"), "versionName=0.4\n", ""]
+        salida = io.StringIO()
+        with patch("sys.argv", ["verificar_version.py", "--solo-apk"]), contextlib.redirect_stdout(salida):
+            self.assertEqual(v.main(), 0)
+        caps.assert_not_called()
+        self.assertIn("FW PENDIENTE", salida.getvalue())
+        revision.assert_called_once_with("123abcd", "HEAD")
+
+    @patch.object(v, "coincide_revision", return_value=False)
+    @patch.object(v, "ejecutar")
+    def test_solo_apk_rechaza_revision_distinta(self, ejecutar, revision):
+        ejecutar.side_effect = ["package:/data/app/base.apk\n", self.apk("APP:0.4-123abcd"), "versionName=0.4\n", ""]
+        with patch("sys.argv", ["verificar_version.py", "--solo-apk"]), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(v.main(), 1)
+
+    def test_solo_apk_y_puerto_son_excluyentes(self):
+        with patch("sys.argv", ["verificar_version.py", "--solo-apk", "--puerto", "COM6"]), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                v.main()
 
 
 if __name__ == "__main__":

@@ -88,6 +88,7 @@ typedef struct {
     int fw_escala_pct;         /* error de escala del giroscopio: +2 = mide 2 % de más */
     int fw_sesgo_x100;         /* sesgo sin corregir, en centésimas de grado por segundo */
     int fw_ruido_x10;          /* ruido de la medida de cada giro: ± décimas de grado */
+    int fw_error_izq_x10, fw_error_der_x10; /* J15: error físico de cierre por lado; también se informa */
     int fw_sin_respuesta;      /* 1 = el firmware nunca contesta a los giros */
     int fw_falla_desde;        /* a partir de este giro (1, 2, ...) el giroscopio falla; 0 = nunca */
     int fw_falla_codigo;       /* NAV_GIRO_TIMEOUT, NAV_GIRO_ERROR_CON_DATOS o NAV_GIRO_ERROR_SIN_DATOS */
@@ -109,6 +110,8 @@ typedef struct {
     int sens_apagado;          /* J12: 1 = el firmware no manda SENS (ni ángulo) */
     long rumbo0_cgrados;       /* rumbo con el que empezó (el giroscopio mide el ángulo desde ahí) */
     int tof_activo;
+    int laser_externo;        /* J15: distancia calculada contra una caja del mundo, independiente de la cámara */
+    int laser_externo_mm;
     int tof_perdido;           /* 1 = el láser está caído (SENS con láser muerto) */
     int tof_paro_hecho;        /* cuántas paradas de emergencia hizo el láser */
     int tof_parado;            /* 1 mientras el firmware mantiene el carro frenado por TOF_PARO (hasta que el navegador cambia de comando) */

@@ -2,6 +2,7 @@
 
 Uso: pruebas_firmware\\.venv\\Scripts\\python.exe scripts\\verificar_version.py --puerto COM6
 Se puede indicar --adb, --apk (para comparar también bytes) y --revision.
+Con --solo-apk no abre ningún puerto serie y deja el FW pendiente para Sensores.
 Abrir el puerto no cambia DTR/RTS deliberadamente ni escribe NVS. Solo manda CAPS?.
 """
 import argparse
@@ -85,14 +86,16 @@ def consultar_caps(puerto):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--puerto", required=True)
+    conexion = p.add_mutually_exclusive_group(required=True)
+    conexion.add_argument("--puerto")
+    conexion.add_argument("--solo-apk", action="store_true")
     p.add_argument("--adb", default=str(Path(os.environ.get("LOCALAPPDATA", "")) / "Android/Sdk/platform-tools/adb.exe"))
     p.add_argument("--apk", type=Path)
     p.add_argument("--revision", default="HEAD")
     a = p.parse_args()
     try:
-        caps = consultar_caps(a.puerto)
-        fw, hash_fw = version_fw(caps)
+        caps = consultar_caps(a.puerto) if a.puerto else ""
+        fw, hash_fw = version_fw(caps) if caps else ("FW PENDIENTE: comprobar en Sensores con el carro conectado", "")
         ruta = ejecutar([a.adb, "shell", "pm", "path", "com.fsi.carro"]).strip().splitlines()
         if len(ruta) != 1 or not ruta[0].startswith("package:"):
             raise ValueError("No hay un APK único instalado de com.fsi.carro")
@@ -103,8 +106,10 @@ def main():
         nombre_ok = nombre is not None and app.startswith("APP:" + nombre.group(1) + "-")
         bytes_ok = a.apk is None or hashlib.sha256(a.apk.read_bytes()).digest() == hashlib.sha256(instalado).digest()
         fuentes_limpias = not ejecutar(["git", "status", "--porcelain", "--untracked-files=no", "--", "firmware_carro", "app_android", "nucleo_c", "scripts"]).strip()
-        ok = (hash_fw == hash_app and coincide_revision(hash_fw, a.revision) and nombre_ok and bytes_ok and fuentes_limpias)
-        print(caps)
+        fw_ok = a.solo_apk or hash_fw == hash_app
+        ok = (fw_ok and coincide_revision(hash_app, a.revision) and nombre_ok and bytes_ok and fuentes_limpias)
+        if caps:
+            print(caps)
         print(fw)
         print(app)
         print("versionName=" + (nombre.group(1) if nombre else "desconocida"))

@@ -328,6 +328,56 @@ static void sumar_desplazamiento_giro(Navegador *nav, int lado, int grados, int 
     nav->y_mm += dy;
 }
 
+/* Diferencia angular en décimas, con vuelta de 360 grados y signo. */
+static int diferencia_x10(int desde, int hasta)
+{
+    int d = (hasta % 3600 - desde % 3600) % 3600;
+    if (d > 1800) d -= 3600;
+    if (d < -1800) d += 3600;
+    return d;
+}
+
+static int grados_de_x10(int x10)
+{
+    return normalizar_grados(((x10 % 3600 + 3600) % 3600 + 5) / 10);
+}
+
+/* El giroscopio no mide distancia: solo orienta cada incremento obtenido por
+ * tiempo. No se proyecta TODO el avance con el último ángulo (eso inventaría
+ * un desplazamiento al cambiar el rumbo); se integra el arco por incrementos. */
+static void calcular_avance_medido(Navegador *nav, int distancia)
+{
+    int rumbo = nav->avance_rumbo_x10;
+    int incremento = distancia - nav->avance_mm_previo;
+    int fresco = nav->sens_angulo_ok &&
+        (uint32_t)(nav->t_ultimo_ms - nav->sens_angulo_t_ms) <= NAV_TOF_FRESCO_MS;
+    if (fresco) {
+        if (!nav->avance_imu_ref_ok) {
+            nav->avance_imu_ref_x10 = nav->sens_angulo_x10;
+            nav->avance_rumbo_ref_x10 = rumbo;
+            nav->avance_imu_ref_ok = 1;
+        }
+        rumbo = nav->avance_rumbo_ref_x10 - diferencia_x10(nav->avance_imu_ref_x10, nav->sens_angulo_x10);
+        /* Un salto de IMU_CERO o una medida corrupta no debe rotar la pose.
+         * Se recupera la referencia conservando el último rumbo conocido. */
+        if (diferencia_x10(nav->avance_rumbo_x10, rumbo) > 250 ||
+            diferencia_x10(nav->avance_rumbo_x10, rumbo) < -250) {
+            nav->avance_imu_ref_ok = 0;
+            rumbo = nav->avance_rumbo_x10;
+        }
+    }
+    {
+        int medio = grados_de_x10(nav->avance_rumbo_x10 + diferencia_x10(nav->avance_rumbo_x10, rumbo) / 2);
+        nav->avance_x_mil += (long)dir_x_mil(medio) * incremento;
+        nav->avance_y_mil += (long)dir_y_mil(medio) * incremento;
+    }
+    nav->avance_mm_previo = distancia;
+    nav->avance_rumbo_x10 = rumbo;
+    nav->x_mm = nav->base_x_mm + (int)(nav->avance_x_mil / 1000);
+    nav->y_mm = nav->base_y_mm + (int)(nav->avance_y_mil / 1000);
+    nav->rumbo_grados = grados_de_x10(rumbo);
+}
+
 static void calcular_pose(Navegador *nav)
 {
     int distancia, grados;
@@ -346,6 +396,9 @@ static void calcular_pose(Navegador *nav)
         }
         nav->x_mm = nav->base_x_mm + dir_x_mil(nav->base_rumbo_grados) * distancia / 1000;
         nav->y_mm = nav->base_y_mm + dir_y_mil(nav->base_rumbo_grados) * distancia / 1000;
+        if (nav->usa_giroscopio && !nav->giro_fw_caido && !nav->sin_rumbo_medido) {
+            calcular_avance_medido(nav, distancia);
+        }
         break;
     case NAV_CMD_LEFT:
         grados = grados_girados(nav, CAL_LADO_IZQUIERDA);
@@ -369,6 +422,12 @@ static void fijar_pose(Navegador *nav)
     nav->base_y_mm = nav->y_mm;
     nav->base_rumbo_grados = nav->rumbo_grados;
     nav->seg_ms = 0;
+    nav->avance_mm_previo = 0;
+    nav->avance_x_mil = nav->avance_y_mil = 0;
+    nav->avance_rumbo_x10 = nav->avance_rumbo_ref_x10 = nav->rumbo_grados * 10;
+    nav->avance_imu_ref_x10 = nav->sens_angulo_x10;
+    nav->avance_imu_ref_ok = nav->sens_angulo_ok &&
+        (uint32_t)(nav->t_ultimo_ms - nav->sens_angulo_t_ms) <= NAV_TOF_FRESCO_MS;
 }
 
 /* Al soltar un comando de movimiento el carro NO se detiene al instante: sigue avanzando (o
@@ -388,8 +447,8 @@ static void sumar_frenado(Navegador *nav)
         if (nav->cmd_actual == NAV_CMD_REVERSE) {
             mm = -mm;
         }
-        nav->x_mm += dir_x_mil(nav->base_rumbo_grados) * mm / 1000;
-        nav->y_mm += dir_y_mil(nav->base_rumbo_grados) * mm / 1000;
+        nav->x_mm += dir_x_mil(nav->rumbo_grados) * mm / 1000;
+        nav->y_mm += dir_y_mil(nav->rumbo_grados) * mm / 1000;
         break;
     case NAV_CMD_LEFT:
         grados = cal_frenado_grados(&nav->cal, CAL_LADO_IZQUIERDA);   /* lo que sigue girando al frenar... */
@@ -684,6 +743,12 @@ static void registrar_fin_comando(Navegador *nav)
 
     if (cmd == NAV_CMD_STOP || nav->cmd_plan_ms < 0) {
         return;   /* un STOP no se anota; y un registro ya cerrado (cmd_plan_ms = -1) no se cierra dos veces */
+    }
+    if (cmd == NAV_CMD_FORWARD || cmd == NAV_CMD_REVERSE) {
+        diag_escribir(nav, "POSE_DIAG avance origen=%s pose=(%d,%d,%d) rumbo_inicio=%d imu_lista=%d imu_edad_ms=%lu por=%s",
+                      nombre_origen(nav->cmd_origen), nav->x_mm, nav->y_mm, nav->rumbo_grados, nav->base_rumbo_grados,
+                      nav->sens_angulo_ok, (unsigned long)(nav->t_ultimo_ms - nav->sens_angulo_t_ms),
+                      nav->usa_giroscopio && !nav->giro_fw_caido && !nav->sin_rumbo_medido ? "rumbo_medido" : "tiempo");
     }
     if (cmd == NAV_CMD_LEFT || cmd == NAV_CMD_RIGHT) {
         int lado = (cmd == NAV_CMD_LEFT) ? CAL_LADO_IZQUIERDA : CAL_LADO_DERECHA;
@@ -1417,6 +1482,10 @@ void navegador_iniciar(Navegador *nav)
     nav->t_ultimo_cuadro_ms = 0;
     nav->x_mm = nav->y_mm = nav->rumbo_grados = 0;
     nav->base_x_mm = nav->base_y_mm = nav->base_rumbo_grados = 0;
+    nav->sin_rumbo_medido = 0;
+    nav->avance_imu_ref_ok = nav->avance_imu_ref_x10 = nav->avance_rumbo_ref_x10 = 0;
+    nav->avance_rumbo_x10 = nav->avance_mm_previo = 0;
+    nav->avance_x_mil = nav->avance_y_mil = 0;
     nav->seg_ms = 0;
     nav->giro_visual_x10 = 0;
     nav->visual_cubierto_ms = 0;
@@ -3519,12 +3588,18 @@ void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, 
 
 void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms)
 {
+    navegador_aporte_sens_imu(nav, mm, tof_vivo, tof_valida, angulo_x10_fw, 1, ahora_ms);
+}
+
+void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, int imu_lista, uint32_t ahora_ms)
+{
     if (nav == NULL) {
         return;
     }
     nav->sens_angulo_x10 = angulo_x10_fw;
     nav->sens_angulo_t_ms = ahora_ms;
-    nav->sens_angulo_ok = 1;
+    nav->sens_angulo_ok = imu_lista ? 1 : 0;
+    if (!imu_lista) nav->avance_imu_ref_ok = 0;
     nav->tof_vivo = tof_vivo ? 1 : 0;
     nav->tof_mm = mm;
     nav->tof_valida = tof_valida ? 1 : 0;

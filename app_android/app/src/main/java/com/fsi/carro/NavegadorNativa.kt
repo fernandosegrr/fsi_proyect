@@ -116,8 +116,8 @@ object NavegadorNativa {
     /** La respuesta del firmware a un giro: `codigo` es GIRO_*, `realX10Fw` los grados por 10 que giró (POSITIVO = izquierda), `ms` lo que tardó, `ahoraMs` el reloj de tick(). */
     external fun aporteGiro(codigo: Int, realX10Fw: Int, ms: Int, ant: Int, ahoraMs: Long)
 
-    /** Un SENS del firmware: distancia del láser en mm, si el láser funciona, si la medida es válida (no «libre») y el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
-    external fun aporteSens(mm: Int, tofVivo: Boolean, tofValida: Boolean, anguloX10: Int, ahoraMs: Long)
+    /** SENS: láser y ángulo (+ izquierda). imuLista excluye IMU caída o calibrando de la pose. */
+    external fun aporteSens(mm: Int, tofVivo: Boolean, tofValida: Boolean, anguloX10: Int, ahoraMs: Long, imuLista: Boolean)
 
     /** 1 (una sola vez) si el navegador pide que se mande IMU?: se perdió la respuesta de un giro por ángulo y hay que saber cuánto giró antes de repetirlo. */
     external fun tomarConsultaImu(): Int

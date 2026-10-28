@@ -329,6 +329,11 @@ static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
         sim->fw_anticipacion_ms[izquierda ? 1 : 0] = ant + (int)((ideal - ant) / 2);
     }
     sim->fw_total_cgrados = total_mdeg / 10 * sim->fw_total_pct / 100;
+    if (codigo == NAV_GIRO_OK) {
+        int error = izquierda ? sim->fw_error_izq_x10 : sim->fw_error_der_x10;
+        sim->fw_total_cgrados += error * 10;
+        medido_final += error * 100;
+    }
     sim->fw_manejo_ms = t;
     sim->fw_medido_x10 = (int)((medido_final + 50) / 100) + (sim->fw_ruido_x10 > 0 ? azar_fw_entre(-sim->fw_ruido_x10, sim->fw_ruido_x10) : 0);
     sim->fw_codigo = codigo;
@@ -365,6 +370,9 @@ static void fw_avanzar(Simulador *sim, Navegador *nav, int dt)
 /* Distancia que ve el láser: la del obstáculo más cercano que tenga `laser_mm` y esté visible; TOF_LIBRE (1200) si no ve nada. */
 static int laser_ve(Simulador *sim)
 {
+    if (sim->laser_externo) {
+        return sim->laser_externo_mm;
+    }
     int i, mm = 1200;
 
     for (i = 0; i < sim->n_eventos; i++) {
