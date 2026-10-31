@@ -14,13 +14,13 @@ jobs:
       - name: ThreadSanitizer (estres de 2 hilos con GIRAR mezclado con STOP)
         working-directory: pruebas_firmware
         run: |
-          FUENTES="pruebas_carro.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c sensores_falsos.c"
+          FUENTES="pruebas_carro.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c"
           gcc -std=c99 -g -O1 -fsanitize=thread -I../firmware_carro -I. -o pruebas_carro_tsan $FUENTES -lpthread
           ./pruebas_carro_tsan | tail -5
       - name: AddressSanitizer + UndefinedBehaviorSanitizer (sensores y carro)
         working-directory: pruebas_firmware
         run: |
-          SENS="../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c sensores_falsos.c"
+          SENS="../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c"
           gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -I. -o pruebas_sensores_asan pruebas_sensores.c $SENS -lm
           ./pruebas_sensores_asan | tail -3
           gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -I. -o pruebas_carro_asan pruebas_carro.c $SENS -lpthread
@@ -30,6 +30,17 @@ jobs:
         run: |
           gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_navegador_asan pruebas_navegador.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
           ./pruebas_navegador_asan | tail -3
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (rumbo J16 en el firmware)
+        working-directory: pruebas_firmware
+        run: |
+          SENS="../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c"
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -I. -o pruebas_rumbo_asan pruebas_rumbo.c $SENS
+          ./pruebas_rumbo_asan | tail -3
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (precision J16, 300 corridas por escenario)
+        working-directory: nucleo_c
+        run: |
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -I../firmware_carro -o pruebas_precision_j16_asan pruebas_precision_j16.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c ../firmware_carro/rumbo.c
+          ./pruebas_precision_j16_asan 300 | tail -3
       - name: AddressSanitizer + UndefinedBehaviorSanitizer (reincorporacion J15)
         working-directory: nucleo_c
         run: |

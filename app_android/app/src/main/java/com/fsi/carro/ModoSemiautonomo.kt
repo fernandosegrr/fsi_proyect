@@ -54,6 +54,8 @@ class ModoSemiautonomo(
     private val manejador = Handler(Looper.getMainLooper())
     private var ultimoComando = NavegadorNativa.CMD_STOP
     private var giroPorAnguloAntes = false   // el giro del tick anterior lo hacía el firmware (J11)
+    private var rumboEncendido = false       // J16: esta ruta le pidió al firmware que sostenga el rumbo (RUMBO:ON)
+    private val rumboSalida = IntArray(1)
 
     /** Obstáculos simulados (se usan si `camara` es null): izquierda, centro, derecha. */
     val obstaculoSimulado = BooleanArray(3)
@@ -172,7 +174,9 @@ class ModoSemiautonomo(
         if (activo) {
             return false
         }
-        val predef = RutasPredefinidas.buscarPorIdONombre(nombre)
+        // J16: una ruta predefinida se reconoce solo si sus celdas son EXACTAMENTE las de esa ruta (antes bastaba el nombre: una ruta propia llamada «…150…» recibía el
+        // largo fijo de 150 cm y una llamada «…obstáculo…» se cancelaba al primer frenado).
+        val predef = RutasPredefinidas.buscarPorIdONombre(nombre)?.takeIf { it.celdas.contentEquals(ruta) }
             ?: RutasPredefinidas.TODAS.firstOrNull { it.celdas.contentEquals(ruta) }
         modoPruebaObstaculo = (ruta === RUTA_PRUEBA_OBSTACULO || predef?.id == RutasPredefinidas.ID_OBSTACULO)
         NavegadorNativa.ponerLargoRectaMm(predef?.largoRectaMm ?: 0)
@@ -202,6 +206,11 @@ class ModoSemiautonomo(
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
         logica.alTofParo = { mm -> NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime()) }
         NavegadorNativa.pedirAyuda(if (modoPruebaObstaculo) 0 else 1)   // si no puede esquivar, pide que tomes el control en vez de rendirse (la prueba de obstáculo no)
+        // J16: rumbo sostenido por el firmware. Solo si el firmware dijo RUMBO=1, el giroscopio funciona y el interruptor está encendido; si no, la ruta es como antes.
+        rumboEncendido = logica.rumboActivo
+        NavegadorNativa.ponerRumboFw(if (rumboEncendido) 1 else 0)
+        logica.rumbo(rumboEncendido)   // RUMBO:ON (o RUMBO:OFF, para no heredar el de una ruta anterior); con un firmware anterior no se manda nada
+        Log.i("SENS_DIAG", "ruta: rumbo_fw=$rumboEncendido (caps=${logica.capsRumbo} interruptor=${logica.usarRumbo})")
         val codigoRuta = NavegadorNativa.cargarRuta(ruta)
         if (codigoRuta != 0) {
             mensaje = "Ruta no válida (código $codigoRuta)"
@@ -253,6 +262,7 @@ class ModoSemiautonomo(
         activo = false
         manejador.removeCallbacks(tarea)
         NavegadorNativa.cancelar()
+        apagarRumbo()
         escribirResumenDePrueba()
         if (estabaActivo || ultimoComando != NavegadorNativa.CMD_STOP) {
             Log.i(ETIQUETA, "cancelado: $motivo")
@@ -262,6 +272,14 @@ class ModoSemiautonomo(
         avanzando = false
         mensaje = if (estabaActivo) motivo else mensaje
         alCambiar()
+    }
+
+    /** J16: al terminar o cancelar la ruta el firmware deja de sostener el rumbo (manejar con los botones vuelve a ser como siempre). */
+    private fun apagarRumbo() {
+        if (rumboEncendido) {
+            rumboEncendido = false
+            logica.rumbo(false)
+        }
     }
 
     /** Un interruptor de obstáculo simulado: 0 izquierda, 1 centro, 2 derecha. */
@@ -323,8 +341,6 @@ class ModoSemiautonomo(
         }
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
-        registrarEsquive()
-        registrarDiagnostico()
 
         // J11: un giro por ángulo se le pide al firmware una sola vez (GIRAR:<grados>) y no se manda LEFT ni RIGHT mientras lo hace; si el giro cae al método por tiempo hay que mandar el LEFT/RIGHT que faltaba.
         val girarGrados = NavegadorNativa.tomarGiroFw()
@@ -349,7 +365,15 @@ class ModoSemiautonomo(
                 logica.ordenAutomatica(texto)
             }
         }
+        // J16: el objetivo de rumbo va DESPUÉS del comando: el firmware empieza cada FORWARD sosteniendo el rumbo de ese momento y este objetivo lo ajusta.
+        if (rumboEncendido && NavegadorNativa.tomarRumboFw(rumboSalida) != 0) {
+            logica.rumboObjetivo(rumboSalida[0])
+        }
+        // J16: el registro va después de mandar el comando (antes, hasta 16 llamadas con Log atrasaban el STOP 1 a 5 ms).
+        registrarEsquive()
+        registrarDiagnostico()
         if (estado == NavegadorNativa.TERMINADO || estado == NavegadorNativa.ERROR || estado == NavegadorNativa.ESPERANDO) {
+            apagarRumbo()
             activo = false
             avanzando = false
             mensaje = NavegadorNativa.textoEstado(estado)

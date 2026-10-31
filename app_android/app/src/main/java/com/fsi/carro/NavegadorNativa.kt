@@ -113,6 +113,14 @@ object NavegadorNativa {
     /** 1 mientras el giro actual lo hace el firmware: NO hay que mandar LEFT ni RIGHT. */
     external fun giroFwActivo(): Int
 
+    // ── Rumbo sostenido por el firmware (J16) ──
+
+    /** 1 = el firmware sostiene el rumbo al avanzar (la app ya mandó RUMBO:ON porque CAPS dijo RUMBO=1 y el interruptor está encendido); 0 = como antes. Para las rutas que se carguen después. */
+    external fun ponerRumboFw(activo: Int): Int
+
+    /** Si el navegador tiene un objetivo de rumbo nuevo devuelve 1 y lo deja en salida[0] (décimas de grado, POSITIVO = izquierda, el ángulo de SENS) para mandar RUMBO:<n>; 0 si no hay. Llamar después de mandar el comando del tick. */
+    external fun tomarRumboFw(salida: IntArray): Int
+
     /** La respuesta del firmware a un giro: `codigo` es GIRO_*, `realX10Fw` los grados por 10 que giró (POSITIVO = izquierda), `ms` lo que tardó, `ahoraMs` el reloj de tick(). */
     external fun aporteGiro(codigo: Int, realX10Fw: Int, ms: Int, ant: Int, ahoraMs: Long)
 

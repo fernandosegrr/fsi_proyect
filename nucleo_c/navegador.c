@@ -74,6 +74,26 @@ static int dir_y_mil(int rumbo_grados)
     return -seno_mil(rumbo_grados + 90);
 }
 
+/* J16: seno de un ángulo en DÉCIMAS de grado, interpolando la tabla entre dos grados enteros. Con grados enteros un rumbo medido de 0.4° no movía la x
+ * (y uno de 0.6° la movía como 1°): en 150 cm son hasta ~1 cm de error lateral que la pose no veía. */
+static int seno_mil_x10(int x10)
+{
+    int g = ((x10 % 3600) + 3600) % 3600;
+    int s0 = seno_mil(g / 10), s1 = seno_mil(g / 10 + 1);
+
+    return s0 + (s1 - s0) * (g % 10) / 10;
+}
+
+static int dir_x_mil_x10(int rumbo_x10)
+{
+    return seno_mil_x10(rumbo_x10);
+}
+
+static int dir_y_mil_x10(int rumbo_x10)
+{
+    return -seno_mil_x10(rumbo_x10 + 900);
+}
+
 /* ── Ayudas numéricas ──────────────────────────────────────────────────── */
 
 /* División entera redondeada hacia abajo (también con numeradores negativos); b > 0. */
@@ -195,12 +215,65 @@ static int rumbo_del_vector(long dx, long dy, int por_defecto)
     return normalizar_grados(360 - desde_vertical);   /* arriba-izquierda */
 }
 
+/* J16: como grados_de_cociente pero en décimas de grado (0 a 450), interpolando la tabla de tangentes entre dos grados enteros. */
+static int grados_de_cociente_x10(long numerador, long denominador)
+{
+    long mil;
+    int k;
+
+    if (denominador <= 0 || numerador <= 0) {
+        return 0;
+    }
+    mil = numerador * 1000 / denominador;
+    for (k = 1; k <= 45 && mil > TANGENTE_MIL[k]; k++) {
+    }
+    if (k > 45) {
+        return 450;
+    }
+    return (k - 1) * 10 + (int)((mil - TANGENTE_MIL[k - 1]) * 10 / (TANGENTE_MIL[k] - TANGENTE_MIL[k - 1]));
+}
+
+/* J16: rumbo del vector (dx, dy) en décimas de grado (0 a 3599); con el vector en cero, `por_defecto_x10`. */
+static int rumbo_del_vector_x10(long dx, long dy, int por_defecto_x10)
+{
+    long ax = (dx < 0) ? -dx : dx;
+    long ay = (dy < 0) ? -dy : dy;
+    int desde_vertical;
+
+    if (ax == 0 && ay == 0) {
+        return por_defecto_x10;
+    }
+    desde_vertical = (ax <= ay) ? grados_de_cociente_x10(ax, ay) : 900 - grados_de_cociente_x10(ay, ax);
+    if (dx >= 0 && dy < 0) {
+        return desde_vertical;
+    }
+    if (dx >= 0) {
+        return 1800 - desde_vertical;
+    }
+    if (dy >= 0) {
+        return 1800 + desde_vertical;
+    }
+    return (3600 - desde_vertical) % 3600;
+}
+
 /* Giro más corto (con signo, + derecha) para pasar del rumbo `desde` al rumbo `hasta`: de -179 a 180. */
 static int giro_minimo(int desde, int hasta)
 {
     int d = normalizar_grados(hasta - desde);
 
     return (d > 180) ? d - 360 : d;
+}
+
+/* J15: ¿la pose de los avances se orienta con el giroscopio? */
+static int rumbo_medido_activo(const Navegador *nav)
+{
+    return nav->usa_giroscopio && !nav->giro_fw_caido && !nav->sin_rumbo_medido;
+}
+
+/* J16: ¿el firmware sostiene el rumbo al avanzar? Solo con RUMBO pedido y el rumbo medido de J15 (sin él no se sabe a qué ángulo apuntar). */
+static int rumbo_fw_activo(const Navegador *nav)
+{
+    return nav->rumbo_fw && rumbo_medido_activo(nav);
 }
 
 /* ── Giro medido con la cámara ─────────────────────────────────────────── */
@@ -367,9 +440,18 @@ static void calcular_avance_medido(Navegador *nav, int distancia)
         }
     }
     {
-        int medio = grados_de_x10(nav->avance_rumbo_x10 + diferencia_x10(nav->avance_rumbo_x10, rumbo) / 2);
-        nav->avance_x_mil += (long)dir_x_mil(medio) * incremento;
-        nav->avance_y_mil += (long)dir_y_mil(medio) * incremento;
+        int medio_x10 = nav->avance_rumbo_x10 + diferencia_x10(nav->avance_rumbo_x10, rumbo) / 2;
+        int ux, uy;
+
+        if (nav->sin_trig_fino) {   /* lo de J15: el rumbo medio redondeado a grados enteros */
+            ux = dir_x_mil(grados_de_x10(medio_x10));
+            uy = dir_y_mil(grados_de_x10(medio_x10));
+        } else {
+            ux = dir_x_mil_x10(medio_x10);
+            uy = dir_y_mil_x10(medio_x10);
+        }
+        nav->avance_x_mil += (long)ux * incremento;
+        nav->avance_y_mil += (long)uy * incremento;
     }
     nav->avance_mm_previo = distancia;
     nav->avance_rumbo_x10 = rumbo;
@@ -500,6 +582,8 @@ static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
         nav->giro_fw_consulta_pedir = 0;
         nav->giro_visual_x10 = 0;        /* un comando nuevo empieza a medir desde cero */
         nav->visual_cubierto_ms = 0;
+        nav->rumbo_fw_hay_enviado = 0;   /* J16: cada FORWARD nuevo el firmware empieza sosteniendo el rumbo de ese momento */
+        nav->rumbo_fw_pedir = 0;
         nav->cmd_actual = nuevo;
         registrar_inicio_comando(nav, nuevo);
         giro_fw_empezar(nav, nuevo);
@@ -1184,12 +1268,29 @@ static int planificar(Navegador *nav)
     fijar_pose(nav);
     nav->frenado_pendiente = 0;
 
+    nav->paso_en_linea = 0;
     if (nav->override_largo_mm > 0 && nav->indice_objetivo > 1) {
-        /* Ya se cumplió la recta prefijada: terminar la ruta */
-        nav->n_pasos = 0;
-        nav->indice_objetivo = nav->n_puntos;
-        nav->estado = NAV_TERMINADO;
-        return NAV_OK;
+        /* Recta con largo fijo (J14). J16: antes se terminaba en CUALQUIER plan con índice mayor que 1, también al volver de esquivar a mitad de la recta (terminaba
+         * sin haber llegado). Ahora solo si ya está a NAV_OVERRIDE_TOL_MM o menos del largo pedido, medido a lo largo de la ruta; si no, sigue (el avance se recorta
+         * más abajo para no pasarse). */
+        int tramo_ov;
+        long s_ov, desvio_ov;
+
+        ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo_ov, &s_ov, &desvio_ov);
+        if (nav->cmd_actual == NAV_CMD_FORWARD) {
+            s_ov += nav->cal.frenado_mm;   /* el avance todavía no frenó: lo que siga al soltarlo ya cuenta */
+        }
+        if (s_ov + NAV_OVERRIDE_TOL_MM >= nav->override_largo_mm) {
+            nav->n_pasos = 0;
+            nav->indice_objetivo = nav->n_puntos;
+            nav->estado = NAV_TERMINADO;
+            return NAV_OK;
+        }
+        while (nav->indice_objetivo < nav->n_puntos - 1 && distancia_hasta_tramo(nav, nav->indice_objetivo) <= s_ov) {
+            nav->indice_objetivo++;   /* nunca se planea hacia un punto de la recta que ya quedó atrás */
+        }
+        k = nav->indice_objetivo;
+        meta = &nav->ruta[k];
     }
 
     if (!nav->sin_compensar_giro && k >= 1 && k < nav->n_puntos) {
@@ -1216,7 +1317,7 @@ static int planificar(Navegador *nav)
             int apunta = 0, uhx = u1x, uhy = u1y;
             PoseCarro p_ini;
             long ex, ey, dist_esq, dist_k, avance_mm, tx, ty;
-            int cm, continua, sigue_recto;
+            int cm, continua, sigue_recto, hasta_el_largo = 0;
 
             while (k_esq + 1 < nav->n_puntos && rumbo_del_tramo(nav, k_esq) == rumbo_tramo) {
                 k_esq++;
@@ -1276,6 +1377,11 @@ static int planificar(Navegador *nav)
                     }
                 }
             }
+            /* J16: con el firmware sosteniendo el rumbo (RUMBO), un error de rumbo de hasta NAV_RUMBO_FW_SIN_GIRO grados se corrige AVANZANDO (rumbo_fw_actualizar):
+             * no hace falta el giro parado, que además mueve el centro por el pivote. Los giros de la ruta (45° o más) no cambian. */
+            if (rumbo_fw_activo(nav) && !apunta && giro >= -NAV_RUMBO_FW_SIN_GIRO && giro <= NAV_RUMBO_FW_SIN_GIRO) {
+                giro = 0;
+            }
             /* Tope de NAV_MAX_CORR_RUMBO_VERTICE giros de corrección (más de 4°) por vértice: la corrección no puede entrar en bucle aunque se vuelva a planear el mismo vértice. */
             if (giro < -4 || giro > 4) {
                 if (nav->corr_rumbo_vertice != k) {
@@ -1316,11 +1422,39 @@ static int planificar(Navegador *nav)
             dist_k = ((kx - p_ini.x_mm) * (long)uhx + (ky - p_ini.y_mm) * (long)uhy) / 1000;
             avance_mm = (k == k_esq || dist_k > dist_esq) ? dist_esq : dist_k;
             continua = (nav->cmd_actual == NAV_CMD_FORWARD && nav->n_pasos == 0);
-            if (nav->override_largo_mm > 0 && nav->indice_objetivo == 1 && !continua) {
-                avance_mm = nav->override_largo_mm;
+            if (nav->override_largo_mm > 0 && nav->indice_objetivo == 1 && !continua && !rumbo_medido_activo(nav)) {
+                avance_mm = nav->override_largo_mm;   /* sin rumbo medido, un solo avance (J14); con él se planea por celdas como cualquier recta, así se corrige el rumbo en cada una */
+            }
+            if (nav->override_largo_mm > 0) {   /* J16: nunca más allá del largo fijo de la recta (también al volver de esquivar a mitad de camino) */
+                int tramo_ov;
+                long s_ov, desvio_ov;
+
+                ubicar_en_linea(nav, p_ini.x_mm, p_ini.y_mm, &tramo_ov, &s_ov, &desvio_ov);
+                if (avance_mm + 5 >= nav->override_largo_mm - s_ov) {
+                    avance_mm = nav->override_largo_mm - s_ov;
+                    hasta_el_largo = 1;   /* este avance termina la recta: frena ahí */
+                }
+            }
+            {   /* J16: la línea que sigue este avance, para que rumbo_fw_actualizar sepa a dónde volver mientras avanza. El final que cuenta es el de la RECTA (el punto
+                 * de parada antes de la esquina, o el largo fijo), no el de este paso: en una recta de varias celdas el carro sigue de largo de una celda a otra. */
+                long fin_x = p_ini.x_mm + avance_mm * uhx / 1000, fin_y = p_ini.y_mm + avance_mm * uhy / 1000;
+                long fin_recta;
+
+                nav->paso_en_linea = 1;
+                nav->paso_apunta = apunta;
+                nav->paso_fin_x_mm = (int)fin_x;
+                nav->paso_fin_y_mm = (int)fin_y;
+                nav->linea_ax_mm = (int)punto_ruta_x(nav, k - 1);
+                nav->linea_ay_mm = (int)punto_ruta_y(nav, k - 1);
+                nav->linea_rumbo = rumbo_tramo;
+                fin_recta = ((tx - nav->linea_ax_mm) * (long)u1x + (ty - nav->linea_ay_mm) * (long)u1y) / 1000;
+                if (nav->override_largo_mm > 0 && fin_recta > nav->override_largo_mm - distancia_hasta_tramo(nav, k - 1)) {
+                    fin_recta = nav->override_largo_mm - distancia_hasta_tramo(nav, k - 1);
+                }
+                nav->linea_fin_s_mm = (int)fin_recta;
             }
             cm = (int)((avance_mm + 5) / 10);
-            sigue_recto = (k < k_esq && dist_esq - avance_mm >= 10 && nav->override_largo_mm == 0);
+            sigue_recto = (k < k_esq && dist_esq - avance_mm >= 10 && !hasta_el_largo);
             if (cm > 0) {
                 nav->pasos[nav->n_pasos].tipo = PASO_AVANZAR;
                 nav->pasos[nav->n_pasos].valor = cm;
@@ -1608,6 +1742,20 @@ void navegador_iniciar(Navegador *nav)
     nav->diag_t_ms = 0;
     nav->diag[0][0] = '\0';
     nav->override_largo_mm = 0;
+    nav->rumbo_fw = 0;
+    nav->rumbo_fw_pedir = 0;
+    nav->rumbo_fw_objetivo_x10 = nav->rumbo_fw_enviado_x10 = 0;
+    nav->rumbo_fw_hay_enviado = 0;
+    nav->rumbo_fw_t_ms = 0;
+    nav->paso_en_linea = 0;
+    nav->paso_apunta = nav->paso_fin_x_mm = nav->paso_fin_y_mm = 0;
+    nav->linea_ax_mm = nav->linea_ay_mm = nav->linea_rumbo = nav->linea_fin_s_mm = 0;
+    nav->sin_volver_a_linea = 0;
+    nav->rumbo_en_vuelta = 0;
+    nav->sin_margen_paso_j16 = 0;
+    nav->sin_trig_fino = 0;
+    nav->sin_arreglo_dt_giro = 0;
+    nav->descartar_dt = 0;
 }
 
 int navegador_retroceso_calibrado(const Navegador *nav)
@@ -1705,8 +1853,11 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
         nav->n_giros_angulo = nav->n_giros_tiempo = 0;
         nav->giro_fw_consultando = nav->giro_fw_consulta_pedir = nav->giro_fw_ang_ini_ok = 0;
         nav->tof_paro_activo = nav->tof_pendiente = nav->tof_paros = nav->tof_dist_mm = 0;
+        nav->rumbo_fw_pedir = nav->rumbo_fw_hay_enviado = 0;   /* J16 */
+        nav->paso_en_linea = 0;
+        nav->descartar_dt = 0;
         nav->racha_solo_centro2 = nav->tof_racha_nota = 0;
-        diag_escribir(nav, "SENS_DIAG config giroscopio=%d sensor_distancia=%d", nav->usa_giroscopio, nav->usa_tof);
+        diag_escribir(nav, "SENS_DIAG config giroscopio=%d sensor_distancia=%d rumbo_fw=%d", nav->usa_giroscopio, nav->usa_tof, nav->rumbo_fw);
         nav->arranque_ok = 0;
         nav->arranque_iguales = 0;
         nav->arranque_firma = 0;
@@ -3059,7 +3210,7 @@ static long calcular_fin_obstaculo(const Navegador *nav, int cercania)
         cara = nav->tof_dist_mm;   /* el láser midió la distancia al obstáculo: vale más que la banda de cercanía de la cámara */
     }
     ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s_pos, &desvio);
-    hasta = s_pos + cara + NAV_OBSTACULO_PROFUNDO_MM + NAV_PASO_MARGEN_MM;
+    hasta = s_pos + cara + NAV_OBSTACULO_PROFUNDO_MM + (nav->sin_margen_paso_j16 ? NAV_PASO_MARGEN_J15_MM : NAV_PASO_MARGEN_MM);
     if (nav->n_puntos < 2) {
         return s_pos;
     }
@@ -3543,6 +3694,128 @@ void navegador_poner_largo_recta_mm(Navegador *nav, int mm)
     }
 }
 
+/* ── Rumbo sostenido por el firmware (J16) ─────────────────────────────── */
+
+int navegador_poner_rumbo_fw(Navegador *nav, int activo)
+{
+    if (nav == NULL || (activo != 0 && activo != 1)) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->rumbo_fw = activo;
+    nav->rumbo_fw_pedir = 0;
+    nav->rumbo_fw_hay_enviado = 0;
+    return NAV_OK;
+}
+
+int navegador_tomar_rumbo_fw(Navegador *nav, int *objetivo_x10_fw)
+{
+    if (nav == NULL || objetivo_x10_fw == NULL || !nav->rumbo_fw_pedir) {
+        return 0;
+    }
+    nav->rumbo_fw_pedir = 0;
+    *objetivo_x10_fw = nav->rumbo_fw_objetivo_x10;
+    return 1;
+}
+
+/* El rumbo (décimas, convención del navegador: + derecha) que el carro debe llevar mientras avanza, o 0 si no hay uno (el firmware sostiene el del arranque):
+ *  - SIGUIENDO, en un avance planeado sobre la línea: apuntar al punto de la línea NAV_RUMBO_MIRA_MM más adelante (sin pasar del final del avance), así un carro
+ *    que quedó de lado vuelve a la línea avanzando; a menos de NAV_RUMBO_MIRA_MIN_MM del final, solo el rumbo de la línea. Nunca se aparta más de NAV_RUMBO_CORR_MAX.
+ *  - REINCORPORANDO, en el avance hacia la línea: apuntar al punto planeado (hasta quedar a NAV_RUMBO_PUNTO_MIN_MM de él).
+ *  - ESQUIVANDO, en el paso en paralelo: el rumbo de la línea. */
+static int rumbo_deseado_x10(const Navegador *nav, int *deseado_x10)
+{
+    if (nav->estado == NAV_SIGUIENDO) {
+        long ux, uy, rx, ry, s, falta, mira, px, py;
+        int d;
+
+        if (!nav->paso_en_linea || nav->sondeo_fase != 0 || nav->indice_paso >= nav->n_pasos || nav->pasos[nav->indice_paso].tipo != PASO_AVANZAR) {
+            return 0;
+        }
+        if (nav->paso_apunta && !nav->sin_volver_a_linea) {   /* el avance va en diagonal a su punto de parada (tras un pivote grande): se apunta a ese punto */
+            long dx = (long)nav->paso_fin_x_mm - nav->x_mm, dy = (long)nav->paso_fin_y_mm - nav->y_mm;
+
+            if (raiz_entera(dx * dx + dy * dy) < NAV_RUMBO_PUNTO_MIN_MM) {
+                return 0;
+            }
+            d = diferencia_x10(nav->base_rumbo_grados * 10, rumbo_del_vector_x10(dx, dy, nav->base_rumbo_grados * 10));
+            if (d > NAV_RUMBO_CORR_MAX * 10) {
+                d = NAV_RUMBO_CORR_MAX * 10;
+            } else if (d < -NAV_RUMBO_CORR_MAX * 10) {
+                d = -NAV_RUMBO_CORR_MAX * 10;
+            }
+            *deseado_x10 = nav->base_rumbo_grados * 10 + d;
+            return 1;
+        }
+        ux = dir_x_mil(nav->linea_rumbo);
+        uy = dir_y_mil(nav->linea_rumbo);
+        rx = (long)nav->x_mm - nav->linea_ax_mm;
+        ry = (long)nav->y_mm - nav->linea_ay_mm;
+        s = (rx * ux + ry * uy) / 1000;
+        falta = nav->linea_fin_s_mm - s;
+        if (nav->sin_volver_a_linea || falta < NAV_RUMBO_MIRA_MIN_MM) {
+            *deseado_x10 = nav->linea_rumbo * 10;
+            return 1;
+        }
+        mira = (falta < NAV_RUMBO_MIRA_MM) ? falta : NAV_RUMBO_MIRA_MM;
+        px = nav->linea_ax_mm + ux * (s + mira) / 1000;
+        py = nav->linea_ay_mm + uy * (s + mira) / 1000;
+        d = diferencia_x10(nav->linea_rumbo * 10, rumbo_del_vector_x10(px - nav->x_mm, py - nav->y_mm, nav->linea_rumbo * 10));
+        if (d > NAV_RUMBO_CORR_MAX * 10) {
+            d = NAV_RUMBO_CORR_MAX * 10;
+        } else if (d < -NAV_RUMBO_CORR_MAX * 10) {
+            d = -NAV_RUMBO_CORR_MAX * 10;
+        }
+        *deseado_x10 = normalizar_grados(nav->linea_rumbo) * 10 + d;
+        return 1;
+    }
+    if (nav->estado == NAV_REINCORPORANDO && nav->reinc_fase == NAV_RF_AVANZAR && nav->rumbo_en_vuelta) {
+        long dx = (long)nav->reinc_plan_x_mm[1] - nav->x_mm, dy = (long)nav->reinc_plan_y_mm[1] - nav->y_mm;
+        int d;
+
+        if (raiz_entera(dx * dx + dy * dy) < NAV_RUMBO_PUNTO_MIN_MM) {
+            return 0;
+        }
+        d = diferencia_x10(nav->base_rumbo_grados * 10, rumbo_del_vector_x10(dx, dy, nav->base_rumbo_grados * 10));
+        if (d > NAV_RUMBO_CORR_MAX * 10) {
+            d = NAV_RUMBO_CORR_MAX * 10;
+        } else if (d < -NAV_RUMBO_CORR_MAX * 10) {
+            d = -NAV_RUMBO_CORR_MAX * 10;
+        }
+        *deseado_x10 = nav->base_rumbo_grados * 10 + d;
+        return 1;
+    }
+    if (nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_PARALELO) {
+        *deseado_x10 = nav->salida_rumbo * 10;
+        return 1;
+    }
+    return 0;
+}
+
+/* Después de cada tick: si el firmware sostiene el rumbo y el carro avanza, el objetivo nuevo (en la convención del firmware) queda listo para
+ * navegador_tomar_rumbo_fw cuando cambió al menos NAV_RUMBO_FW_CAMBIO_X10 y pasó NAV_RUMBO_FW_MIN_MS desde el último. La conversión usa la misma referencia que
+ * la pose medida de J15 (ángulo de SENS y rumbo al empezar el avance), así que solo vale con una lectura fresca del giroscopio. */
+static void rumbo_fw_actualizar(Navegador *nav, uint32_t ahora_ms)
+{
+    int deseado_x10, objetivo;
+
+    if (!rumbo_fw_activo(nav) || nav->cmd_actual != NAV_CMD_FORWARD || !nav->avance_imu_ref_ok || !rumbo_deseado_x10(nav, &deseado_x10)) {
+        return;
+    }
+    objetivo = nav->avance_imu_ref_x10 - diferencia_x10(nav->avance_rumbo_ref_x10, deseado_x10);
+    if (nav->rumbo_fw_hay_enviado) {
+        int cambio = objetivo - nav->rumbo_fw_enviado_x10;
+
+        if ((cambio < NAV_RUMBO_FW_CAMBIO_X10 && cambio > -NAV_RUMBO_FW_CAMBIO_X10) || (uint32_t)(ahora_ms - nav->rumbo_fw_t_ms) < (uint32_t)NAV_RUMBO_FW_MIN_MS) {
+            return;
+        }
+    }
+    nav->rumbo_fw_objetivo_x10 = objetivo;
+    nav->rumbo_fw_enviado_x10 = objetivo;
+    nav->rumbo_fw_hay_enviado = 1;
+    nav->rumbo_fw_t_ms = ahora_ms;
+    nav->rumbo_fw_pedir = 1;
+}
+
 int navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo)
 {
     if (nav == NULL || grados_izq_positivo == NULL || !nav->giro_fw || !nav->giro_fw_pedir) {
@@ -3572,6 +3845,7 @@ void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, 
     }
     if (codigo == NAV_GIRO_ERROR_SIN_DATOS) {
         giro_fw_pasar_a_tiempo(nav, "el_firmware_no_pudo_girar");
+        nav->descartar_dt = !nav->sin_arreglo_dt_giro;   /* J16: llega entre ticks; el giro por tiempo empieza cuando la app mande LEFT/RIGHT en el siguiente */
         return;
     }
     real_x10 = (nav->cmd_actual == NAV_CMD_LEFT) ? real_x10_fw : -real_x10_fw;   /* + a la izquierda del firmware → grados en la dirección del comando */
@@ -3643,6 +3917,9 @@ void navegador_aporte_imu(Navegador *nav, int angulo_x10_fw, uint32_t ahora_ms)
     nav->sens_angulo_ok = 1;
     if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_consultando) {
         giro_fw_resolver(nav, angulo_x10_fw, "IMU?");
+        if (!nav->giro_fw && !nav->sin_arreglo_dt_giro) {
+            nav->descartar_dt = 1;   /* J16: cayó a tiempo para lo que falta, entre ticks: el carro está quieto hasta el siguiente */
+        }
     }
 }
 
@@ -3719,6 +3996,10 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     if (dt > NAV_DT_MAX_MS) {
         dt = NAV_DT_MAX_MS;
     }
+    if (nav->descartar_dt) {   /* J16: el giro cayó a tiempo entre dos ticks: el carro estuvo quieto hasta ahora (la app manda LEFT o RIGHT en este tick) */
+        dt = 0;
+        nav->descartar_dt = 0;
+    }
     nav->t_ultimo_ms = ahora_ms;
 
     /* Vigilancia del video: si ya llegaban cuadros y pasa más de NAV_MAX_HUECO_VIDEO_MS sin uno nuevo, el carro no ve lo que
@@ -3774,6 +4055,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         comando = NAV_CMD_STOP;
     }
     cambiar_comando(nav, comando);
+    rumbo_fw_actualizar(nav, ahora_ms);   /* J16: el rumbo que el firmware debe sostener en este avance (si lo sostiene) */
     return comando;
 }
 

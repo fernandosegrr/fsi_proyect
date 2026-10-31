@@ -4,10 +4,18 @@
 CC     = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
-all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara pruebas_reincorporacion_j15
+all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara pruebas_reincorporacion_j15 pruebas_precision_j16
 
 pruebas_reincorporacion_j15: pruebas_reincorporacion_j15.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
 	$(CC) $(CFLAGS) -O2 -o $@ pruebas_reincorporacion_j15.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
+
+# J16: precisión en simulación. Compila también firmware_carro/rumbo.c para comprobar que la réplica de RUMBO del simulador da lo mismo.
+pruebas_precision_j16: pruebas_precision_j16.c sim_ruta.c sim_ruta.h ruta_editor.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c calibracion.c calibracion.h ../firmware_carro/rumbo.c ../firmware_carro/rumbo.h ../firmware_carro/config.h
+	$(CC) $(CFLAGS) -O2 -I../firmware_carro -o $@ pruebas_precision_j16.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c ../firmware_carro/rumbo.c
+
+# J16: el informe completo (1000 corridas por escenario y configuración); no lo corre make test porque tarda.
+precision: pruebas_precision_j16
+	./pruebas_precision_j16 1000
 
 pruebas_calibracion: pruebas_calibracion.c calibracion.c calibracion.h
 	$(CC) $(CFLAGS) -o $@ pruebas_calibracion.c calibracion.c
@@ -91,9 +99,10 @@ test: all
 	./pruebas_mascara
 	./pruebas_sim_ruta
 	./pruebas_reincorporacion_j15
+	./pruebas_precision_j16
 
 clean:
-	rm -f pruebas_reincorporacion_j15 pruebas_reincorporacion_j15.exe
+	rm -f pruebas_reincorporacion_j15 pruebas_reincorporacion_j15.exe pruebas_precision_j16 pruebas_precision_j16.exe
 	rm -f pruebas_calgiro pruebas_calgiro.exe pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe pruebas_sesion_compartida pruebas_sesion_compartida.exe pruebas_latencia_video pruebas_latencia_video.exe pruebas_ruta_editor pruebas_ruta_editor.exe pruebas_sim_ruta pruebas_sim_ruta.exe
 
-.PHONY: all test clean
+.PHONY: all test clean precision

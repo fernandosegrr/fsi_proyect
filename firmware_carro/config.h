@@ -215,6 +215,25 @@
  * de «cuántos ms de anticipación habrían dado justo el ángulo pedido» (la anticipación usada más el error final dividido entre la velocidad); solo aprenden los giros de al menos
  * GIRO_ANT_MIN_GRADOS (con uno chico la velocidad no llega a su valor normal). Se guardan en la memoria no volátil cuando cambian GIRO_ANT_GUARDAR_DIF_MS o más (así no se gasta la
  * memoria) y al arrancar se leen. El comando ANT_BORRAR los vuelve a GIRO_ANTICIPACION_MS y borra lo guardado. */
+/* RUMBO AL AVANZAR (J16, ver rumbo.h): con RUMBO:ON, mientras avanza, un control proporcional-integral con el giroscopio reparte la potencia entre los lados para sostener
+ * el rumbo (u otro objetivo que mande la app con RUMBO:<n>). Apagado al arrancar y al (re)conectarse: sin RUMBO:ON el avance es exactamente el de siempre.
+ * Ganancias elegidas en simulación (nucleo_c/pruebas_precision_j16.c), NO MEDIDAS en el carro: con 1 % de diferencia de potencia por grado el lazo se asienta en ~0.5 s. */
+#ifndef RUMBO_KP_MIL_GRADO
+#define RUMBO_KP_MIL_GRADO      10    /* milésimas de potencia de diferencia entre lados por cada grado de error */
+#endif
+#ifndef RUMBO_TI_MS
+#define RUMBO_TI_MS           1500    /* tiempo integral: el desbalance de los lados se compensa en unos segundos */
+#endif
+#define RUMBO_MAX_MIL          150    /* corrección máxima: ±15 % de potencia (con AUTO a 210, el derecho llega a ~241 y el izquierdo baja a ~176) */
+#define RUMBO_MAX_OBJETIVO_X10 200    /* el objetivo no se aleja más de 20° del ángulo con el que empezó el avance */
+#define RUMBO_ERROR_MAX_X10    300    /* con más de 30° de error no se corrige (choque, carro levantado): potencias fijas */
+#define RUMBO_DT_MAX_MS         50    /* tope del tiempo entre dos correcciones */
+
+/* J16: el filtro «giro_largo» compara ms por cada 100° y solo con giros de GIRO_ANT_MIN_GRADOS o más (1). Con 0 vuelve al de antes, que mezclaba giros de cualquier tamaño. */
+#ifndef GIRO_LARGO_POR_GRADO
+#define GIRO_LARGO_POR_GRADO     1
+#endif
+
 #define GIRO_ANT_MUESTRAS        5
 #define GIRO_ANT_MIN_GRADOS      30
 #define GIRO_ANT_GUARDAR_DIF_MS  3

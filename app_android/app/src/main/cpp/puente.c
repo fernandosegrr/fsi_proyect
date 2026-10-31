@@ -1341,6 +1341,8 @@ static int usa_giroscopio_global = 0;   /* J11: 1 = los giros de la ruta se pide
 static int usa_tof_global = 0;          /* J11: 1 = se hace caso al láser (TOF_PARO y confirmación de la cámara) */
 static int autoridad_laser_global = 0; /* se reaplica después de iniciar cada ruta */
 static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
+static int rumbo_fw_global = 0;      /* J16: 1 = el firmware sostiene el rumbo al avanzar (RUMBO:ON); se aplica en cada ruta nueva */
+static int largo_recta_global = 0;   /* J16: largo fijo de una recta predefinida (mm); se aplica en cada ruta nueva. Antes navegador_iniciar lo borraba al cargar la ruta */
 
 static CalibracionCarro *obtener_calibracion(void)
 {
@@ -2150,6 +2152,8 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_giroscopio(&navegador_global, usa_giroscopio_global);
     navegador_poner_sensor_distancia(&navegador_global, usa_tof_global);
     navegador_poner_autoridad_laser(&navegador_global, autoridad_laser_global);
+    navegador_poner_rumbo_fw(&navegador_global, rumbo_fw_global);
+    navegador_poner_largo_recta_mm(&navegador_global, largo_recta_global);   /* J16: después de navegador_iniciar (que lo pone en 0); antes se perdía y la «Recta 150 cm» hacía 160 */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -2389,7 +2393,8 @@ Java_com_fsi_carro_NavegadorNativa_ponerLargoRectaMm(JNIEnv *env, jobject objeto
 {
     (void)env;
     (void)objeto;
-    navegador_poner_largo_recta_mm(obtener_navegador(), (int)mm);
+    largo_recta_global = (mm > 0) ? (int)mm : 0;   /* J16: se guarda para cargarRuta, que reinicia el navegador */
+    navegador_poner_largo_recta_mm(obtener_navegador(), largo_recta_global);
 }
 
 JNIEXPORT jint JNICALL
@@ -2509,6 +2514,35 @@ Java_com_fsi_carro_NavegadorNativa_ponerSensorDistancia(JNIEnv *env, jobject obj
     }
     usa_tof_global = (int)activo;
     return navegador_poner_sensor_distancia(obtener_navegador(), (int)activo);
+}
+
+/* J16: 1 = el firmware sostiene el rumbo al avanzar (la app ya mandó RUMBO:ON). Se aplica a las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerRumboFw(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    rumbo_fw_global = (int)activo;
+    return navegador_poner_rumbo_fw(obtener_navegador(), (int)activo);
+}
+
+/* J16: si hay un objetivo de rumbo nuevo devuelve 1 y lo deja en salida[0] (décimas de grado, convención del firmware: + izquierda) para mandar RUMBO:<n>; 0 si no hay. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_tomarRumboFw(JNIEnv *env, jobject objeto, jintArray salida)
+{
+    int objetivo = 0;
+    jint valor;
+
+    (void)objeto;
+    if (salida == NULL || (*env)->GetArrayLength(env, salida) < 1 || !navegador_tomar_rumbo_fw(obtener_navegador(), &objetivo)) {
+        return 0;
+    }
+    valor = (jint)objetivo;
+    (*env)->SetIntArrayRegion(env, salida, 0, 1, &valor);
+    return 1;
 }
 
 /* Si hay un giro por ángulo que todavía no se pidió al firmware devuelve los grados con la convención del firmware (POSITIVO = izquierda) para mandar GIRAR:<grados>; 0 si no hay. */

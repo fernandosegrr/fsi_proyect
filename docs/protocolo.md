@@ -56,6 +56,21 @@ Para realizar giros angulares exactos sin depender de aproximaciones de tiempo, 
 
 ---
 
+## 4b. Rumbo sostenido al avanzar (J16, `RUMBO`)
+
+Solo en firmware que lo anuncia con `RUMBO=1` en la respuesta a `CAPS?`. La app nunca manda `RUMBO` a un firmware que no lo anunció: uno anterior guardaría el texto como comando actual y dejaría de reconocer el `FORWARD` en curso (y el freno del láser, que solo actúa «avanzando»).
+
+| Mensaje | Respuesta | Efecto |
+|---|---|---|
+| `RUMBO:ON` | `ACK_RUMBO:1` | Enciende el lazo. Vale desde el siguiente `FORWARD`. Al arrancar el firmware y al conectarse o desconectarse un cliente queda apagado. |
+| `RUMBO:OFF` | `ACK_RUMBO:0` | Apaga el lazo; si el carro avanza, vuelve en el acto a las potencias fijas del perfil (exactamente lo de antes). |
+| `RUMBO:<n>` | (ninguna) | Objetivo del avance en curso, en décimas de grado con la convención del giroscopio (+ izquierda, el mismo ángulo de `SENS`). Se recorta a ±20° del ángulo con que empezó el avance. Sin avance en curso se ignora. |
+| `RUMBO?` | `RUMBO:<encendido>,<en marcha>,<objetivo x10>,<corrección milésimas>,<aprendido milésimas>` | Diagnóstico. |
+
+Funcionamiento: con el lazo encendido, al empezar cada `FORWARD` el objetivo es el ángulo de ese momento; en cada muestra del giroscopio (100 Hz) un control proporcional-integral reparte la potencia entre los lados (`RUMBO_KP_MIL_GRADO` = 10 milésimas por grado, `RUMBO_TI_MS` = 1500 ms, tope ±15 %), también durante el arranque a plena potencia (ahí solo baja un lado). Con el giroscopio no listo o un error de más de 30° no corrige. Lo aprendido (el desbalance de los lados) pasa al siguiente avance; vive en RAM. `RUMBO` no es un movimiento: no renueva el watchdog ni cambia el comando actual; `REVERSE`, `LEFT`, `RIGHT` y `GIRAR` no cambian. Ganancias elegidas en simulación: NO MEDIDAS en el carro.
+
+---
+
 ## 5. Telemetría periódica y eventos de seguridad
 
 ### 5.1 Trama de telemetría `SENS`
@@ -92,6 +107,7 @@ TOF_PARO:<distancia_mm>
 
 - **Comando `PING`:** La aplicación Android envía periódicamente `PING` para estimar el retardo de la red inalámbrica.
 - **Respuesta `PONG`:** El ESP32 responde inmediatamente `PONG`.
+- **Nota J16:** el watchdog lo renueva cualquier texto que no sea `PING`, una consulta de sensores o `RUMBO` (también `MODO_*`, `BAL_*` y texto desconocido); las pruebas del firmware fijan ese comportamiento. `STOP` y el fin de un giro dejan las ruedas libres (PWM 0 en las dos entradas del TC1508A), no frenan activamente.
 - **Regla crítica del Watchdog:** El comando `PING` **NO renueva el temporizador del watchdog**. Para que el carro mantenga los motores encendidos durante un avance manual, la app debe repetir el comando `FORWARD` cada 250 ms. Si pasan **1000 ms** sin recibir un comando de movimiento real, el vigilante apaga los motores automáticamente.
 
 ---
@@ -100,8 +116,8 @@ TOF_PARO:<distancia_mm>
 
 | Comando | Formato de respuesta | Descripción |
 |---|---|---|
-| `CAPS?` | `CAPS:IMU=<0\|1>,TOF=<0\|1>` | Reporta qué sensores fueron detectados en el bus I2C durante el arranque. |
-| `IMU?` | `IMU:estado,angulo,sesgo,id` | Diagnóstico del giroscopio: estado, ángulo actual, sesgo estimado y registro WHO_AM_I. |
+| `CAPS?` | `CAPS:IMU=<0\|1>,TOF=<0\|1>,TOFR=<n>,IMUR=<n>,IMUM=<motivo>,IMUE=<estado>,RUMBO=1,FW:<hash>-<fecha>` | Qué sensores funcionan, reintentos y motivo, estado del giroscopio y versión. `RUMBO=1` (J16) dice que el firmware entiende `RUMBO`; un firmware anterior no lo incluye. |
+| `IMU?` | `IMU:angulo_x10,sesgo_x100,estado,who_am_i,motivo` | Diagnóstico del giroscopio (corregido en J16: este es el orden real de `sensores.c`). Estado 2 = listo; la app (J16) solo pasa el ángulo al navegador con estado 2. |
 | `TOF?` | `TOF:distancia_mm,valida` | Diagnóstico de distancia cruda del láser. |
 | `IMU_CAL` | `ACK_IMU_CAL` o `NAK_IMU_CAL` | Fuerza recalibración del sesgo del giroscopio (solo admitido con motores parados por >300 ms). |
 | `IMU_CERO` | `ACK_IMU_CERO` | Establece el ángulo actual del giroscopio como nueva referencia de 0 grados. |
@@ -115,7 +131,7 @@ TOF_PARO:<distancia_mm>
 
 El firmware dispone de un buffer circular de 32 ranuras (`COLA_COMANDOS_MAX`). Si una ráfaga saturara la cola:
 1. Se descartan prioritariamente mensajes `PING` antiguos no despachados.
-2. Si continúa saturada, se descartan comandos de consulta de diagnóstico.
+2. Si no hay `PING`, se descarta el comando más viejo que no sea `STOP`, `EBRAKE` ni `__STOP_AUTO` (corregido en J16: puede ser un `FORWARD` o un `GIRAR`, no solo una consulta; ver `carro.c`).
 3. **Bajo ninguna circunstancia se descarta un comando `STOP` o `EBRAKE`**.
 
 ---

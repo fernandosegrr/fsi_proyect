@@ -157,6 +157,224 @@ static void desplazar_al_girar(Simulador *sim, int lado, long giro_cgrados)
     sim->desp_y_cmm = y;
 }
 
+/* ── J16: modelo físico más fiel (ver el .h) ─────────────────────────────── */
+
+/* Constantes de RUMBO: las MISMAS que firmware_carro/config.h (pruebas_precision_j16.c comprueba que esta réplica da lo mismo que rumbo.c). */
+#define SIM_RUMBO_KP_MIL_GRADO      10
+#define SIM_RUMBO_TI_MS           1500
+#define SIM_RUMBO_MAX_MIL          150
+#define SIM_RUMBO_MAX_OBJETIVO_X10 200
+#define SIM_RUMBO_ERROR_MAX_X10    300
+#define SIM_RUMBO_DT_MAX_MS         50
+
+/* Seno (milésimas) de un ángulo en centésimas de grado, interpolando la tabla entre grados enteros. */
+static long seno_cgrados(long cgrados)
+{
+    long g = ((cgrados % 36000) + 36000) % 36000;
+    int s0 = seno((int)(g / 100)), s1 = seno((int)(g / 100) + 1);
+
+    return s0 + (long)(s1 - s0) * (g % 100) / 100;
+}
+
+static long coseno_cgrados(long cgrados)
+{
+    return seno_cgrados(cgrados + 9000);
+}
+
+void sim_j16_activar(Simulador *sim)
+{
+    sim->j16_activo = 1;
+    sim->j16_pleno_ms = 250;
+    sim->j16_pwm_izq = 207;
+    sim->j16_pwm_der = 210;
+    sim->j16_zona_muerta_pwm = 100;
+    sim->j16_tau_motor_ms = 60;
+    sim->j16_ejes_mm = 120;
+}
+
+long sim_rumbo_cgrados(const Simulador *sim)
+{
+    return sim->rumbo_cgrados;
+}
+
+static long long rec(long long v, long long limite)
+{
+    return (v > limite) ? limite : ((v < -limite) ? -limite : v);
+}
+
+static long long integral_de_mil(long long mil)
+{
+    return mil * 10 * SIM_RUMBO_TI_MS / SIM_RUMBO_KP_MIL_GRADO;
+}
+
+static long long mil_de_integral(long long integral)
+{
+    return integral * SIM_RUMBO_KP_MIL_GRADO / (10LL * SIM_RUMBO_TI_MS);
+}
+
+void sim_j16_rumbo_empezar(Simulador *sim, int angulo_x10, int ahora_ms)
+{
+    sim->j16_rumbo_en_marcha = 1;
+    sim->j16_rumbo_inicio_x10 = angulo_x10;
+    sim->j16_rumbo_objetivo_x10 = angulo_x10;
+    sim->j16_rumbo_integral = (long)integral_de_mil(rec(sim->j16_rumbo_aprendido_mil, SIM_RUMBO_MAX_MIL));
+    sim->j16_rumbo_t_ms = ahora_ms;
+    sim->j16_rumbo_corr_mil = 0;
+    sim->j16_rumbo_dt_acum = 0;
+}
+
+void sim_j16_rumbo_terminar(Simulador *sim)
+{
+    if (!sim->j16_rumbo_en_marcha) {
+        return;
+    }
+    sim->j16_rumbo_aprendido_mil = (int)rec(mil_de_integral(sim->j16_rumbo_integral), SIM_RUMBO_MAX_MIL);
+    sim->j16_rumbo_en_marcha = 0;
+    sim->j16_rumbo_corr_mil = 0;
+}
+
+void sim_j16_rumbo_objetivo(Simulador *sim, int objetivo_x10)
+{
+    if (!sim->j16_rumbo_en_marcha) {
+        return;
+    }
+    if (objetivo_x10 > sim->j16_rumbo_inicio_x10 + SIM_RUMBO_MAX_OBJETIVO_X10) {
+        objetivo_x10 = sim->j16_rumbo_inicio_x10 + SIM_RUMBO_MAX_OBJETIVO_X10;
+    } else if (objetivo_x10 < sim->j16_rumbo_inicio_x10 - SIM_RUMBO_MAX_OBJETIVO_X10) {
+        objetivo_x10 = sim->j16_rumbo_inicio_x10 - SIM_RUMBO_MAX_OBJETIVO_X10;
+    }
+    sim->j16_rumbo_objetivo_x10 = objetivo_x10;
+    sim->j16_rumbo_objetivos++;
+}
+
+int sim_j16_rumbo_corregir(Simulador *sim, int angulo_x10, int ahora_ms)
+{
+    long long error, dt, p, u, candidato;
+
+    if (!sim->j16_rumbo_en_marcha) {
+        return 0;
+    }
+    error = (long long)sim->j16_rumbo_objetivo_x10 - angulo_x10;
+    dt = (long long)ahora_ms - sim->j16_rumbo_t_ms;
+    if (dt < 0 || dt > SIM_RUMBO_DT_MAX_MS) {
+        dt = SIM_RUMBO_DT_MAX_MS;
+    }
+    sim->j16_rumbo_t_ms = ahora_ms;
+    if (error > SIM_RUMBO_ERROR_MAX_X10 || error < -SIM_RUMBO_ERROR_MAX_X10) {
+        sim->j16_rumbo_corr_mil = 0;
+        return 0;
+    }
+    p = error * SIM_RUMBO_KP_MIL_GRADO / 10;
+    candidato = rec(sim->j16_rumbo_integral + error * dt, integral_de_mil(SIM_RUMBO_MAX_MIL));
+    u = p + mil_de_integral(candidato);
+    if ((u <= SIM_RUMBO_MAX_MIL && u >= -SIM_RUMBO_MAX_MIL) || (u > SIM_RUMBO_MAX_MIL && error < 0) || (u < -SIM_RUMBO_MAX_MIL && error > 0)) {
+        sim->j16_rumbo_integral = (long)candidato;
+    }
+    sim->j16_rumbo_corr_mil = (int)rec(p + mil_de_integral(sim->j16_rumbo_integral), SIM_RUMBO_MAX_MIL);
+    return sim->j16_rumbo_corr_mil;
+}
+
+static int escalar_mil(int x, int m)
+{
+    return (int)(((long long)x * m + 500) / 1000);
+}
+
+void sim_j16_rumbo_repartir(int corr_mil, int base_izq, int base_der, int tope, int *izq, int *der)
+{
+    int c = (int)rec(corr_mil, SIM_RUMBO_MAX_MIL);
+    int a = escalar_mil(base_izq < 0 ? 0 : base_izq, 1000 - c);
+    int b = escalar_mil(base_der < 0 ? 0 : base_der, 1000 + c);
+
+    if (b > tope && b > 0) {
+        a = (int)(((long long)a * tope + b / 2) / b);
+        b = tope;
+    }
+    if (a > tope && a > 0) {
+        b = (int)(((long long)b * tope + a / 2) / a);
+        a = tope;
+    }
+    *izq = (a < 0) ? 0 : a;
+    *der = (b < 0) ? 0 : b;
+}
+
+/* El ángulo que mide el giroscopio (décimas, + izquierda): lo que giró el carro REAL desde que empezó, con el error de escala y, en J16, el sesgo acumulado. */
+static int angulo_medido_x10(const Simulador *sim)
+{
+    long cgrados_der = sim->rumbo_cgrados - sim->rumbo0_cgrados;
+    int a = (int)(-(cgrados_der / 10) * (100 + sim->fw_escala_pct) / 100);
+
+    if (sim->j16_activo) {
+        a += (int)(sim->j16_sesgo_acum_udeg / 100000);
+    }
+    return a;
+}
+
+/* AVANZAR con el modelo J16, `dt` ms efectivos, en pedazos de 10 ms (la frecuencia del giroscopio y de RUMBO en el firmware). */
+static void j16_avanzar(Simulador *sim, int dt)
+{
+    int t, paso;
+
+    for (t = 0; t < dt; t += paso) {
+        int base_i, base_d, pi, pd;
+        long long ei, ed, delta_obj, dist, giro_ucg;
+        int zm = sim->j16_zona_muerta_pwm;
+
+        paso = (dt - t < 10) ? dt - t : 10;
+        base_i = (sim->j16_ms_avance < sim->j16_pleno_ms) ? 255 : sim->j16_pwm_izq;
+        base_d = (sim->j16_ms_avance < sim->j16_pleno_ms) ? 255 : sim->j16_pwm_der;
+        pi = base_i;
+        pd = base_d;
+        if (sim->j16_rumbo_en_marcha) {
+            sim->j16_rumbo_dt_acum += paso;
+            if (sim->j16_rumbo_dt_acum >= 10) {
+                sim->j16_rumbo_dt_acum -= 10;
+                sim_j16_rumbo_corregir(sim, angulo_medido_x10(sim), (int)sim->t_ms + t);
+            }
+            sim_j16_rumbo_repartir(sim->j16_rumbo_corr_mil, base_i, base_d, 255, &pi, &pd);
+        }
+        ei = (long long)sim->desbalance_mil * ((pi > zm) ? pi - zm : 0);
+        ed = 1000LL * ((pd > zm) ? pd - zm : 0);
+        delta_obj = (ei + ed > 0) ? 2000000LL * (ei - ed) / (ei + ed) : 0;
+        sim->j16_delta_ppm += (long)((delta_obj - sim->j16_delta_ppm) * paso / ((sim->j16_tau_motor_ms > paso) ? sim->j16_tau_motor_ms : paso));
+        dist = (long long)paso * 10000 * sim->pct_avance / ((long long)sim->real.ms_por_cm_x10 * 100);   /* centésimas de mm */
+        sim->x_cmm += (long)(seno_cgrados(sim->rumbo_cgrados) * dist / 1000);
+        sim->y_cmm -= (long)(coseno_cgrados(sim->rumbo_cgrados) * dist / 1000);
+        if (sim->j16_lateral_um_mm != 0) {   /* de lado, sin girar: a la derecha del rumbo es (cos, sen) en el mapa */
+            long long lat = dist * sim->j16_lateral_um_mm / 1000;
+
+            sim->x_cmm += (long)(coseno_cgrados(sim->rumbo_cgrados) * lat / 1000);
+            sim->y_cmm += (long)(seno_cgrados(sim->rumbo_cgrados) * lat / 1000);
+        }
+        sim->recorrido_cmm += (long)dist;
+        /* el lado izquierdo más rápido gira el carro a la DERECHA (rumbo crece): dθ = avance x δ / ejes, en millonésimas de centésima de grado */
+        giro_ucg = dist * sim->j16_delta_ppm * 57296 / ((long long)((sim->j16_ejes_mm > 0) ? sim->j16_ejes_mm : 120) * 1000);
+        sim->j16_rumbo_resto_ucg += giro_ucg;
+        sim->rumbo_cgrados += (long)(sim->j16_rumbo_resto_ucg / 1000000);
+        sim->j16_rumbo_resto_ucg %= 1000000;
+        sim->j16_ms_avance += paso;
+    }
+}
+
+/* El comando que de verdad ejecuta el carro: el del navegador de hace j16_latencia_cmd_ticks ticks. */
+static ComandoNav j16_comando_fisico(Simulador *sim, ComandoNav comando)
+{
+    int i, n = sim->j16_latencia_cmd_ticks;
+    ComandoNav sale;
+
+    if (!sim->j16_activo || n <= 0) {
+        return comando;
+    }
+    if (n > 8) {
+        n = 8;
+    }
+    sale = sim->j16_cola_cmd[n - 1];
+    for (i = n - 1; i > 0; i--) {
+        sim->j16_cola_cmd[i] = sim->j16_cola_cmd[i - 1];
+    }
+    sim->j16_cola_cmd[0] = comando;
+    return sale;
+}
+
 /* Mueve el carro: el comando estuvo activo `dt` ms EFECTIVOS (ya sin el arranque). */
 static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
 {
@@ -164,6 +382,10 @@ static void mover_carro(Simulador *sim, ComandoNav comando, int dt)
     long distancia;   /* centésimas de milímetro */
     long giro;        /* centésimas de grado */
 
+    if (sim->j16_activo && comando == NAV_CMD_FORWARD) {
+        j16_avanzar(sim, dt);
+        return;
+    }
     switch (comando) {
     case NAV_CMD_FORWARD:
     case NAV_CMD_REVERSE:
@@ -289,6 +511,10 @@ static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
     sim->fw_lado = lado;
     sim->fw_ms = 0;
     sim->fw_aplicado_cgrados = 0;
+    sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* J16: el desplazamiento del pivote se cuenta desde el inicio de ESTE giro (dos GIRAR seguidos con STOP entre ellos no lo reiniciaban) */
+    sim->giro_acum_cgrados = 0;
+    sim->desp_x_cmm = 0;
+    sim->desp_y_cmm = 0;
     sim->fw_sin_motor = 0;
     if (sim->fw_falla_desde > 0 && sim->fw_n_giros >= sim->fw_falla_desde) {
         codigo = sim->fw_falla_codigo;
@@ -428,6 +654,8 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
 
     while (sim->t_ms < fin) {
         const ResultadoObstaculos *obs = NULL;
+        ComandoNav fisico;
+        int giro_fw_en_tick, retener;
 
         if (sim->t_ms == sim->t_cancelar_ms) {
             navegador_cancelar(nav);
@@ -463,11 +691,28 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
             sim->n_pendientes--;
         }
+        if (sim->j16_activo) {   /* J16: el sesgo del giroscopio se acumula y se guarda el ángulo medido de este tick (SENS llega atrasado) */
+            sim->j16_sesgo_acum_udeg += (long)sim->j16_sesgo_mdps * NAV_TICK_MS;
+            sim->j16_hist_angulo[sim->j16_n_ticks & 15] = angulo_medido_x10(sim);
+            sim->j16_n_ticks++;
+        }
         if ((sim->tof_activo || sim->fw_giroscopio) && !sim->sens_apagado && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms (ángulo del giroscopio y láser); el láser mira lo que había en el cuadro anterior */
             int mm = sim->tof_activo ? laser_ve(sim) : 1200;
+            int angulo = angulo_fw_x10(sim);
 
+            if (sim->j16_activo) {
+                int atraso = (sim->j16_latencia_sens_ms + NAV_TICK_MS / 2) / NAV_TICK_MS;
+
+                if (atraso > 15) {
+                    atraso = 15;
+                }
+                if (atraso > sim->j16_n_ticks - 1) {
+                    atraso = sim->j16_n_ticks - 1;
+                }
+                angulo = sim->j16_hist_angulo[(sim->j16_n_ticks - 1 - atraso) & 15];
+            }
             sim->proximo_sens_ms = sim->t_ms + 100;
-            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0, sim->tof_activo && mm < 1200, angulo_fw_x10(sim), sim->t_ms);
+            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0, sim->tof_activo && mm < 1200, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
                 sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */
@@ -481,9 +726,20 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
         }
         comando = navegador_tick(nav, sim->t_ms, obs);
+        giro_fw_en_tick = nav->giro_fw;
         if (sim->fw_giroscopio && navegador_tomar_consulta_imu(nav) && !sim->imu_sin_respuesta) {
-            navegador_aporte_imu(nav, angulo_fw_x10(sim), sim->t_ms);   /* el firmware contesta IMU? con el ángulo actual */
+            navegador_aporte_imu(nav, sim->j16_activo ? angulo_medido_x10(sim) : angulo_fw_x10(sim), sim->t_ms);   /* el firmware contesta IMU? con el ángulo actual */
         }
+        {   /* J16: RUMBO:<n> que mandaría la app */
+            int objetivo;
+
+            if (navegador_tomar_rumbo_fw(nav, &objetivo) && sim->j16_activo && sim->j16_rumbo) {
+                sim_j16_rumbo_objetivo(sim, objetivo);
+            }
+        }
+        /* J16: si la respuesta a IMU? hizo caer el giro a tiempo DESPUÉS del tick, la app recién manda el LEFT/RIGHT que falta en el tick siguiente
+         * (ModoSemiautonomo): hasta entonces el carro no se mueve. Antes el simulador giraba en este mismo tick. */
+        retener = giro_fw_en_tick && !nav->giro_fw;
         if (sim->fw_giroscopio) {   /* si el navegador pide un giro por ángulo, el firmware simulado lo toma */
             int grados_fw;
 
@@ -491,7 +747,10 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
                 fw_iniciar(sim, grados_fw);
             }
         }
-        if (comando != NAV_CMD_FORWARD) {
+        /* J16: lo que el carro ejecuta de verdad (con el retraso del WiFi); sin J16 es el mismo comando. Mientras el firmware hace un GIRAR la app no manda LEFT ni RIGHT
+         * (ModoSemiautonomo), así que por el WiFi no viaja ningún pivote por tiempo: el carro solo recibe el GIRAR. */
+        fisico = j16_comando_fisico(sim, (sim->j16_activo && nav->giro_fw && (comando == NAV_CMD_LEFT || comando == NAV_CMD_RIGHT)) ? NAV_CMD_STOP : comando);
+        if (fisico != NAV_CMD_FORWARD) {
             sim->tof_parado = 0;   /* el firmware suelta el freno cuando llega otro comando */
         }
 
@@ -509,13 +768,25 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
 
         /* El comando se mantiene hasta el siguiente tick. Si cambió, el anterior se suelta (y el carro
          * desliza el frenado); durante el arranque del nuevo comando el carro no se mueve. */
-        if (comando != sim->cmd_previo) {
+        if (fisico != sim->cmd_previo) {
             if (sim->fw_cerrado) {
                 sim->fw_cerrado = 0;   /* el firmware ya incluyó lo que siguió girando al frenar */
             } else {
                 deslizar_al_frenar(sim, sim->cmd_previo);
             }
-            sim->cmd_previo = comando;
+            if (sim->j16_activo) {   /* J16: RUMBO empieza con cada FORWARD y termina al soltarlo; la diferencia de empuje parte de cero */
+                if (sim->cmd_previo == NAV_CMD_FORWARD) {
+                    sim_j16_rumbo_terminar(sim);
+                }
+                if (fisico == NAV_CMD_FORWARD) {
+                    sim->j16_ms_avance = 0;
+                    sim->j16_delta_ppm = 0;
+                    if (sim->j16_rumbo) {
+                        sim_j16_rumbo_empezar(sim, angulo_medido_x10(sim), (int)sim->t_ms);
+                    }
+                }
+            }
+            sim->cmd_previo = fisico;
             sim->ms_en_comando = 0;
             sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* un comando nuevo: el giro (y su desplazamiento) se cuentan desde cero */
             sim->giro_acum_cgrados = 0;
@@ -530,8 +801,8 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
 
             if (nav->giro_fw) {
                 fw_avanzar(sim, nav, NAV_TICK_MS);   /* este giro lo hace el firmware con su giroscopio */
-            } else if (!(sim->tof_parado && comando == NAV_CMD_FORWARD)) {
-                mover_carro(sim, comando, efectivo);
+            } else if (!retener && !(sim->tof_parado && fisico == NAV_CMD_FORWARD)) {
+                mover_carro(sim, fisico, efectivo);
             }
             sim->ms_en_comando = despues;
         }

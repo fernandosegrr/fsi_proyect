@@ -125,6 +125,16 @@ class ControlLogica(
     /** true si se hace caso al láser (TOF_PARO y confirmación de la cámara): interruptor encendido Y el firmware dice que el láser funciona. */
     val laserActivo: Boolean get() = usarSensorDistancia && capsLaser == true
 
+    /** J16: el firmware dijo RUMBO=1 en CAPS (sabe sostener el rumbo al avanzar); null = no ha contestado; false = firmware anterior (no se le manda nada de RUMBO: lo guardaría como comando). */
+    var capsRumbo: Boolean? = null
+        private set
+
+    /** J16: interruptor «Sostener el rumbo al avanzar» (pantalla Sensores). Encendido por defecto; solo vale con el giroscopio activo y un firmware que lo entienda. */
+    var usarRumbo = true
+
+    /** J16: true si la ruta debe pedirle al firmware que sostenga el rumbo (RUMBO:ON y objetivos RUMBO:<n>). */
+    val rumboActivo: Boolean get() = usarRumbo && capsRumbo == true && giroscopioActivo
+
     /** Lo último que dijo SENS: ángulo del giroscopio en décimas de grado, distancia del láser en mm y las banderas (1 IMU lista, 2 láser vivo, 4 medida válida, 8 IMU calibrando, 16 giro en curso). */
     var anguloX10 = 0
         private set
@@ -371,6 +381,20 @@ class ControlLogica(
         enviar("IMU?")
     }
 
+    /** J16: enciende o apaga el rumbo sostenido en el firmware. Solo si el firmware lo anunció (un firmware anterior guardaría el texto como comando y dejaría de ver el FORWARD). */
+    fun rumbo(encendido: Boolean) {
+        if (capsRumbo == true) {
+            enviar(if (encendido) "RUMBO:ON" else "RUMBO:OFF")
+        }
+    }
+
+    /** J16: el rumbo que el firmware debe sostener en el avance en curso (décimas de grado, POSITIVO = izquierda, el ángulo de SENS). */
+    fun rumboObjetivo(objetivoX10: Int) {
+        if (capsRumbo == true) {
+            enviar("RUMBO:$objetivoX10")
+        }
+    }
+
     /** Pone el ángulo del giroscopio en cero (IMU_CERO). */
     fun ponerAnguloCero() {
         enviar("IMU_CERO")
@@ -407,6 +431,7 @@ class ControlLogica(
         enviar(perfilDeseado.comando)    // el perfil que se quiere, antes que cualquier otro comando
         capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
         capsLaser = null
+        capsRumbo = null
         girandoPorAngulo = false
         pedirCapacidades()
         balanceConfirmado[0] = 0
@@ -472,6 +497,7 @@ class ControlLogica(
         girandoPorAngulo = false
         capsGiroscopio = null
         capsLaser = null
+        capsRumbo = null
         esperandoPong = false
         latenciaMs = null
         perfilConfirmado = null
@@ -507,6 +533,7 @@ class ControlLogica(
                     val tof = texto.contains("TOF=1")
                     capsGiroscopio = imu
                     capsLaser = tof
+                    capsRumbo = texto.contains("RUMBO=1")   // J16: firmware que sabe sostener el rumbo al avanzar
                     tofReintentos = Regex("TOFR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuReintentos = Regex("IMUR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuMotivo = Regex("IMUM=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -579,7 +606,11 @@ class ControlLogica(
                     if (p.size >= 2) {
                         sesgoX100 = p[1].toIntOrNull()
                         imuMotivo = p.getOrNull(4)?.toIntOrNull() ?: imuMotivo
-                        p[0].toIntOrNull()?.let { alImu?.invoke(it) }
+                        // J16: el tercer campo es el estado del giroscopio (2 = listo). Un ángulo de un giroscopio caído o calibrando no se le pasa al navegador.
+                        val estadoImu = p.getOrNull(2)?.toIntOrNull()
+                        if (estadoImu == null || estadoImu == 2) {
+                            p[0].toIntOrNull()?.let { alImu?.invoke(it) }
+                        }
                         alCambiar()
                     }
                 }

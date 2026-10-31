@@ -12,7 +12,7 @@
  *  6. verDeteccion: dibujar encima del video los números de la detección (zona, corredor y cercanía), sin tocar la imagen.
  *  7. asistenteVisto: el asistente de primera vez ya se mostró (o se saltó).
  *  8. pruebaFinal: qué pasos de la prueba final ya se marcaron como hechos (una cadena con los números separados por coma).
- *  9. usarGiroscopio / usarSensorDistancia (J11): los interruptores de la pantalla Sensores. Encendidos por defecto; solo valen si el carro avisa que el sensor funciona.
+ *  9. usarGiroscopio / usarSensorDistancia (J11) y usarRumbo (J16): los interruptores de la pantalla Sensores. Encendidos por defecto; solo valen si el carro avisa que lo sabe hacer.
  */
 package com.fsi.carro
 
@@ -66,6 +66,11 @@ class Ajustes(contexto: Context) {
     var usarSensorDistancia: Boolean
         get() = preferencias.getBoolean("usar_sensor_distancia", true)
         set(valor) = preferencias.edit().putBoolean("usar_sensor_distancia", valor).apply()
+
+    /** J16: que el firmware sostenga el rumbo al avanzar (RUMBO). Encendido por defecto; solo vale si el firmware lo anuncia (RUMBO=1) y el giroscopio funciona. */
+    var usarRumbo: Boolean
+        get() = preferencias.getBoolean("usar_rumbo_fw", true)
+        set(valor) = preferencias.edit().putBoolean("usar_rumbo_fw", valor).apply()
 
     var autoridadLaser: Boolean
         // J14: el dueño decidió que la Autoridad del láser quede siempre encendida.
