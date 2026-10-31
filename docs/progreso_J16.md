@@ -42,6 +42,14 @@ Bitácora:
 Para retomar (si hiciera falta):
   cd /e/Dev/fsi_proyecto/nucleo_c && make precision          (informe de 1000 corridas)
   ./pruebas_precision_j16 depurar 8 3 0                      (una corrida del esquive con RUMBO, con registro)
-  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-d823a63.apk
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-097008d.apk
 - Publicado: git push -u origin j16-precision (3c9ebcf), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41224593460: success.
 
+Segunda ronda (31 oct 2026, pedido: «revisa qué más puedes mejorar en la navegación autónoma o en el software»):
+- Núcleo: rumbo con décimas entre comandos (rumbo_x10) solo con RUMBO; sin RUMBO, grados enteros como J15. Banco J16 con B6 a B8 (35 casos). Monte Carlo de 1000 regenerado: mejora la configuración con RUMBO en los 10 escenarios (SIMULADO); las otras 30 líneas, idénticas.
+- Firmware: aviso WD:<n> cuando frena el watchdog (carro_frenos_watchdog, revisar_watchdog en sensores.c). 6 casos nuevos.
+- Prueba de estrés de 2 hilos: fallaba 8 de 120 corridas con la PC ocupada (también el código original). Causas del arnés: espera final de 500 ms contra GIRO_ASENTAR_MS de 750, y el productor «paso a paso» colaba varias órdenes en una vuelta (se perdía algún GIRO_OK por la cola de salida de 16). Arreglado: 0 de 300.
+- App: TOF_PARO corta el heartbeat del FORWARD (CORTAR_HEARTBEAT_EN_TOF_PARO); la ruta se detiene con 1.5 s sin SENS, con WD o con un TOF_PARO que el navegador no atendió (VIGILAR_CARRO_J16); RUMBO? al terminar cada ruta y número de objetivos en SENS_DIAG; candado pthread en puente.c (rejilla y máscara); aviso si la calibración guardada es rechazada; estado de RUMBO en Sensores. Servidor falso: WD con --sensores (48 casos).
+- Probado y descartado (análisis, sin código): corregir la velocidad con el láser (necesita un objeto quieto a menos de 1.2 m; la gente que pasa lo falsearía) y apuntar a la línea parando sin RUMBO (lento y con riesgo de oscilar).
+- Suites: núcleo 22 programas / 1633 casos, firmware 515, servidor falso 48, verificador 18; UBSan local sin fallos.
+- Commit de código 097008d. APK limpia APP:0.4-097008d (14,511,016 bytes, SHA-256 F0A037CB...842A) en dist/; firmware FW:097008d-20261031 (1,033,440 bytes) compilado con -SoloCompilar, NO cargado; copia local en dist/ excluida. El binario del candidato d823a63 se quitó de dist/ (se reconstruye desde ese commit).

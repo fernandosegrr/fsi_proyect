@@ -67,19 +67,19 @@ En estricto apego a la honestidad científica y a las directrices de entrega, el
 
 ### 3.2 Comprobado mediante simulación en PC
 - **Corrección de pose J15:** En 400 rutas simuladas del escenario B6 (esquivar una caja de 20 cm y reincorporarse a la trayectoria), la integración del rumbo instantáneo del giroscopio redujo el error lateral promedio de 13.2 cm a **1.9 cm** y el percentil 95 (p95) de 21.9 cm a **4.6 cm**, alcanzando 400 de 400 llegadas exitosas a menos de 20 cm del destino y sin contacto.
-- **Precisión J16 (rama `j16-precision`):** simulador calibrado con las rectas B4 y el esquive B6 de J14; 1000 corridas por escenario. Con el firmware nuevo (RUMBO, rumbo sostenido con el giroscopio) el desvío medio de la recta de 150 cm baja de 8.0 a **1.3 cm** (p95 de 12.6 a 3.4 cm) y el del esquive de 3.7 a **2.1 cm**, con 0 toques en 1000 (antes 9). Sin firmware nuevo, la recta de 150 cm vuelve a medir 150 cm (antes 160). Detalle en `docs/reporte_J16.md`.
+- **Precisión J16 (rama `j16-precision`):** simulador calibrado con las rectas B4 y el esquive B6 de J14; 1000 corridas por escenario. Con el firmware nuevo (RUMBO, rumbo sostenido con el giroscopio) el desvío medio de la recta de 150 cm baja de 8.0 a **1.0 cm** (p95 de 12.6 a 2.6 cm) y el del esquive de 3.7 a **1.7 cm**, con 0 toques en 1000 (antes 9). Cifras de la segunda ronda (rumbo con décimas entre comandos). Sin firmware nuevo, la recta de 150 cm vuelve a medir 150 cm (antes 160). Detalle en `docs/reporte_J16.md`.
 - **Batería de pruebas automatizadas (J16):**
-  - Núcleo cinemático C99: 22 ejecutables de prueba, **1630 casos evaluados, 0 fallos** (los 1598 anteriores más el banco de precisión J16).
-  - Firmware y simulación de hardware: **509 casos evaluados, 0 fallos** (447 anteriores más 62 de RUMBO).
-  - Servidor WebSocket simulado: **46 casos evaluados, 0 fallos**.
+  - Núcleo cinemático C99: 22 ejecutables de prueba, **1633 casos evaluados, 0 fallos** (los 1598 anteriores más el banco de precisión J16).
+  - Firmware y simulación de hardware: **515 casos evaluados, 0 fallos** (447 anteriores, 62 de RUMBO y 6 del aviso WD del watchdog).
+  - Servidor WebSocket simulado: **48 casos evaluados, 0 fallos**.
   - Verificador de integridad de versiones: **18 casos evaluados, 0 fallos**.
-- **Prueba de estrés de cola:** Inyección masiva de 100 000 comandos continuos procesados sin perder un solo comando de frenado (`STOP`).
+- **Prueba de estrés de cola:** Inyección masiva de 100 000 comandos continuos procesados sin perder un solo comando de frenado (`STOP`). En J16 se arregló el arnés de la prueba de 2 hilos, que fallaba de vez en cuando con la PC ocupada (no era un error del firmware): 0 fallos en 300 corridas en paralelo.
 
 ### 3.3 Pendiente y NO MEDIDO en hardware
 - **Validación física de J15:** El algoritmo de pose corregida cuenta con respaldo únicamente en simulación de PC; en el vehículo físico real se realizaron **cero corridas con esta versión** y el criterio de 5 de 6 llegadas consecutivas permanece como **NO MEDIDO**.
 - **Balance del perfil AUTO en pista:** La relación 207/210 fue escalada teóricamente a partir del perfil manual; no ha sido medida con cinta métrica en el carro físico (**NO MEDIDO**).
 - **Pruebas B7, B8, B9 y B2:** Suspendidas durante el cierre de J14 por decisión del dueño del proyecto.
-- **Validación física de J16:** cero corridas. APK `APP:0.4-d823a63` sin instalar y firmware `FW:d823a63-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
+- **Validación física de J16:** cero corridas. APK `APP:0.4-097008d` sin instalar y firmware `FW:097008d-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
 
 ---
 

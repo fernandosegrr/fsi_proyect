@@ -23,10 +23,10 @@ Encontrados y NO cambiados (documentados en limites_conocidos.md):
 - MEDIA, firmware: STOP y el fin de un giro dejan las ruedas libres (no hay freno activo del TC1508A); ~15° de cada giro de 90° son inercia que corrige la anticipación. Cambiarlo invalidaría todas las calibraciones sin medición.
 - MEDIA, firmware: el arranque de 250 ms a 255/255 ignora el balance (patada de rumbo en cada arranque). Con RUMBO se compensa (también en el arranque); sin RUMBO queda como antes.
 - MEDIA, firmware: el balance solo baja el lado izquierdo, es el mismo en reversa y tiene resolución de una cuenta de PWM (~4 cm en 150 cm). RUMBO corrige en los dos sentidos.
-- MEDIA, firmware: el watchdog no avisa a la app (la pose sigue sumando por tiempo).
-- MEDIA, app: nadie vigila el silencio del enlace (sin tiempo de lectura ni ping); con WiFi degradado la pose sigue integrando.
-- MEDIA, app (puente.c): la rejilla del último cuadro (ultimo_*) la escribe el hilo de análisis y la lee el tick sin candado; afecta decisiones de obstáculos, no la pose.
-- MEDIA, app: TOF_PARO no corta el heartbeat y el uso del láser se decide una vez por ruta mientras TOF_USO sigue al interruptor.
+- MEDIA, firmware: el watchdog no avisa a la app (la pose sigue sumando por tiempo). Atendido en la segunda ronda (sección 7).
+- MEDIA, app: nadie vigila el silencio del enlace (sin tiempo de lectura ni ping); con WiFi degradado la pose sigue integrando. Atendido en la segunda ronda (sección 7).
+- MEDIA, app (puente.c): la rejilla del último cuadro (ultimo_*) la escribe el hilo de análisis y la lee el tick sin candado; afecta decisiones de obstáculos, no la pose. Atendido en la segunda ronda (sección 7).
+- MEDIA, app: TOF_PARO no corta el heartbeat y el uso del láser se decide una vez por ruta mientras TOF_USO sigue al interruptor. El corte del heartbeat y la parada de la ruta cuando el navegador no atiende el TOF_PARO se agregaron en la segunda ronda (sección 7).
 - BAJA, firmware: no hay calibración de escala del giroscopio (±3 % típico); pesa en los giros de 180°.
 - BAJA, firmware: el cierre del giro va a saltos de una muestra (~1.3 a 1.7° a 130 °/s); el watchdog lo renuevan también MODO_*, BAL_* y texto desconocido (las pruebas lo fijan así).
 
@@ -44,6 +44,8 @@ Encontrados y NO cambiados (documentados en limites_conocidos.md):
 - Las banderas sin_* son campos del Navegador (navegador_iniciar los pone en 0); se cambian en el código. Volver a todo J15: git switch main (main no tiene J16), la APK de J15 del historial (carro_fsi_0.4-074c9fd.apk) y el firmware 453ed20.
 
 3. Resultados en simulación (1000 corridas por escenario y configuración, semilla fija, corridas pareadas; error en mm: media / p95 / máximo)
+
+Cifras de la primera ronda (código d823a63). La segunda ronda solo cambió la configuración con RUMBO: sus cifras están en la sección 7 y en docs/precision/monte_carlo_1000.txt.
 
 Métrica: desvío lateral final en rectas y esquives; distancia al punto final en las rutas con giros. «ANTES» es el software actual (J15) con el firmware de siempre; «sin firmware» es J16 con el firmware de siempre; «con RUMBO» es J16 con el firmware nuevo. «J14» es lo que corrió en las pruebas físicas, para la calibración.
 
@@ -75,6 +77,59 @@ Nada de J16 está medido en el carro. Plan en docs/precision/plan_pruebas.md: l�
 6. Versiones y estado
 
 - Rama j16-precision publicada en origin, sin fusionar a main y sin etiquetas. v1.0 sigue en eb88151.
-- Código: commit d823a63. APK: APP:0.4-d823a63, 14,508,012 bytes, SHA-256 76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D (dist/), compilada desde ese commit con build limpio; verificar_version.py --solo-archivo: PASA. No instalada.
-- Firmware: FW:d823a63-20261031, 1,033,312 bytes, SHA-256 D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8, compilado en la PC; NO cargado ni publicado (contiene la contraseña del WiFi; copia local en dist/, excluida de Git).
+- Primera ronda: commit d823a63, APK APP:0.4-d823a63 (14,508,012 bytes, SHA-256 76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D) y firmware FW:d823a63-20261031 (1,033,312 bytes, SHA-256 D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8). Los reemplaza la segunda ronda (sección 7); la APK queda en el historial de Git.
+- Vigente (segunda ronda): ver sección 7.
 - Volver a v1.0: git switch --detach v1.0 (o git switch main) y cargar el firmware 453ed20.
+
+7. Segunda ronda (31 de octubre de 2026, misma rama)
+
+Pedido del dueño: revisar qué más se puede mejorar en la navegación autónoma o en el software. Sigue siendo solo software: nada se probó en el carro ni en el teléfono.
+
+Errores encontrados y corregidos:
+- MEDIA, núcleo (navegador.c, fijar_pose, calcular_pose y sumar_frenado): con RUMBO, cada comando nuevo empezaba con el rumbo redondeado a grados enteros: hasta 0.5° de error al empezar cada plan, que RUMBO después sostenía con precisión. Ahora la pose lleva rumbo_x10 (décimas, 0 a 3599) y rumbo_grados es su redondeo. Solo con RUMBO activo; sin RUMBO la pose sigue en grados enteros como en J15 (lo fija la propiedad B7).
+- MEDIA, app (ControlLogica.kt): tras TOF_PARO el heartbeat seguía repitiendo el FORWARD. El firmware ya había frenado, así que el siguiente heartbeat lo arrancaba otra vez contra el obstáculo y el láser lo frenaba de nuevo (tirones). Ahora se deja de repetir el FORWARD.
+- MEDIA, app (ModoSemiautonomo.kt): si el láser frenaba el carro y el navegador no lo atendía (una ruta que empezó sin láser y el láser volvió a funcionar a mitad), la ruta seguía contando un avance que no ocurría. Ahora se detiene con un mensaje.
+- MEDIA, firmware y app (sensores.c, carro.c, ModoSemiautonomo.kt): el watchdog frenaba sin avisar; la ruta seguía sumando por tiempo y el siguiente heartbeat arrancaba el carro desde otro lugar. El firmware nuevo avisa WD:<n> y la ruta se detiene.
+- MEDIA, app (ModoSemiautonomo.kt): nadie vigilaba el silencio del enlace (OkHttp sin tiempo de lectura). Ahora, con un firmware que contestó CAPS, 1.5 s sin SENS detienen la ruta.
+- MEDIA, app (puente.c): la rejilla del último cuadro (ultimo_*) y la máscara de visión se copiaban entre el hilo de la cámara y el ciclo de 50 ms sin candado; el navegador las usa para decidir (el carril del láser, las columnas del borde al esquivar). Ahora un pthread_mutex protege solo las copias.
+- BAJA, app (CalibracionGuardada.kt, EjecutarRutaFragment.kt, Mensajes.kt): si el navegador rechazaba la calibración guardada solo quedaba una línea en el registro y la ruta usaba otros valores. Ahora la pantalla de la ruta lo avisa antes de salir.
+- BAJA, pruebas del firmware (pruebas_carro.c): la prueba de estrés de 2 hilos fallaba de vez en cuando: 8 de 120 corridas con la PC ocupada, también con el código original. Dos causas del arnés, no del firmware: esperaba 500 ms el aviso del último giro (de cuando el asentado duraba 200 ms; ahora GIRO_ASENTAR_MS = 750) y en «paso a paso» el productor colaba varias órdenes en una misma vuelta, sus GIRO_ERROR:ocupado llenaban la cola de salida (16) y se tiraba algún GIRO_OK. Tras el arreglo: 0 fallos en 300 corridas en paralelo.
+
+Diagnóstico para las pruebas físicas:
+- Al terminar o cancelar una ruta con RUMBO, la app pregunta RUMBO? antes de apagarlo. SENS_DIAG registra la respuesta (firmware: RUMBO:<encendido>,<en marcha>,<objetivo x10>,<corrección milésimas>,<aprendido milésimas>) y cuántos objetivos se mandaron (ruta: rumbo_objetivos_enviados=N). La corrección aprendida es el desbalance de los lados que encontró el firmware: es el dato que falta medir.
+- La pantalla Sensores dice si el firmware tiene RUMBO, si las rutas lo van a usar y el último estado leído.
+
+Cambios, banderas y cómo revertir:
+- Rumbo con décimas entre comandos: sin_trig_fino = 1 (todo en grados enteros) o RUMBO apagado (interruptor de Sensores).
+- Corte del heartbeat con TOF_PARO: ControlLogica.CORTAR_HEARTBEAT_EN_TOF_PARO = false.
+- Detener la ruta sin SENS, con WD o con un TOF_PARO no atendido: ModoSemiautonomo.VIGILAR_CARRO_J16 = false (el umbral es SILENCIO_SENS_MS = 1500).
+- Aviso WD del firmware: sin bandera (una app anterior lo ignora); revertir con git revert. El servidor falso también lo manda con --sensores.
+- Candado de puente.c, aviso de calibración rechazada, RUMBO? al terminar y arreglo de la prueba de estrés: sin bandera (correcciones); git revert.
+
+Resultados en simulación (1000 corridas, la misma semilla; media / p95 / máximo en mm; antes = primera ronda). Solo cambia la configuración con RUMBO; las otras 30 líneas (J14, ANTES y sin firmware) quedaron idénticas:
+- Recta 100 cm: 9 / 23 / 33 → 8 / 19 / 27.
+- Recta 150 cm: 13 / 34 / 50 → 10 / 26 / 35 (error de largo medio 3.1 → 3.2 cm).
+- Recta 200 cm: 19 / 52 / 90 → 14 / 33 / 49.
+- Giro 45°: 36 / 69 / 94 → 34 / 66 / 83.
+- Giro 90°: 32 / 64 / 84 → 31 / 61 / 90 (el máximo sube 6 mm).
+- Giro 180°: 43 / 92 / 139 → 41 / 88 / 139.
+- Ruta en L: 36 / 72 / 100 → 35 / 71 / 93.
+- Cuadrado de 60 cm: 28 / 63 / 93 → 26 / 59 / 78.
+- Esquive caja 20 x 20: 21 / 56 / 84 → 17 / 40 / 63, 0 toques.
+- Esquive caja 40 x 20: 21 / 55 / 82 → 17 / 40 / 60, 0 toques.
+- Rumbo final medio: giro 90° de 1.1° a 0.9°; L de 1.1° a 0.8°.
+- Todas terminan 1000 de 1000, sin ayudas. Es SIMULADO: no prueba que el carro mejore.
+- Lo nuevo de la app (enlace mudo, WD, TOF_PARO, candado) no está en el banco: el simulador no modela la app ni el WiFi. NO MEDIDO.
+
+Pruebas de software:
+- Núcleo: 22 programas, 1633 casos, 0 fallos. El banco J16 suma 3 propiedades: B6 (con RUMBO la pose guarda las décimas, ±0.1°), B7 (sin RUMBO, grados enteros como J15, en cada tick) y B8 (con el giroscopio paseando, rumbo_x10 en 0..3599 y a medio grado o menos de rumbo_grados). Se comprobó que B6 falla con la función apagada.
+- Firmware: 515 casos, 0 fallos (6 nuevos del aviso WD: un giro largo no lo dispara, avisa WD:1 una vez a la app y al puerto serie, no se repite parado, WD:2 en el segundo freno, reiniciar no inventa un aviso). Estrés de 2 hilos: 0 fallos en 300 corridas en paralelo (antes 8 de 120).
+- Servidor falso: 48 casos (2 nuevos: WD con --sensores y sin él no). Verificador: 18.
+- UBSan local (modo trampa) sobre pruebas_sensores, pruebas_carro, el banco J16 y pruebas_navegador: sin fallos.
+- La APK compila (build limpio). No hay pruebas automáticas de Kotlin en la PC: lo nuevo de la app está revisado en el código, NO probado en el teléfono.
+
+Versiones (vigentes):
+- Código: commit 097008d.
+- APK: APP:0.4-097008d, 14,511,016 bytes, SHA-256 F0A037CB37C203A8F44279B91DD8D2061665ECC03DAC45FD347AD523AE78842A (dist/), compilada desde ese commit con build limpio; verificar_version.py --solo-archivo: PASA. No instalada.
+- Firmware: FW:097008d-20261031, 1,033,440 bytes, SHA-256 D7CEC2A9A07F3597798C7AF8603A007D4555D3A28B3DB12756D3D88A9AA64F2C, compilado en la PC con cargar.ps1 nuevo -SoloCompilar; NO cargado ni publicado (copia local en dist/, excluida de Git).
+- Rama j16-precision sin fusionar a main y sin etiquetas; v1.0 sigue en eb88151.

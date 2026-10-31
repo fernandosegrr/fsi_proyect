@@ -8,14 +8,14 @@ Artefactos compilados y su manifiesto de verificación. En la rama `j16-precisio
 
 | Archivo | Tamaño | SHA-256 | Estado en git | Propósito |
 |---|---|---|---|---|
-| `carro_fsi_0.4-d823a63.apk` | 14,508,012 bytes | `76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D` | Versionado | APK del candidato J16, compilada desde el commit limpio d823a63. Menos de 15 MB. NO instalada en J16. |
-| `firmware_carro_d823a63-20261031.bin` | 1,033,312 bytes | `D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8` | **No versionado** (excluido localmente) | Firmware J16 compilado en la PC (RUMBO). Contiene la contraseña del WiFi: no se publica. NO cargado. |
+| `carro_fsi_0.4-097008d.apk` | 14,511,016 bytes | `F0A037CB37C203A8F44279B91DD8D2061665ECC03DAC45FD347AD523AE78842A` | Versionado | APK del candidato J16 (segunda ronda), compilada desde el commit limpio 097008d. Menos de 15 MB. NO instalada en J16. |
+| `firmware_carro_097008d-20261031.bin` | 1,033,440 bytes | `D7CEC2A9A07F3597798C7AF8603A007D4555D3A28B3DB12756D3D88A9AA64F2C` | **No versionado** (excluido localmente) | Firmware J16 compilado en la PC (RUMBO y aviso WD del watchdog). Contiene la contraseña del WiFi: no se publica. NO cargado. |
 | `firmware_carro_453ed20-20261027.bin` | 1,031,712 bytes | `9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E` | **No versionado** | Firmware anterior (el del carro en J14/J15), para volver atrás. |
 | `SHA256SUMS.txt` | — | — | Versionado | Manifiesto de sumas de los artefactos publicados (solo el APK). |
 | `FIRMWARE_LOCAL.txt` | — | — | Versionado | Cómo reconstruir y, cuando se decida, cargar el firmware. |
 | `LEEME.txt` | — | — | Versionado | Resumen rápido del candidato y su estado. |
 
-La APK de J15 (`carro_fsi_0.4-074c9fd.apk`) se conserva en el historial de Git; la de la entrega v1.0, en esa etiqueta.
+La APK de J15 (`carro_fsi_0.4-074c9fd.apk`) y la de la primera ronda de J16 (`carro_fsi_0.4-d823a63.apk`) se conservan en el historial de Git; la de la entrega v1.0, en esa etiqueta.
 
 ---
 
@@ -24,7 +24,7 @@ La APK de J15 (`carro_fsi_0.4-074c9fd.apk`) se conserva en el historial de Git; 
 Sin teléfono ni puerto serie (J16):
 
 ```powershell
-python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-d823a63.apk
+python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-097008d.apk
 ```
 
 Comprueba la versión incrustada contra Git, que las fuentes estén limpias, el nombre del archivo y `SHA256SUMS.txt`. No sustituye la comprobación del APK instalado (`--solo-apk`, con el teléfono) ni la del firmware (`--puerto`).
@@ -32,7 +32,7 @@ Comprueba la versión incrustada contra Git, que las fuentes estén limpias, el 
 Directamente:
 
 ```powershell
-Get-FileHash dist/carro_fsi_0.4-d823a63.apk -Algorithm SHA256
+Get-FileHash dist/carro_fsi_0.4-097008d.apk -Algorithm SHA256
 ```
 
-El resultado debe ser `76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D`.
+El resultado debe ser `F0A037CB37C203A8F44279B91DD8D2061665ECC03DAC45FD347AD523AE78842A`.
