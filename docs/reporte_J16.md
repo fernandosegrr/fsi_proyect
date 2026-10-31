@@ -126,6 +126,7 @@ Pruebas de software:
 - Firmware: 515 casos, 0 fallos (6 nuevos del aviso WD: un giro largo no lo dispara, avisa WD:1 una vez a la app y al puerto serie, no se repite parado, WD:2 en el segundo freno, reiniciar no inventa un aviso). Estrés de 2 hilos: 0 fallos en 300 corridas en paralelo (antes 8 de 120).
 - Servidor falso: 48 casos (2 nuevos: WD con --sensores y sin él no). Verificador: 18.
 - UBSan local (modo trampa) sobre pruebas_sensores, pruebas_carro, el banco J16 y pruebas_navegador: sin fallos.
+- GitHub Actions «sanitizadores», ejecución 41243986227 sobre 0d1d4c1: success en todos los pasos (ThreadSanitizer con el estrés de 2 hilos ya arreglado; AddressSanitizer + UndefinedBehaviorSanitizer de sensores y carro, navegador, RUMBO, precisión J16 y reincorporación J15): https://github.com/fernandosegrr/fsi_proyect/actions/runs/41243986227
 - La APK compila (build limpio). No hay pruebas automáticas de Kotlin en la PC: lo nuevo de la app está revisado en el código, NO probado en el teléfono.
 
 Versiones (vigentes):

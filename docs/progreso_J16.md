@@ -53,3 +53,4 @@ Segunda ronda (31 oct 2026, pedido: «revisa qué más puedes mejorar en la nave
 - Probado y descartado (análisis, sin código): corregir la velocidad con el láser (necesita un objeto quieto a menos de 1.2 m; la gente que pasa lo falsearía) y apuntar a la línea parando sin RUMBO (lento y con riesgo de oscilar).
 - Suites: núcleo 22 programas / 1633 casos, firmware 515, servidor falso 48, verificador 18; UBSan local sin fallos.
 - Commit de código 097008d. APK limpia APP:0.4-097008d (14,511,016 bytes, SHA-256 F0A037CB...842A) en dist/; firmware FW:097008d-20261031 (1,033,440 bytes) compilado con -SoloCompilar, NO cargado; copia local en dist/ excluida. El binario del candidato d823a63 se quitó de dist/ (se reconstruye desde ese commit).
+- Publicado: git push origin j16-precision (0d1d4c1), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41243986227: success.
