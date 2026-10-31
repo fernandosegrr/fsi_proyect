@@ -60,7 +60,7 @@ Láser: librería VL53L0X de Pololu 1.3.1 (MIT), copia de la licencia en `docs/l
 
 ## Fase B: app y navegador (J11, 18 oct)
 
-- **Mensajes en la app** (`ControlLogica.kt`): al conectar manda `CAPS?` y `TOF_USO:<0|1>`; lee `CAPS`, `SENS`, `GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR`, `TOF_PARO`, `IMU_CAL_OK / FALLO` e `IMU:` (J16: también `WD:<n>` del watchdog, `ACK_RUMBO` y la respuesta a `RUMBO?`). Un firmware viejo no contesta `CAPS?`: la app lo toma como «sin sensores» y todo queda como antes. `girar(grados)` manda `GIRAR` una sola vez (no hay heartbeat; el watchdog de 1 s no corre durante el giro).
+- **Mensajes en la app** (`ControlLogica.kt`): al conectar manda `CAPS?` y `TOF_USO:<0|1>`; lee `CAPS`, `SENS`, `GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR`, `TOF_PARO`, `IMU_CAL_OK / FALLO` e `IMU:` (J16: también `WD:<n>` del watchdog, `ACK_RUMBO`, la respuesta a `RUMBO?`, `IMUS=<ppm>` en CAPS y `ACK_IMU_ESCALA` / `NAK_IMU_ESCALA`). Un firmware viejo no contesta `CAPS?`: la app lo toma como «sin sensores» y todo queda como antes. `girar(grados)` manda `GIRAR` una sola vez (no hay heartbeat; el watchdog de 1 s no corre durante el giro).
 - **Pantalla Sensores** (Calibración → «Sensores (giroscopio y láser)»): interruptores «Usar giroscopio» y «Usar sensor de distancia» (guardados en `Ajustes`), estado en vivo, «Recalibrar giroscopio», «Poner el ángulo en cero» y prueba de giro de 90° por ángulo o por tiempo que registra en el log `SENS_DIAG prueba_giro ... medido_x10 ... ms`.
 - **Navegador** (`nucleo_c/navegador.c`): giros por ángulo, `TOF_PARO` y confirmación de la cámara, con respaldos; ver `docs/navegador.md` («Giroscopio y sensor láser»).
 - **Firmware:** se agregó `TOF_USO:<0|1>` (apaga/enciende el freno de emergencia con el interruptor de la app).
@@ -130,3 +130,7 @@ pruebas_firmware\.venv\Scripts\python.exe scripts\verificar_version.py --puerto 
 Solo consulta CAPS? y lee el paquete com.fsi.carro. Compara hashes con HEAD, versión declarada y opcionalmente SHA-256 del APK instalado contra el build. Tolera commits posteriores exclusivamente de docs/ para poder guardar el reporte después de cargar; no tolera cambios de producto. No envía movimiento ni escribe NVS.
 
 El extra video_url ya no se guarda en preferencias. Mientras existe hay aviso CÁMARA DE PRUEBA. Una apertura normal vuelve a http://192.168.4.2/stream y limpia la dirección antigua de pruebas.
+
+# J16: escala del giroscopio
+
+El MPU6050 promete la escala con ±3 %: un giroscopio que lee 1 % de más deja cada giro de 180° 1.8° corto y el rumbo estimado mal en lo que sigue. El firmware J16 multiplica la velocidad medida por una corrección en partes por millón (`IMU_ESCALA:<ppm>`, guardada en la memoria no volátil; `IMUS=<ppm>` en CAPS). La mide la tarjeta «Escala del giroscopio» de la pantalla Sensores: con el carro alineado con una línea del piso se toca Empezar, se gira dos vueltas completas al mismo lado (a mano y sin levantarlo, o con los botones de 90°), se vuelve a alinear y se toca Terminé; nucleo_c/calgiro.c (calgiro_escala) calcula la corrección compuesta con la que ya había y «Guardar en el carro» la manda. Un error de alineación de 1° en dos vueltas son 0.14 %. NO MEDIDO en el carro: la simulación supone que queda un residuo de ±0.3 %.

@@ -9,7 +9,8 @@
  *          Supuestos del mundo (ajustados a lo medido en J14; ver docs/precision/simulador.md): AUTO 19.3 cm/s; arranque 100 ms; diferencia de empuje
  *          después del balance de 0.3 a 2.1 % (rectas de 5.5 a 20 cm); 250 ms de arranque a 255/255 sin balance; zona muerta del motor de 60 a 120 de PWM;
  *          giro por ángulo con error de cierre normal (1.1° izq, 1.7° der, tope ±3°); pivote medido (izq 90/-90 mm, der 150/165 mm a 90°) ±15 % por corrida;
- *          velocidad real ±4 %; frenado 25 a 35 mm; carro colocado con ±1° y ±10 mm; escala del giroscopio de -1 a +1 % y sesgo ±0.05 °/s; SENS con 50 a 150 ms
+ *          velocidad real ±4 %; frenado 25 a 35 mm; carro colocado con ±1° y ±10 mm; escala del giroscopio de -1 a +1 % (con IMU_ESCALA, el residuo de la medición: ±0.3 %)
+ *          y sesgo ±0.05 °/s; SENS con 50 a 150 ms
  *          de atraso; comandos con 0 a 2 ticks de retraso; video a 10 cuadros/s con 200 a 300 ms de retraso.
  * Uso: ./pruebas_precision_j16          (rápido: Partes A y B y 150 corridas por escenario, con comprobaciones; lo corre make test)
  *      ./pruebas_precision_j16 1000     (el informe: 1000 corridas por escenario y configuración)
@@ -311,8 +312,21 @@ static void parte_b(void)
 #define HISTORIA 32
 enum { E_RECTA100, E_RECTA150, E_RECTA200, E_GIRO45, E_GIRO90, E_GIRO180, E_L, E_CUADRADO, E_ESQUIVE20, E_ESQUIVE_ANCHA, N_ESCENARIOS };
 static const char *NOMBRE_ESC[N_ESCENARIOS] = { "recta_100", "recta_150", "recta_200", "giro_45", "giro_90", "giro_180", "ruta_L", "cuadrado", "esquive_20x20", "esquive_ancha" };
-enum { C_J14, C_J15, C_J16_SIN_FW, C_J16_RUMBO, N_CONFIG };
-static const char *NOMBRE_CFG[N_CONFIG] = { "J14 (lo que corrio en B4-B6)", "ANTES: J15 actual", "DESPUES sin firmware nuevo", "DESPUES con RUMBO (firmware nuevo)" };
+enum { C_J14, C_J15, C_J16_SIN_FW, C_J16_RUMBO, C_J16_ESCALA, N_CONFIG };
+static const char *NOMBRE_CFG[N_CONFIG] = { "J14 (lo que corrio en B4-B6)", "ANTES: J15 actual", "DESPUES sin firmware nuevo", "DESPUES con RUMBO (firmware nuevo)",
+                                            "DESPUES con RUMBO y escala calibrada (IMU_ESCALA)" };
+
+/* J16: el error de escala que queda tras calibrar con IMU_ESCALA (vueltas completas alineadas con una línea): de -3000 a 3000 ppm, SUPUESTO (±1° al alinear al empezar y
+ * al terminar dos vueltas). Sale de la semilla sin usar el generador de la corrida, así las demás variables siguen pareadas con las otras configuraciones. */
+static int residuo_escala_ppm(uint32_t semilla)
+{
+    uint32_t h = semilla * 2654435761u;
+
+    h ^= h >> 15;
+    h *= 2246822519u;
+    h ^= h >> 13;
+    return (int)(h % 6001u) - 3000;
+}
 
 typedef struct {
     Punto ruta[24];
@@ -506,7 +520,7 @@ static Resultado correr(int e, int config, uint32_t semilla)
     navegador_poner_requiere_camara(&nav, 1);
     navegador_poner_pedir_ayuda(&nav, 1);
     navegador_poner_latencia_visual(&nav, 250);
-    navegador_poner_rumbo_fw(&nav, config == C_J16_RUMBO);
+    navegador_poner_rumbo_fw(&nav, config >= C_J16_RUMBO);
     navegador_cargar_ruta(&nav, s.ruta, s.n);
     if (s.override_mm > 0) navegador_poner_largo_recta_mm(&nav, s.override_mm);
 
@@ -543,8 +557,12 @@ static Resultado correr(int e, int config, uint32_t semilla)
     sim.tof_activo = 1;
     sim.laser_externo = 1;
     sim.periodo_cuadro_ms = 100;
-    sim.j16_rumbo = (config == C_J16_RUMBO);
-    sim.fw_escala_pct = entre(-1, 1);   /* error de escala del giroscopio: -1, 0 o +1 % (el simulador lo maneja en % enteros) */
+    sim.j16_rumbo = (config >= C_J16_RUMBO);
+    sim.fw_escala_pct = entre(-1, 1);   /* error de escala del giroscopio: -1, 0 o +1 % */
+    if (config == C_J16_ESCALA) {        /* J16: corregida con IMU_ESCALA: solo queda el error de la medición */
+        sim.fw_escala_pct = 0;
+        sim.fw_escala_ppm = residuo_escala_ppm(semilla);
+    }
     retraso = entre(4, 6);
     for (i = 0; i < HISTORIA; i++) { hx[i] = sim_x_mm(&sim); hy[i] = sim_y_mm(&sim); hh[i] = 0; }
     navegador_comenzar(&nav, 0);
@@ -694,10 +712,10 @@ int main(int argc, char **argv)
         e = atoi(argv[2]);
         c = atoi(argv[3]);
         r = correr(e, c, 160000u + (uint32_t)e * 10007u + (uint32_t)atoi(argv[4]));
-        printf("%s %s: error=%d lateral=%d longitudinal=%d rumbo_x10=%d estimado=%d llego=%d toco=%d esquivas=%d ayuda=%d estado=%s pose_nav=(%d,%d,%d) real=(%d,%d) desbalance=%d escala=%d sesgo=%d lat_cmd=%d lat_sens=%d\n",
+        printf("%s %s: error=%d lateral=%d longitudinal=%d rumbo_x10=%d estimado=%d llego=%d toco=%d esquivas=%d ayuda=%d estado=%s pose_nav=(%d,%d,%d) real=(%d,%d) desbalance=%d escala=%d escala_ppm=%d sesgo=%d lat_cmd=%d lat_sens=%d\n",
                NOMBRE_ESC[e], NOMBRE_CFG[c], r.error, r.lateral, r.longitudinal, r.rumbo_x10, r.estimado, r.llego, r.toco, r.esquivas, r.ayuda,
                navegador_texto_estado(nav.estado), nav.x_mm, nav.y_mm, nav.rumbo_grados, sim_x_mm(&sim), sim_y_mm(&sim), sim.desbalance_mil,
-               sim.fw_escala_pct, sim.j16_sesgo_mdps, sim.j16_latencia_cmd_ticks, sim.j16_latencia_sens_ms);
+               sim.fw_escala_pct, sim.fw_escala_ppm, sim.j16_sesgo_mdps, sim.j16_latencia_cmd_ticks, sim.j16_latencia_sens_ms);
         return 0;
     }
     if (argc > 1 && strcmp(argv[1], "calibrar") == 0) {
@@ -742,6 +760,9 @@ int main(int argc, char **argv)
             caso(t, sin_fw->error.media <= antes->error.media + 5 && sin_fw->error.p95 <= tolerancia_p95(antes->error.p95) && sin_fw->toques <= antes->toques && sin_fw->llegan >= antes->llegan);
             snprintf(t, sizeof t, "%s: con RUMBO no empeora la media (+5 mm), el p95 (+10 mm o +20 %%), los toques ni las llegadas", NOMBRE_ESC[e]);
             caso(t, rumbo->error.media <= antes->error.media + 5 && rumbo->error.p95 <= tolerancia_p95(antes->error.p95) && rumbo->toques <= antes->toques && rumbo->llegan >= antes->llegan);
+            snprintf(t, sizeof t, "%s: con la escala calibrada no empeora contra RUMBO solo (media +5 mm, p95 +10 mm o +20 %%, toques, llegadas)", NOMBRE_ESC[e]);
+            caso(t, res[e][C_J16_ESCALA].error.media <= rumbo->error.media + 5 && res[e][C_J16_ESCALA].error.p95 <= tolerancia_p95(rumbo->error.p95) &&
+                    res[e][C_J16_ESCALA].toques <= rumbo->toques && res[e][C_J16_ESCALA].llegan >= rumbo->llegan);
         }
         caso("rectas: con RUMBO la media del error lateral baja al menos a la mitad en 100, 150 y 200 cm",
              res[E_RECTA100][C_J16_RUMBO].error.media * 2 <= res[E_RECTA100][C_J15].error.media &&
@@ -750,8 +771,10 @@ int main(int argc, char **argv)
         caso("recta 150: el largo fijo se respeta (error longitudinal medio menor que el de las 8 celdas de antes)",
              res[E_RECTA150][C_J16_SIN_FW].longitudinal.media < res[E_RECTA150][C_J15].longitudinal.media);
         caso("esquives: con la holgura de 150 mm ninguna configuracion J16 toca la caja (y J15 no toca mas que antes)",
-             res[E_ESQUIVE20][C_J16_SIN_FW].toques == 0 && res[E_ESQUIVE20][C_J16_RUMBO].toques == 0 &&
-             res[E_ESQUIVE_ANCHA][C_J16_SIN_FW].toques == 0 && res[E_ESQUIVE_ANCHA][C_J16_RUMBO].toques == 0);
+             res[E_ESQUIVE20][C_J16_SIN_FW].toques == 0 && res[E_ESQUIVE20][C_J16_RUMBO].toques == 0 && res[E_ESQUIVE20][C_J16_ESCALA].toques == 0 &&
+             res[E_ESQUIVE_ANCHA][C_J16_SIN_FW].toques == 0 && res[E_ESQUIVE_ANCHA][C_J16_RUMBO].toques == 0 && res[E_ESQUIVE_ANCHA][C_J16_ESCALA].toques == 0);
+        caso("giro 180: con la escala calibrada baja el p95 del error contra RUMBO solo (la cola que dejaba la escala sin calibrar)",
+             res[E_GIRO180][C_J16_ESCALA].error.p95 < res[E_GIRO180][C_J16_RUMBO].error.p95);
     }
     printf("%d casos, %d fallos\n", casos, fallos);
     free(v_error); free(v_lat); free(v_lon); free(v_rumbo); free(v_est);

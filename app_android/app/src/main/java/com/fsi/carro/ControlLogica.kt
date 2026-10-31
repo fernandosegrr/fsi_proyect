@@ -174,6 +174,13 @@ class ControlLogica(
     var ultimoRumbo = ""
         private set
 
+    /** J16: la corrección de escala del giroscopio que tiene el firmware (IMUS=<ppm> en CAPS); null = el firmware no la entiende (no se le manda IMU_ESCALA). */
+    var escalaImuPpm: Int? = null
+        private set
+    private var escalaEsperada: Int? = null
+    private var alConfirmarEscala: ((Boolean) -> Unit)? = null
+    private val tareaTiempoEscala = Runnable { terminarEscala(false) }
+
     /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
     val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
     private var sinConexionDesdeMs = 0L
@@ -369,6 +376,30 @@ class ControlLogica(
         aviso?.invoke(exito)
     }
 
+    /**
+     * J16: le manda al carro la corrección de escala del giroscopio (IMU_ESCALA:<ppm>, de -50000 a 50000) y espera su ACK hasta `esperaMs` ms: avisa true si el carro la
+     * confirmó con ese mismo valor (la guarda en su memoria) y false si no (sin conexión, firmware sin IMUS en CAPS, NAK_IMU_ESCALA con el carro en marcha, o se acabó el tiempo).
+     */
+    fun enviarEscalaImu(ppm: Int, esperaMs: Long, alTerminar: (Boolean) -> Unit) {
+        terminarEscala(false)
+        if (conexion != Conexion.CONECTADO || escalaImuPpm == null) {
+            alTerminar(false)
+            return
+        }
+        escalaEsperada = ppm
+        alConfirmarEscala = alTerminar
+        manejador.postDelayed(tareaTiempoEscala, esperaMs)
+        enviar("IMU_ESCALA:$ppm")
+    }
+
+    private fun terminarEscala(exito: Boolean) {
+        manejador.removeCallbacks(tareaTiempoEscala)
+        val aviso = alConfirmarEscala
+        escalaEsperada = null
+        alConfirmarEscala = null
+        aviso?.invoke(exito)
+    }
+
     /** Pide un giro por ángulo MEDIDO: positivo = izquierda, de 5 a 200 grados. El firmware lo hace solo (no hay heartbeat) y contesta GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR. */
     fun girar(gradosIzquierdaPositivo: Int) {
         manejador.removeCallbacks(tareaHeartbeat)
@@ -449,6 +480,7 @@ class ControlLogica(
         capsLaser = null
         capsRumbo = null
         ultimoRumbo = ""
+        escalaImuPpm = null
         girandoPorAngulo = false
         pedirCapacidades()
         balanceConfirmado[0] = 0
@@ -515,11 +547,13 @@ class ControlLogica(
         capsGiroscopio = null
         capsLaser = null
         capsRumbo = null
+        escalaImuPpm = null
         esperandoPong = false
         latenciaMs = null
         perfilConfirmado = null
         terminarConfirmacion(false)
         terminarBalance(false)
+        terminarEscala(false)
         if (activo) {
             Log.i(EnlaceOkHttp.ETIQUETA, "conexión perdida: se reintenta en ${REINTENTO_MS / 1000} s")
             cambiarEstado(Conexion.RECONECTANDO)
@@ -551,6 +585,7 @@ class ControlLogica(
                     capsGiroscopio = imu
                     capsLaser = tof
                     capsRumbo = texto.contains("RUMBO=1")   // J16: firmware que sabe sostener el rumbo al avanzar
+                    escalaImuPpm = Regex("IMUS=(-?\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull()   // J16: firmware que entiende IMU_ESCALA (y la que usa)
                     tofReintentos = Regex("TOFR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuReintentos = Regex("IMUR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuMotivo = Regex("IMUM=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -605,6 +640,19 @@ class ControlLogica(
                 }
                 texto.startsWith("ACK_RUMBO:") -> {
                     Log.i("SENS_DIAG", "firmware: $texto")
+                }
+                texto.startsWith("ACK_IMU_ESCALA:") || texto.startsWith("IMU_ESCALA:") -> {
+                    val ppm = texto.substringAfter(':').toInt()
+                    escalaImuPpm = ppm
+                    Log.i("SENS_DIAG", "firmware: $texto (escala del giroscopio en uso: $ppm ppm)")
+                    if (texto.startsWith("ACK_") && escalaEsperada == ppm) {
+                        terminarEscala(true)
+                    }
+                    alCambiar()
+                }
+                texto == "NAK_IMU_ESCALA" -> {
+                    Log.w("SENS_DIAG", "el carro rechazó la escala del giroscopio (NAK_IMU_ESCALA: ¿en marcha o fuera de rango?)")
+                    terminarEscala(false)
                 }
                 texto.startsWith("RUMBO:") -> {
                     val p = texto.substring(6).split(",")

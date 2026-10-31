@@ -297,11 +297,17 @@ void sim_j16_rumbo_repartir(int corr_mil, int base_izq, int base_der, int tope, 
     *der = (b < 0) ? 0 : b;
 }
 
+/* Aplica el error de escala del giroscopio: fw_escala_pct (en %) más fw_escala_ppm (J16, fino). Con fw_escala_ppm = 0 da exactamente lo mismo que x * (100 + pct) / 100. */
+static long long escalar_giroscopio(long long x, const Simulador *sim)
+{
+    return x * (1000000LL + (long long)sim->fw_escala_pct * 10000LL + sim->fw_escala_ppm) / 1000000LL;
+}
+
 /* El ángulo que mide el giroscopio (décimas, + izquierda): lo que giró el carro REAL desde que empezó, con el error de escala y, en J16, el sesgo acumulado. */
 static int angulo_medido_x10(const Simulador *sim)
 {
     long cgrados_der = sim->rumbo_cgrados - sim->rumbo0_cgrados;
-    int a = (int)(-(cgrados_der / 10) * (100 + sim->fw_escala_pct) / 100);
+    int a = (int)escalar_giroscopio(-(cgrados_der / 10), sim);
 
     if (sim->j16_activo) {
         a += (int)(sim->j16_sesgo_acum_udeg / 100000);
@@ -533,11 +539,11 @@ static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
         long paso = (t > arranque) ? mdeg_por_ms : 0;
 
         real_mdeg += paso;
-        medido_mdeg += paso * (100 + sim->fw_escala_pct) / 100 + sim->fw_sesgo_x100 / 100;
+        medido_mdeg += (long)escalar_giroscopio(paso, sim) + sim->fw_sesgo_x100 / 100;
         if (codigo != NAV_GIRO_OK && real_mdeg >= objetivo_mdeg / 2) {
             break;                                       /* falla a mitad del giro: se corta ahí e informa el ángulo parcial */
         }
-        if (medido_mdeg + mdeg_por_ms * (100 + sim->fw_escala_pct) / 100 * ant >= objetivo_mdeg) {
+        if (medido_mdeg + (long)escalar_giroscopio(mdeg_por_ms, sim) * ant >= objetivo_mdeg) {
             break;
         }
     }
@@ -545,7 +551,7 @@ static void fw_iniciar(Simulador *sim, int grados_izq_positivo)
         codigo = NAV_GIRO_TIMEOUT;
     }
     total_mdeg = real_mdeg + ((codigo == NAV_GIRO_OK || codigo == NAV_GIRO_TIMEOUT) ? coast_mdeg : 0);
-    medido_final = medido_mdeg + ((codigo == NAV_GIRO_OK || codigo == NAV_GIRO_TIMEOUT) ? coast_mdeg * (100 + sim->fw_escala_pct) / 100 : 0);
+    medido_final = medido_mdeg + ((codigo == NAV_GIRO_OK || codigo == NAV_GIRO_TIMEOUT) ? (long)escalar_giroscopio(coast_mdeg, sim) : 0);
     if (codigo == NAV_GIRO_OK && mdeg_por_ms > 0) {   /* la anticipación se corrige sola (igual que giro.c) */
         long ideal = coast_mdeg / mdeg_por_ms;
 
@@ -636,7 +642,7 @@ static int angulo_fw_x10(const Simulador *sim)
 {
     long cgrados_der = sim->rumbo_cgrados - sim->rumbo0_cgrados;
 
-    return (int)(-(cgrados_der / 10) * (100 + sim->fw_escala_pct) / 100);
+    return (int)escalar_giroscopio(-(cgrados_der / 10), sim);
 }
 
 static int es_estado_sin_movimiento(EstadoNav estado)

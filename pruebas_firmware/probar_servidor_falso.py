@@ -117,7 +117,25 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? incluye capacidades y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,FW:simulado")
+            caso("sensores: CAPS? incluye capacidades, escala del giroscopio (J16) y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,IMUS=0,FW:simulado")
+            await ws.send("IMU_ESCALA:-12500")
+            caso("sensores: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500 y CAPS con IMUS=-12500", await siguiente(ws, "ACK_IMU_ESCALA:") == "ACK_IMU_ESCALA:-12500" and
+                 (await siguiente(ws, "CAPS:") or "").find(",IMUS=-12500,") > 0)
+            await ws.send("IMU_ESCALA?")
+            caso("sensores: IMU_ESCALA? -> IMU_ESCALA:-12500", await siguiente(ws, "IMU_ESCALA:") == "IMU_ESCALA:-12500")
+            for malo in ("IMU_ESCALA:50001", "IMU_ESCALA:abc", "IMU_ESCALA:"):
+                await ws.send(malo)
+                caso("sensores: %s -> NAK_IMU_ESCALA" % malo, await siguiente(ws, "NAK_IMU_ESCALA") == "NAK_IMU_ESCALA")
+            await ws.send("IMU_ESCALA:0")
+            await siguiente(ws, "ACK_IMU_ESCALA:")
+            await ws.send("IMU_CERO")
+            await siguiente(ws, "ACK_IMU_CERO")
+            await ws.send("SIM_ANGULO:7274")
+            await ws.send("IMU?")
+            imu = await siguiente(ws, "IMU:")
+            caso("sensores: SIM_ANGULO:7274 suma el angulo (IMU? dice 7274)", imu is not None and imu.startswith("IMU:7274,"))
+            await ws.send("IMU_CERO")
+            await siguiente(ws, "ACK_IMU_CERO")
             await ws.send("ANT?")
             caso("sensores: ANT? informa los cuatro valores", await siguiente(ws, "ANT:") == "ANT:100,100,20,20")
             sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]

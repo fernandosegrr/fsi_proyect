@@ -177,6 +177,8 @@
 #define IMU_PERIODO_US           10000u   /* 100 Hz */
 #define IMU_DT_MAX_US            100000u  /* si loop() se atrasó más de esto entre dos muestras, no se integra el hueco entero */
 #define IMU_ZONA_MUERTA_MDPS     150      /* por debajo de 0.15 °/s (ya sin el sesgo) la velocidad se toma como 0: el ruido no suma ángulo */
+/* J16: corrección de la escala del giroscopio (IMU_ESCALA:<ppm>, la mide la app con vueltas completas). El MPU6050 promete ±3 %; se acepta hasta ±5 %. */
+#define IMU_ESCALA_MAX_PPM       50000
 
 /* Sesgo (bias) del giroscopio: al arrancar, con el carro quieto, se promedian IMU_SESGO_MUESTRAS lecturas y se acepta el promedio solo si
  * la desviación es pequeña (el carro no se movió) y el sesgo no es absurdo; si no, se reintenta hasta IMU_SESGO_REINTENTOS veces y después el giroscopio queda en IMU_MAL. */

@@ -25,6 +25,8 @@
  *   ARR?         → ARR:<n TOF>,<con reintentos TOF>,<detalle hex TOF>,<actual TOF>,<n IMU>,<con reintentos IMU>,<detalle hex IMU>,<actual IMU>
  *   ANT_BORRAR   → ACK_ANT_BORRAR   las cuatro vuelven a GIRO_ANTICIPACION_MS y se borran de la memoria no volátil
  *   TOF_USO:<0|1> → ACK_TOF_USO:<n>   enciende (1, por defecto) o apaga (0) la parada de emergencia del láser (el interruptor «Usar sensor de distancia» de la app); el láser sigue midiendo y mandando SENS
+ *   IMU_ESCALA:<ppm> → ACK_IMU_ESCALA:<ppm> o NAK_IMU_ESCALA   (J16) corrección de escala del giroscopio, de -50000 a 50000 ppm, solo con el carro detenido; se guarda en la
+ *                memoria no volátil. IMU_ESCALA? → IMU_ESCALA:<ppm>. CAPS la anuncia como IMUS=<ppm> (sin IMUS = firmware que no la entiende)
  */
 #ifndef SENSORES_H
 #define SENSORES_H

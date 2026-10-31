@@ -1562,6 +1562,27 @@ Java_com_fsi_carro_CalGiroNativa_textoError(JNIEnv *env, jobject objeto, jint er
     return (*env)->NewStringUTF(env, calgiro_texto_error((int)error));
 }
 
+/* J16: la escala del giroscopio con vueltas completas (calgiro_escala). Devuelve 4 enteros: [código CG_ESC_*, vueltas, error en ppm, corrección nueva en ppm]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalGiroNativa_escala(JNIEnv *env, jobject objeto, jint medido_x10, jint escala_ppm)
+{
+    jint salida[4];
+    int vueltas = 0;
+    int32_t error_ppm = 0, nueva_ppm = 0;
+    jintArray arreglo;
+
+    (void)objeto;
+    salida[0] = (jint)calgiro_escala((int32_t)medido_x10, (int32_t)escala_ppm, &vueltas, &error_ppm, &nueva_ppm);
+    salida[1] = (jint)vueltas;
+    salida[2] = (jint)error_ppm;
+    salida[3] = (jint)nueva_ppm;
+    arreglo = (*env)->NewIntArray(env, 4);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 4, salida);
+    }
+    return arreglo;
+}
+
 /* Ajuste fino del giro de 90°: los grados que se suponen girados en cada opción (0 = opción desconocida). */
 JNIEXPORT jint JNICALL
 Java_com_fsi_carro_CalibracionNativa_gradosDeOpcionGiro(JNIEnv *env, jobject objeto, jint opcion)

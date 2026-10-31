@@ -313,6 +313,34 @@ int calgiro_resultado(const CalGiro *cg, CalibracionCarro *nueva, CalGiroLado re
     return 1;
 }
 
+int calgiro_escala(int32_t medido_x10, int32_t escala_ppm, int *vueltas, int32_t *error_ppm, int32_t *nueva_ppm)
+{
+    int64_t a = medido_x10 < 0 ? -(int64_t)medido_x10 : (int64_t)medido_x10;
+    int64_t n = (a + 1800) / 3600;               /* vueltas completas más cercanas */
+    int64_t real = n * 3600;
+    int64_t dif, error, nueva;
+
+    if (vueltas != NULL) *vueltas = (int)n;
+    if (error_ppm != NULL) *error_ppm = 0;
+    if (nueva_ppm != NULL) *nueva_ppm = escala_ppm;
+    if (n < 1) {
+        return CG_ESC_POCO;
+    }
+    dif = a - real;
+    if ((dif < 0 ? -dif : dif) * 100 > real * CG_ESC_TOLERANCIA_PCT) {
+        return CG_ESC_NO_CUADRA;
+    }
+    /* El giroscopio midió a = real x (1 + e) x (1 + c): con la corrección nueva debe dar real, o sea (1 + nueva) = (1 + c) x real / a (con redondeo). */
+    error = (dif * 1000000 + (dif >= 0 ? real / 2 : -real / 2)) / real;
+    nueva = ((int64_t)(1000000 + escala_ppm) * real + a / 2) / a - 1000000;
+    if (error_ppm != NULL) *error_ppm = (int32_t)error;
+    if (nueva_ppm != NULL) *nueva_ppm = (int32_t)nueva;
+    if (nueva > CG_ESC_MAX_PPM || nueva < -CG_ESC_MAX_PPM) {
+        return CG_ESC_FUERA;
+    }
+    return CG_ESC_OK;
+}
+
 const char *calgiro_texto_error(int error)
 {
     switch (error) {

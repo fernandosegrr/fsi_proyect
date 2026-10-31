@@ -35,4 +35,11 @@
     <string name="sens_sin_firmware">El carro no contestó a CAPS?: tiene el firmware viejo o los sensores no funcionan. Todo sigue como antes (giros por tiempo).</string>
     <string name="sens_sin_giroscopio_prueba">El giroscopio no está disponible: no se puede girar por ángulo.</string>
     <string name="sens_sin_conexion_prueba">Primero conecta con el carro.</string>
+    <string name="sens_escala">Escala del giroscopio (J16)</string>
+    <string name="sens_escala_ayuda">Corrige el error de escala del giroscopio (el fabricante promete ±3 %; pesa en los giros grandes). Recalibra el giroscopio antes. 1) Alinea un costado del carro con una línea del piso y toca Empezar. 2) Gíralo dos vueltas completas hacia el mismo lado, a mano y sin levantarlo (o con los botones de 90°), sin prisa: una vuelta en 3 s o más. 3) Vuelve a alinearlo con la misma línea y toca Terminé. Experimental, NO MEDIDO en el carro.</string>
+    <string name="sens_escala_empezar">Empezar</string>
+    <string name="sens_escala_termine">Terminé</string>
+    <string name="sens_escala_guardar">Guardar en el carro</string>
+    <string name="sens_escala_cancelar">Cancelar</string>
+    <string name="sens_escala_quitar">Quitar la corrección (0)</string>
 </resources>

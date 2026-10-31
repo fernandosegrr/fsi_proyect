@@ -11,6 +11,9 @@
  *     de la calibración). Se compara lo que midió el giroscopio y cuánto tardó: queda en pantalla y en el log (SENS_DIAG prueba_giro ...). Si el giroscopio no está disponible el método por
  *     tiempo solo informa los ms.
  *  4. La conexión es la compartida de toda la app (SesionCarro); esta pantalla entra con el número de usuario de Calibración. Al salir se manda STOP. El botón PARO está siempre abajo.
+ *  5. J16, ESCALA DEL GIROSCOPIO: con el carro alineado con una línea del piso se guarda el ángulo (quieto: dos SENS a 400 ms que casi no cambian); el usuario lo gira vueltas
+ *     completas (a mano o con los botones de 90°) y lo vuelve a alinear; con lo que midió el giroscopio, CalGiroNativa.escala (nucleo_c/calgiro.c) da la corrección nueva y
+ *     «Guardar en el carro» la manda (IMU_ESCALA:<ppm>, el firmware la guarda en su memoria). Solo con un firmware que anuncia IMUS en CAPS.
  */
 package com.fsi.carro
 
@@ -30,6 +33,9 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         const val ETIQUETA = "SENS_DIAG"
         private const val ESPERA_ASENTAR_MS = 900L   // después de un giro por tiempo, lo que se espera a que el carro termine de moverse antes de leer el ángulo
         private const val ESPERA_GIRO_MS = 6000L     // si el firmware no contesta a un giro por ángulo en este tiempo, se avisa
+        private const val ESCALA_QUIETO_MS = 400L    // J16: dos lecturas del ángulo separadas este tiempo...
+        private const val ESCALA_QUIETO_X10 = 3      // ...que no difieren más de 0.3° = el carro está quieto
+        private const val ESCALA_MAX_MS = 120_000L   // J16: una medición más larga deja pesar la deriva del giroscopio: se repite
     }
 
     private lateinit var logica: ControlLogica
@@ -53,6 +59,21 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
     private var probando = false          // una prueba de giro en curso
     private var angulo0X10 = 0            // ángulo del giroscopio al empezar una prueba por tiempo
     private var inicioMs = 0L
+
+    // J16: medición de la escala del giroscopio. Paso 0 = sin medir, 1 = ángulo inicial guardado (el usuario gira el carro), 2 = corrección calculada, falta guardarla.
+    private lateinit var textoEscala: TextView
+    private lateinit var botonEscala: MaterialButton
+    private lateinit var botonEscalaCancelar: MaterialButton
+    private lateinit var botonEscalaQuitar: MaterialButton
+    private lateinit var botonRecalibrar: MaterialButton
+    private lateinit var botonCero: MaterialButton
+    private var escalaPaso = 0
+    private var escalaInicioX10 = 0
+    private var escalaInicioMs = 0L
+    private var escalaNuevaPpm = 0
+    private var escalaEsperando = false   // esperando (ESCALA_QUIETO_MS) la segunda lectura del ángulo
+    private var escalaEnviando = false    // esperando que el carro confirme IMU_ESCALA
+    private var escalaMensaje = ""
 
     private val alCambiar: () -> Unit = { mostrar() }
 
@@ -128,8 +149,22 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         }
         findViewById<View>(R.id.sens_fila_giro).setOnClickListener { interruptorGiro.toggle() }
         findViewById<View>(R.id.sens_fila_laser).setOnClickListener { interruptorLaser.toggle() }
-        findViewById<MaterialButton>(R.id.sens_recalibrar).setOnClickListener { logica.recalibrarGiroscopio() }
-        findViewById<MaterialButton>(R.id.sens_cero).setOnClickListener { logica.ponerAnguloCero() }
+        botonRecalibrar = findViewById(R.id.sens_recalibrar)
+        botonCero = findViewById(R.id.sens_cero)
+        botonRecalibrar.setOnClickListener { logica.recalibrarGiroscopio() }
+        botonCero.setOnClickListener { logica.ponerAnguloCero() }
+        textoEscala = findViewById(R.id.sens_escala_texto)
+        botonEscala = findViewById(R.id.sens_escala_paso)
+        botonEscalaCancelar = findViewById(R.id.sens_escala_cancelar)
+        botonEscalaQuitar = findViewById(R.id.sens_escala_quitar)
+        botonEscala.setOnClickListener { pasoEscala() }
+        botonEscalaCancelar.setOnClickListener {
+            escalaPaso = 0
+            escalaMensaje = "Medición cancelada."
+            Log.i(ETIQUETA, "escala_giroscopio cancelada")
+            mostrar()
+        }
+        botonEscalaQuitar.setOnClickListener { guardarEscala(0) }
         botonIzq.setOnClickListener { probarGiro(90) }
         botonDer.setOnClickListener { probarGiro(-90) }
         findViewById<MaterialButton>(R.id.sens_paro).setOnClickListener {
@@ -155,6 +190,8 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
     }
 
     override fun onPause() {
+        escalaPaso = 0           // J16: al volver no se sabe qué pasó con el carro: la medición de la escala empieza de nuevo
+        escalaEsperando = false
         parar("pantalla en segundo plano")
         logica.alGiro = null
         reloj.removeCallbacks(tareaReloj)
@@ -171,8 +208,106 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             Log.i(ETIQUETA, "prueba_giro cancelada: $motivo")
         }
         probando = false
+        escalaEsperando = false   // J16: la segunda lectura del ángulo que estuviera pendiente se canceló arriba (hay que volver a tocar el botón)
         logica.parar()
         mostrar()
+    }
+
+    // ── J16: escala del giroscopio ────────────────────────────────────────
+
+    /** El último SENS es reciente (menos de 500 ms), con el giroscopio listo y sin calibrar. */
+    private fun anguloFresco(): Boolean {
+        val b = logica.banderasSens
+        return logica.ultimoSensMs != 0L && android.os.SystemClock.elapsedRealtime() - logica.ultimoSensMs < 500L && b and 1 != 0 && b and 8 == 0
+    }
+
+    /** Lee el ángulo con el carro QUIETO: dos lecturas separadas ESCALA_QUIETO_MS que no difieren más de ESCALA_QUIETO_X10. Llama a `listo` con el ángulo (décimas) o con null. */
+    private fun anguloQuieto(listo: (Int?) -> Unit) {
+        if (!anguloFresco()) {
+            listo(null)
+            return
+        }
+        val primero = logica.anguloX10
+        escalaEsperando = true
+        reloj.postDelayed({
+            escalaEsperando = false
+            val segundo = logica.anguloX10
+            listo(if (anguloFresco() && kotlin.math.abs(segundo - primero) <= ESCALA_QUIETO_X10) segundo else null)
+        }, ESCALA_QUIETO_MS)
+        mostrar()
+    }
+
+    /** El botón principal de la tarjeta: Empezar (guarda el ángulo inicial), Terminé (calcula la corrección) o Guardar en el carro. */
+    private fun pasoEscala() {
+        when (escalaPaso) {
+            0 -> anguloQuieto { angulo ->
+                if (angulo == null) {
+                    escalaMensaje = "No hay un ángulo estable del giroscopio: deja el carro quieto (y el giroscopio listo) y vuelve a tocar Empezar."
+                } else {
+                    escalaInicioX10 = angulo
+                    escalaInicioMs = android.os.SystemClock.elapsedRealtime()
+                    escalaPaso = 1
+                    escalaMensaje = "Ángulo inicial guardado (${"%.1f".format(angulo / 10.0)}°). Gira el carro dos vueltas completas hacia el mismo lado, vuelve a alinearlo con la línea y toca Terminé."
+                    Log.i(ETIQUETA, "escala_giroscopio inicio_x10=$angulo escala_actual_ppm=${logica.escalaImuPpm}")
+                }
+                mostrar()
+            }
+            1 -> anguloQuieto { angulo ->
+                val duracion = android.os.SystemClock.elapsedRealtime() - escalaInicioMs
+                val actual = logica.escalaImuPpm
+                if (angulo == null) {
+                    escalaMensaje = "El carro todavía se mueve (o se perdió el giroscopio): déjalo quieto, alineado, y vuelve a tocar Terminé."
+                } else if (actual == null) {
+                    escalaPaso = 0
+                    escalaMensaje = "El carro ya no anuncia la escala (¿se reconectó con otro firmware?). Empieza de nuevo."
+                } else if (duracion > ESCALA_MAX_MS) {
+                    escalaPaso = 0
+                    escalaMensaje = "Tardaste más de ${ESCALA_MAX_MS / 60_000} minutos: la deriva del giroscopio pesaría en la medida. Empieza de nuevo."
+                } else {
+                    val medido = angulo - escalaInicioX10
+                    val r = CalGiroNativa.escala(medido, actual)
+                    Log.i(ETIQUETA, "escala_giroscopio medido_x10=$medido ms=$duracion codigo=${r[CalGiroNativa.ESC_CODIGO]} vueltas=${r[CalGiroNativa.ESC_VUELTAS]} " +
+                        "error_ppm=${r[CalGiroNativa.ESC_ERROR_PPM]} nueva_ppm=${r[CalGiroNativa.ESC_NUEVA_PPM]} anterior_ppm=$actual")
+                    val grados = "%.1f".format(medido / 10.0)
+                    when (r[CalGiroNativa.ESC_CODIGO]) {
+                        CalGiroNativa.ESC_OK -> {
+                            escalaNuevaPpm = r[CalGiroNativa.ESC_NUEVA_PPM]
+                            escalaPaso = 2
+                            escalaMensaje = "Midió $grados° en ${r[CalGiroNativa.ESC_VUELTAS]} vuelta(s): con la escala de ahora el giroscopio lee " +
+                                "${"%+.2f".format(r[CalGiroNativa.ESC_ERROR_PPM] / 10000.0)} %. Corrección nueva: ${"%+d".format(escalaNuevaPpm)} ppm. Toca Guardar en el carro."
+                        }
+                        CalGiroNativa.ESC_POCO -> {
+                            escalaPaso = 0
+                            escalaMensaje = "Midió $grados°: menos de una vuelta completa. Empieza de nuevo."
+                        }
+                        CalGiroNativa.ESC_NO_CUADRA -> {
+                            escalaPaso = 0
+                            escalaMensaje = "Midió $grados°: no cuadra con vueltas completas (¿quedó bien alineado? ¿contaste bien las vueltas?). Empieza de nuevo."
+                        }
+                        else -> {
+                            escalaPaso = 0
+                            escalaMensaje = "La corrección saldría de ${"%+d".format(r[CalGiroNativa.ESC_NUEVA_PPM])} ppm (más de ±5 %): revisa la alineación y empieza de nuevo."
+                        }
+                    }
+                }
+                mostrar()
+            }
+            else -> guardarEscala(escalaNuevaPpm)
+        }
+    }
+
+    /** Manda la corrección al carro y espera su confirmación (el firmware la guarda en su memoria y la usa en los giros, en SENS y en RUMBO). */
+    private fun guardarEscala(ppm: Int) {
+        escalaEnviando = true
+        mostrar()
+        logica.enviarEscalaImu(ppm, 1500L) { ok ->
+            escalaEnviando = false
+            escalaPaso = 0
+            escalaMensaje = if (ok) "Guardada en el carro: ${"%+d".format(ppm)} ppm. Ya la usan los giros, SENS y el rumbo."
+                            else "El carro no la confirmó (¿se estaba moviendo? ¿firmware anterior?): no se guardó."
+            Log.i(ETIQUETA, "escala_giroscopio guardar ppm=$ppm confirmado=$ok")
+            mostrar()
+        }
     }
 
     // ── Estado en pantalla ────────────────────────────────────────────────
@@ -216,6 +351,20 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         val puedeProbar = conectado && !probando && logica.perfilConfirmado == ControlLogica.Perfil.AUTO
         botonIzq.isEnabled = puedeProbar
         botonDer.isEnabled = puedeProbar
+
+        // J16: escala del giroscopio.
+        val escala = logica.escalaImuPpm
+        textoEscala.text = (if (!conectado) "Sin conexión con el carro."
+            else if (escala == null) (if (contesto) "Este firmware no la tiene (anterior a J16): no se puede corregir." else "Sin respuesta del carro.")
+            else "Corrección en uso: ${"%+d".format(escala)} ppm (${"%+.2f".format(escala / 10000.0)} %)") +
+            (if (escalaMensaje.isNotEmpty()) "\n" + escalaMensaje else "")
+        val ocupadoEscala = escalaEsperando || escalaEnviando
+        botonEscala.setText(when (escalaPaso) { 1 -> R.string.sens_escala_termine; 2 -> R.string.sens_escala_guardar; else -> R.string.sens_escala_empezar })
+        botonEscala.isEnabled = conectado && escala != null && giroOk && !probando && !ocupadoEscala
+        botonEscalaCancelar.isEnabled = escalaPaso != 0 && !ocupadoEscala
+        botonEscalaQuitar.isEnabled = conectado && escala != null && escala != 0 && escalaPaso == 0 && !probando && !ocupadoEscala
+        botonRecalibrar.isEnabled = escalaPaso != 1   // recalibrar o poner el ángulo en cero a mitad de la medición la echaría a perder
+        botonCero.isEnabled = escalaPaso != 1
     }
 
     // ── Prueba de giro ────────────────────────────────────────────────────

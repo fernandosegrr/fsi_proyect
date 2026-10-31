@@ -86,6 +86,7 @@ typedef struct {
      * medido 200 ms después. Con `tof_activo` = 1 manda SENS cada 100 ms y hace la parada de emergencia del láser (2 lecturas seguidas menores de 120 mm avanzando). */
     int fw_giroscopio;
     int fw_escala_pct;         /* error de escala del giroscopio: +2 = mide 2 % de más */
+    int fw_escala_ppm;         /* J16: error de escala fino en partes por millón (se suma al de arriba): el que queda tras calibrar con IMU_ESCALA */
     int fw_sesgo_x100;         /* sesgo sin corregir, en centésimas de grado por segundo */
     int fw_ruido_x10;          /* ruido de la medida de cada giro: ± décimas de grado */
     int fw_error_izq_x10, fw_error_der_x10; /* J15: error físico de cierre por lado; también se informa */

@@ -128,11 +128,13 @@ Una ruta en marcha se detiene al recibirlo (el navegador seguiría contando un a
 
 | Comando | Formato de respuesta | Descripción |
 |---|---|---|
-| `CAPS?` | `CAPS:IMU=<0\|1>,TOF=<0\|1>,TOFR=<n>,IMUR=<n>,IMUM=<motivo>,IMUE=<estado>,RUMBO=1,FW:<hash>-<fecha>` | Qué sensores funcionan, reintentos y motivo, estado del giroscopio y versión. `RUMBO=1` (J16) dice que el firmware entiende `RUMBO`; un firmware anterior no lo incluye. |
+| `CAPS?` | `CAPS:IMU=<0\|1>,TOF=<0\|1>,TOFR=<n>,IMUR=<n>,IMUM=<motivo>,IMUE=<estado>,RUMBO=1,IMUS=<ppm>,FW:<hash>-<fecha>` | Qué sensores funcionan, reintentos y motivo, estado del giroscopio y versión. `RUMBO=1` (J16) dice que el firmware entiende `RUMBO`; `IMUS=<ppm>` (J16) que entiende `IMU_ESCALA` y la corrección en uso. Un firmware anterior no los incluye. Se vuelve a anunciar solo cuando cambia. |
 | `IMU?` | `IMU:angulo_x10,sesgo_x100,estado,who_am_i,motivo` | Diagnóstico del giroscopio (corregido en J16: este es el orden real de `sensores.c`). Estado 2 = listo; la app (J16) solo pasa el ángulo al navegador con estado 2. |
 | `TOF?` | `TOF:distancia_mm,valida` | Diagnóstico de distancia cruda del láser. |
 | `IMU_CAL` | `ACK_IMU_CAL` o `NAK_IMU_CAL` | Fuerza recalibración del sesgo del giroscopio (solo admitido con motores parados por >300 ms). |
 | `IMU_CERO` | `ACK_IMU_CERO` | Establece el ángulo actual del giroscopio como nueva referencia de 0 grados. |
+| `IMU_ESCALA:<ppm>` | `ACK_IMU_ESCALA:<ppm>` o `NAK_IMU_ESCALA` | J16: corrección de escala del giroscopio, de -50000 a 50000 partes por millón (signo opcional y hasta 6 cifras). Solo con el carro detenido y sin giro en curso. Se guarda en la memoria no volátil y la usan el giro por ángulo, `SENS` y `RUMBO`. La mide la pantalla Sensores. No renueva el watchdog. |
+| `IMU_ESCALA?` | `IMU_ESCALA:<ppm>` | J16: la corrección de escala en uso (0 = sin corregir). |
 | `TOF_USO:<0\|1>` | `ACK_TOF_USO:<0\|1>` | Activa (`1`) o desactiva temporalmente (`0`) la autoridad de parada de emergencia del láser ToF. |
 | `LOOP?` | `LOOP:peor_us,excesos` | Reporta el peor tiempo de ejecución de una vuelta del bucle `loop()` en microsegundos. |
 | `ARR?` | `ARR:reintentos,motivo` | Registro de incidencias ocurridas durante la inicialización de periféricos. |

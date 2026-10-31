@@ -133,6 +133,8 @@ static double tau_inercia_ms = 50.0;    /* al soltar, la velocidad cae así: ine
 static double sesgo_cuentas = 0.0;      /* sesgo verdadero del giroscopio en cuentas */
 static int    ruido_cuentas = 3;
 static int    seguir_giro_real = 1;     /* 0 = el motor está trabado (el carro no gira) */
+static double escala_modelo = 1.0;      /* J16: error de escala del giroscopio del modelo (1.02 = lee 2 % de más) */
+static int    nvs_escala_al_arrancar = 0;   /* J16: la corrección de escala que arrancar() deja en la memoria no volátil falsa antes de encender */
 
 static void paso_modelo_1ms(void)
 {
@@ -148,7 +150,7 @@ static void paso_modelo_1ms(void)
     omega_dps += (objetivo - omega_dps) / tau;
     angulo_real_deg += omega_dps * 0.001;
     {
-        double cuentas = omega_dps * 65.5 + sesgo_cuentas;
+        double cuentas = omega_dps * 65.5 * escala_modelo + sesgo_cuentas;
         falso_imu_cuentas = (int)(cuentas >= 0 ? cuentas + 0.5 : cuentas - 0.5);
     }
 }
@@ -194,9 +196,11 @@ static void arrancar(double sesgo, int ruido)
     omega_tope_der = 0.0;
     tau_inercia_der_ms = 0.0;
     seguir_giro_real = 1;
+    escala_modelo = 1.0;
     sesgo_cuentas = sesgo;
     ruido_cuentas = ruido;
     falso_sensores_reiniciar();
+    falso_imu_escala = nvs_escala_al_arrancar;
     falso_imu_ruido = ruido;
     carro_poner_bloqueo(hw_bloquear, hw_desbloquear);
     carro_iniciar();
@@ -291,6 +295,7 @@ static void imu_sola(double sesgo, int ruido)
     falso_sensores_reiniciar();
     falso_imu_ruido = ruido;
     falso_imu_cuentas = (int)sesgo;
+    imu_poner_escala_ppm(0);                          /* J16: la escala es del chip y imu_iniciar no la borra: cada prueba empieza sin corrección */
     imu_iniciar();
     for (i = 0; i < 400; i++) {
         falso_us += 10000u;
@@ -895,7 +900,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1," FW_VERSION) == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1422,13 +1427,13 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1," FW_VERSION) == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1," FW_VERSION) == 0);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0," FW_VERSION) == 0);
     caso("J13: CAPS incluye la version compilada sin truncarla", m && strstr(m, FW_VERSION) && strlen(m) < MENSAJE_SALIDA_MAX);
     orden("IMU?");
     avanzar_ms(5);
@@ -1663,6 +1668,114 @@ static void prueba_ant_giros_invalidos(void)
     omega_tope = 160.0;
 }
 
+/* ── J16: corrección de escala del giroscopio (IMU_ESCALA) ─────────────── */
+
+static void prueba_escala_imu(void)
+{
+    const char *m;
+    const char *malos[] = { "IMU_ESCALA:50001", "IMU_ESCALA:-50001", "IMU_ESCALA:", "IMU_ESCALA:abc", "IMU_ESCALA:12 ", "IMU_ESCALA:1234567", "IMU_ESCALA:--5" };
+    char nombre[120];
+    double real_sin, real_con;
+    unsigned i;
+    int ok;
+
+    printf("-- J16: correccion de escala del giroscopio (IMU_ESCALA) --\n");
+    imu_sola(12.0, 3);
+    caso("J16: sin corregir la escala es 0 ppm", imu_escala_ppm() == 0);
+    imu_poner_escala_ppm(20000);
+    girar_sintetico(90.0, 12.0, 1000);
+    caso("J16: con +20000 ppm, 90 grados/s durante 1 s dan 91.8 +-0.5 grados", imu_angulo_x10() >= 913 && imu_angulo_x10() <= 923);
+    caso("J16: la velocidad tambien se corrige (918 +-10 decimas de grado/s)", imu_velocidad_x10() >= 908 && imu_velocidad_x10() <= 928);
+    girar_sintetico(0.0, 12.0, 100);
+    imu_cero();
+    imu_poner_escala_ppm(-20000);
+    girar_sintetico(-90.0, 12.0, 1000);
+    caso("J16: con -20000 ppm, -90 grados/s durante 1 s dan -88.2 +-0.5 grados", imu_angulo_x10() >= -887 && imu_angulo_x10() <= -877);
+    imu_poner_escala_ppm(90000);
+    caso("J16: la escala se recorta a +IMU_ESCALA_MAX_PPM", imu_escala_ppm() == IMU_ESCALA_MAX_PPM);
+    imu_poner_escala_ppm(-90000);
+    caso("J16: ... y a -IMU_ESCALA_MAX_PPM", imu_escala_ppm() == -IMU_ESCALA_MAX_PPM);
+    imu_poner_escala_ppm(15000);
+    imu_iniciar();
+    caso("J16: reiniciar el chip (imu_iniciar) no borra la escala", imu_escala_ppm() == 15000);
+    imu_poner_escala_ppm(0);
+
+    /* Mensajes. */
+    arrancar(10.0, 3);
+    m = ultimo_mensaje("CAPS:");
+    caso("J16: CAPS anuncia IMUS=0 (entiende IMU_ESCALA, sin correccion)", m != NULL && strstr(m, ",IMUS=0,") != NULL);
+    n_msg = 0;
+    orden("IMU_ESCALA:-12500");
+    avanzar_ms(20);
+    caso("J16: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500, se usa y se guarda", ultimo_mensaje("ACK_IMU_ESCALA:-12500") != NULL && imu_escala_ppm() == -12500 &&
+         falso_imu_escala == -12500 && falso_imu_escala_escrituras == 1);
+    m = ultimo_mensaje("CAPS:");
+    caso("J16: CAPS se vuelve a anunciar solo, con IMUS=-12500", m != NULL && strstr(m, ",IMUS=-12500,") != NULL);
+    orden("IMU_ESCALA?");
+    avanzar_ms(20);
+    m = ultimo_mensaje("IMU_ESCALA:");
+    caso("J16: IMU_ESCALA? -> IMU_ESCALA:-12500", m != NULL && strcmp(m, "IMU_ESCALA:-12500") == 0);
+    for (i = 0; i < sizeof malos / sizeof malos[0]; i++) {
+        n_msg = 0;
+        orden(malos[i]);
+        avanzar_ms(20);
+        snprintf(nombre, sizeof nombre, "J16: %s -> NAK_IMU_ESCALA y no cambia nada", malos[i]);
+        caso(nombre, ultimo_mensaje("NAK_IMU_ESCALA") != NULL && imu_escala_ppm() == -12500 && falso_imu_escala_escrituras == 1);
+    }
+    orden("FORWARD");
+    avanzar_ms(50);
+    n_msg = 0;
+    orden("IMU_ESCALA:1000");
+    avanzar_ms(20);
+    caso("J16: con el carro avanzando IMU_ESCALA se rechaza (NAK) y no cambia nada", ultimo_mensaje("NAK_IMU_ESCALA") != NULL && imu_escala_ppm() == -12500);
+    orden("STOP");
+    avanzar_ms(100);
+    orden("GIRAR:90");
+    avanzar_ms(30);
+    n_msg = 0;
+    orden("IMU_ESCALA:1000");
+    avanzar_ms(20);
+    caso("J16: durante un giro por angulo tambien se rechaza", ultimo_mensaje("NAK_IMU_ESCALA") != NULL && imu_escala_ppm() == -12500);
+    avanzar_ms(4000);
+    orden("FORWARD");
+    avanzar_ms(100);
+    for (i = 0; i < 6; i++) {
+        orden("IMU_ESCALA?");
+        avanzar_ms(250);
+    }
+    caso("J16: IMU_ESCALA? no renueva el watchdog (frena aunque se mande cada 250 ms)", motores_parados());
+
+    /* Al encender se usa la escala guardada; un valor fuera de rango no se usa. */
+    nvs_escala_al_arrancar = 15000;
+    arrancar(10.0, 3);
+    m = ultimo_mensaje("CAPS:");
+    caso("J16: al encender se usa la escala guardada (15000 ppm) y CAPS la anuncia", imu_escala_ppm() == 15000 && m != NULL && strstr(m, ",IMUS=15000,") != NULL);
+    nvs_escala_al_arrancar = 900000;
+    arrancar(10.0, 3);
+    caso("J16: una escala guardada fuera de rango no se usa (0 ppm)", imu_escala_ppm() == 0);
+    nvs_escala_al_arrancar = 0;
+
+    /* GIRAR con un giroscopio que lee 2 % de más: sin corregir el giro real queda corto; con la escala medida (1/1.02 - 1 = -19608 ppm) vuelve a lo pedido. */
+    arrancar(10.0, 3);
+    escala_modelo = 1.02;
+    for (i = 0; i < 6; i++) {
+        girar_y_medir("GIRAR:90", &ok);
+        girar_y_medir("GIRAR:-90", &ok);
+    }
+    real_sin = girar_y_medir("GIRAR:180", &ok);
+    orden("IMU_ESCALA:-19608");
+    avanzar_ms(20);
+    for (i = 0; i < 3; i++) {
+        girar_y_medir("GIRAR:90", &ok);
+        girar_y_medir("GIRAR:-90", &ok);
+    }
+    real_con = girar_y_medir("GIRAR:180", &ok);
+    printf("      (giroscopio con +2 %% de escala: GIRAR:180 real %.1f sin corregir y %.1f con IMU_ESCALA:-19608)\n", real_sin, real_con);
+    caso("J16: con el giroscopio 2 % alto, GIRAR:180 sin corregir queda corto (173.5 a 178.5 grados reales)", real_sin > 173.5 && real_sin < 178.5);
+    caso("J16: con la escala corregida, GIRAR:180 queda en 180 +-2.5 grados reales", ok && real_con > 177.5 && real_con < 182.5);
+    escala_modelo = 1.0;
+}
+
 int main(void)
 {
     prueba_conversiones();
@@ -1685,6 +1798,7 @@ int main(void)
     prueba_laser_fallos();
     prueba_no_bloquea();
     prueba_mensajes();
+    prueba_escala_imu();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

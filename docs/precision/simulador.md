@@ -32,6 +32,6 @@ La configuración «J14» reproduce el software que corrió en J14 (sin rumbo me
 ## Límites conocidos del simulador
 
 - No modela deslizamiento lateral sin giro (se puede probar con `j16_lateral_um_mm`; no hay datos), ni golpes, ni variación del piso dentro de una corrida, ni cambios de pilas durante la corrida.
-- La dispersión del pivote, la escala del giroscopio y la ganancia de los motores son supuestos.
+- La dispersión del pivote, la escala del giroscopio y la ganancia de los motores son supuestos. La configuración «con RUMBO y escala calibrada» (J16, tercera ronda) cambia el error de escala de ±1 % por un residuo de ±0.3 % (fw_escala_ppm, sacado de la semilla para conservar el emparejamiento): también es un supuesto (±1° al alinear el carro al empezar y al terminar dos vueltas). El error de escala ahora se lleva en partes por millón; con el residuo en 0 da exactamente los mismos números que antes.
 - La cámara es geométrica (no reproduce el detector ni imágenes) y el láser es un rayo ideal.
 - Las ganancias de RUMBO se eligieron con este modelo: pueden no ser las mejores en el carro.
