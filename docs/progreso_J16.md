@@ -62,3 +62,4 @@ Tercera ronda (31 oct 2026, pedido: «corrige eso también», la escala del giro
 - App: tarjeta «Escala del giroscopio» en Sensores; ControlLogica lee IMUS y manda IMU_ESCALA con confirmación. Servidor falso: IMUS, IMU_ESCALA y SIM_ANGULO (54 casos).
 - Suites: núcleo 22 programas / 1655 casos, firmware 540, servidor falso 54, verificador 18; UBSan local sin fallos.
 - Commit de código 873bfb9. APK limpia APP:0.4-873bfb9 (14,520,520 bytes, SHA-256 50179013...C15B); firmware FW:873bfb9-20261031 (1,034,112 bytes) compilado con -SoloCompilar, NO cargado; copia local en dist/ excluida. Los binarios 097008d se quitaron de dist/ (la APK queda en el historial).
+- Publicado: git push origin j16-precision (70fa4a5), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41245949104: success.

@@ -162,6 +162,7 @@ Pruebas de software:
 - Firmware: 540 casos (25 nuevos: la escala sobre el ángulo y la velocidad, el recorte, que reiniciar el chip no la borra, los mensajes y sus rechazos, que no se cambia en marcha ni en un giro, que no renueva el watchdog, la memoria no volátil al encender y GIRAR:180 con un giroscopio 2 % alto: 176.0° reales sin corregir y 180.8° con la corrección, en el modelo de prueba).
 - Núcleo: 22 programas, 1655 casos (11 de calgiro_escala, con una propiedad de 20000 casos; 11 comprobaciones nuevas en el banco J16).
 - Servidor falso: 54 casos. Verificador: 18. UBSan local sin fallos.
+- GitHub Actions «sanitizadores», ejecución 41245949104 sobre 70fa4a5: success en todos los pasos: https://github.com/fernandosegrr/fsi_proyect/actions/runs/41245949104
 - La app compila (build limpio); la tarjeta nueva está revisada en el código, NO probada en el teléfono.
 
 Versiones (vigentes):
