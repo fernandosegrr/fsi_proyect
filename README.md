@@ -79,7 +79,7 @@ En estricto apego a la honestidad científica y a las directrices de entrega, el
 - **Validación física de J15:** El algoritmo de pose corregida cuenta con respaldo únicamente en simulación de PC; en el vehículo físico real se realizaron **cero corridas con esta versión** y el criterio de 5 de 6 llegadas consecutivas permanece como **NO MEDIDO**.
 - **Balance del perfil AUTO en pista:** La relación 207/210 fue escalada teóricamente a partir del perfil manual; no ha sido medida con cinta métrica en el carro físico (**NO MEDIDO**).
 - **Pruebas B7, B8, B9 y B2:** Suspendidas durante el cierre de J14 por decisión del dueño del proyecto.
-- **Validación física de J16:** cero corridas. APK `APP:0.4-097008d` sin instalar y firmware `FW:097008d-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
+- **Validación física de J16:** cero corridas. APK `APP:0.4-873bfb9` sin instalar y firmware `FW:873bfb9-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
 
 ---
 

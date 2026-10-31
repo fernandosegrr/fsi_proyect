@@ -1,12 +1,12 @@
 Candidato J16 (precision de navegacion) - Carro FSI
 31 de octubre de 2026. Rama j16-precision; NO es la entrega validada (v1.0 sigue en eb88151).
 
-APK: APP:0.4-097008d (14,511,016 bytes)
-SHA-256: F0A037CB37C203A8F44279B91DD8D2061665ECC03DAC45FD347AD523AE78842A
-Compilada desde el commit limpio 097008d (build limpio). NO instalada: J16 fue solo software.
+APK: APP:0.4-873bfb9 (14,520,520 bytes)
+SHA-256: 50179013BCB18029F6C1BCBFE737F59A9B14B49B7BE848E002D67C119433C15B
+Compilada desde el commit limpio 873bfb9 (build limpio). NO instalada: J16 fue solo software.
 
-Firmware: FW:097008d-20261031 (1,033,440 bytes), compilado en la PC, NO cargado.
-SHA-256: D7CEC2A9A07F3597798C7AF8603A007D4555D3A28B3DB12756D3D88A9AA64F2C
+Firmware: FW:873bfb9-20261031 (1,034,112 bytes), compilado en la PC, NO cargado.
+SHA-256: 5B00529D21999F1BB8441D265D673D12CD163D3A3F59F5E1EFBB468C88AA6D6A
 El binario NO se publica (contiene la contraseña del WiFi). Ver FIRMWARE_LOCAL.txt.
 
 Que cambia:
@@ -19,15 +19,17 @@ Que cambia:
   el carro deja de mandar datos 1.5 s, si su watchdog lo freno (aviso WD del firmware nuevo) o
   si el laser lo freno y la ruta no lo esperaba; tras TOF_PARO la app ya no vuelve a mandar
   FORWARD; al terminar cada ruta con RUMBO el registro guarda lo que corrigio el firmware.
+- Tercera ronda: correccion de escala del giroscopio. Se mide una vez en Sensores («Escala del
+  giroscopio»: alinear, dos vueltas, alinear) y el firmware la guarda; mejora los giros grandes.
 Todo lo anterior esta SIMULADO o revisado en el codigo; en el carro y en el telefono esta
 NO MEDIDO. Plan: docs/precision/plan_pruebas.md.
 
 Verificar la APK sin telefono:
-  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-097008d.apk
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-873bfb9.apk
 En Linux, Git Bash o WSL:
   sha256sum -c SHA256SUMS.txt
 Instalar (conserva datos; solo cuando el dueño lo decida):
-  adb install -r carro_fsi_0.4-097008d.apk
+  adb install -r carro_fsi_0.4-873bfb9.apk
 
 Volver a v1.0: git switch --detach v1.0 (y el APK/firmware de esa etiqueta).
 Reporte: docs/reporte_J16.md. Progreso y comandos para reanudar: docs/progreso_J16.md.

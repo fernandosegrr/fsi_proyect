@@ -13,11 +13,11 @@ Para cuando el dueño decida probar. Nada de esto se ha medido: todo lo de J16 e
 
 ## Orden
 
-1. **P0. Instalación y versión (sin movimiento).** `adb install -r dist/carro_fsi_0.4-097008d.apk`. En Sensores debe decir `App 0.4 (097008d)`. Con el firmware de siempre (`FW:453ed20-20261027`) el registro al iniciar una ruta dice `ruta: rumbo_fw=false (caps=false ...)`: la app no manda nada de RUMBO. Acepta: versión correcta y `caps=false`.
+1. **P0. Instalación y versión (sin movimiento).** `adb install -r dist/carro_fsi_0.4-873bfb9.apk`. En Sensores debe decir `App 0.4 (873bfb9)`. Con el firmware de siempre (`FW:453ed20-20261027`) el registro al iniciar una ruta dice `ruta: rumbo_fw=false (caps=false ...)`: la app no manda nada de RUMBO. Acepta: versión correcta y `caps=false`.
 
 2. **P1. Línea base con el firmware de siempre y la APK nueva.** Ruta «Recta 150 cm», 4 corridas. Mide desvío, largo y rumbo. Qué cambió sin firmware: ahora el largo debe ser ~150 cm (antes la app perdía el largo fijo y hacía las 8 celdas, 160 cm). Acepta: largo medio entre 145 y 155 cm; el desvío servirá de comparación (en J14 fue de 5.5 a 20 cm). Simulación sin firmware nuevo: desvío medio 7.4 cm, p95 11.7 cm.
 
-3. **P2. Cargar el firmware nuevo (con el carro en el aire o quieto).** `.\scripts\cargar.ps1 nuevo -Puerto COM6`. Después `python scripts\verificar_version.py --puerto COM6 --apk dist\carro_fsi_0.4-097008d.apk` (o Sensores): debe decir `FW:097008d-<fecha>`, CAPS con `RUMBO=1` y, en Sensores, «Rumbo al avanzar: disponible · en uso en las rutas». Al iniciar una ruta el registro dice `ruta: rumbo_fw=true`. Acepta: versión y `RUMBO=1`. Si el giroscopio no queda listo (`IMU=0`), RUMBO no actúa: no seguir hasta resolverlo.
+3. **P2. Cargar el firmware nuevo (con el carro en el aire o quieto).** `.\scripts\cargar.ps1 nuevo -Puerto COM6`. Después `python scripts\verificar_version.py --puerto COM6 --apk dist\carro_fsi_0.4-873bfb9.apk` (o Sensores): debe decir `FW:873bfb9-<fecha>`, CAPS con `RUMBO=1` e `IMUS=0` y, en Sensores, «Rumbo al avanzar: disponible · en uso en las rutas» y «Corrección en uso: +0 ppm». Al iniciar una ruta el registro dice `ruta: rumbo_fw=true`. Acepta: versión y `RUMBO=1`. Si el giroscopio no queda listo (`IMU=0`), RUMBO no actúa: no seguir hasta resolverlo.
 
 4. **P3. Primera recta con RUMBO (corta).** «Recta 100 cm» con el interruptor «Sostener el rumbo al avanzar» encendido, 2 corridas, mirando que no zigzaguee. Acepta: sin zigzag visible, sin tirones raros y desvío menor de 5 cm (simulación: media 0.8 cm, p95 1.9 cm, máximo 2.7 cm). Si zigzaguea: apagar el interruptor y anotar; es señal de ganancia alta (ver «Si algo sale mal»).
 

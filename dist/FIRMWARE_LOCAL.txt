@@ -1,14 +1,15 @@
 Firmware de la copia local (no se publica en GitHub)
 
-Candidato J16, segunda ronda (compilado en la PC el 31 de octubre de 2026, NO cargado en el carro):
-Archivo: firmware_carro_097008d-20261031.bin
-Versión: FW:097008d-20261031
-Tamaño: 1,033,440 bytes
-SHA-256: D7CEC2A9A07F3597798C7AF8603A007D4555D3A28B3DB12756D3D88A9AA64F2C
+Candidato J16, tercera ronda (compilado en la PC el 31 de octubre de 2026, NO cargado en el carro):
+Archivo: firmware_carro_873bfb9-20261031.bin
+Versión: FW:873bfb9-20261031
+Tamaño: 1,034,112 bytes
+SHA-256: 5B00529D21999F1BB8441D265D673D12CD163D3A3F59F5E1EFBB468C88AA6D6A
 Novedades: RUMBO (sostener el rumbo al avanzar; apagado hasta que la app mande RUMBO:ON), el
-filtro giro_largo por grado y el aviso WD:<n> cuando el watchdog frena. CAPS anuncia RUMBO=1.
-(El candidato de la primera ronda, FW:d823a63-20261031, ya no se conserva: lo reemplaza este;
-se reconstruye desde el commit d823a63 si hiciera falta.)
+filtro giro_largo por grado, el aviso WD:<n> cuando el watchdog frena y la corrección de escala
+del giroscopio (IMU_ESCALA, guardada en su memoria; 0 hasta que se mida). CAPS anuncia RUMBO=1 e IMUS.
+(Los candidatos anteriores, FW:d823a63 y FW:097008d, ya no se conservan: los reemplaza este; se
+reconstruyen desde esos commits si hiciera falta.)
 
 Firmware anterior (el que tiene el carro según J14/J15):
 Archivo: firmware_carro_453ed20-20261027.bin

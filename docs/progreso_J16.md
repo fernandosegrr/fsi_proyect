@@ -42,7 +42,7 @@ Bitácora:
 Para retomar (si hiciera falta):
   cd /e/Dev/fsi_proyecto/nucleo_c && make precision          (informe de 1000 corridas)
   ./pruebas_precision_j16 depurar 8 3 0                      (una corrida del esquive con RUMBO, con registro)
-  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-097008d.apk
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-873bfb9.apk
 - Publicado: git push -u origin j16-precision (3c9ebcf), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41224593460: success.
 
 Segunda ronda (31 oct 2026, pedido: «revisa qué más puedes mejorar en la navegación autónoma o en el software»):
@@ -54,3 +54,11 @@ Segunda ronda (31 oct 2026, pedido: «revisa qué más puedes mejorar en la nave
 - Suites: núcleo 22 programas / 1633 casos, firmware 515, servidor falso 48, verificador 18; UBSan local sin fallos.
 - Commit de código 097008d. APK limpia APP:0.4-097008d (14,511,016 bytes, SHA-256 F0A037CB...842A) en dist/; firmware FW:097008d-20261031 (1,033,440 bytes) compilado con -SoloCompilar, NO cargado; copia local en dist/ excluida. El binario del candidato d823a63 se quitó de dist/ (se reconstruye desde ese commit).
 - Publicado: git push origin j16-precision (0d1d4c1), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41243986227: success.
+
+Tercera ronda (31 oct 2026, pedido: «corrige eso también», la escala del giroscopio):
+- Firmware: corrección de escala en imu.c (partes por millón sobre la velocidad ya sin sesgo; 0 = idéntico a antes), IMU_ESCALA:<ppm> (solo detenido, guardada en NVS «imuEscala»), IMU_ESCALA? y IMUS=<ppm> en CAPS. 25 casos nuevos (incluye GIRAR:180 con un giroscopio 2 % alto: 176.0° real sin corregir y 180.8° corregido, en el modelo de prueba).
+- Núcleo: calgiro_escala (vueltas completas alineadas con una línea; se compone con la escala en uso). 11 casos y una propiedad de 20000.
+- Simulador: error de escala en ppm (fw_escala_ppm); con 0 los resultados de siempre salen idénticos (40 de 40 líneas). Configuración nueva «con RUMBO y escala calibrada» con residuo SUPUESTO de ±0.3 %: giro 180° 41/88/139 → 35/68/100 mm, cuadrado 26/59/78 → 21/43/69; rectas y esquives igual. SIMULADO.
+- App: tarjeta «Escala del giroscopio» en Sensores; ControlLogica lee IMUS y manda IMU_ESCALA con confirmación. Servidor falso: IMUS, IMU_ESCALA y SIM_ANGULO (54 casos).
+- Suites: núcleo 22 programas / 1655 casos, firmware 540, servidor falso 54, verificador 18; UBSan local sin fallos.
+- Commit de código 873bfb9. APK limpia APP:0.4-873bfb9 (14,520,520 bytes, SHA-256 50179013...C15B); firmware FW:873bfb9-20261031 (1,034,112 bytes) compilado con -SoloCompilar, NO cargado; copia local en dist/ excluida. Los binarios 097008d se quitaron de dist/ (la APK queda en el historial).

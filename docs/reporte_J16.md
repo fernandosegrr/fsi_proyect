@@ -78,7 +78,7 @@ Nada de J16 está medido en el carro. Plan en docs/precision/plan_pruebas.md: l�
 
 - Rama j16-precision publicada en origin, sin fusionar a main y sin etiquetas. v1.0 sigue en eb88151.
 - Primera ronda: commit d823a63, APK APP:0.4-d823a63 (14,508,012 bytes, SHA-256 76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D) y firmware FW:d823a63-20261031 (1,033,312 bytes, SHA-256 D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8). Los reemplaza la segunda ronda (sección 7); la APK queda en el historial de Git.
-- Vigente (segunda ronda): ver sección 7.
+- Vigente: ver sección 8 (tercera ronda); la segunda ronda está en la sección 7.
 - Volver a v1.0: git switch --detach v1.0 (o git switch main) y cargar el firmware 453ed20.
 
 7. Segunda ronda (31 de octubre de 2026, misma rama)
@@ -133,4 +133,39 @@ Versiones (vigentes):
 - Código: commit 097008d.
 - APK: APP:0.4-097008d, 14,511,016 bytes, SHA-256 F0A037CB37C203A8F44279B91DD8D2061665ECC03DAC45FD347AD523AE78842A (dist/), compilada desde ese commit con build limpio; verificar_version.py --solo-archivo: PASA. No instalada.
 - Firmware: FW:097008d-20261031, 1,033,440 bytes, SHA-256 D7CEC2A9A07F3597798C7AF8603A007D4555D3A28B3DB12756D3D88A9AA64F2C, compilado en la PC con cargar.ps1 nuevo -SoloCompilar; NO cargado ni publicado (copia local en dist/, excluida de Git).
+- Rama j16-precision sin fusionar a main y sin etiquetas; v1.0 sigue en eb88151.
+
+8. Tercera ronda (31 de octubre de 2026): escala del giroscopio
+
+Pedido del dueño: corregir también la escala del giroscopio, lo que dejaba la cola del giro de 180° con RUMBO. Solo software; nada probado en el carro ni en el teléfono.
+
+Qué había: el MPU6050 promete la escala con ±3 %. Un giroscopio que lee 1 % de más deja cada giro de 180° unos 1.8° corto y el rumbo estimado mal en todo lo que sigue; con RUMBO el carro sigue con precisión esa línea mal estimada.
+
+Cambios:
+- Firmware (imu.c, sensores.c, config.h, hw_sensores.h, firmware_carro.ino): la velocidad ya sin sesgo se multiplica por (1 + ppm/1 000 000) antes de integrar; con 0 ppm el resultado es idéntico al de antes (todas las pruebas anteriores pasan sin cambios, salvo las 3 que comparan el texto exacto de CAPS). IMU_ESCALA:<ppm> (de -50000 a 50000, solo con el carro detenido y sin giro en curso) la guarda en la memoria no volátil; IMU_ESCALA? la informa; CAPS la anuncia como IMUS=<ppm>. La corrección vale para el giro por ángulo, SENS y RUMBO a la vez.
+- Núcleo (calgiro.c): calgiro_escala calcula la corrección con lo que midió el giroscopio en vueltas completas alineadas con una línea, compuesta con la que ya tenía el firmware. Rechaza menos de una vuelta, lo que no cuadra con vueltas enteras (más del 5 %) y correcciones de más de ±5 %.
+- App: tarjeta «Escala del giroscopio» en Sensores. Empezar (guarda el ángulo con el carro quieto), girar dos vueltas completas al mismo lado (a mano sin levantarlo, o con los botones de 90°), alinear otra vez y Terminé; muestra la corrección y «Guardar en el carro» la manda y espera la confirmación. «Quitar la corrección» vuelve a 0. Todo queda en SENS_DIAG (escala_giroscopio ...). Solo con un firmware que anuncia IMUS.
+- Simulador: el error de escala se lleva en partes por millón (fw_escala_ppm); con 0 los números de siempre salen idénticos (40 de 40 líneas del Monte Carlo). Configuración nueva «con RUMBO y escala calibrada»: el ±1 % se cambia por un residuo de ±0.3 % (SUPUESTO: ±1° al alinear al empezar y al terminar dos vueltas), sacado de la semilla para conservar el emparejamiento.
+- Servidor falso: con --sensores anuncia IMUS, entiende IMU_ESCALA y SIM_ANGULO (para probar la tarjeta sin el carro).
+
+Banderas y cómo revertir: con la corrección en 0 todo es como antes («Quitar la corrección» en Sensores o IMU_ESCALA:0); un firmware anterior no la tiene y la app no le manda nada. El resto, con git revert.
+
+Resultados en simulación (1000 corridas, la misma semilla; media / p95 / máximo en mm; «con RUMBO» contra «con RUMBO y escala calibrada»):
+- Giro 180°: 41 / 88 / 139 → 35 / 68 / 100.
+- Cuadrado de 60 cm: 26 / 59 / 78 → 21 / 43 / 69 (rumbo final medio 2.3° → 1.3°).
+- Giro 90°: 31 / 61 / 90 → 29 / 59 / 86. Giro 45°: 34 / 66 / 83 → 33 / 65 / 81.
+- Ruta en L: 35 / 71 / 93 → 34 / 68 / 94.
+- Rectas y esquives: prácticamente igual (recta 150 cm 10 / 26 / 35 → 10 / 26 / 37; esquive caja ancha 17 / 40 / 60 → 17 / 39 / 65).
+- Todas 1000 de 1000, sin toques ni ayudas. Es SIMULADO y depende del residuo supuesto: cuánto ayuda en el carro depende de qué tan bien se alinee al medir (NO MEDIDO).
+
+Pruebas de software:
+- Firmware: 540 casos (25 nuevos: la escala sobre el ángulo y la velocidad, el recorte, que reiniciar el chip no la borra, los mensajes y sus rechazos, que no se cambia en marcha ni en un giro, que no renueva el watchdog, la memoria no volátil al encender y GIRAR:180 con un giroscopio 2 % alto: 176.0° reales sin corregir y 180.8° con la corrección, en el modelo de prueba).
+- Núcleo: 22 programas, 1655 casos (11 de calgiro_escala, con una propiedad de 20000 casos; 11 comprobaciones nuevas en el banco J16).
+- Servidor falso: 54 casos. Verificador: 18. UBSan local sin fallos.
+- La app compila (build limpio); la tarjeta nueva está revisada en el código, NO probada en el teléfono.
+
+Versiones (vigentes):
+- Código: commit 873bfb9.
+- APK: APP:0.4-873bfb9, 14,520,520 bytes, SHA-256 50179013BCB18029F6C1BCBFE737F59A9B14B49B7BE848E002D67C119433C15B (dist/), compilada desde ese commit con build limpio. No instalada.
+- Firmware: FW:873bfb9-20261031, 1,034,112 bytes, SHA-256 5B00529D21999F1BB8441D265D673D12CD163D3A3F59F5E1EFBB468C88AA6D6A, compilado en la PC con cargar.ps1 nuevo -SoloCompilar; NO cargado ni publicado (copia local en dist/, excluida de Git).
 - Rama j16-precision sin fusionar a main y sin etiquetas; v1.0 sigue en eb88151.
