@@ -107,7 +107,7 @@ J10c resuelto en simulación en J14 (no se probó con una caja ancha real): se r
 ## 14. Cierre de J14 (27 de octubre de 2026)
 
 - B7, B8, B9 y B2 no se realizaron por decisión del dueño. B7 se consideró cubierta por B6 porque la caja ya estaba a ~100 cm; B8 (caja lateral a 25 cm) y B9 (corte de WiFi) se cancelaron; B2 queda NO MEDIDA. No se debe afirmar que el watchdog de WiFi, la caja lateral o la calibración nueva por bloques estén validados físicamente.
-- B5 no tiene una medición numérica del dueño. Las estimaciones de navegación dejan un error lateral de ~20 a 24 cm; la valoración cualitativa fue «relativamente bien».
+- B5 no tiene una medición numérica del dueño; la valoración cualitativa fue «relativamente bien». Corrección J16: los «~20 a 24 cm» que se anotaban aquí comparaban la pose estimada contra y = 0, pero el último tramo de la L está en y = 200 mm: el error ESTIMADO fue de 9, 3 y 44 mm y el físico sigue NO MEDIDO.
 - B6: la corrida 2 probablemente tocó la caja y terminó en «Necesito ayuda» en 3/10; la corrida 4 quedó ~40 cm a la derecha de la recta. La reincorporación después de esquivar sigue siendo un fallo real: se enreda con obstáculos lejanos en vez de hacer el rodeo limpio.
 - La Autoridad del láser siempre encendida es una decisión del dueño, no una conclusión de una comparación pareada. El valor por defecto de la app es verdadero; el C conserva 0. El láser ve un punto y puede no ver un objeto central fuera de su haz. La comparación pareada B7/B8 y la validación con objetos fuera del haz quedan pendientes.
 - J10c está corregido solo en simulación (commit bce7b37). Una caja muy ancha a más de 50 cm podría confundirse con un tapete lejano durante el aprendizaje; acercarse no garantiza que el detector de color la recupere. El láser podría verla si está habilitado y su haz la alcanza, pero falta comprobarlo.
@@ -122,3 +122,12 @@ Con giroscopio activo, el avance ahora integra el cambio de rumbo SENS y la rein
 La simulación B6 pasó 400/400 sin contacto y a menos de 20 cm, con p95 lateral de 4.6 cm frente a 21.9 cm antes. Usa dimensiones y dispersión del pivote supuestas y una cámara aproximada por zonas; no reproduce exactamente los 40 cm ni las esquivas múltiples de B6 real. No demuestra una mejora física ni una precisión longitudinal determinada.
 
 J15 con movimiento queda NO MEDIDO: el dueño continuará las pruebas con otro modelo. El criterio físico 5/6 sigue pendiente; no se crea v1.1. La alternativa de llegar al punto final sin orientación final exacta sigue existiendo cuando la geometría no permite ambas cosas. La APK instalada es APP:0.4-074c9fd; FW conservado FW:453ed20-20261027, pendiente de lectura actual en Sensores. La Autoridad del láser mantiene su valor por defecto encendido. Ver docs/reporte_J15.md.
+
+## 15. J16 (31 de octubre de 2026): precisión, todo SIMULADO
+
+- **RUMBO no está medido.** El lazo de rumbo del firmware (firmware_carro/rumbo.c) y los objetivos del núcleo solo se probaron en simulación (docs/precision/). Las ganancias salen de un modelo supuesto del carro. Actúa solo con el firmware nuevo (CAPS RUMBO=1), el giroscopio listo y el interruptor de Sensores encendido.
+- **Lo que RUMBO no ve.** Sostiene el rumbo que mide el giroscopio: un deslizamiento de lado sin girar (posible con ruedas mecanum), un error de escala del giroscopio o un error del desplazamiento del pivote no los corrige. La distancia sigue estimada por tiempo (velocidad ±4 % por pilas y piso en la simulación).
+- **Escala del giroscopio sin calibrar.** Con ±1 % (supuesto) tras una media vuelta el rumbo estimado queda hasta ~2.5° mal; en el giro de 180° simulado la cola del error empeora con RUMBO (p95 de 79 a 92 mm) porque dirige con precisión hacia una línea mal estimada. Ver la prueba P6 de docs/precision/plan_pruebas.md.
+- **Colocación del carro.** Un error de ±1° al poner el carro en la cinta no lo ve el giroscopio: en 150 cm son ±2.6 cm que ningún software corrige.
+- **Sin cambiar (decisión J16, documentado en docs/reporte_J16.md):** STOP y fin de giro en rueda libre (sin freno activo), arranque a 255/255 sin balance (lo compensa RUMBO si está encendido), watchdog sin aviso a la app, enlace sin vigilancia de silencio, rejilla de obstáculos leída sin candado entre hilos, TOF_PARO sin cortar el heartbeat.
+

@@ -1,5 +1,14 @@
-Firmware de la entrega local (no se publica en GitHub)
+Firmware de la copia local (no se publica en GitHub)
 
+Candidato J16 (compilado en la PC el 31 de octubre de 2026, NO cargado en el carro):
+Archivo: firmware_carro_d823a63-20261031.bin
+Versión: FW:d823a63-20261031
+Tamaño: 1,033,312 bytes
+SHA-256: D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8
+Novedades: RUMBO (sostener el rumbo al avanzar; apagado hasta que la app mande RUMBO:ON) y el
+filtro giro_largo por grado. CAPS anuncia RUMBO=1.
+
+Firmware anterior (el que tiene el carro según J14/J15):
 Archivo: firmware_carro_453ed20-20261027.bin
 Versión: FW:453ed20-20261027
 Tamaño: 1,031,712 bytes
@@ -12,4 +21,7 @@ el código fuente y el APK; el firmware se reconstruye con firmware_carro/secret
 Para reconstruirlo:
   1. Copiar firmware_carro/secretos.ejemplo.h como firmware_carro/secretos.h y poner la
      red y la contraseña reales.
-  2. Ejecutar .\scripts\cargar.ps1 nuevo -Puerto COM6 desde la carpeta del proyecto.
+  2. Solo compilar: .\scripts\cargar.ps1 nuevo -SoloCompilar
+  3. Compilar y cargar (cuando el dueño lo decida): .\scripts\cargar.ps1 nuevo -Puerto COM6
+Para volver al firmware anterior: git switch --detach v1.0 y .\scripts\cargar.ps1 nuevo -Puerto COM6
+(o cargar el binario 453ed20 conservado).

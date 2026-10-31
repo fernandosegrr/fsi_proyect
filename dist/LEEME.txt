@@ -1,27 +1,28 @@
-Entrega J15 en preparacion - Carro FSI
-27 de octubre de 2026
+Candidato J16 (precision de navegacion) - Carro FSI
+31 de octubre de 2026. Rama j16-precision; NO es la entrega validada (v1.0 sigue en eb88151).
 
-APK: APP:0.4-074c9fd (14,852,386 bytes)
-SHA-256: 36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA
-Compilada desde el commit limpio 074c9fd. Instalada y verificada por hash en etapa 4 de J15.
-Pendiente la prueba fisica del esquive; aun no se presenta como validada en el carro.
+APK: APP:0.4-d823a63 (14,508,012 bytes)
+SHA-256: 76DB84867344808E140EDA7328600B5F9F55CE93DDDAFD23004880C7AC80484D
+Compilada desde el commit limpio d823a63 (build limpio). NO instalada: J16 fue solo software.
 
-Firmware: FW:453ed20-20261027 (1,031,712 bytes)
-SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E
-El binario del firmware NO se publica en GitHub porque contiene la contraseña del WiFi.
-Se conserva en la copia local de entrega; ver FIRMWARE_LOCAL.txt.
+Firmware: FW:d823a63-20261031 (1,033,312 bytes), compilado en la PC, NO cargado.
+SHA-256: D955B69D0ACE616B0E591789250B8B0054ECD705E3EA3DEAB4898FBE98849FA8
+El binario NO se publica (contiene la contraseña del WiFi). Ver FIRMWARE_LOCAL.txt.
 
-Verificar la APK en Windows:
-  Get-FileHash carro_fsi_0.4-074c9fd.apk -Algorithm SHA256
-Verificar la APK en Linux, Git Bash o WSL:
+Que cambia:
+- Con el firmware nuevo y el interruptor «Sostener el rumbo al avanzar» (pantalla Sensores,
+  encendido por defecto) el carro corrige su rumbo mientras avanza. Con el firmware anterior
+  (FW:453ed20) la app no manda RUMBO y las rectas son como antes.
+- Sin firmware nuevo tambien cambian: la «Recta 150 cm» ahora mide 150 (antes hacia 160),
+  holgura de 15 cm (antes 10) al pasar un obstaculo, pose con decimas de grado.
+Todo lo anterior esta SIMULADO; en el carro esta NO MEDIDO. Plan: docs/precision/plan_pruebas.md.
+
+Verificar la APK sin telefono:
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-d823a63.apk
+En Linux, Git Bash o WSL:
   sha256sum -c SHA256SUMS.txt
+Instalar (conserva datos; solo cuando el dueño lo decida):
+  adb install -r carro_fsi_0.4-d823a63.apk
 
-Instalar la APK (conserva datos):
-  adb install -r carro_fsi_0.4-074c9fd.apk
-
-En J15 no cambio el firmware: NO hace falta cargarlo. Se conserva FW:453ed20-20261027.
-Instalacion: configuracion 1B de docs/guia_conexion_J15.md, solo telefono por USB.
-No se incluye firmware_carro/secretos.h ni ninguna contraseña.
-
-Reporte J15: docs/reporte_J15.md. El criterio fisico sigue NO MEDIDO; el dueño continuara
-las pruebas con otro modelo. Entrega vigente: docs/entrega.md. Antecedente: docs/reporte_J14.md.
+Volver a v1.0: git switch --detach v1.0 (y el APK/firmware de esa etiqueta).
+Reporte: docs/reporte_J16.md. Progreso y comandos para reanudar: docs/progreso_J16.md.

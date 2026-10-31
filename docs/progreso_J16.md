@@ -2,7 +2,7 @@ J16 — Precisión de navegación (solo software)
 
 31 de octubre de 2026, hora de Ciudad de México. Trabajo 100 % de software: sin carro, sin cámara, sin teléfono y sin mover nada.
 
-Estado actual: EN CURSO.
+Estado actual: TERMINADO en software (31 oct 2026). Validación física: NO MEDIDA (plan en docs/precision/plan_pruebas.md). Reporte: docs/reporte_J16.md.
 
 Decisiones iniciales:
 - El encargo dice D:\Dev\fsi_proyecto; en esta PC no hay D:. El repositorio real está en E:\Dev\fsi_proyecto (igual que en J15). La copia de OneDrive no se toca.
@@ -32,3 +32,15 @@ Bitácora:
 - Probado y descartado: descontar el retraso del video y el frenado en la cara del obstáculo (acortaba el paso en paralelo y empeoraba el esquive simulado). No quedó en el código.
 - Simulador: modelo físico J16 opcional en simulador_navegador.c (sim_j16_activar). Error del propio simulador corregido: con latencia de comandos se filtraban LEFT/RIGHT durante un GIRAR.
 - Banco nuevo: nucleo_c/pruebas_precision_j16.c (Partes A, B y Monte Carlo). make test lo corre con 150 corridas; make precision con 1000.
+- Calibración del simulador (configuración J14): diferencia de empuje tras el balance de 0.3 a 2.1 %; B4 en percentiles 9/57/73/82; B6-4 en el percentil 99. Datos: docs/precision/calibracion_j14.txt.
+- Hallazgo en simulación: la holgura de 100 mm al pasar el obstáculo dejaba rozar la caja en el giro final (J15 0.9 %, J14 4.9 %); con 150 mm, 0 de 1000. Adoptado (sin_margen_paso_j16).
+- Monte Carlo final de 1000 corridas: docs/precision/monte_carlo_1000.txt (resumen en el reporte).
+- Suites al cerrar el código: núcleo 22 programas / 1630 casos, firmware 509, servidor falso 46, verificador 18; UBSan local sin fallos.
+- Commit de código d823a63. APK limpia APP:0.4-d823a63 (14,508,012 bytes, SHA-256 76DB8486...484D) en dist/; firmware FW:d823a63-20261031 compilado con cargar.ps1 nuevo -SoloCompilar, NO cargado; copia local en dist/ excluida en .git/info/exclude.
+- Verificador: nuevo modo --solo-archivo (sin teléfono ni puerto serie): PASA.
+
+Para retomar (si hiciera falta):
+  cd /e/Dev/fsi_proyecto/nucleo_c && make precision          (informe de 1000 corridas)
+  ./pruebas_precision_j16 depurar 8 3 0                      (una corrida del esquive con RUMBO, con registro)
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-d823a63.apk
+
