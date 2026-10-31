@@ -43,4 +43,5 @@ Para retomar (si hiciera falta):
   cd /e/Dev/fsi_proyecto/nucleo_c && make precision          (informe de 1000 corridas)
   ./pruebas_precision_j16 depurar 8 3 0                      (una corrida del esquive con RUMBO, con registro)
   python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-d823a63.apk
+- Publicado: git push -u origin j16-precision (3c9ebcf), sin forzar; origin/main sigue en 5d5c628 y v1.0 en eb88151. GitHub Actions «sanitizadores» 41224593460: success.
 

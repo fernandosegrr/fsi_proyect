@@ -66,7 +66,7 @@ Métrica: desvío lateral final en rectas y esquives; distancia al punto final e
 - Núcleo: 22 programas, 1630 casos, 0 fallos (los 21 de antes con sus 1598 casos más pruebas_precision_j16 con 32: réplica de RUMBO contra rumbo.c en 20000 pasos, 5 propiedades de la pose y comprobaciones de no empeorar con 150 corridas por escenario).
 - Firmware: 509 casos, 0 fallos (los 447 de antes más pruebas_rumbo con 62: controlador, propiedades con 20000 casos, integración con carro.c y el filtro giro_largo). Estrés de 2 hilos y hash de la página: correctos. En pruebas_sensores se actualizaron 3 casos que comparan el texto exacto de CAPS (ahora lleva RUMBO=1).
 - Verificador: 18 pruebas (13 + 5 del modo --solo-archivo).
-- UBSan local (modo trampa) sobre el banco J16, el navegador y pruebas_rumbo: sin fallos. ASan/TSan en GitHub Actions (sanitizadores.yml, extendido a las pruebas nuevas): ver el estado de la ejecución en la rama.
+- UBSan local (modo trampa) sobre el banco J16, el navegador y pruebas_rumbo: sin fallos. GitHub Actions «sanitizadores» (extendido a las pruebas nuevas), ejecución 41224593460 sobre 3c9ebcf: success en todos los pasos (ThreadSanitizer con el estrés de 2 hilos; AddressSanitizer + UndefinedBehaviorSanitizer de sensores y carro, navegador, RUMBO J16, precisión J16 con 300 corridas y reincorporación J15): https://github.com/fernandosegrr/fsi_proyect/actions/runs/41224593460
 
 5. Validación física pendiente
 
