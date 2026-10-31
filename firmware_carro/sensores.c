@@ -45,6 +45,7 @@ static int      paro_enviado = 0;           /* 1 desde que se pidió la parada h
 static uint32_t paros_tof = 0;
 static uint32_t loop_max_us = 0;
 static uint32_t loop_excesos = 0;
+static uint32_t wd_avisados = 0;            /* J16: los frenos del watchdog ya avisados con WD:<n> */
 
 /* ── Cola de salida ────────────────────────────────────────────────────── */
 
@@ -100,6 +101,7 @@ void sensores_reiniciar_estado(void)
     paros_tof = 0;
     loop_max_us = 0;
     loop_excesos = 0;
+    wd_avisados = carro_frenos_watchdog();
     giro_reiniciar();
 }
 
@@ -197,6 +199,23 @@ static void revisar_paro_tof(void)
     sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
 }
 
+/* J16: el watchdog de 1 s frenó el carro (no le llegaron comandos): se avisa WD:<frenos desde el encendido>. Así la app sabe que el carro quedó quieto y no sigue
+ * contando un avance que no ocurre (antes el freno era mudo y el siguiente heartbeat lo volvía a arrancar). Si la cuenta bajó (se reinició el carro) solo se iguala. */
+static void revisar_watchdog(void)
+{
+    uint32_t n = carro_frenos_watchdog();
+    char texto[MENSAJE_SALIDA_MAX];
+
+    if (n == wd_avisados) {
+        return;
+    }
+    if (n > wd_avisados) {
+        snprintf(texto, sizeof texto, "WD:%lu", (unsigned long)n);
+        sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
+    }
+    wd_avisados = n;
+}
+
 static void mandar_sens(uint32_t ahora_ms)
 {
     char texto[MENSAJE_SALIDA_MAX];
@@ -252,6 +271,7 @@ void sensores_actualizar(void)
     giro_actualizar(ahora_ms);
     revisar_eventos();
     revisar_paro_tof();
+    revisar_watchdog();
     mandar_sens(ahora_ms);
 }
 

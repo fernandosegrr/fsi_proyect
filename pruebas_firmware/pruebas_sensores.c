@@ -110,6 +110,17 @@ static const char *ultimo_mensaje(const char *prefijo)
     return NULL;
 }
 
+/* Adónde fue el último mensaje con ese prefijo (0 si no hay). */
+static int donde_ultimo(const char *prefijo)
+{
+    int i;
+
+    for (i = n_msg - 1; i >= 0; i--) {
+        if (strncmp(mensajes[i], prefijo, strlen(prefijo)) == 0) return donde_msg[i];
+    }
+    return 0;
+}
+
 /* ── Modelo del carro y del giroscopio ─────────────────────────────────── */
 
 static double omega_dps;            /* velocidad de giro REAL (positivo = izquierda) */
@@ -769,14 +780,20 @@ static void prueba_giro_sin_watchdog(void)
     avanzar_ms(3000);
     ok = (leer_giro("GIRO_OK", &objetivo, &real_x10, &ms) == 3);
     caso("termina con GIRO_OK", ok && ms > 1100);
+    caso("J16: un giro largo no avisa WD (el watchdog no freno)", contar_mensajes("WD:", 0) == 0 && carro_frenos_watchdog() == 0);
 
     /* El watchdog sigue funcionando para los demás movimientos. */
     arrancar(10.0, 3);
     orden("FORWARD");
     avanzar_ms(500);
     caso("FORWARD avanzando", carro_avanzando());
+    caso("J16: arrancar deja la cuenta del watchdog en 0 y sin aviso", carro_frenos_watchdog() == 0 && contar_mensajes("WD:", 0) == 0);
     avanzar_ms(700);
     caso("sin mas ordenes el watchdog frena a los ~1000 ms", motores_parados());
+    caso("J16: avisa WD:1 una sola vez, a la app y al puerto serie", contar_mensajes("WD:", 0) == 1 && ultimo_mensaje("WD:1") != NULL &&
+         donde_ultimo("WD:") == (SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE));
+    avanzar_ms(500);
+    caso("J16: ya parado no repite WD", contar_mensajes("WD:", 0) == 1);
     orden("FORWARD");
     avanzar_ms(100);
     {
@@ -789,6 +806,11 @@ static void prueba_giro_sin_watchdog(void)
         }
     }
     caso("las consultas CAPS?/IMU? NO renuevan el watchdog (frena aunque las mande cada 250 ms)", motores_parados());
+    caso("J16: el segundo freno avisa WD:2", contar_mensajes("WD:", 0) == 2 && ultimo_mensaje("WD:2") != NULL && carro_frenos_watchdog() == 2);
+    sensores_reiniciar_estado();
+    carro_iniciar();
+    avanzar_ms(50);
+    caso("J16: reiniciar (la cuenta baja a 0) no inventa un WD", contar_mensajes("WD:", 0) == 2);
 }
 
 /* Varios giros con un carro que varía (velocidad ±10 %, inercia ±25 %): se informa media y desviación. */

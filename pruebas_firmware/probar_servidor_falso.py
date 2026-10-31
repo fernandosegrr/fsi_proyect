@@ -167,6 +167,9 @@ async def probar_sensores():
             await ws.send("STOP")
             await ws.send("TOF?")
             caso("sensores: TOF? informa la distancia (80 mm, medida valida)", await siguiente(ws, "TOF:") == "TOF:80,3")
+            await ws.send("SIM_TOF:1200")
+            await ws.send("REVERSE")                # sin heartbeat: a los 1000 ms frena el watchdog y avisa WD:<n> (J16)
+            caso("sensores: el watchdog frena y avisa WD:1", await siguiente(ws, "WD:", 2.0) == "WD:1")
             await ws.send("MODO_MANUAL")
             await siguiente(ws, "ACK_MANUAL")
             viejo = await siguiente(ws, "SENS:", 0.6)
@@ -211,6 +214,7 @@ async def principal():
 
     await probar_sensores()
     caso("el watchdog salta tras FORWARD + solo PING (y otra vez tras el FORWARD sin heartbeat de los perfiles)", salida.count("WATCHDOG: motores detenidos") == 2)
+    caso("sin --sensores (firmware viejo) el watchdog no avisa WD", "-> WD:" not in salida)
     caso("se imprime el comando desconocido y se ignora", "DESCONOCIDO (ignorado): 'HOLA'" in salida)
     caso("MOVE:FWD:50 se trata como desconocido", "DESCONOCIDO (ignorado): 'MOVE:FWD:50'" in salida)
     caso("con heartbeat de 250 ms el watchdog no salta de nuevo", salida.count("WATCHDOG") == 2)

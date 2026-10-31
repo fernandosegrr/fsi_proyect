@@ -144,7 +144,7 @@ static void preparar_recta(int gyro, int rumbo_fw, int largo_mm)
 
 static void parte_b(void)
 {
-    int i, malos_dir = 0, malos_largo = 0, malos_paseo = 0, malos_pivote = 0, malos_rumbo0 = 0, malos_lado = 0;
+    int i, malos_dir = 0, malos_largo = 0, malos_paseo = 0, malos_pivote = 0, malos_rumbo0 = 0, malos_lado = 0, malos_fino = 0, malos_j15 = 0, malos_invariante = 0;
 
     printf("-- Parte B: propiedades de la pose --\n");
     azar = 16002u;
@@ -249,6 +249,60 @@ static void parte_b(void)
             abs_i(objetivo - ref) > NAV_RUMBO_CORR_MAX * 10 + 1) malos_lado++;
     }
     caso("B5: con el carro de lado, el objetivo lo regresa a la linea sin pasar de NAV_RUMBO_CORR_MAX (300 casos)", malos_lado == 0);
+    /* B6 a B8 (J16, rumbo continuo): con RUMBO la pose guarda las décimas que midió el giroscopio (antes cada comando nuevo empezaba con los grados enteros: hasta 0.5°
+     * de error en cada plan); sin RUMBO todo queda como en J15 (grados enteros). */
+    for (i = 0; i < 300; i++) {
+        int ref = entre(-90000, 90000), theta = entre(-240, 240), t, r0, esperado, dif;
+
+        preparar_recta(1, 1, 0);
+        navegador_comenzar(&nav, 0);
+        r0 = nav.rumbo_x10;
+        navegador_aporte_sens_imu(&nav, 1200, 1, 0, ref, 1, 0);
+        navegador_tick(&nav, 0, NULL);
+        for (t = 50; t <= 900; t += 50) {
+            navegador_aporte_sens_imu(&nav, 1200, 1, 0, ref - theta, 1, (uint32_t)t);
+            navegador_tick(&nav, (uint32_t)t, NULL);
+        }
+        esperado = ((r0 + theta) % 3600 + 3600) % 3600;
+        dif = abs_i(nav.rumbo_x10 - esperado);
+        if (dif > 1800) dif = 3600 - dif;
+        if (dif > 1 || nav.rumbo_grados != (((nav.rumbo_x10 + 5) / 10) % 360)) {
+            malos_fino++;
+            if (getenv("J16_B6")) printf("B6 theta=%d r0=%d rumbo_x10=%d esperado=%d grados=%d\n", theta, r0, nav.rumbo_x10, esperado, nav.rumbo_grados);
+        }
+    }
+    caso("B6: con RUMBO la pose guarda las decimas del giroscopio (+-0.1 grado) y rumbo_grados es su redondeo (300 rumbos)", malos_fino == 0);
+    for (i = 0; i < 300; i++) {
+        int ref = entre(-90000, 90000), theta = entre(-240, 240), t;
+
+        preparar_recta(1, 0, 0);
+        navegador_comenzar(&nav, 0);
+        navegador_aporte_sens_imu(&nav, 1200, 1, 0, ref, 1, 0);
+        navegador_tick(&nav, 0, NULL);
+        for (t = 50; t <= 900; t += 50) {
+            navegador_aporte_sens_imu(&nav, 1200, 1, 0, ref - theta, 1, (uint32_t)t);
+            navegador_tick(&nav, (uint32_t)t, NULL);
+            if (nav.rumbo_x10 != nav.rumbo_grados * 10 || nav.base_rumbo_x10 != nav.base_rumbo_grados * 10) malos_j15++;
+        }
+    }
+    caso("B7: sin RUMBO el rumbo de la pose sigue en grados enteros como en J15 (300 rectas, en cada tick)", malos_j15 == 0);
+    for (i = 0; i < 200; i++) {
+        int ref = entre(-90000, 90000), a = ref, t, dif;
+
+        preparar_recta(1, 1, 0);
+        navegador_comenzar(&nav, 0);
+        navegador_aporte_sens_imu(&nav, 1200, 1, 0, ref, 1, 0);
+        navegador_tick(&nav, 0, NULL);
+        for (t = 50; t <= 6000; t += 50) {   /* cruza varias celdas: planes nuevos, objetivos de RUMBO y correcciones */
+            a += entre(-40, 40);
+            navegador_aporte_sens_imu(&nav, 1200, 1, 0, a, 1, (uint32_t)t);
+            navegador_tick(&nav, (uint32_t)t, NULL);
+            dif = abs_i(nav.rumbo_grados * 10 - nav.rumbo_x10);
+            if (dif > 1800) dif = 3600 - dif;
+            if (nav.rumbo_x10 < 0 || nav.rumbo_x10 >= 3600 || nav.rumbo_grados < 0 || nav.rumbo_grados >= 360 || dif > 5) malos_invariante++;
+        }
+    }
+    caso("B8: con RUMBO y el giroscopio paseando, rumbo_x10 queda en 0..3599 y a medio grado o menos de rumbo_grados (200 rutas, cada tick)", malos_invariante == 0);
 }
 
 /* ── Parte C: Monte Carlo ──────────────────────────────────────────────── */

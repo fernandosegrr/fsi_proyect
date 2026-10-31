@@ -59,6 +59,7 @@ static Rumbo    rumbo;                                /* J16: sostener el rumbo 
 static uint32_t rumbo_muestra       = 0;              /* la muestra del giroscopio con la que se corrigió por última vez */
 static char     respuesta_rumbo[48];                  /* el texto de la respuesta a RUMBO:ON, RUMBO:OFF y RUMBO? */
 static volatile int rumbo_apagar_al_conectar = 0;    /* 1 = el siguiente __STOP_AUTO viene de una conexión o desconexión y apaga RUMBO */
+static uint32_t frenos_watchdog     = 0;              /* J16: cuántas veces frenó el watchdog desde el encendido (sensores.c lo avisa a la app: WD:<n>) */
 
 void carro_poner_bloqueo(carro_bloqueo_fn bloquear, carro_bloqueo_fn desbloquear)
 {
@@ -207,6 +208,11 @@ int carro_avanzando(void)
 int carro_motores_en_marcha(void)
 {
     return motores_en_marcha;
+}
+
+uint32_t carro_frenos_watchdog(void)
+{
+    return frenos_watchdog;
 }
 
 /* Cuántos ms lleva el carro con los motores apagados (0 si se mueve; un número enorme si no se ha movido desde el arranque). */
@@ -444,6 +450,7 @@ void carro_iniciar(void)
     rumbo_iniciar(&rumbo);         /* J16: apagado hasta que la app mande RUMBO:ON */
     rumbo_apagar_al_conectar = 0;
     rumbo_muestra = 0;
+    frenos_watchdog = 0;
     balance_mil[PERFIL_MANUAL] = PERFIL_MANUAL_BALANCE_DEFECTO;   /* el balance guardado en la memoria no volátil, si es válido; si no, el de siempre */
     balance_mil[PERFIL_AUTO] = PERFIL_AUTO_BALANCE_DEFECTO;
     for (int p = 0; p < 2; p++) {
@@ -736,6 +743,7 @@ void carro_vigilar_comunicacion(void)
         escalon_modo = 0;
         guardar_comando_actual("STOP");
         perfil_actual = PERFIL_AUTO;   /* tras perder la señal vuelve al perfil seguro; la app lo repone con MODO_MANUAL */
+        frenos_watchdog++;
         hw_registrar("Watchdog: Freno activado.");
     }
     en_vigilancia = 0;

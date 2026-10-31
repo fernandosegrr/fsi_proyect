@@ -23,8 +23,9 @@
  *     todo como antes). Los interruptores usarGiroscopio / usarSensorDistancia (los pone la pantalla de Calibración) valen solo si el firmware dijo que el sensor funciona (giroscopioActivo / laserActivo).
  *     El firmware manda SENS:<ángulo x10>,<mm>,<banderas> cada 100 ms con la app conectada y perfil AUTO, GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR al terminar un giro por ángulo y TOF_PARO:<mm> cuando el láser
  *     lo frena; aquí se leen y se avisan por alSens / alGiro / alTofParo. girar() manda GIRAR:<grados> (positivo = izquierda); un giro por ángulo NO se repite como heartbeat: el firmware lo hace solo.
- *  5. La latencia es el tiempo entre enviar PING y recibir PONG. El carro real todavía no
- *     contesta PONG (solo el servidor falso), así que con el carro real se verá "—".
+ *  4e. J16: TOF_PARO también corta el heartbeat de un FORWARD (si no, el siguiente lo arrancaría otra vez contra el obstáculo). RUMBO:ON/OFF/<n> y RUMBO? solo se mandan si CAPS
+ *     dijo RUMBO=1. El firmware nuevo avisa WD:<n> cuando su watchdog lo frenó (alWatchdog): la ruta se detiene, porque el navegador seguiría contando un avance que no ocurrió.
+ *  5. La latencia es el tiempo entre enviar PING y recibir PONG (el firmware actual contesta PONG; uno muy viejo no contestaba y se veía "—").
  *  Todo ocurre en el hilo principal (los avisos del Enlace ya llegan ahí).
  */
 package com.fsi.carro
@@ -42,6 +43,7 @@ class ControlLogica(
         const val HEARTBEAT_MS = 250L
         const val PING_MS = 800L
         const val REINTENTO_MS = 2000L
+        const val CORTAR_HEARTBEAT_EN_TOF_PARO = true   // J16; false = como antes (el siguiente heartbeat volvía a arrancar el FORWARD contra el obstáculo)
     }
 
     enum class Conexion { DESCONECTADO, CONECTADO, RECONECTANDO }
@@ -164,6 +166,13 @@ class ControlLogica(
 
     /** La respuesta a IMU?: el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
     var alImu: ((Int) -> Unit)? = null
+
+    /** J16: el watchdog del carro lo frenó porque no le llegaron comandos en 1 s (WD:<n>, n = cuántas veces desde que se encendió). Un firmware anterior no lo avisa. */
+    var alWatchdog: ((Int) -> Unit)? = null
+
+    /** J16: la última respuesta a RUMBO? ya leída (encendido, en marcha, objetivo x10, corrección en milésimas, corrección aprendida); "" si no hubo. Solo para el registro y la pantalla de Sensores. */
+    var ultimoRumbo = ""
+        private set
 
     /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
     val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
@@ -395,6 +404,13 @@ class ControlLogica(
         }
     }
 
+    /** J16: pregunta el estado del rumbo sostenido (RUMBO?); la respuesta queda en SENS_DIAG y en ultimoRumbo. Sirve para ver en las pruebas cuánto corrigió el firmware. */
+    fun pedirRumbo() {
+        if (capsRumbo == true) {
+            enviar("RUMBO?")
+        }
+    }
+
     /** Pone el ángulo del giroscopio en cero (IMU_CERO). */
     fun ponerAnguloCero() {
         enviar("IMU_CERO")
@@ -432,6 +448,7 @@ class ControlLogica(
         capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
         capsLaser = null
         capsRumbo = null
+        ultimoRumbo = ""
         girandoPorAngulo = false
         pedirCapacidades()
         balanceConfirmado[0] = 0
@@ -570,8 +587,32 @@ class ControlLogica(
                 texto.startsWith("TOF_PARO:") -> {
                     val mm = texto.substring(9).toIntOrNull() ?: 0
                     Log.i("SENS_DIAG", "TOF_PARO: el laser freno el carro con algo a $mm mm")
+                    // J16: el firmware ya frenó. Si se siguiera repitiendo el FORWARD, el siguiente heartbeat lo arrancaría otra vez contra el obstáculo (y el láser
+                    // lo frenaría de nuevo: tirones). Se deja de repetir; para volver a avanzar hay que mandar el comando otra vez (el navegador o el botón).
+                    if (CORTAR_HEARTBEAT_EN_TOF_PARO && comandoActivo == "FORWARD") {
+                        manejador.removeCallbacks(tareaHeartbeat)
+                        comandoActivo = null
+                    }
                     alTofParo?.invoke(mm)
                     alCambiar()
+                }
+                texto.startsWith("WD:") -> {
+                    val veces = texto.substring(3).toIntOrNull() ?: 0
+                    Log.w("SENS_DIAG", "WD: el carro se freno solo (watchdog: 1 s sin comandos); van $veces desde que se encendio")
+                    ultimoAvisoSensores = "El carro se frenó solo: no le llegaron comandos en 1 s (WiFi o app ocupada)."
+                    alWatchdog?.invoke(veces)
+                    alCambiar()
+                }
+                texto.startsWith("ACK_RUMBO:") -> {
+                    Log.i("SENS_DIAG", "firmware: $texto")
+                }
+                texto.startsWith("RUMBO:") -> {
+                    val p = texto.substring(6).split(",")
+                    if (p.size >= 5) {
+                        ultimoRumbo = "encendido ${p[0]}, en marcha ${p[1]}, objetivo ${p[2].toInt() / 10.0}°, corrección ${p[3]}‰, aprendida ${p[4]}‰"
+                        Log.i("SENS_DIAG", "firmware: $texto (encendido,en_marcha,objetivo_x10,corr_mil,aprendido_mil)")
+                        alCambiar()
+                    }
                 }
                 texto.startsWith("ANT:") || texto.startsWith("ANT_IGNORADO:") -> {
                     Log.i("SENS_DIAG", "firmware: $texto")

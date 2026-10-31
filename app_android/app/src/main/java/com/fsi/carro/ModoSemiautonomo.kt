@@ -17,6 +17,9 @@
  *     (nucleo_c/navegador.c): aquí solo hay un reloj de 50 ms. Si el firmware algún día acepta
  *     comandos con duración, solo habrá que cambiar esa parte del C.
  *  6. Si se pierde la conexión con el carro, se cancela la ruta (más seguro).
+ *  7. J16 (VIGILAR_CARRO_J16): también se cancela si un firmware con sensores deja de mandar SENS 1.5 s (enlace mudo: OkHttp no corta por
+ *     silencio), si el carro avisa WD (su watchdog lo frenó) o si el láser lo frenó (TOF_PARO) y el navegador siguió pidiendo avanzar.
+ *     Al terminar, con RUMBO, se pregunta RUMBO? para dejar en SENS_DIAG cuánto corrigió y aprendió el firmware.
  */
 package com.fsi.carro
 
@@ -34,6 +37,8 @@ class ModoSemiautonomo(
         const val ETIQUETA = "NAV"
         const val TICK_MS = 50L
         const val TIMEOUT_CAMARA_MS = 1000L   // sin cuadros nuevos durante este tiempo: se cancela la ruta
+        const val SILENCIO_SENS_MS = 1500L    // J16: un firmware con sensores manda SENS cada 100 ms en AUTO; sin SENS durante este tiempo se cancela la ruta
+        const val VIGILAR_CARRO_J16 = true    // J16: detener la ruta sin SENS, con WD (watchdog del carro) o con un TOF_PARO que el navegador no atendió; false = como antes
         const val PERFIL_ESPERA_MS = 1000L    // tiempo máximo para que el carro confirme el perfil AUTO antes de arrancar una ruta
         const val CONFIRMAR_PISO_MS = 10000L  // tiempo para confirmar (tocando Iniciar otra vez) que se usa el último piso aprendido
 
@@ -56,6 +61,8 @@ class ModoSemiautonomo(
     private var giroPorAnguloAntes = false   // el giro del tick anterior lo hacía el firmware (J11)
     private var rumboEncendido = false       // J16: esta ruta le pidió al firmware que sostenga el rumbo (RUMBO:ON)
     private val rumboSalida = IntArray(1)
+    private var objetivosRumbo = 0           // J16: cuántos RUMBO:<n> se mandaron en esta ruta (para el registro)
+    private var tofParoSinAtender = false    // J16: llegó TOF_PARO avanzando; el siguiente tick revisa que el navegador haya dejado de pedir FORWARD
 
     /** Obstáculos simulados (se usan si `camara` es null): izquierda, centro, derecha. */
     val obstaculoSimulado = BooleanArray(3)
@@ -204,10 +211,23 @@ class ModoSemiautonomo(
         logica.alGiro = { codigo, _, real, ms, ant -> NavegadorNativa.aporteGiro(codigo, real, ms, ant, SystemClock.elapsedRealtime()) }
         logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime(), banderas and 1 != 0 && banderas and 8 == 0) }
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
-        logica.alTofParo = { mm -> NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime()) }
+        logica.alTofParo = { mm ->
+            NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime())
+            if (VIGILAR_CARRO_J16 && activo && avanzando) {
+                tofParoSinAtender = true   // el firmware frenó y ControlLogica dejó de repetir el FORWARD: el navegador tiene que enterarse
+            }
+        }
+        // J16: el watchdog del carro lo frenó (1 s sin comandos). El navegador seguiría contando un avance que no ocurrió, y el siguiente comando lo arrancaría desde otro lugar.
+        logica.alWatchdog = { _ ->
+            if (VIGILAR_CARRO_J16 && activo) {
+                cancelar("El carro se frenó solo: no le llegaron comandos en 1 s (WiFi o teléfono ocupado). Reposiciona el carro y vuelve a iniciar la ruta.")
+            }
+        }
         NavegadorNativa.pedirAyuda(if (modoPruebaObstaculo) 0 else 1)   // si no puede esquivar, pide que tomes el control en vez de rendirse (la prueba de obstáculo no)
         // J16: rumbo sostenido por el firmware. Solo si el firmware dijo RUMBO=1, el giroscopio funciona y el interruptor está encendido; si no, la ruta es como antes.
         rumboEncendido = logica.rumboActivo
+        objetivosRumbo = 0
+        tofParoSinAtender = false
         NavegadorNativa.ponerRumboFw(if (rumboEncendido) 1 else 0)
         logica.rumbo(rumboEncendido)   // RUMBO:ON (o RUMBO:OFF, para no heredar el de una ruta anterior); con un firmware anterior no se manda nada
         Log.i("SENS_DIAG", "ruta: rumbo_fw=$rumboEncendido (caps=${logica.capsRumbo} interruptor=${logica.usarRumbo})")
@@ -260,6 +280,7 @@ class ModoSemiautonomo(
         }
         val estabaActivo = activo
         activo = false
+        tofParoSinAtender = false
         manejador.removeCallbacks(tarea)
         NavegadorNativa.cancelar()
         apagarRumbo()
@@ -274,10 +295,13 @@ class ModoSemiautonomo(
         alCambiar()
     }
 
-    /** J16: al terminar o cancelar la ruta el firmware deja de sostener el rumbo (manejar con los botones vuelve a ser como siempre). */
+    /** J16: al terminar o cancelar la ruta el firmware deja de sostener el rumbo (manejar con los botones vuelve a ser como siempre). Antes de apagarlo pregunta RUMBO? para que el
+     *  registro (SENS_DIAG) diga cuánto corrigió y cuánto aprendió en esta ruta: es el dato que las pruebas en el carro necesitan. */
     private fun apagarRumbo() {
         if (rumboEncendido) {
             rumboEncendido = false
+            Log.i("SENS_DIAG", "ruta: rumbo_objetivos_enviados=$objetivosRumbo")
+            logica.pedirRumbo()
             logica.rumbo(false)
         }
     }
@@ -298,6 +322,13 @@ class ModoSemiautonomo(
             return
         }
         val ahora = SystemClock.elapsedRealtime()
+        // J16: un firmware con sensores (contestó CAPS) manda SENS cada 100 ms en el perfil AUTO. Si dejan de llegar (WiFi caído o carro reiniciado sin cerrar la conexión:
+        // OkHttp no corta por silencio), los comandos tampoco llegan: el watchdog del carro lo frena a 1 s y la ruta seguiría contando un avance que no ocurre.
+        if (VIGILAR_CARRO_J16 && logica.capsGiroscopio != null && ahora - maxOf(logica.ultimoSensMs, inicioUltimaRutaMs) > SILENCIO_SENS_MS) {
+            Log.w(ETIQUETA, "sin SENS desde hace ${ahora - maxOf(logica.ultimoSensMs, inicioUltimaRutaMs)} ms: se cancela la ruta")
+            cancelar("Sin datos del carro por más de 1.5 s (¿WiFi?): ruta detenida. Revisa la conexión, reposiciona el carro y vuelve a iniciar.")
+            return
+        }
         val fuente = camara
         val cuadro: IntArray?
         if (fuente != null) {
@@ -351,6 +382,15 @@ class ModoSemiautonomo(
             Log.i("SENS_DIAG", "se perdió la respuesta de un giro: se pregunta IMU? para saber cuánto giró")
             logica.pedirImu()
         }
+        // J16: el láser frenó el carro y ControlLogica dejó de repetir el FORWARD. Si el navegador sigue pidiendo avanzar (por ejemplo, la ruta empezó sin láser y el láser
+        // volvió a funcionar a mitad), el carro está quieto y la ruta cuenta un avance que no ocurre: se detiene. Con el láser en uso el navegador ya frenó o cambió de maniobra.
+        if (tofParoSinAtender) {
+            tofParoSinAtender = false
+            if (comando == NavegadorNativa.CMD_FORWARD && ultimoComando == NavegadorNativa.CMD_FORWARD) {
+                cancelar("El láser frenó el carro (algo muy cerca al frente) y la ruta no lo esperaba: ruta detenida. Quita el obstáculo, reposiciona el carro y vuelve a iniciar.")
+                return
+            }
+        }
         val porAngulo = NavegadorNativa.giroFwActivo() == 1
         val reenviar = giroPorAnguloAntes && !porAngulo && (comando == NavegadorNativa.CMD_LEFT || comando == NavegadorNativa.CMD_RIGHT)
         giroPorAnguloAntes = porAngulo
@@ -368,6 +408,7 @@ class ModoSemiautonomo(
         // J16: el objetivo de rumbo va DESPUÉS del comando: el firmware empieza cada FORWARD sosteniendo el rumbo de ese momento y este objetivo lo ajusta.
         if (rumboEncendido && NavegadorNativa.tomarRumboFw(rumboSalida) != 0) {
             logica.rumboObjetivo(rumboSalida[0])
+            objetivosRumbo++
         }
         // J16: el registro va después de mandar el comando (antes, hasta 16 llamadas con Log atrasaban el STOP 1 a 5 ms).
         registrarEsquive()

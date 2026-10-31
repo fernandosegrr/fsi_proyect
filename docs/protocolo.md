@@ -101,6 +101,18 @@ Cuando el sensor láser detecta un obstáculo a una distancia inferior al umbral
 TOF_PARO:<distancia_mm>
 ```
 
+**Nota J16 (app):** al recibir `TOF_PARO` la app deja de repetir el `FORWARD` (antes el siguiente heartbeat lo volvía a arrancar contra el obstáculo). Si una ruta sigue pidiendo avanzar después de un `TOF_PARO` (el navegador no lo esperaba), la ruta se detiene con un mensaje.
+
+### 5.3 Aviso del watchdog (J16)
+
+Cuando el watchdog de 1 s frena el carro porque no le llegaron comandos, el firmware J16 avisa por el WebSocket (y por el puerto serie):
+
+```text
+WD:<frenos desde el encendido>
+```
+
+Una ruta en marcha se detiene al recibirlo (el navegador seguiría contando un avance que no ocurrió). Si el enlace está muerto el aviso no llega: para eso la app detiene la ruta cuando un firmware que contestó `CAPS` pasa 1.5 s sin mandar `SENS`. Un firmware anterior no manda `WD`; una app anterior lo ignora. Al terminar una ruta con `RUMBO` la app pregunta `RUMBO?` y deja la respuesta en el registro `SENS_DIAG`.
+
 ---
 
 ## 6. Monitoreo de latencia y Watchdog

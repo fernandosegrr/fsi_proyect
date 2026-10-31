@@ -197,6 +197,12 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             else "Giroscopio: ok · " + (if (hayAngulo) "ángulo ${"%.1f".format(logica.anguloX10 / 10.0)}°" else "ángulo —") +
                 (logica.sesgoX100?.let { " · sesgo ${"%.2f".format(it / 100.0)} °/s" } ?: "") + (if (logica.usarGiroscopio) " · en uso" else " · apagado")
         textoGiro.append("\nReintentos del sesgo: ${logica.imuReintentos}. Últimos arranques con reintentos del giroscopio: ${logica.imuArranquesConReintentos} de ${logica.imuArranquesAnotados}.")
+        // J16: si este firmware sabe sostener el rumbo al avanzar y si las rutas lo van a usar (lo decide ControlLogica.rumboActivo).
+        textoGiro.append("\nRumbo al avanzar: " + when (logica.capsRumbo) {
+            null -> "sin respuesta del carro"
+            false -> "este firmware no lo tiene (anterior a J16)"
+            true -> if (logica.rumboActivo) "disponible · en uso en las rutas" else if (!logica.usarRumbo) "disponible · apagado" else "disponible · no actúa sin el giroscopio"
+        } + (if (logica.ultimoRumbo.isNotEmpty()) "\nÚltimo estado del rumbo: ${logica.ultimoRumbo}" else ""))
         val hayDistancia = laserOk && logica.ultimoSensMs != 0L && frescoMs < 1500L
         textoLaser.text = if (!contesto) "Láser: sin respuesta del carro"
             else if (!laserOk) "Láser: MAL (no funciona; sin freno de emergencia)"

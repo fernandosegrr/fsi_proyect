@@ -92,6 +92,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     private var faseDesdeMs = 0L
     private var cuenta = 0             // el número que se ve en la cuenta regresiva
     private var avisoDelFlujo = false  // true mientras el aviso en banda es de la preparación (el reloj de la pantalla no lo oculta)
+    private var calibracionRechazada = false   // J16: el navegador no aceptó la calibración guardada (se avisa antes de salir)
 
     private var estabaActiva = false
     private var pisoFijoRuta = false   // 1 desde que termina el aprendizaje del piso hasta que acaba o se cancela la ruta
@@ -248,7 +249,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         val logica = SesionCarro.logica
         logica.pedirPerfil(ControlLogica.Perfil.AUTO)
         val semi = SesionCarro.semi
-        calibracion.aplicarAlNavegador()
+        calibracionRechazada = !calibracion.aplicarAlNavegador()
         semi.leerCalibracion = { calibracion.leerAjustada() }
         PruebaObstaculoNativa.iniciarResumen()
 
@@ -390,7 +391,11 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             fase = Fase.CONFIRMAR
             faseDesdeMs = SystemClock.elapsedRealtime()   // desde aquí cuenta CONFIRMAR_MAX_MS
             val avisoDesp = calibracion.avisoDesplazamientoSinMedir()
-            if (avisoDesp != null) {
+            if (calibracionRechazada) {
+                val m = Mensajes.calibracionRechazada()
+                aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
+                avisoDelFlujo = true
+            } else if (avisoDesp != null) {
                 aviso.mostrar(Nivel.AVISO, avisoDesp, "Puedes continuar de todos modos o medirlo en Calibración → Desplazamiento al girar.")
                 avisoDelFlujo = true
             }

@@ -59,6 +59,12 @@ object Mensajes {
         "El carro se detuvo. La app intenta volver sola; si no, toca Conectar."
     )
 
+    /** J16: el navegador no aceptó la calibración guardada (algún valor fuera de rango): la ruta usaría la anterior o la de fábrica. */
+    fun calibracionRechazada() = Mensaje(
+        "La calibración guardada no se pudo usar",
+        "La ruta usará otros valores (los de fábrica si no hay otros) y las distancias pueden salir mal. Revisa la Calibración antes de confiar en la ruta."
+    )
+
     fun perfilSinConfirmar() = Mensaje(
         "El carro no confirmó su velocidad",
         "Puede tener un firmware viejo. Carga el firmware nuevo en el carro y vuelve a intentar."

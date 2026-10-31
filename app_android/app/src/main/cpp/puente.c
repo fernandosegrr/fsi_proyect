@@ -20,6 +20,7 @@
  */
 
 #include <jni.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -317,9 +318,12 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
 
 static MascaraVision mascara_vision_global;        /* la máscara guardada (la pone Kotlin con ponerMascara) */
 static int mascara_vision_activa = 0;              /* 0 mientras se está calibrando la visión (no debe haber máscara) o si no hay ninguna */
-/* Lo último que analizó el detector: el navegador lo usa para escribir OBS_DIAG con la máscara de cada zona (solo registro). */
+/* Lo último que analizó el detector: el navegador lo usa para OBS_DIAG y también para decidir (el carril del láser, las columnas del borde al esquivar, la firma del fantasma fijo). */
 static int ultimo_filas = 0, ultimo_columnas = 0, ultimo_fila_minima = 0, ultimo_franja_contaminada = 0, ultimo_franja_pct = 0, ultimo_franja_ignorada = 0;
 static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
+/* J16: el hilo de la cámara escribe esa rejilla y lee la máscara; el ciclo de 50 ms (hilo principal) lee la rejilla y Kotlin cambia la máscara. Antes se copiaban sin protección
+ * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis. */
+static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
 
 static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray celdas, jint columnas, jint filas,
                                        jint ancho, jint alto, jintArray config,
@@ -375,9 +379,11 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         cfg.mejoras_piso = 1;
         cfg.piso_fijo = 0;
     }
+    pthread_mutex_lock(&candado_vision);
     if (mascara_vision_activa) {
         masc_aplicar_a_config(&mascara_vision_global, &cfg);   /* los artefactos fijos de la imagen se ignoran */
     }
+    pthread_mutex_unlock(&candado_vision);
     if (!modelo_inicializado || reiniciar_modelo) {
         obstaculos_modelo_iniciar(&modelo_global);
         modelo_inicializado = 1;
@@ -422,6 +428,7 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
             }
         }
         largo = ENTEROS_ENCABEZADO_DETALLE + resultado.filas * resultado.columnas;
+        pthread_mutex_lock(&candado_vision);
         ultimo_filas = resultado.filas;
         ultimo_columnas = resultado.columnas;
         ultimo_fila_minima = resultado.fila_minima_usada;
@@ -429,6 +436,7 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         ultimo_franja_ignorada = resultado.franja_ignorada;
         ultimo_franja_pct = resultado.franja_tapada_pct;
         memcpy(ultimo_no_piso, resultado.no_piso, sizeof ultimo_no_piso);
+        pthread_mutex_unlock(&candado_vision);
     }
 
     arreglo = (*env)->NewIntArray(env, largo);
@@ -2248,13 +2256,16 @@ Java_com_fsi_carro_ObstaculosNativa_ponerMascara(JNIEnv *env, jobject objeto, js
 
     (void)objeto;
     if (hex == NULL) {
+        pthread_mutex_lock(&candado_vision);
         mascara_vision_activa = 0;
+        pthread_mutex_unlock(&candado_vision);
         return MASC_OK;
     }
     texto = (*env)->GetStringUTFChars(env, hex, NULL);
     if (texto == NULL) {
         return MASC_ERR_ARGUMENTO;
     }
+    pthread_mutex_lock(&candado_vision);
     if (texto[0] == '\0') {
         memset(&mascara_vision_global, 0, sizeof mascara_vision_global);
         mascara_vision_activa = 0;
@@ -2263,6 +2274,7 @@ Java_com_fsi_carro_ObstaculosNativa_ponerMascara(JNIEnv *env, jobject objeto, js
         codigo = masc_de_hex(texto, &mascara_vision_global);
         mascara_vision_activa = (codigo == MASC_OK && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
     }
+    pthread_mutex_unlock(&candado_vision);
     (*env)->ReleaseStringUTFChars(env, hex, texto);
     return codigo;
 }
@@ -2273,7 +2285,9 @@ Java_com_fsi_carro_ObstaculosNativa_activarMascara(JNIEnv *env, jobject objeto, 
 {
     (void)env;
     (void)objeto;
+    pthread_mutex_lock(&candado_vision);
     mascara_vision_activa = (activa && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
+    pthread_mutex_unlock(&candado_vision);
 }
 
 /* Suma un cuadro (el detalle de ObstaculosNativa.analizarConfig) a un lugar de la calibración de la visión. `lugar` es un arreglo de 1 + 100 enteros: [0] cuadros y [1..100] las marcas
@@ -2418,7 +2432,8 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
             resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
         }
-        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector, solo para el registro OBS_DIAG */
+        pthread_mutex_lock(&candado_vision);
+        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
             resultado.filas = ultimo_filas;
             resultado.columnas = ultimo_columnas;
             resultado.fila_minima_usada = ultimo_fila_minima;
@@ -2427,6 +2442,7 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.franja_tapada_pct = ultimo_franja_pct;
             memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
         }
+        pthread_mutex_unlock(&candado_vision);
         cuadro = &resultado;
     }
     return (jint)navegador_tick(obtener_navegador(), (uint32_t)ahora_ms, cuadro);

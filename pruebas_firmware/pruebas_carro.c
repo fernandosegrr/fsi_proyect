@@ -903,10 +903,13 @@ typedef struct {
     volatile int      cola_coherente;
     volatile int      giros_naturales;   /* giros que terminaron solos (GIRO_OK o GIRO_TIMEOUT): cada uno apaga los motores sin que nadie mande STOP */
     volatile int      giros_pedidos;
+    volatile int      vueltas;        /* vueltas de loop() completas del consumidor (con los mensajes ya leídos) */
     const char       *ultimo_movimiento;
     const char       *comando_cierre;
     const char * const *mezcla;       /* los 8 comandos entre los que sortea el productor */
-    int               paso_a_paso;    /* 1 = el productor espera a que el consumidor vacíe la cola antes del siguiente comando (una orden por vuelta de loop(): así los giros alcanzan a terminar) */
+    int               paso_a_paso;    /* 1 = el productor espera a que el consumidor vacíe la cola y termine una vuelta entera antes del siguiente comando (una orden por vuelta de loop(): así los giros
+                                       * alcanzan a terminar). J16: antes solo esperaba la cola vacía y, con la PC ocupada, colaba decenas de órdenes en una misma vuelta: sus GIRO_ERROR:ocupado
+                                       * llenaban la cola de salida (16) y se tiraba algún GIRO_OK (la prueba fallaba de vez en cuando con una parada «de más»). */
 } ContextoEstres;
 
 /* Mezcla "dura": muchos cortes (STOP, FORWARD, LEFT) entre los GIRAR. Mezcla "suave": casi sin cortes, para que los giros lleguen a terminar solos. */
@@ -954,13 +957,15 @@ static void *hilo_productor_estres(void *arg)
             sched_yield();
         }
         if (ctx->paso_a_paso) {
+            int v0 = ctx->vueltas;
+
             for (;;) {
                 int q;
 
                 carro_bloquear();
                 q = carro_cola_cantidad();
                 carro_desbloquear();
-                if (q == 0) {
+                if (q == 0 && ctx->vueltas - v0 >= 2) {   /* la vuelta que la ejecutó terminó y hubo otra entera después (sus mensajes ya se leyeron) */
                     break;
                 }
                 sched_yield();
@@ -1004,6 +1009,7 @@ static void vuelta_loop_estres(ContextoEstres *ctx, int hay_orden)
             ctx->giros_naturales++;
         }
     }
+    ctx->vueltas++;
 }
 
 static void *hilo_consumidor_estres(void *arg)
@@ -1071,6 +1077,7 @@ static void prueba_estres_dos_hilos(void)
         ctx.cola_coherente = 1;
         ctx.giros_naturales = 0;
         ctx.giros_pedidos = 0;
+        ctx.vueltas = 0;
         ctx.ultimo_movimiento = "STOP";
         sensores_iniciar();                 /* el giroscopio falso se calibra ANTES de lanzar los hilos (así GIRAR sí empieza) */
         for (k = 0; k < 400; k++) {
@@ -1089,8 +1096,9 @@ static void prueba_estres_dos_hilos(void)
         pthread_join(th_prod, NULL);
         pthread_join(th_cons, NULL);
         if (c == 3) {
-            /* Un giro que frenó justo al final todavía no avisó (avisa 200 ms después): se deja pasar el tiempo para contarlo. El carro ya está en STOP, así que el watchdog no actúa. */
-            for (k = 0; k < 10; k++) {
+            /* Un giro que frenó justo al final todavía no avisó (avisa GIRO_ASENTAR_MS después): se deja pasar el tiempo para contarlo. El carro ya está en STOP, así que el watchdog no actúa.
+             * J16: antes eran 10 vueltas (500 ms, de cuando el asentado duraba 200 ms); con 750 ms la prueba fallaba de vez en cuando (el GIRO_OK del último giro llegaba tarde). */
+            for (k = 0; k < GIRO_ASENTAR_MS / 50 + 5; k++) {
                 vuelta_loop_estres(&ctx, 1);
             }
         }

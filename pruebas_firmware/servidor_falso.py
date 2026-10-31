@@ -19,7 +19,7 @@ GUIA DE LECTURA
  7. SENSORES (J11, opcional con --sensores): imita al firmware con el giroscopio y el laser. CAPS? -> CAPS:IMU=1,TOF=1; SENS:<angulo x10>,<mm>,<banderas> cada 100 ms con perfil AUTO; GIRAR:<grados> ->
     GIRO_OK:<objetivo>:<real x10>:<ms>:<ant> (o GIRO_ERROR:angulo / sin_imu / ocupado; un STOP o un movimiento emite ANT_IGNORADO:interrumpido y GIRO_ERROR:abortado con datos); ANT? y ANT_BORRAR;
     los valores de ANT son fijos en esta simulación, no simula el aprendizaje. IMU?, TOF?, IMU_CERO, IMU_CAL (-> ACK_IMU_CAL y,
-    un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser) y TOF_PARO:<mm>. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
+    un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser), TOF_PARO:<mm> y WD:<n> cuando frena el watchdog (J16). Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
     "ve" el laser; con FORWARD en AUTO y menos de 120 mm dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
     porta como un firmware viejo: esos mensajes se tratan como desconocidos (sin respuesta).
 
@@ -52,6 +52,7 @@ estado = {
     "cliente": None,             # la conexion activa
     "motores_en_marcha": False,
     "ultimo_comando_real": 0.0,  # reloj del ultimo comando que NO es PING
+    "watchdogs": 0,              # cuantas veces freno el watchdog (con --sensores se avisa WD:<n>, como el firmware J16)
     "ultimo_mensaje": None,      # para los ms desde el mensaje anterior
     "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
     "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None},   # sensores (J11), solo con --sensores
@@ -281,7 +282,13 @@ async def vigilar_watchdog():
         if estado["motores_en_marcha"] and estado["sens"]["giro"] is None and time.monotonic() - estado["ultimo_comando_real"] > WATCHDOG_S:   # un giro por angulo no depende del watchdog
             estado["motores_en_marcha"] = False
             estado["perfil"] = "AUTO"            # tras el watchdog el perfil vuelve a AUTO
+            estado["watchdogs"] += 1
             imprimir("WATCHDOG: motores detenidos")
+            if estado["sens"]["activo"] and estado["cliente"] is not None:   # el firmware J16 avisa WD:<n> (un firmware viejo, sin --sensores, no)
+                try:
+                    await mandar(estado["cliente"], "WD:%d" % estado["watchdogs"])
+                except Exception:
+                    pass
 
 
 def revisar_ruta(conexion, peticion):

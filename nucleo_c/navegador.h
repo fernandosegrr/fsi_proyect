@@ -351,6 +351,8 @@ typedef struct {
      * (0 = arriba, positivo = hacia la derecha, 0 a 359). */
     int x_mm, y_mm, rumbo_grados;
     int base_x_mm, base_y_mm, base_rumbo_grados;   /* pose al empezar el comando actual */
+    int rumbo_x10, base_rumbo_x10;                 /* J16: el mismo rumbo con décimas (0 a 3599). rumbo_grados es su redondeo; al empezar cada comando ya no se pierde la fracción
+                                                    * (con sin_trig_fino = 1 es siempre rumbo_grados x 10, lo de J15) */
     int seg_ms;                                    /* tiempo bajo el comando actual */
     int giro_visual_x10;         /* grados por 10 que la cámara vio girar, en la dirección del comando de giro actual */
     int visual_cubierto_ms;      /* cuánto tiempo del giro actual cubren los cuadros confiables de la cámara */

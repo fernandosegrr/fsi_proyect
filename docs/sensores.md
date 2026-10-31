@@ -60,7 +60,7 @@ Láser: librería VL53L0X de Pololu 1.3.1 (MIT), copia de la licencia en `docs/l
 
 ## Fase B: app y navegador (J11, 18 oct)
 
-- **Mensajes en la app** (`ControlLogica.kt`): al conectar manda `CAPS?` y `TOF_USO:<0|1>`; lee `CAPS`, `SENS`, `GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR`, `TOF_PARO`, `IMU_CAL_OK / FALLO` e `IMU:`. Un firmware viejo no contesta `CAPS?`: la app lo toma como «sin sensores» y todo queda como antes. `girar(grados)` manda `GIRAR` una sola vez (no hay heartbeat; el watchdog de 1 s no corre durante el giro).
+- **Mensajes en la app** (`ControlLogica.kt`): al conectar manda `CAPS?` y `TOF_USO:<0|1>`; lee `CAPS`, `SENS`, `GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR`, `TOF_PARO`, `IMU_CAL_OK / FALLO` e `IMU:` (J16: también `WD:<n>` del watchdog, `ACK_RUMBO` y la respuesta a `RUMBO?`). Un firmware viejo no contesta `CAPS?`: la app lo toma como «sin sensores» y todo queda como antes. `girar(grados)` manda `GIRAR` una sola vez (no hay heartbeat; el watchdog de 1 s no corre durante el giro).
 - **Pantalla Sensores** (Calibración → «Sensores (giroscopio y láser)»): interruptores «Usar giroscopio» y «Usar sensor de distancia» (guardados en `Ajustes`), estado en vivo, «Recalibrar giroscopio», «Poner el ángulo en cero» y prueba de giro de 90° por ángulo o por tiempo que registra en el log `SENS_DIAG prueba_giro ... medido_x10 ... ms`.
 - **Navegador** (`nucleo_c/navegador.c`): giros por ángulo, `TOF_PARO` y confirmación de la cámara, con respaldos; ver `docs/navegador.md` («Giroscopio y sensor láser»).
 - **Firmware:** se agregó `TOF_USO:<0|1>` (apaga/enciende el freno de emergencia con el interruptor de la app).

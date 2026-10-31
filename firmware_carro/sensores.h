@@ -18,6 +18,7 @@
  *   IMU_CAL      → ACK_IMU_CAL (empezó) o NAK_IMU_CAL (el carro no está quieto); al terminar IMU_CAL_OK:<sesgo x100> o IMU_CAL_FALLO
  *   IMU_CERO     → ACK_IMU_CERO (el ángulo vuelve a 0)
  *   TOF_PARO:<mm>               (lo manda el firmware solo) frenó por algo muy cerca al frente
+ *   WD:<n>                      (lo manda el firmware solo, J16) el watchdog de 1 s frenó el carro porque no le llegaron comandos; n = frenos desde el encendido
  *   LOOP?        → LOOP:<el loop() más largo en µs>,<cuántos pasaron de LOOP_MAX_US>        LOOP_CERO → ACK_LOOP_CERO
  *   ANT?         → ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> (anticipación del giro en ms, una por sentido y por perfil)
  *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>,TOFR=<reintentos láser>,IMUR=<reintentos sesgo>,IMUM=<motivo>,IMUE=<estado>

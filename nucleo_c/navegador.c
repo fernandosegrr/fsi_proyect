@@ -458,15 +458,48 @@ static void calcular_avance_medido(Navegador *nav, int distancia)
     nav->x_mm = nav->base_x_mm + (int)(nav->avance_x_mil / 1000);
     nav->y_mm = nav->base_y_mm + (int)(nav->avance_y_mil / 1000);
     nav->rumbo_grados = grados_de_x10(rumbo);
+    nav->rumbo_x10 = ((rumbo % 3600) + 3600) % 3600;
+}
+
+/* J16: si alguien cambió los grados enteros sin las décimas (una prueba, o un plan que fija el rumbo), mandan los grados. */
+static void respetar_grados(int *x10, int grados)
+{
+    if (grados_de_x10(*x10) != normalizar_grados(grados)) {
+        *x10 = normalizar_grados(grados) * 10;
+    }
+}
+
+/* J16: deja rumbo_x10 y rumbo_grados de acuerdo. Con RUMBO (el firmware sostiene el objetivo que se le pide) rumbo_grados es el redondeo de rumbo_x10 y la fracción se
+ * conserva de un comando al siguiente. Sin RUMBO, o con sin_trig_fino, mandan los grados enteros, como antes: en la simulación, sin RUMBO conservar la fracción retrasaba
+ * las correcciones de rumbo de más de 4° (el redondeo las adelantaba) y las rectas empeoraban un poco. */
+static void sincronizar_rumbo(Navegador *nav)
+{
+    if (nav->sin_trig_fino || !rumbo_fw_activo(nav)) {
+        nav->rumbo_x10 = nav->rumbo_grados * 10;
+    } else {
+        nav->rumbo_x10 = ((nav->rumbo_x10 % 3600) + 3600) % 3600;
+        nav->rumbo_grados = grados_de_x10(nav->rumbo_x10);
+    }
+}
+
+/* El rumbo con décimas después de girar `grados` hacia `lado` desde el rumbo del inicio del comando: con el ángulo REAL del giroscopio si ya llegó (en décimas), si no con
+ * los grados enteros que se estimaron. */
+static int rumbo_tras_giro_x10(const Navegador *nav, int lado, int grados)
+{
+    int girado_x10 = (nav->giro_fw && nav->giro_fw_estado == 1) ? nav->giro_fw_real_x10 : grados * 10;
+
+    return nav->base_rumbo_x10 + lado * girado_x10;
 }
 
 static void calcular_pose(Navegador *nav)
 {
     int distancia, grados;
 
+    respetar_grados(&nav->base_rumbo_x10, nav->base_rumbo_grados);
     nav->x_mm = nav->base_x_mm;
     nav->y_mm = nav->base_y_mm;
     nav->rumbo_grados = nav->base_rumbo_grados;
+    nav->rumbo_x10 = nav->base_rumbo_x10;
 
     switch (nav->cmd_actual) {
     case NAV_CMD_FORWARD:
@@ -485,16 +518,19 @@ static void calcular_pose(Navegador *nav)
     case NAV_CMD_LEFT:
         grados = grados_girados(nav, CAL_LADO_IZQUIERDA);
         nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados - grados);
+        nav->rumbo_x10 = rumbo_tras_giro_x10(nav, CAL_LADO_IZQUIERDA, grados);
         sumar_desplazamiento_giro(nav, CAL_LADO_IZQUIERDA, grados, nav->base_rumbo_grados);
         break;
     case NAV_CMD_RIGHT:
         grados = grados_girados(nav, CAL_LADO_DERECHA);
         nav->rumbo_grados = normalizar_grados(nav->base_rumbo_grados + grados);
+        nav->rumbo_x10 = rumbo_tras_giro_x10(nav, CAL_LADO_DERECHA, grados);
         sumar_desplazamiento_giro(nav, CAL_LADO_DERECHA, grados, nav->base_rumbo_grados);
         break;
     default:
         break;
     }
+    sincronizar_rumbo(nav);
 }
 
 /* Toma la pose actual como punto de partida del siguiente comando. */
@@ -502,11 +538,13 @@ static void fijar_pose(Navegador *nav)
 {
     nav->base_x_mm = nav->x_mm;
     nav->base_y_mm = nav->y_mm;
+    respetar_grados(&nav->rumbo_x10, nav->rumbo_grados);
     nav->base_rumbo_grados = nav->rumbo_grados;
+    nav->base_rumbo_x10 = nav->rumbo_x10;
     nav->seg_ms = 0;
     nav->avance_mm_previo = 0;
     nav->avance_x_mil = nav->avance_y_mil = 0;
-    nav->avance_rumbo_x10 = nav->avance_rumbo_ref_x10 = nav->rumbo_grados * 10;
+    nav->avance_rumbo_x10 = nav->avance_rumbo_ref_x10 = nav->rumbo_x10;   /* J16: con décimas (antes rumbo_grados x 10: hasta 0.5° de error en cada plan nuevo) */
     nav->avance_imu_ref_x10 = nav->sens_angulo_x10;
     nav->avance_imu_ref_ok = nav->sens_angulo_ok &&
         (uint32_t)(nav->t_ultimo_ms - nav->sens_angulo_t_ms) <= NAV_TOF_FRESCO_MS;
@@ -521,6 +559,7 @@ static void sumar_frenado(Navegador *nav)
     if ((nav->cmd_actual == NAV_CMD_LEFT || nav->cmd_actual == NAV_CMD_RIGHT) && nav->giro_fw && nav->giro_fw_estado == 1) {
         return;   /* el ángulo que midió el giroscopio ya incluye lo que el carro siguió girando al frenar */
     }
+    respetar_grados(&nav->rumbo_x10, nav->rumbo_grados);
 
     switch (nav->cmd_actual) {
     case NAV_CMD_FORWARD:
@@ -529,22 +568,30 @@ static void sumar_frenado(Navegador *nav)
         if (nav->cmd_actual == NAV_CMD_REVERSE) {
             mm = -mm;
         }
-        nav->x_mm += dir_x_mil(nav->rumbo_grados) * mm / 1000;
-        nav->y_mm += dir_y_mil(nav->rumbo_grados) * mm / 1000;
+        if (nav->sin_trig_fino) {
+            nav->x_mm += dir_x_mil(nav->rumbo_grados) * mm / 1000;
+            nav->y_mm += dir_y_mil(nav->rumbo_grados) * mm / 1000;
+        } else {
+            nav->x_mm += dir_x_mil_x10(nav->rumbo_x10) * mm / 1000;
+            nav->y_mm += dir_y_mil_x10(nav->rumbo_x10) * mm / 1000;
+        }
         break;
     case NAV_CMD_LEFT:
         grados = cal_frenado_grados(&nav->cal, CAL_LADO_IZQUIERDA);   /* lo que sigue girando al frenar... */
         sumar_desplazamiento_giro(nav, CAL_LADO_IZQUIERDA, grados, nav->rumbo_grados);   /* ...y el centro también se sigue moviendo */
         nav->rumbo_grados = normalizar_grados(nav->rumbo_grados - grados);
+        nav->rumbo_x10 -= grados * 10;
         break;
     case NAV_CMD_RIGHT:
         grados = cal_frenado_grados(&nav->cal, CAL_LADO_DERECHA);
         sumar_desplazamiento_giro(nav, CAL_LADO_DERECHA, grados, nav->rumbo_grados);
         nav->rumbo_grados = normalizar_grados(nav->rumbo_grados + grados);
+        nav->rumbo_x10 += grados * 10;
         break;
     default:
         break;
     }
+    sincronizar_rumbo(nav);
 }
 
 static void registrar_fin_comando(Navegador *nav);                      /* se definen más abajo, junto a la cola de diagnóstico */
@@ -967,6 +1014,7 @@ static void giro_fw_pasar_a_tiempo(Navegador *nav, const char *motivo)
     nav->x_mm = nav->base_x_mm;
     nav->y_mm = nav->base_y_mm;
     nav->rumbo_grados = nav->base_rumbo_grados;
+    nav->rumbo_x10 = nav->base_rumbo_x10;
     fijar_pose(nav);
     if (nav->estado == NAV_SIGUIENDO) {
         nav->ms_paso = 0;   /* solo el contador del movimiento en curso: en ESQUIVANDO o REINCORPORANDO ms_paso es del paso de la ruta que quedó interrumpido y no se toca */
@@ -1479,6 +1527,7 @@ static int planificar(Navegador *nav)
     if (nav->sin_compensar_giro) {
         nav->rumbo_grados = orientacion * 45;
         nav->base_rumbo_grados = nav->rumbo_grados;
+        nav->rumbo_x10 = nav->base_rumbo_x10 = nav->rumbo_grados * 10;
     }
 
     columna = celda_mas_cercana(nav->x_mm);
@@ -1616,6 +1665,7 @@ void navegador_iniciar(Navegador *nav)
     nav->t_ultimo_cuadro_ms = 0;
     nav->x_mm = nav->y_mm = nav->rumbo_grados = 0;
     nav->base_x_mm = nav->base_y_mm = nav->base_rumbo_grados = 0;
+    nav->rumbo_x10 = nav->base_rumbo_x10 = 0;
     nav->sin_rumbo_medido = 0;
     nav->avance_imu_ref_ok = nav->avance_imu_ref_x10 = nav->avance_rumbo_ref_x10 = 0;
     nav->avance_rumbo_x10 = nav->avance_mm_previo = 0;
@@ -1821,6 +1871,7 @@ int navegador_cargar_ruta(Navegador *nav, const Punto *puntos, int n_puntos)
     nav->base_x_mm = nav->x_mm;
     nav->base_y_mm = nav->y_mm;
     nav->base_rumbo_grados = nav->rumbo_grados;
+    nav->rumbo_x10 = nav->base_rumbo_x10 = nav->rumbo_grados * 10;
     nav->seg_ms = 0;
     return NAV_OK;
 }
