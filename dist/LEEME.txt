@@ -1,35 +1,34 @@
-Candidato J16 (precision de navegacion) - Carro FSI
-31 de octubre de 2026. Rama j16-precision; NO es la entrega validada (v1.0 sigue en eb88151).
+Entrega J16 (precisión de navegación y esquive B6 validado en el carro) - Carro FSI
+10 de noviembre de 2026.
 
-APK: APP:0.4-873bfb9 (14,520,520 bytes)
-SHA-256: 50179013BCB18029F6C1BCBFE737F59A9B14B49B7BE848E002D67C119433C15B
-Compilada desde el commit limpio 873bfb9 (build limpio). NO instalada: J16 fue solo software.
+APK: APP:0.4-6d1b213 (14,881,402 bytes)
+SHA-256: C5B36FEC74BFEDE9798B4BE7C992D7FEA8369F456DA4D4A10D61A4BBB25ED02F
+Compilada desde el commit limpio 6d1b213 e instalada y probada en el teléfono con el carro.
 
-Firmware: FW:873bfb9-20261031 (1,034,112 bytes), compilado en la PC, NO cargado.
-SHA-256: 5B00529D21999F1BB8441D265D673D12CD163D3A3F59F5E1EFBB468C88AA6D6A
+Firmware: FW:6d1b213-20261110 (1,034,112 bytes), cargado y probado en la ESP32 del carro.
+SHA-256: 71D671A4E64E0F234015E8685D4E741B87471534E3E50869EE023C5A657B79FC
 El binario NO se publica (contiene la contraseña del WiFi). Ver FIRMWARE_LOCAL.txt.
 
-Que cambia:
-- Con el firmware nuevo y el interruptor «Sostener el rumbo al avanzar» (pantalla Sensores,
-  encendido por defecto) el carro corrige su rumbo mientras avanza. Con el firmware anterior
-  (FW:453ed20) la app no manda RUMBO y las rectas son como antes.
-- Sin firmware nuevo tambien cambian: la «Recta 150 cm» ahora mide 150 (antes hacia 160),
-  holgura de 15 cm (antes 10) al pasar un obstaculo, pose con decimas de grado.
-- Segunda ronda: con RUMBO el rumbo guarda las decimas entre comandos; la ruta se detiene si
-  el carro deja de mandar datos 1.5 s, si su watchdog lo freno (aviso WD del firmware nuevo) o
-  si el laser lo freno y la ruta no lo esperaba; tras TOF_PARO la app ya no vuelve a mandar
-  FORWARD; al terminar cada ruta con RUMBO el registro guarda lo que corrigio el firmware.
-- Tercera ronda: correccion de escala del giroscopio. Se mide una vez en Sensores («Escala del
-  giroscopio»: alinear, dos vueltas, alinear) y el firmware la guarda; mejora los giros grandes.
-Todo lo anterior esta SIMULADO o revisado en el codigo; en el carro y en el telefono esta
-NO MEDIDO. Plan: docs/precision/plan_pruebas.md.
+Qué incluye y qué está validado:
+- VALIDADO EN EL CARRO (10 de noviembre de 2026, docs/pruebas_fisicas_20261110.csv):
+  * Esquive B6 en Recta 200 cm con caja a ~100 cm, giroscopio, láser, autoridad del láser y
+    RUMBO activos (escala del giroscopio en 0 ppm): 6 corridas, 0 toques a la caja, 5 corridas
+    completadas de forma autónoma con error lateral aproximado de ~0 a 10 cm (~10, ~10, ~5, ~0
+    y ~0 cm, medido aproximadamente respecto a la recta) y 1 corrida en AYUDA en el punto 4/10
+    sin tocar la caja y sin causa identificada.
+- SIMULADO O NO MEDIDO EN EL CARRO:
+  * Rectas despejadas con y sin control de rumbo (100, 150 y 200 cm), ruta en L medida con
+    cinta (B5), cuadrado cerrado, corte de WiFi en marcha (B9), freno por láser aislado,
+    caja ancha de 40x20 cm (J10c), calibración de escala del giroscopio (IMU_ESCALA) en el
+    piso, calibración automática del giro con giroscopio (B2), comparación pareada de autoridad
+    del láser (B7) y caja lateral a 25 cm (B8) permanecen SIMULADOS o NO MEDIDOS en el carro.
 
-Verificar la APK sin telefono:
-  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-873bfb9.apk
+Verificar la APK sin teléfono:
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-6d1b213.apk --revision 6d1b213
 En Linux, Git Bash o WSL:
   sha256sum -c SHA256SUMS.txt
-Instalar (conserva datos; solo cuando el dueño lo decida):
-  adb install -r carro_fsi_0.4-873bfb9.apk
+Instalar (conserva datos):
+  adb install -r carro_fsi_0.4-6d1b213.apk
 
 Volver a v1.0: git switch --detach v1.0 (y el APK/firmware de esa etiqueta).
-Reporte: docs/reporte_J16.md. Progreso y comandos para reanudar: docs/progreso_J16.md.
+Estado y registros: docs/estado_20261110.md y docs/pruebas_fisicas_20261110.csv.
