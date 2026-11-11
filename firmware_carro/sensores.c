@@ -20,6 +20,7 @@
 #include "tof.h"
 #include "giro.h"
 #include "carro.h"
+#include "rumbo.h"
 #include "hw_sensores.h"
 #include "config.h"
 
@@ -45,6 +46,7 @@ static int      paro_enviado = 0;           /* 1 desde que se pidió la parada h
 static uint32_t paros_tof = 0;
 static uint32_t loop_max_us = 0;
 static uint32_t loop_excesos = 0;
+static uint32_t wd_avisados = 0;            /* J16: los frenos del watchdog ya avisados con WD:<n> */
 
 /* ── Cola de salida ────────────────────────────────────────────────────── */
 
@@ -100,6 +102,7 @@ void sensores_reiniciar_estado(void)
     paros_tof = 0;
     loop_max_us = 0;
     loop_excesos = 0;
+    wd_avisados = carro_frenos_watchdog();
     giro_reiniciar();
 }
 
@@ -117,17 +120,24 @@ static void imu_anotar_arranque(void)
 
 static void texto_caps(char *dest, int largo)
 {
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,%s",
-             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), FW_VERSION);
+    /* RUMBO=1: este firmware entiende RUMBO:ON/OFF/<n> (J16). IMUS=<ppm>: entiende IMU_ESCALA y es la corrección de escala del giroscopio en uso (J16). */
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,%s",
+             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), (long)imu_escala_ppm(), FW_VERSION);
 }
 
 void sensores_iniciar(void)
 {
     char linea[MENSAJE_SALIDA_MAX + 24];
-    int imu_ok, tof_ok;
+    int imu_ok, tof_ok, escala;
 
     sensores_reiniciar_estado();
     giro_cargar_memoria();   /* las anticipaciones aprendidas (4: perfil x sentido) */
+    escala = hw_imu_escala_leer();   /* J16: la escala que midió la app (0 si nunca se midió); un valor fuera de rango no se usa */
+    imu_poner_escala_ppm((escala >= -IMU_ESCALA_MAX_PPM && escala <= IMU_ESCALA_MAX_PPM) ? escala : 0);
+    if (imu_escala_ppm() != 0) {
+        snprintf(linea, sizeof linea, "IMU: escala corregida %+ld ppm", (long)imu_escala_ppm());
+        hw_registrar(linea);
+    }
     imu_ok = imu_iniciar();
     imu_anotar_arranque();
     snprintf(linea, sizeof linea, "IMU: WHO_AM_I=0x%02X %s (motivo %d)", imu_quien_soy(), imu_ok ? "calibrando el sesgo" : "MAL", imu_motivo());
@@ -197,6 +207,23 @@ static void revisar_paro_tof(void)
     sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
 }
 
+/* J16: el watchdog de 1 s frenó el carro (no le llegaron comandos): se avisa WD:<frenos desde el encendido>. Así la app sabe que el carro quedó quieto y no sigue
+ * contando un avance que no ocurre (antes el freno era mudo y el siguiente heartbeat lo volvía a arrancar). Si la cuenta bajó (se reinició el carro) solo se iguala. */
+static void revisar_watchdog(void)
+{
+    uint32_t n = carro_frenos_watchdog();
+    char texto[MENSAJE_SALIDA_MAX];
+
+    if (n == wd_avisados) {
+        return;
+    }
+    if (n > wd_avisados) {
+        snprintf(texto, sizeof texto, "WD:%lu", (unsigned long)n);
+        sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
+    }
+    wd_avisados = n;
+}
+
 static void mandar_sens(uint32_t ahora_ms)
 {
     char texto[MENSAJE_SALIDA_MAX];
@@ -252,6 +279,7 @@ void sensores_actualizar(void)
     giro_actualizar(ahora_ms);
     revisar_eventos();
     revisar_paro_tof();
+    revisar_watchdog();
     mandar_sens(ahora_ms);
 }
 
@@ -273,7 +301,8 @@ uint32_t sensores_paros_tof(void)    { return paros_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:", NULL };
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:",
+                                  "IMU_ESCALA?", "IMU_ESCALA:", NULL };
 
 int sensores_es_comando(const char *texto)
 {
@@ -324,6 +353,21 @@ static void ejecutar(const char *texto, int donde)
     } else if (strcmp(texto, "IMU_CERO") == 0) {
         imu_cero();
         sensores_enviar(donde, "ACK_IMU_CERO");
+    } else if (strcmp(texto, "IMU_ESCALA?") == 0) {
+        snprintf(respuesta, sizeof respuesta, "IMU_ESCALA:%ld", (long)imu_escala_ppm());
+        sensores_enviar(donde, respuesta);
+    } else if (strncmp(texto, "IMU_ESCALA:", 11) == 0) {
+        /* J16: corrección de escala del giroscopio. Solo con el carro detenido y sin un giro en curso (cambiarla a mitad de un movimiento mezclaría dos escalas). */
+        int32_t ppm = 0;
+
+        if (!rumbo_leer_numero(texto + 11, &ppm) || ppm > IMU_ESCALA_MAX_PPM || ppm < -IMU_ESCALA_MAX_PPM || carro_motores_en_marcha() || giro_ocupado()) {
+            sensores_enviar(donde, "NAK_IMU_ESCALA");
+        } else {
+            imu_poner_escala_ppm(ppm);
+            hw_imu_escala_guardar((int)ppm);
+            snprintf(respuesta, sizeof respuesta, "ACK_IMU_ESCALA:%ld", (long)ppm);
+            sensores_enviar(donde, respuesta);
+        }
     } else if (strcmp(texto, "LOOP?") == 0) {
         snprintf(respuesta, sizeof respuesta, "LOOP:%u,%u", (unsigned)loop_max_us, (unsigned)loop_excesos);
         sensores_enviar(donde, respuesta);

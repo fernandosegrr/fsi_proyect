@@ -358,6 +358,45 @@ int main(void)
     caso("cancelacion a mitad de un bloque: estado CANCELADO, comando STOP y pares medidos conservados", cg.estado == CG_CANCELADO &&
          ultimo_cmd == CG_CMD_STOP && !calgiro_resultado(&cg, &nueva, r) && cg.medido[0][0]);
 
+    /* 6. J16: escala del giroscopio con vueltas completas alineadas con una línea. */
+    {
+        int v = 0, k, malos = 0;
+        int32_t e = 0, nu = 0;
+
+        caso("J16 escala: 720.0 grados medidos en 2 vueltas con escala 0: sin error y la nueva es 0",
+             calgiro_escala(7200, 0, &v, &e, &nu) == CG_ESC_OK && v == 2 && e == 0 && nu == 0);
+        caso("J16 escala: 734.4 grados (lee 2 % de mas): error +20000 ppm y nueva -19608",
+             calgiro_escala(7344, 0, &v, &e, &nu) == CG_ESC_OK && v == 2 && e == 20000 && nu == -19608);
+        caso("J16 escala: lo mismo girando a la derecha (-734.4 grados)",
+             calgiro_escala(-7344, 0, &v, &e, &nu) == CG_ESC_OK && v == 2 && e == 20000 && nu == -19608);
+        caso("J16 escala: se compone con la escala en uso (-19608 y todavia +0.5 %: nueva -24485 +-1)",
+             calgiro_escala(7236, -19608, &v, &e, &nu) == CG_ESC_OK && v == 2 && e == 5000 && nu >= -24486 && nu <= -24484);
+        caso("J16 escala: 150 grados es menos de una vuelta (POCO)", calgiro_escala(1500, 0, &v, &e, &nu) == CG_ESC_POCO && v == 0 && nu == 0);
+        caso("J16 escala: 300 grados no cuadra con una vuelta (NO_CUADRA)", calgiro_escala(3000, 0, &v, &e, &nu) == CG_ESC_NO_CUADRA && v == 1);
+        caso("J16 escala: 770 grados no cuadra con dos vueltas (NO_CUADRA)", calgiro_escala(7700, 0, &v, &e, &nu) == CG_ESC_NO_CUADRA && v == 2);
+        caso("J16 escala: 378 grados (+5 % justo) todavia cuadra: nueva -47619",
+             calgiro_escala(3780, 0, &v, &e, &nu) == CG_ESC_OK && v == 1 && nu == -47619);
+        caso("J16 escala: si la correccion pasaria de 5 % se rechaza (FUERA) pero se informa el valor",
+             calgiro_escala(3780, -45000, &v, &e, &nu) == CG_ESC_FUERA && nu < -CG_ESC_MAX_PPM);
+        caso("J16 escala: acepta punteros NULL", calgiro_escala(7344, 0, NULL, NULL, NULL) == CG_ESC_OK);
+        /* Propiedad: con un giroscopio de error e (±3 %) y la corrección c en uso (±1.5 %: lo medido queda dentro del 5 % que se acepta), la nueva deja el producto
+         * a menos de 3e-4 de 1 (el redondeo de 0.1° en una vuelta). */
+        for (k = 0; k < 20000; k++) {
+            int n = azar(1, 3), signo = azar(0, 1) ? 1 : -1;
+            long e_ppm = azar(-30000, 30000), c_ppm = azar(-15000, 15000);
+            double medido = n * 3600.0 * (1.0 + e_ppm / 1e6) * (1.0 + c_ppm / 1e6);
+            int32_t m = (int32_t)(medido + 0.5) * signo;
+            double producto;
+            int r = calgiro_escala(m, (int32_t)c_ppm, &v, &e, &nu);
+
+            producto = (1.0 + e_ppm / 1e6) * (1.0 + nu / 1e6);
+            if (r != CG_ESC_OK || v != n || producto - 1.0 > 3e-4 || producto - 1.0 < -3e-4) {
+                if (malos++ == 0) printf("      primer caso malo: n=%d e=%ld c=%ld medido=%d codigo=%d vueltas=%d nueva=%d\n", n, e_ppm, c_ppm, (int)m, r, v, (int)nu);
+            }
+        }
+        caso("J16 escala, propiedad: con error de +-3 % y escala en uso de +-1.5 %, la nueva deja el giroscopio a +-0.03 % (20000 casos)", malos == 0);
+    }
+
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;
 }

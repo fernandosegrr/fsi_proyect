@@ -29,6 +29,8 @@ int  falso_tof_fallos_inicio;
 int  falso_tof_iniciar_llamadas;
 int  falso_tof_hist = -1;
 int  falso_imu_hist = -1;
+int  falso_imu_escala;
+int  falso_imu_escala_escrituras;
 int  falso_ant_escrituras;
 
 static uint8_t  regs[128];
@@ -58,6 +60,8 @@ void falso_sensores_reiniciar(void)
     falso_tof_iniciar_llamadas = 0;
     falso_tof_hist = -1;
     falso_imu_hist = -1;
+    falso_imu_escala = 0;
+    falso_imu_escala_escrituras = 0;
     memset(regs, 0, sizeof regs);
     tof_ultima_us = falso_us;
     semilla = 12345u;
@@ -74,6 +78,8 @@ static int ruido_aleatorio(int amplitud)
 
 int hw_imu_hist_leer(void) { return falso_imu_hist; }
 void hw_imu_hist_guardar(int valor) { falso_imu_hist = valor; }
+int hw_imu_escala_leer(void) { return falso_imu_escala; }
+void hw_imu_escala_guardar(int ppm) { falso_imu_escala = ppm; falso_imu_escala_escrituras++; }
 
 uint32_t hw_micros(void)
 {

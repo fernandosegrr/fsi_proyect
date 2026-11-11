@@ -19,7 +19,9 @@ GUIA DE LECTURA
  7. SENSORES (J11, opcional con --sensores): imita al firmware con el giroscopio y el laser. CAPS? -> CAPS:IMU=1,TOF=1; SENS:<angulo x10>,<mm>,<banderas> cada 100 ms con perfil AUTO; GIRAR:<grados> ->
     GIRO_OK:<objetivo>:<real x10>:<ms>:<ant> (o GIRO_ERROR:angulo / sin_imu / ocupado; un STOP o un movimiento emite ANT_IGNORADO:interrumpido y GIRO_ERROR:abortado con datos); ANT? y ANT_BORRAR;
     los valores de ANT son fijos en esta simulación, no simula el aprendizaje. IMU?, TOF?, IMU_CERO, IMU_CAL (-> ACK_IMU_CAL y,
-    un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser) y TOF_PARO:<mm>. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
+    un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser), TOF_PARO:<mm> y WD:<n> cuando frena el watchdog (J16).
+    J16: CAPS anuncia IMUS=<ppm> y entiende IMU_ESCALA:<ppm> / IMU_ESCALA? (correccion de escala del giroscopio; no la aplica a su angulo simulado);
+    SIM_ANGULO:<decimas> (solo de pruebas) suma ese angulo como si el carro se hubiera girado a mano. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
     "ve" el laser; con FORWARD en AUTO y menos de 120 mm dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
     porta como un firmware viejo: esos mensajes se tratan como desconocidos (sin respuesta).
 
@@ -43,6 +45,8 @@ COMANDOS_MOVIMIENTO = {"FORWARD", "REVERSE", "LEFT", "RIGHT"}
 BALANCE_MIN = 800          # igual que BALANCE_MIN_MIL y BALANCE_MAX_MIL de config.h
 BALANCE_MAX = 1000
 PATRON_BALANCE = re.compile(r"^BAL_(AUTO|MANUAL):([1-9][0-9]{2,3})$")   # solo cifras, 3 o 4, sin cero a la izquierda
+PATRON_ESCALA = re.compile(r"^IMU_ESCALA:([+-]?[0-9]{1,6})$")             # como rumbo_leer_numero del firmware: signo opcional y de 1 a 6 cifras
+ESCALA_MAX_PPM = 50000                                                    # igual que IMU_ESCALA_MAX_PPM de config.h
 RUTA = "/ws"
 WATCHDOG_S = 1.0          # igual que TIEMPO_WATCHDOG_MS del firmware (1000 ms)
 REVISION_WATCHDOG_S = 0.02
@@ -52,9 +56,10 @@ estado = {
     "cliente": None,             # la conexion activa
     "motores_en_marcha": False,
     "ultimo_comando_real": 0.0,  # reloj del ultimo comando que NO es PING
+    "watchdogs": 0,              # cuantas veces freno el watchdog (con --sensores se avisa WD:<n>, como el firmware J16)
     "ultimo_mensaje": None,      # para los ms desde el mensaje anterior
     "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
-    "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None},   # sensores (J11), solo con --sensores
+    "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None, "escala_ppm": 0},   # sensores (J11), solo con --sensores
     "balance": {"AUTO": 986, "MANUAL": 988},   # factor del lado izquierdo de cada perfil (milesimas); como la memoria no volatil del carro, no se pierde al desconectar
     "ant": {"AUTO": [100, 100], "MANUAL": [20, 20]},
 }
@@ -122,11 +127,31 @@ async def hacer_giro(conexion, grados):
         s["giro"] = None
 
 
+def texto_caps():
+    s = estado["sens"]
+    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,IMUS=%d,FW:simulado" % (1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3, s["escala_ppm"])
+
+
 async def procesar_sensores(conexion, mensaje):
     """Los mensajes del giroscopio y del laser (solo con --sensores). Devuelve True si el mensaje era de los sensores."""
     s = estado["sens"]
     if mensaje == "CAPS?":
-        await mandar(conexion, "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,FW:simulado" % (1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3))
+        await mandar(conexion, texto_caps())
+    elif mensaje == "IMU_ESCALA?":
+        await mandar(conexion, "IMU_ESCALA:%d" % s["escala_ppm"])
+    elif mensaje.startswith("IMU_ESCALA:"):
+        coincide = PATRON_ESCALA.match(mensaje)
+        if coincide is None or abs(int(coincide.group(1))) > ESCALA_MAX_PPM or estado["motores_en_marcha"] or s["giro"] is not None:
+            await mandar(conexion, "NAK_IMU_ESCALA")
+        else:
+            s["escala_ppm"] = int(coincide.group(1))
+            await mandar(conexion, "ACK_IMU_ESCALA:%d" % s["escala_ppm"])
+            await mandar(conexion, texto_caps())          # el firmware vuelve a anunciar CAPS cuando cambia
+    elif mensaje.startswith("SIM_ANGULO:"):           # solo de pruebas: el carro girado a mano
+        try:
+            s["angulo_x10"] += int(mensaje[11:])
+        except ValueError:
+            pass
     elif mensaje == "ANT?":
         await mandar(conexion, "ANT:%d,%d,%d,%d" % tuple(estado["ant"]["AUTO"] + estado["ant"]["MANUAL"]))
     elif mensaje == "ANT_BORRAR":
@@ -203,7 +228,8 @@ async def procesar(conexion, mensaje):
         return
 
     intervalo = ms_desde_anterior()
-    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL", "ANT?", "ANT_BORRAR") or mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:"))):
+    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL", "ANT?", "ANT_BORRAR", "IMU_ESCALA?") or
+                                     mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:", "IMU_ESCALA:", "SIM_ANGULO:"))):
         imprimir("%s  %s" % (intervalo, mensaje))
         await procesar_sensores(conexion, mensaje)
         return
@@ -281,7 +307,13 @@ async def vigilar_watchdog():
         if estado["motores_en_marcha"] and estado["sens"]["giro"] is None and time.monotonic() - estado["ultimo_comando_real"] > WATCHDOG_S:   # un giro por angulo no depende del watchdog
             estado["motores_en_marcha"] = False
             estado["perfil"] = "AUTO"            # tras el watchdog el perfil vuelve a AUTO
+            estado["watchdogs"] += 1
             imprimir("WATCHDOG: motores detenidos")
+            if estado["sens"]["activo"] and estado["cliente"] is not None:   # el firmware J16 avisa WD:<n> (un firmware viejo, sin --sensores, no)
+                try:
+                    await mandar(estado["cliente"], "WD:%d" % estado["watchdogs"])
+                except Exception:
+                    pass
 
 
 def revisar_ruta(conexion, peticion):

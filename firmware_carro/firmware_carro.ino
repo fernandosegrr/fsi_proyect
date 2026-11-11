@@ -108,6 +108,25 @@ extern "C" void hw_imu_hist_guardar(int valor)
   }
 }
 
+/* J16: corrección de escala del giroscopio (ppm). 0 = nada guardado = sin corrección. */
+extern "C" int hw_imu_escala_leer(void)
+{
+  int valor = 0;
+  if (memoria.begin("carro", true)) {
+    valor = memoria.getInt("imuEscala", 0);
+    memoria.end();
+  }
+  return valor;
+}
+
+extern "C" void hw_imu_escala_guardar(int ppm)
+{
+  if (memoria.begin("carro", false)) {
+    memoria.putInt("imuEscala", ppm);
+    memoria.end();
+  }
+}
+
 static const char *clave_anticipacion(int ranura)
 {
   static const char *claves[4] = { "antManD", "antManI", "antAutD", "antAutI" };

@@ -112,6 +112,22 @@ int  calgiro_resultado(const CalGiro *cg, CalibracionCarro *nueva, CalGiroLado r
 /* Texto corto de un error, para mostrar en pantalla. */
 const char *calgiro_texto_error(int error);
 
+/* ── J16: escala del giroscopio (IMU_ESCALA del firmware) ───────────────────────────────────────────────────────────────────────────────
+ * Con el carro alineado con una línea del piso la app guarda el ángulo de SENS; el usuario lo gira vueltas completas (a mano, sin levantarlo, o con los giros
+ * de la pantalla) y lo vuelve a alinear con la misma línea: el giro real es un número entero de vueltas. Lo que midió el giroscopio (ya corregido con la escala
+ * que el firmware tenía puesta) da la escala nueva. Un error de alineación de 1° en dos vueltas son 0.14 %. */
+#define CG_ESC_OK              0
+#define CG_ESC_POCO            1   /* menos de una vuelta completa */
+#define CG_ESC_NO_CUADRA       2   /* lo medido está a más de CG_ESC_TOLERANCIA_PCT % de un número entero de vueltas (¿se contó mal o no se alineó?) */
+#define CG_ESC_FUERA           3   /* la corrección resultante pasa de ±CG_ESC_MAX_PPM */
+#define CG_ESC_TOLERANCIA_PCT  5   /* el MPU6050 promete ±3 % */
+#define CG_ESC_MAX_PPM         50000   /* igual que IMU_ESCALA_MAX_PPM del firmware */
+
+/* medido_x10: lo que giró según el giroscopio (décimas de grado, con signo); escala_ppm: la corrección que tenía el firmware durante la medición.
+ * Devuelve CG_ESC_*. En *vueltas el número de vueltas reconocido, en *error_ppm cuánto de más (+) o de menos (-) leía el giroscopio con la escala en uso
+ * y en *nueva_ppm la corrección a mandar (IMU_ESCALA:<nueva_ppm>; también con CG_ESC_FUERA, para mostrarla). Los punteros pueden ser NULL. */
+int calgiro_escala(int32_t medido_x10, int32_t escala_ppm, int *vueltas, int32_t *error_ppm, int32_t *nueva_ppm);
+
 #ifdef __cplusplus
 }
 #endif

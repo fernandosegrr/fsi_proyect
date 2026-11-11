@@ -197,7 +197,7 @@ B4, recta de 150 cm, 4 corridas:
 B5, ruta en L (100 cm, giro 90° a la derecha, 100 cm), 3 corridas:
 - Con giroscopio: 7 s y 8 s, 0 esquivas, giros de ~91° y ~90°; posición final estimada x=1406 mm, y=209 mm, rumbo 91° y x=1389 mm, y=203 mm, rumbo 90°.
 - Sin giroscopio: 7 s, 0 esquivas, giro por tiempo ~93°; posición final estimada x=1394 mm, y=244 mm, rumbo 93°.
-- Las 3 corridas válidas terminaron. El dueño no dio una cifra de error final; contra el objetivo y=0, las estimaciones de navegación dejan un error lateral de ~20 a 24 cm. Una corrida previa con un sillón al final de la L hizo una esquiva y terminó con rumbo 324°; no se cuenta como corrida limpia.
+- Las 3 corridas válidas terminaron. El dueño no dio una cifra de error final; contra el objetivo y=0, las estimaciones de navegación dejan un error lateral de ~20 a 24 cm. (Corrección J16: el último tramo de la L está en y = 200 mm, no en y = 0; respecto de esa línea el error ESTIMADO fue de 9, 3 y 44 mm. Los «20 a 24 cm» no son una medición y el error físico de la L sigue NO MEDIDO.) Una corrida previa con un sillón al final de la L hizo una esquiva y terminó con rumbo 324°; no se cuenta como corrida limpia.
 
 B6, caja delante, ruta Recta 200 cm, 4 corridas:
 - Con la caja a 40 cm la app no arrancó: el aprendizaje del piso detectó la caja y pidió despejar; el carro no se movió. Es una protección de la app, no un fallo.

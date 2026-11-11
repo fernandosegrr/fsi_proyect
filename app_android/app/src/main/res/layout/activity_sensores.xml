@@ -132,6 +132,34 @@
                         android:layout_height="wrap_content"
                         android:text="@string/sens_autoridad_detalle" />
 
+                    <LinearLayout
+                        android:id="@+id/sens_fila_rumbo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/toque_minimo"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Texto.Cuerpo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/sens_rumbo_firmware" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/sens_switch_rumbo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/sens_rumbo_firmware" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_rumbo_detalle" />
+
                     <TextView
                         style="@style/Texto.Suave"
                         android:layout_width="match_parent"
@@ -300,6 +328,74 @@
                             android:text="@string/sens_girar_der" />
                     </LinearLayout>
 
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- J16: escala del giroscopio -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/e3">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/e2">
+
+                    <TextView
+                        style="@style/Texto.Subtitulo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_escala" />
+
+                    <TextView
+                        style="@style/Texto.Suave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sens_escala_ayuda" />
+
+                    <TextView
+                        android:id="@+id/sens_escala_texto"
+                        style="@style/Texto.Cifras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/e1"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/sens_escala_paso"
+                            style="@style/Boton.Primario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginEnd="@dimen/e0"
+                            android:layout_weight="1"
+                            android:text="@string/sens_escala_empezar" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/sens_escala_cancelar"
+                            style="@style/Boton.Secundario"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/toque_minimo"
+                            android:layout_marginStart="@dimen/e0"
+                            android:layout_weight="1"
+                            android:contentDescription="@string/sens_escala_cancelar"
+                            android:text="@string/sens_escala_cancelar" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/sens_escala_quitar"
+                        style="@style/Boton.Secundario"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/toque_minimo"
+                        android:layout_marginTop="@dimen/e1"
+                        android:contentDescription="@string/sens_escala_quitar"
+                        android:text="@string/sens_escala_quitar" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

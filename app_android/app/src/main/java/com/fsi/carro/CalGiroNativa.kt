@@ -73,4 +73,18 @@ object CalGiroNativa {
 
     /** Frase corta del error (vacía si no hay). */
     external fun textoError(error: Int): String
+
+    // J16: escala del giroscopio (calgiro_escala). Códigos e índices del arreglo de escala().
+    const val ESC_OK = 0
+    const val ESC_POCO = 1        // menos de una vuelta completa
+    const val ESC_NO_CUADRA = 2   // a más del 5 % de un número entero de vueltas
+    const val ESC_FUERA = 3       // la corrección pasaría de ±5 %
+    const val ESC_CODIGO = 0
+    const val ESC_VUELTAS = 1
+    const val ESC_ERROR_PPM = 2
+    const val ESC_NUEVA_PPM = 3
+
+    /** J16: lo que giró el giroscopio (décimas, con signo) en vueltas completas alineadas con una línea y la escala que tenía el firmware → la escala nueva:
+     *  [código ESC_*, vueltas, error en ppm (+ = leía de más), corrección nueva en ppm para IMU_ESCALA]. */
+    external fun escala(medidoX10: Int, escalaPpm: Int): IntArray
 }

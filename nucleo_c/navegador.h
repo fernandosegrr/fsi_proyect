@@ -127,7 +127,9 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_CARA_CERCANIA_2_MM    500
 #define NAV_CARA_CERCANIA_1_MM    800
 #define NAV_OBSTACULO_PROFUNDO_MM 250    /* fondo supuesto del obstáculo (una caja de ~20 a 25 cm) */
-#define NAV_PASO_MARGEN_MM        100    /* holgura al terminar de pasarlo */
+#define NAV_PASO_MARGEN_MM        150    /* holgura al terminar de pasarlo. J16: eran 100; en la simulación calibrada la cola del carro (24 cm de largo) barría la cara de la caja al
+                                          * pivotar en el giro final de la vuelta (0.9 % de los esquives con J15, 4.9 % con J14; ver B6-2, «probablemente tocó la caja»). Con 150, 0 de 1000 */
+#define NAV_PASO_MARGEN_J15_MM    100    /* la de antes (sin_margen_paso_j16) */
 #define NAV_PARALELO_FIN_MM        50    /* el tramo paralelo termina al menos esto antes del final de la ruta */
 #define NAV_PARALELO_MIN_MM        50    /* un tramo paralelo más corto que esto no se hace */
 
@@ -200,6 +202,19 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_TOF_CONFIRMA_MM        500    /* el láser «confirma» el obstáculo si mide menos de esto */
 #define NAV_TOF_FRESCO_MS          400    /* una lectura del láser más vieja que esto ya no sirve */
 #define OBSTACULO_LASER_MM         400    /* autoridad opcional en columnas 3 a 6 de la rejilla 10x10 */
+
+/* RUMBO DEL FIRMWARE (J16, ver firmware_carro/rumbo.h y navegador_poner_rumbo_fw). Con el firmware sosteniendo el rumbo al avanzar, el navegador le manda el rumbo
+ * que quiere mientras avanza: sobre la línea de la ruta apunta a un punto NAV_RUMBO_MIRA_MM más adelante (si el carro quedó de lado, vuelve a ella poco a poco, sin
+ * detenerse); al volver a la línea tras esquivar, apunta al punto planeado; al pasar el obstáculo en paralelo, el rumbo de la línea. Las correcciones de rumbo de
+ * hasta NAV_RUMBO_FW_SIN_GIRO grados ya no se hacen con un giro parado: las hace el firmware avanzando. La distancia sigue estimada por tiempo. */
+#define NAV_RUMBO_MIRA_MM          400    /* a qué distancia por delante está el punto de la línea al que apunta */
+#define NAV_RUMBO_MIRA_MIN_MM      150    /* con menos que esto hasta el final del tramo recto ya no se corrige de lado: solo el rumbo del tramo */
+#define NAV_RUMBO_CORR_MAX          12    /* la corrección lateral nunca aparta el rumbo más de esto del rumbo del tramo */
+#define NAV_RUMBO_FW_SIN_GIRO        8    /* con RUMBO, un error de rumbo de hasta esto se corrige avanzando (sin el giro parado de siempre) */
+#define NAV_RUMBO_FW_CAMBIO_X10      3    /* un objetivo que cambia menos que esto (décimas) no se vuelve a mandar */
+#define NAV_RUMBO_FW_MIN_MS        100    /* y no se manda más de uno cada tanto */
+#define NAV_RUMBO_PUNTO_MIN_MM     150    /* al volver a la línea, con menos que esto hasta el punto planeado ya no se cambia el objetivo */
+#define NAV_OVERRIDE_TOL_MM         30    /* recta con largo fijo: a esto (o menos) del final se da por terminada */
 
 /* Resultado de un giro por ángulo (navegador_aporte_giro). */
 #define NAV_GIRO_OK                  0
@@ -336,6 +351,8 @@ typedef struct {
      * (0 = arriba, positivo = hacia la derecha, 0 a 359). */
     int x_mm, y_mm, rumbo_grados;
     int base_x_mm, base_y_mm, base_rumbo_grados;   /* pose al empezar el comando actual */
+    int rumbo_x10, base_rumbo_x10;                 /* J16: el mismo rumbo con décimas (0 a 3599). rumbo_grados es su redondeo; al empezar cada comando ya no se pierde la fracción
+                                                    * (con sin_trig_fino = 1 es siempre rumbo_grados x 10, lo de J15) */
     int seg_ms;                                    /* tiempo bajo el comando actual */
     int giro_visual_x10;         /* grados por 10 que la cámara vio girar, en la dirección del comando de giro actual */
     int visual_cubierto_ms;      /* cuánto tiempo del giro actual cubren los cuadros confiables de la cámara */
@@ -499,6 +516,25 @@ typedef struct {
     int      tof_racha_nota;         /* 0 nada, 1 veto anotado, 2 confirmación anotada (para escribir SENS_DIAG una vez por racha) */
     int      override_largo_mm;      /* si > 0, largo forzado de la recta en mm (ej. 1500 mm) */
 
+    /* J16: rumbo sostenido por el firmware (RUMBO) y vuelta a la línea mientras avanza (ver navegador_poner_rumbo_fw). */
+    int      rumbo_fw;                /* 1 = el firmware sostiene el rumbo al avanzar (la app mandó RUMBO:ON y CAPS dijo RUMBO=1); por defecto 0 */
+    int      rumbo_fw_pedir;          /* 1 = hay un objetivo nuevo que mandar (navegador_tomar_rumbo_fw) */
+    int      rumbo_fw_objetivo_x10;   /* objetivo en la convención del firmware (+ izquierda, el ángulo de SENS) */
+    int      rumbo_fw_enviado_x10;    /* el último que se mandó */
+    int      rumbo_fw_hay_enviado;    /* 1 si en este avance ya se mandó uno */
+    uint32_t rumbo_fw_t_ms;           /* hora del último envío */
+    int      paso_en_linea;           /* 1 si el paso AVANZAR actual se planeó sobre la línea de la ruta (planificar con compensación); 0 = camino de celdas de respaldo */
+    int      linea_ax_mm, linea_ay_mm, linea_rumbo;   /* la línea de ese avance: un punto (inicio del tramo) y su rumbo */
+    int      linea_fin_s_mm;          /* dónde termina ese avance, medido a lo largo de la línea desde ese punto */
+    int      paso_apunta;             /* 1 si ese avance va en diagonal hacia su punto de parada (planificar «apunta» tras un pivote grande) */
+    int      paso_fin_x_mm, paso_fin_y_mm;   /* el punto donde termina ese avance */
+    int      sin_volver_a_linea;      /* solo comparación de pruebas: el objetivo de RUMBO es el rumbo del tramo, sin la corrección lateral */
+    int      rumbo_en_vuelta;         /* 1 = con RUMBO, en el avance de la vuelta a la línea también se apunta al punto planeado; 0 (por defecto) = solo se sostiene el rumbo del giro */
+    int      sin_margen_paso_j16;     /* 1 = holgura de 100 mm al pasar el obstáculo (lo de antes); 0 (por defecto) = NAV_PASO_MARGEN_MM */
+    int      sin_trig_fino;           /* solo comparación de pruebas: la pose medida usa grados enteros (lo de J15) */
+    int      sin_arreglo_dt_giro;     /* solo comparación de pruebas: tras caer a giro por tiempo entre dos ticks, el tick siguiente cuenta su dt entero (lo de antes) */
+    int      descartar_dt;            /* 1 = el siguiente tick no suma su dt al comando (el giro cayó a tiempo entre ticks: el carro estaba quieto) */
+
     /* Cola de líneas de diagnóstico (REINC_DIAG, ESQUIVE_DIAG, TURN_DIAG, RUTA_DIAG): ver navegador_diag_siguiente. */
     char diag[NAV_DIAG_LINEAS][NAV_DIAG_LARGO];
     int  diag_escritas, diag_leidas;
@@ -604,6 +640,13 @@ int navegador_giro_datos(const Navegador *nav, int indice, NavGiro *giro);
 
 /* Fija el largo en mm para una recta predefinida (ej. 1500 mm para 150 cm). 0 = usa el largo de las celdas. */
 void navegador_poner_largo_recta_mm(Navegador *nav, int mm);
+
+/* RUMBO DEL FIRMWARE (J16). navegador_poner_rumbo_fw: 1 = el firmware sostiene el rumbo al avanzar (la app ya mandó RUMBO:ON porque CAPS dijo RUMBO=1 y el interruptor
+ * está encendido); solo actúa con el giroscopio encendido. Por defecto 0: todo como antes. Devuelve NAV_OK o NAV_ERR_ARGUMENTO.
+ * navegador_tomar_rumbo_fw: si hay un objetivo nuevo devuelve 1 una vez y lo deja en *objetivo_x10_fw (décimas de grado, convención del firmware: + izquierda, el mismo
+ * ángulo que manda SENS) para que la app mande RUMBO:<n>. Llamarla después de cada tick. */
+int  navegador_poner_rumbo_fw(Navegador *nav, int activo);
+int  navegador_tomar_rumbo_fw(Navegador *nav, int *objetivo_x10_fw);
 
 /* Texto para la pantalla de resultado: una línea por giro, «derecha: pedido 90°, hecho ~88°», lista para mostrar bajo el título «Giro pedido / Giro hecho (estimado)».
  * Devuelve el largo escrito (0 si no hubo giros). */

@@ -62,6 +62,11 @@ int32_t  imu_sesgo_x100(void);         /* sesgo actual en centésimas de °/s */
 int32_t  imu_angulo_x10(void);         /* ángulo en décimas de grado, positivo = izquierda, desde el último IMU_CERO */
 int32_t  imu_velocidad_x10(void);      /* velocidad en décimas de °/s (promedio de las últimas 2 muestras), positivo = izquierda */
 void     imu_cero(void);               /* el ángulo vuelve a 0 */
+
+/* J16: corrección de la escala en partes por millón (+10000 = la velocidad y el ángulo se multiplican por 1.01). La mide la app (vueltas completas alineadas
+ * con una línea del piso) y sensores.c la guarda en la memoria no volátil. Se recorta a ±IMU_ESCALA_MAX_PPM; 0 = sin corrección (lo de siempre). imu_iniciar no la borra. */
+void     imu_poner_escala_ppm(int32_t ppm);
+int32_t  imu_escala_ppm(void);
 int      imu_tomar_eventos(void);
 uint32_t imu_muestras(void);           /* cuántas muestras buenas se han leído (para ver que sigue vivo) */
 

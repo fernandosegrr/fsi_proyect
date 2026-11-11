@@ -1,27 +1,34 @@
-Entrega J15 en preparacion - Carro FSI
-27 de octubre de 2026
+Entrega J16 (precisión de navegación y esquive B6 validado en el carro) - Carro FSI
+10 de noviembre de 2026.
 
-APK: APP:0.4-074c9fd (14,852,386 bytes)
-SHA-256: 36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA
-Compilada desde el commit limpio 074c9fd. Instalada y verificada por hash en etapa 4 de J15.
-Pendiente la prueba fisica del esquive; aun no se presenta como validada en el carro.
+APK: APP:0.4-6d1b213 (14,881,402 bytes)
+SHA-256: C5B36FEC74BFEDE9798B4BE7C992D7FEA8369F456DA4D4A10D61A4BBB25ED02F
+Compilada desde el commit limpio 6d1b213 e instalada y probada en el teléfono con el carro.
 
-Firmware: FW:453ed20-20261027 (1,031,712 bytes)
-SHA-256: 9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E
-El binario del firmware NO se publica en GitHub porque contiene la contraseña del WiFi.
-Se conserva en la copia local de entrega; ver FIRMWARE_LOCAL.txt.
+Firmware: FW:6d1b213-20261110 (1,034,112 bytes), cargado y probado en la ESP32 del carro.
+SHA-256: 71D671A4E64E0F234015E8685D4E741B87471534E3E50869EE023C5A657B79FC
+El binario NO se publica (contiene la contraseña del WiFi). Ver FIRMWARE_LOCAL.txt.
 
-Verificar la APK en Windows:
-  Get-FileHash carro_fsi_0.4-074c9fd.apk -Algorithm SHA256
-Verificar la APK en Linux, Git Bash o WSL:
+Qué incluye y qué está validado:
+- VALIDADO EN EL CARRO (10 de noviembre de 2026, docs/pruebas_fisicas_20261110.csv):
+  * Esquive B6 en Recta 200 cm con caja a ~100 cm, giroscopio, láser, autoridad del láser y
+    RUMBO activos (escala del giroscopio en 0 ppm): 6 corridas, 0 toques a la caja, 5 corridas
+    completadas de forma autónoma con error lateral aproximado de ~0 a 10 cm (~10, ~10, ~5, ~0
+    y ~0 cm, medido aproximadamente respecto a la recta) y 1 corrida en AYUDA en el punto 4/10
+    sin tocar la caja y sin causa identificada.
+- SIMULADO O NO MEDIDO EN EL CARRO:
+  * Rectas despejadas con y sin control de rumbo (100, 150 y 200 cm), ruta en L medida con
+    cinta (B5), cuadrado cerrado, corte de WiFi en marcha (B9), freno por láser aislado,
+    caja ancha de 40x20 cm (J10c), calibración de escala del giroscopio (IMU_ESCALA) en el
+    piso, calibración automática del giro con giroscopio (B2), comparación pareada de autoridad
+    del láser (B7) y caja lateral a 25 cm (B8) permanecen SIMULADOS o NO MEDIDOS en el carro.
+
+Verificar la APK sin teléfono:
+  python scripts/verificar_version.py --solo-archivo --apk dist/carro_fsi_0.4-6d1b213.apk --revision 6d1b213
+En Linux, Git Bash o WSL:
   sha256sum -c SHA256SUMS.txt
+Instalar (conserva datos):
+  adb install -r carro_fsi_0.4-6d1b213.apk
 
-Instalar la APK (conserva datos):
-  adb install -r carro_fsi_0.4-074c9fd.apk
-
-En J15 no cambio el firmware: NO hace falta cargarlo. Se conserva FW:453ed20-20261027.
-Instalacion: configuracion 1B de docs/guia_conexion_J15.md, solo telefono por USB.
-No se incluye firmware_carro/secretos.h ni ninguna contraseña.
-
-Reporte J15: docs/reporte_J15.md. El criterio fisico sigue NO MEDIDO; el dueño continuara
-las pruebas con otro modelo. Entrega vigente: docs/entrega.md. Antecedente: docs/reporte_J14.md.
+Volver a v1.0: git switch --detach v1.0 (y el APK/firmware de esa etiqueta).
+Estado y registros: docs/estado_20261110.md y docs/pruebas_fisicas_20261110.csv.

@@ -23,8 +23,9 @@
  *     todo como antes). Los interruptores usarGiroscopio / usarSensorDistancia (los pone la pantalla de Calibración) valen solo si el firmware dijo que el sensor funciona (giroscopioActivo / laserActivo).
  *     El firmware manda SENS:<ángulo x10>,<mm>,<banderas> cada 100 ms con la app conectada y perfil AUTO, GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR al terminar un giro por ángulo y TOF_PARO:<mm> cuando el láser
  *     lo frena; aquí se leen y se avisan por alSens / alGiro / alTofParo. girar() manda GIRAR:<grados> (positivo = izquierda); un giro por ángulo NO se repite como heartbeat: el firmware lo hace solo.
- *  5. La latencia es el tiempo entre enviar PING y recibir PONG. El carro real todavía no
- *     contesta PONG (solo el servidor falso), así que con el carro real se verá "—".
+ *  4e. J16: TOF_PARO también corta el heartbeat de un FORWARD (si no, el siguiente lo arrancaría otra vez contra el obstáculo). RUMBO:ON/OFF/<n> y RUMBO? solo se mandan si CAPS
+ *     dijo RUMBO=1. El firmware nuevo avisa WD:<n> cuando su watchdog lo frenó (alWatchdog): la ruta se detiene, porque el navegador seguiría contando un avance que no ocurrió.
+ *  5. La latencia es el tiempo entre enviar PING y recibir PONG (el firmware actual contesta PONG; uno muy viejo no contestaba y se veía "—").
  *  Todo ocurre en el hilo principal (los avisos del Enlace ya llegan ahí).
  */
 package com.fsi.carro
@@ -42,6 +43,7 @@ class ControlLogica(
         const val HEARTBEAT_MS = 250L
         const val PING_MS = 800L
         const val REINTENTO_MS = 2000L
+        const val CORTAR_HEARTBEAT_EN_TOF_PARO = true   // J16; false = como antes (el siguiente heartbeat volvía a arrancar el FORWARD contra el obstáculo)
     }
 
     enum class Conexion { DESCONECTADO, CONECTADO, RECONECTANDO }
@@ -125,6 +127,16 @@ class ControlLogica(
     /** true si se hace caso al láser (TOF_PARO y confirmación de la cámara): interruptor encendido Y el firmware dice que el láser funciona. */
     val laserActivo: Boolean get() = usarSensorDistancia && capsLaser == true
 
+    /** J16: el firmware dijo RUMBO=1 en CAPS (sabe sostener el rumbo al avanzar); null = no ha contestado; false = firmware anterior (no se le manda nada de RUMBO: lo guardaría como comando). */
+    var capsRumbo: Boolean? = null
+        private set
+
+    /** J16: interruptor «Sostener el rumbo al avanzar» (pantalla Sensores). Encendido por defecto; solo vale con el giroscopio activo y un firmware que lo entienda. */
+    var usarRumbo = true
+
+    /** J16: true si la ruta debe pedirle al firmware que sostenga el rumbo (RUMBO:ON y objetivos RUMBO:<n>). */
+    val rumboActivo: Boolean get() = usarRumbo && capsRumbo == true && giroscopioActivo
+
     /** Lo último que dijo SENS: ángulo del giroscopio en décimas de grado, distancia del láser en mm y las banderas (1 IMU lista, 2 láser vivo, 4 medida válida, 8 IMU calibrando, 16 giro en curso). */
     var anguloX10 = 0
         private set
@@ -154,6 +166,20 @@ class ControlLogica(
 
     /** La respuesta a IMU?: el ángulo del giroscopio en décimas de grado (POSITIVO = izquierda). */
     var alImu: ((Int) -> Unit)? = null
+
+    /** J16: el watchdog del carro lo frenó porque no le llegaron comandos en 1 s (WD:<n>, n = cuántas veces desde que se encendió). Un firmware anterior no lo avisa. */
+    var alWatchdog: ((Int) -> Unit)? = null
+
+    /** J16: la última respuesta a RUMBO? ya leída (encendido, en marcha, objetivo x10, corrección en milésimas, corrección aprendida); "" si no hubo. Solo para el registro y la pantalla de Sensores. */
+    var ultimoRumbo = ""
+        private set
+
+    /** J16: la corrección de escala del giroscopio que tiene el firmware (IMUS=<ppm> en CAPS); null = el firmware no la entiende (no se le manda IMU_ESCALA). */
+    var escalaImuPpm: Int? = null
+        private set
+    private var escalaEsperada: Int? = null
+    private var alConfirmarEscala: ((Boolean) -> Unit)? = null
+    private val tareaTiempoEscala = Runnable { terminarEscala(false) }
 
     /** Cuánto lleva la conexión sin abrirse desde el último intento, en ms (0 si está conectada o sin intentar). Sirve para decidir cuándo avisar al usuario. */
     val msSinConexion: Long get() = if (conexion == Conexion.CONECTADO || sinConexionDesdeMs == 0L) 0L else android.os.SystemClock.elapsedRealtime() - sinConexionDesdeMs
@@ -350,6 +376,30 @@ class ControlLogica(
         aviso?.invoke(exito)
     }
 
+    /**
+     * J16: le manda al carro la corrección de escala del giroscopio (IMU_ESCALA:<ppm>, de -50000 a 50000) y espera su ACK hasta `esperaMs` ms: avisa true si el carro la
+     * confirmó con ese mismo valor (la guarda en su memoria) y false si no (sin conexión, firmware sin IMUS en CAPS, NAK_IMU_ESCALA con el carro en marcha, o se acabó el tiempo).
+     */
+    fun enviarEscalaImu(ppm: Int, esperaMs: Long, alTerminar: (Boolean) -> Unit) {
+        terminarEscala(false)
+        if (conexion != Conexion.CONECTADO || escalaImuPpm == null) {
+            alTerminar(false)
+            return
+        }
+        escalaEsperada = ppm
+        alConfirmarEscala = alTerminar
+        manejador.postDelayed(tareaTiempoEscala, esperaMs)
+        enviar("IMU_ESCALA:$ppm")
+    }
+
+    private fun terminarEscala(exito: Boolean) {
+        manejador.removeCallbacks(tareaTiempoEscala)
+        val aviso = alConfirmarEscala
+        escalaEsperada = null
+        alConfirmarEscala = null
+        aviso?.invoke(exito)
+    }
+
     /** Pide un giro por ángulo MEDIDO: positivo = izquierda, de 5 a 200 grados. El firmware lo hace solo (no hay heartbeat) y contesta GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR. */
     fun girar(gradosIzquierdaPositivo: Int) {
         manejador.removeCallbacks(tareaHeartbeat)
@@ -369,6 +419,27 @@ class ControlLogica(
     /** Pregunta el ángulo del giroscopio ahora (IMU?): el navegador lo usa cuando se pierde la respuesta de un giro por ángulo. */
     fun pedirImu() {
         enviar("IMU?")
+    }
+
+    /** J16: enciende o apaga el rumbo sostenido en el firmware. Solo si el firmware lo anunció (un firmware anterior guardaría el texto como comando y dejaría de ver el FORWARD). */
+    fun rumbo(encendido: Boolean) {
+        if (capsRumbo == true) {
+            enviar(if (encendido) "RUMBO:ON" else "RUMBO:OFF")
+        }
+    }
+
+    /** J16: el rumbo que el firmware debe sostener en el avance en curso (décimas de grado, POSITIVO = izquierda, el ángulo de SENS). */
+    fun rumboObjetivo(objetivoX10: Int) {
+        if (capsRumbo == true) {
+            enviar("RUMBO:$objetivoX10")
+        }
+    }
+
+    /** J16: pregunta el estado del rumbo sostenido (RUMBO?); la respuesta queda en SENS_DIAG y en ultimoRumbo. Sirve para ver en las pruebas cuánto corrigió el firmware. */
+    fun pedirRumbo() {
+        if (capsRumbo == true) {
+            enviar("RUMBO?")
+        }
     }
 
     /** Pone el ángulo del giroscopio en cero (IMU_CERO). */
@@ -407,6 +478,9 @@ class ControlLogica(
         enviar(perfilDeseado.comando)    // el perfil que se quiere, antes que cualquier otro comando
         capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
         capsLaser = null
+        capsRumbo = null
+        ultimoRumbo = ""
+        escalaImuPpm = null
         girandoPorAngulo = false
         pedirCapacidades()
         balanceConfirmado[0] = 0
@@ -472,11 +546,14 @@ class ControlLogica(
         girandoPorAngulo = false
         capsGiroscopio = null
         capsLaser = null
+        capsRumbo = null
+        escalaImuPpm = null
         esperandoPong = false
         latenciaMs = null
         perfilConfirmado = null
         terminarConfirmacion(false)
         terminarBalance(false)
+        terminarEscala(false)
         if (activo) {
             Log.i(EnlaceOkHttp.ETIQUETA, "conexión perdida: se reintenta en ${REINTENTO_MS / 1000} s")
             cambiarEstado(Conexion.RECONECTANDO)
@@ -507,6 +584,8 @@ class ControlLogica(
                     val tof = texto.contains("TOF=1")
                     capsGiroscopio = imu
                     capsLaser = tof
+                    capsRumbo = texto.contains("RUMBO=1")   // J16: firmware que sabe sostener el rumbo al avanzar
+                    escalaImuPpm = Regex("IMUS=(-?\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull()   // J16: firmware que entiende IMU_ESCALA (y la que usa)
                     tofReintentos = Regex("TOFR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuReintentos = Regex("IMUR=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     imuMotivo = Regex("IMUM=(\\d+)").find(texto)?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -543,8 +622,45 @@ class ControlLogica(
                 texto.startsWith("TOF_PARO:") -> {
                     val mm = texto.substring(9).toIntOrNull() ?: 0
                     Log.i("SENS_DIAG", "TOF_PARO: el laser freno el carro con algo a $mm mm")
+                    // J16: el firmware ya frenó. Si se siguiera repitiendo el FORWARD, el siguiente heartbeat lo arrancaría otra vez contra el obstáculo (y el láser
+                    // lo frenaría de nuevo: tirones). Se deja de repetir; para volver a avanzar hay que mandar el comando otra vez (el navegador o el botón).
+                    if (CORTAR_HEARTBEAT_EN_TOF_PARO && comandoActivo == "FORWARD") {
+                        manejador.removeCallbacks(tareaHeartbeat)
+                        comandoActivo = null
+                    }
                     alTofParo?.invoke(mm)
                     alCambiar()
+                }
+                texto.startsWith("WD:") -> {
+                    val veces = texto.substring(3).toIntOrNull() ?: 0
+                    Log.w("SENS_DIAG", "WD: el carro se freno solo (watchdog: 1 s sin comandos); van $veces desde que se encendio")
+                    ultimoAvisoSensores = "El carro se frenó solo: no le llegaron comandos en 1 s (WiFi o app ocupada)."
+                    alWatchdog?.invoke(veces)
+                    alCambiar()
+                }
+                texto.startsWith("ACK_RUMBO:") -> {
+                    Log.i("SENS_DIAG", "firmware: $texto")
+                }
+                texto.startsWith("ACK_IMU_ESCALA:") || texto.startsWith("IMU_ESCALA:") -> {
+                    val ppm = texto.substringAfter(':').toInt()
+                    escalaImuPpm = ppm
+                    Log.i("SENS_DIAG", "firmware: $texto (escala del giroscopio en uso: $ppm ppm)")
+                    if (texto.startsWith("ACK_") && escalaEsperada == ppm) {
+                        terminarEscala(true)
+                    }
+                    alCambiar()
+                }
+                texto == "NAK_IMU_ESCALA" -> {
+                    Log.w("SENS_DIAG", "el carro rechazó la escala del giroscopio (NAK_IMU_ESCALA: ¿en marcha o fuera de rango?)")
+                    terminarEscala(false)
+                }
+                texto.startsWith("RUMBO:") -> {
+                    val p = texto.substring(6).split(",")
+                    if (p.size >= 5) {
+                        ultimoRumbo = "encendido ${p[0]}, en marcha ${p[1]}, objetivo ${p[2].toInt() / 10.0}°, corrección ${p[3]}‰, aprendida ${p[4]}‰"
+                        Log.i("SENS_DIAG", "firmware: $texto (encendido,en_marcha,objetivo_x10,corr_mil,aprendido_mil)")
+                        alCambiar()
+                    }
                 }
                 texto.startsWith("ANT:") || texto.startsWith("ANT_IGNORADO:") -> {
                     Log.i("SENS_DIAG", "firmware: $texto")
@@ -579,7 +695,11 @@ class ControlLogica(
                     if (p.size >= 2) {
                         sesgoX100 = p[1].toIntOrNull()
                         imuMotivo = p.getOrNull(4)?.toIntOrNull() ?: imuMotivo
-                        p[0].toIntOrNull()?.let { alImu?.invoke(it) }
+                        // J16: el tercer campo es el estado del giroscopio (2 = listo). Un ángulo de un giroscopio caído o calibrando no se le pasa al navegador.
+                        val estadoImu = p.getOrNull(2)?.toIntOrNull()
+                        if (estadoImu == null || estadoImu == 2) {
+                            p[0].toIntOrNull()?.let { alImu?.invoke(it) }
+                        }
                         alCambiar()
                     }
                 }

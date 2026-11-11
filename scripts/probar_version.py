@@ -1,5 +1,8 @@
 """Pruebas de los lectores de versiones sin USB ni teléfono."""
+import hashlib
 import io
+import pathlib
+import tempfile
 import unittest
 import zipfile
 import contextlib
@@ -80,6 +83,56 @@ class Versiones(unittest.TestCase):
         ejecutar.side_effect = ["package:/data/app/base.apk\n", self.apk("APP:0.4-123abcd"), "versionName=0.4\n", ""]
         with patch("sys.argv", ["verificar_version.py", "--solo-apk"]), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(v.main(), 1)
+
+    def _entrega(self, carpeta, nombre, version, suma=None):
+        apk = pathlib.Path(carpeta) / nombre
+        datos = self.apk(version)
+        apk.write_bytes(datos)
+        (pathlib.Path(carpeta) / "SHA256SUMS.txt").write_text((suma or hashlib.sha256(datos).hexdigest()) + "  " + nombre + "\n", encoding="utf-8")
+        return apk
+
+    @patch.object(v, "consultar_caps")
+    @patch.object(v, "coincide_revision", return_value=True)
+    @patch.object(v, "ejecutar", return_value="")
+    def test_solo_archivo_pasa_sin_telefono(self, ejecutar, revision, caps):
+        with tempfile.TemporaryDirectory() as d:
+            apk = self._entrega(d, "carro_fsi_0.4-123abcd.apk", "APP:0.4-123abcd")
+            salida = io.StringIO()
+            with patch("sys.argv", ["verificar_version.py", "--solo-archivo", "--apk", str(apk)]), contextlib.redirect_stdout(salida):
+                self.assertEqual(v.main(), 0)
+        caps.assert_not_called()
+        for llamada in ejecutar.call_args_list:
+            self.assertNotIn("adb", " ".join(map(str, llamada.args[0])))   # J16: nunca toca el teléfono
+        self.assertIn("PASA", salida.getvalue())
+        revision.assert_called_once_with("123abcd", "HEAD")
+
+    @patch.object(v, "coincide_revision", return_value=True)
+    @patch.object(v, "ejecutar", return_value="")
+    def test_solo_archivo_rechaza_suma_distinta(self, ejecutar, revision):
+        with tempfile.TemporaryDirectory() as d:
+            apk = self._entrega(d, "carro_fsi_0.4-123abcd.apk", "APP:0.4-123abcd", suma="00" * 32)
+            with patch("sys.argv", ["verificar_version.py", "--solo-archivo", "--apk", str(apk)]), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(v.main(), 1)
+
+    @patch.object(v, "coincide_revision", return_value=True)
+    @patch.object(v, "ejecutar", return_value="")
+    def test_solo_archivo_rechaza_nombre_distinto(self, ejecutar, revision):
+        with tempfile.TemporaryDirectory() as d:
+            apk = self._entrega(d, "carro_fsi_0.4-9999999.apk", "APP:0.4-123abcd")
+            with patch("sys.argv", ["verificar_version.py", "--solo-archivo", "--apk", str(apk)]), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(v.main(), 1)
+
+    @patch.object(v, "coincide_revision", return_value=False)
+    @patch.object(v, "ejecutar", return_value="")
+    def test_solo_archivo_rechaza_revision_distinta(self, ejecutar, revision):
+        with tempfile.TemporaryDirectory() as d:
+            apk = self._entrega(d, "carro_fsi_0.4-123abcd.apk", "APP:0.4-123abcd")
+            with patch("sys.argv", ["verificar_version.py", "--solo-archivo", "--apk", str(apk)]), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(v.main(), 1)
+
+    def test_solo_archivo_sin_apk_no_pasa(self):
+        with patch("sys.argv", ["verificar_version.py", "--solo-archivo"]), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(v.main(), 2)
 
     def test_solo_apk_y_puerto_son_excluyentes(self):
         with patch("sys.argv", ["verificar_version.py", "--solo-apk", "--puerto", "COM6"]), contextlib.redirect_stderr(io.StringIO()):

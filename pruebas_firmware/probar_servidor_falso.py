@@ -117,7 +117,25 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? incluye capacidades y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,FW:simulado")
+            caso("sensores: CAPS? incluye capacidades, escala del giroscopio (J16) y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,IMUS=0,FW:simulado")
+            await ws.send("IMU_ESCALA:-12500")
+            caso("sensores: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500 y CAPS con IMUS=-12500", await siguiente(ws, "ACK_IMU_ESCALA:") == "ACK_IMU_ESCALA:-12500" and
+                 (await siguiente(ws, "CAPS:") or "").find(",IMUS=-12500,") > 0)
+            await ws.send("IMU_ESCALA?")
+            caso("sensores: IMU_ESCALA? -> IMU_ESCALA:-12500", await siguiente(ws, "IMU_ESCALA:") == "IMU_ESCALA:-12500")
+            for malo in ("IMU_ESCALA:50001", "IMU_ESCALA:abc", "IMU_ESCALA:"):
+                await ws.send(malo)
+                caso("sensores: %s -> NAK_IMU_ESCALA" % malo, await siguiente(ws, "NAK_IMU_ESCALA") == "NAK_IMU_ESCALA")
+            await ws.send("IMU_ESCALA:0")
+            await siguiente(ws, "ACK_IMU_ESCALA:")
+            await ws.send("IMU_CERO")
+            await siguiente(ws, "ACK_IMU_CERO")
+            await ws.send("SIM_ANGULO:7274")
+            await ws.send("IMU?")
+            imu = await siguiente(ws, "IMU:")
+            caso("sensores: SIM_ANGULO:7274 suma el angulo (IMU? dice 7274)", imu is not None and imu.startswith("IMU:7274,"))
+            await ws.send("IMU_CERO")
+            await siguiente(ws, "ACK_IMU_CERO")
             await ws.send("ANT?")
             caso("sensores: ANT? informa los cuatro valores", await siguiente(ws, "ANT:") == "ANT:100,100,20,20")
             sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]
@@ -167,6 +185,9 @@ async def probar_sensores():
             await ws.send("STOP")
             await ws.send("TOF?")
             caso("sensores: TOF? informa la distancia (80 mm, medida valida)", await siguiente(ws, "TOF:") == "TOF:80,3")
+            await ws.send("SIM_TOF:1200")
+            await ws.send("REVERSE")                # sin heartbeat: a los 1000 ms frena el watchdog y avisa WD:<n> (J16)
+            caso("sensores: el watchdog frena y avisa WD:1", await siguiente(ws, "WD:", 2.0) == "WD:1")
             await ws.send("MODO_MANUAL")
             await siguiente(ws, "ACK_MANUAL")
             viejo = await siguiente(ws, "SENS:", 0.6)
@@ -211,6 +232,7 @@ async def principal():
 
     await probar_sensores()
     caso("el watchdog salta tras FORWARD + solo PING (y otra vez tras el FORWARD sin heartbeat de los perfiles)", salida.count("WATCHDOG: motores detenidos") == 2)
+    caso("sin --sensores (firmware viejo) el watchdog no avisa WD", "-> WD:" not in salida)
     caso("se imprime el comando desconocido y se ignora", "DESCONOCIDO (ignorado): 'HOLA'" in salida)
     caso("MOVE:FWD:50 se trata como desconocido", "DESCONOCIDO (ignorado): 'MOVE:FWD:50'" in salida)
     caso("con heartbeat de 250 ms el watchdog no salta de nuevo", salida.count("WATCHDOG") == 2)

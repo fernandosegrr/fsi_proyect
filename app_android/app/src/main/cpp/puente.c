@@ -20,6 +20,7 @@
  */
 
 #include <jni.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -317,9 +318,12 @@ Java_com_fsi_carro_ObstaculosNativa_analizar(JNIEnv *env, jobject objeto, jbyteA
 
 static MascaraVision mascara_vision_global;        /* la máscara guardada (la pone Kotlin con ponerMascara) */
 static int mascara_vision_activa = 0;              /* 0 mientras se está calibrando la visión (no debe haber máscara) o si no hay ninguna */
-/* Lo último que analizó el detector: el navegador lo usa para escribir OBS_DIAG con la máscara de cada zona (solo registro). */
+/* Lo último que analizó el detector: el navegador lo usa para OBS_DIAG y también para decidir (el carril del láser, las columnas del borde al esquivar, la firma del fantasma fijo). */
 static int ultimo_filas = 0, ultimo_columnas = 0, ultimo_fila_minima = 0, ultimo_franja_contaminada = 0, ultimo_franja_pct = 0, ultimo_franja_ignorada = 0;
 static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
+/* J16: el hilo de la cámara escribe esa rejilla y lee la máscara; el ciclo de 50 ms (hilo principal) lee la rejilla y Kotlin cambia la máscara. Antes se copiaban sin protección
+ * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis. */
+static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
 
 static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray celdas, jint columnas, jint filas,
                                        jint ancho, jint alto, jintArray config,
@@ -375,9 +379,11 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         cfg.mejoras_piso = 1;
         cfg.piso_fijo = 0;
     }
+    pthread_mutex_lock(&candado_vision);
     if (mascara_vision_activa) {
         masc_aplicar_a_config(&mascara_vision_global, &cfg);   /* los artefactos fijos de la imagen se ignoran */
     }
+    pthread_mutex_unlock(&candado_vision);
     if (!modelo_inicializado || reiniciar_modelo) {
         obstaculos_modelo_iniciar(&modelo_global);
         modelo_inicializado = 1;
@@ -422,6 +428,7 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
             }
         }
         largo = ENTEROS_ENCABEZADO_DETALLE + resultado.filas * resultado.columnas;
+        pthread_mutex_lock(&candado_vision);
         ultimo_filas = resultado.filas;
         ultimo_columnas = resultado.columnas;
         ultimo_fila_minima = resultado.fila_minima_usada;
@@ -429,6 +436,7 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         ultimo_franja_ignorada = resultado.franja_ignorada;
         ultimo_franja_pct = resultado.franja_tapada_pct;
         memcpy(ultimo_no_piso, resultado.no_piso, sizeof ultimo_no_piso);
+        pthread_mutex_unlock(&candado_vision);
     }
 
     arreglo = (*env)->NewIntArray(env, largo);
@@ -1341,6 +1349,8 @@ static int usa_giroscopio_global = 0;   /* J11: 1 = los giros de la ruta se pide
 static int usa_tof_global = 0;          /* J11: 1 = se hace caso al láser (TOF_PARO y confirmación de la cámara) */
 static int autoridad_laser_global = 0; /* se reaplica después de iniciar cada ruta */
 static int pedir_ayuda_global = 0;   /* 1 = si no puede esquivar pide que el usuario tome el control (en vez de ERROR): se aplica en cada ruta nueva */
+static int rumbo_fw_global = 0;      /* J16: 1 = el firmware sostiene el rumbo al avanzar (RUMBO:ON); se aplica en cada ruta nueva */
+static int largo_recta_global = 0;   /* J16: largo fijo de una recta predefinida (mm); se aplica en cada ruta nueva. Antes navegador_iniciar lo borraba al cargar la ruta */
 
 static CalibracionCarro *obtener_calibracion(void)
 {
@@ -1550,6 +1560,27 @@ Java_com_fsi_carro_CalGiroNativa_textoError(JNIEnv *env, jobject objeto, jint er
 {
     (void)objeto;
     return (*env)->NewStringUTF(env, calgiro_texto_error((int)error));
+}
+
+/* J16: la escala del giroscopio con vueltas completas (calgiro_escala). Devuelve 4 enteros: [código CG_ESC_*, vueltas, error en ppm, corrección nueva en ppm]. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_CalGiroNativa_escala(JNIEnv *env, jobject objeto, jint medido_x10, jint escala_ppm)
+{
+    jint salida[4];
+    int vueltas = 0;
+    int32_t error_ppm = 0, nueva_ppm = 0;
+    jintArray arreglo;
+
+    (void)objeto;
+    salida[0] = (jint)calgiro_escala((int32_t)medido_x10, (int32_t)escala_ppm, &vueltas, &error_ppm, &nueva_ppm);
+    salida[1] = (jint)vueltas;
+    salida[2] = (jint)error_ppm;
+    salida[3] = (jint)nueva_ppm;
+    arreglo = (*env)->NewIntArray(env, 4);
+    if (arreglo != NULL) {
+        (*env)->SetIntArrayRegion(env, arreglo, 0, 4, salida);
+    }
+    return arreglo;
 }
 
 /* Ajuste fino del giro de 90°: los grados que se suponen girados en cada opción (0 = opción desconocida). */
@@ -2150,6 +2181,8 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_giroscopio(&navegador_global, usa_giroscopio_global);
     navegador_poner_sensor_distancia(&navegador_global, usa_tof_global);
     navegador_poner_autoridad_laser(&navegador_global, autoridad_laser_global);
+    navegador_poner_rumbo_fw(&navegador_global, rumbo_fw_global);
+    navegador_poner_largo_recta_mm(&navegador_global, largo_recta_global);   /* J16: después de navegador_iniciar (que lo pone en 0); antes se perdía y la «Recta 150 cm» hacía 160 */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
 }
 
@@ -2244,13 +2277,16 @@ Java_com_fsi_carro_ObstaculosNativa_ponerMascara(JNIEnv *env, jobject objeto, js
 
     (void)objeto;
     if (hex == NULL) {
+        pthread_mutex_lock(&candado_vision);
         mascara_vision_activa = 0;
+        pthread_mutex_unlock(&candado_vision);
         return MASC_OK;
     }
     texto = (*env)->GetStringUTFChars(env, hex, NULL);
     if (texto == NULL) {
         return MASC_ERR_ARGUMENTO;
     }
+    pthread_mutex_lock(&candado_vision);
     if (texto[0] == '\0') {
         memset(&mascara_vision_global, 0, sizeof mascara_vision_global);
         mascara_vision_activa = 0;
@@ -2259,6 +2295,7 @@ Java_com_fsi_carro_ObstaculosNativa_ponerMascara(JNIEnv *env, jobject objeto, js
         codigo = masc_de_hex(texto, &mascara_vision_global);
         mascara_vision_activa = (codigo == MASC_OK && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
     }
+    pthread_mutex_unlock(&candado_vision);
     (*env)->ReleaseStringUTFChars(env, hex, texto);
     return codigo;
 }
@@ -2269,7 +2306,9 @@ Java_com_fsi_carro_ObstaculosNativa_activarMascara(JNIEnv *env, jobject objeto, 
 {
     (void)env;
     (void)objeto;
+    pthread_mutex_lock(&candado_vision);
     mascara_vision_activa = (activa && masc_contar(&mascara_vision_global) > 0) ? 1 : 0;
+    pthread_mutex_unlock(&candado_vision);
 }
 
 /* Suma un cuadro (el detalle de ObstaculosNativa.analizarConfig) a un lugar de la calibración de la visión. `lugar` es un arreglo de 1 + 100 enteros: [0] cuadros y [1..100] las marcas
@@ -2389,7 +2428,8 @@ Java_com_fsi_carro_NavegadorNativa_ponerLargoRectaMm(JNIEnv *env, jobject objeto
 {
     (void)env;
     (void)objeto;
-    navegador_poner_largo_recta_mm(obtener_navegador(), (int)mm);
+    largo_recta_global = (mm > 0) ? (int)mm : 0;   /* J16: se guarda para cargarRuta, que reinicia el navegador */
+    navegador_poner_largo_recta_mm(obtener_navegador(), largo_recta_global);
 }
 
 JNIEXPORT jint JNICALL
@@ -2413,7 +2453,8 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
             resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
         }
-        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector, solo para el registro OBS_DIAG */
+        pthread_mutex_lock(&candado_vision);
+        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
             resultado.filas = ultimo_filas;
             resultado.columnas = ultimo_columnas;
             resultado.fila_minima_usada = ultimo_fila_minima;
@@ -2422,6 +2463,7 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.franja_tapada_pct = ultimo_franja_pct;
             memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
         }
+        pthread_mutex_unlock(&candado_vision);
         cuadro = &resultado;
     }
     return (jint)navegador_tick(obtener_navegador(), (uint32_t)ahora_ms, cuadro);
@@ -2509,6 +2551,35 @@ Java_com_fsi_carro_NavegadorNativa_ponerSensorDistancia(JNIEnv *env, jobject obj
     }
     usa_tof_global = (int)activo;
     return navegador_poner_sensor_distancia(obtener_navegador(), (int)activo);
+}
+
+/* J16: 1 = el firmware sostiene el rumbo al avanzar (la app ya mandó RUMBO:ON). Se aplica a las rutas siguientes. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerRumboFw(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    rumbo_fw_global = (int)activo;
+    return navegador_poner_rumbo_fw(obtener_navegador(), (int)activo);
+}
+
+/* J16: si hay un objetivo de rumbo nuevo devuelve 1 y lo deja en salida[0] (décimas de grado, convención del firmware: + izquierda) para mandar RUMBO:<n>; 0 si no hay. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_tomarRumboFw(JNIEnv *env, jobject objeto, jintArray salida)
+{
+    int objetivo = 0;
+    jint valor;
+
+    (void)objeto;
+    if (salida == NULL || (*env)->GetArrayLength(env, salida) < 1 || !navegador_tomar_rumbo_fw(obtener_navegador(), &objetivo)) {
+        return 0;
+    }
+    valor = (jint)objetivo;
+    (*env)->SetIntArrayRegion(env, salida, 0, 1, &valor);
+    return 1;
 }
 
 /* Si hay un giro por ángulo que todavía no se pidió al firmware devuelve los grados con la convención del firmware (POSITIVO = izquierda) para mandar GIRAR:<grados>; 0 si no hay. */

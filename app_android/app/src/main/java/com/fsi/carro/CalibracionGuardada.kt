@@ -467,13 +467,15 @@ class CalibracionGuardada(contexto: Context) {
         Log.i(ETIQUETA, "desplazamiento al girar ${perfil.name} ${if (lado < 0) "izquierda" else "derecha"} restaurado a 0 (el otro lado no se tocó)")
     }
 
-    /** Le entrega la calibración guardada (con el factor de giro y el desplazamiento del perfil AUTO) al navegador, para la próxima ruta. */
-    fun aplicarAlNavegador() {
+    /** Le entrega la calibración guardada (con el factor de giro y el desplazamiento del perfil AUTO) al navegador, para la próxima ruta. Devuelve false si el navegador
+     *  la rechazó (algún valor fuera de rango): entonces sigue con la calibración que tenía (la de fábrica si nunca recibió otra) y la pantalla de la ruta lo avisa (J16). */
+    fun aplicarAlNavegador(): Boolean {
         aplicarMascaraAlDetector()
         val codigo = NavegadorNativa.ponerCalibracion(leerAjustada(ControlLogica.Perfil.AUTO))
         if (codigo != 0) {
             Log.w(ETIQUETA, "el navegador rechazó la calibración (código $codigo)")
         }
+        return codigo == 0
     }
 
     /** Texto del aviso si falta calibrar algo, o null si todo está calibrado. */

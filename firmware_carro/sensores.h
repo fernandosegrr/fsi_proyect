@@ -18,12 +18,15 @@
  *   IMU_CAL      → ACK_IMU_CAL (empezó) o NAK_IMU_CAL (el carro no está quieto); al terminar IMU_CAL_OK:<sesgo x100> o IMU_CAL_FALLO
  *   IMU_CERO     → ACK_IMU_CERO (el ángulo vuelve a 0)
  *   TOF_PARO:<mm>               (lo manda el firmware solo) frenó por algo muy cerca al frente
+ *   WD:<n>                      (lo manda el firmware solo, J16) el watchdog de 1 s frenó el carro porque no le llegaron comandos; n = frenos desde el encendido
  *   LOOP?        → LOOP:<el loop() más largo en µs>,<cuántos pasaron de LOOP_MAX_US>        LOOP_CERO → ACK_LOOP_CERO
  *   ANT?         → ANT:<AUTO izquierda>,<AUTO derecha>,<MANUAL izquierda>,<MANUAL derecha> (anticipación del giro en ms, una por sentido y por perfil)
  *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>,TOFR=<reintentos láser>,IMUR=<reintentos sesgo>,IMUM=<motivo>,IMUE=<estado>
  *   ARR?         → ARR:<n TOF>,<con reintentos TOF>,<detalle hex TOF>,<actual TOF>,<n IMU>,<con reintentos IMU>,<detalle hex IMU>,<actual IMU>
  *   ANT_BORRAR   → ACK_ANT_BORRAR   las cuatro vuelven a GIRO_ANTICIPACION_MS y se borran de la memoria no volátil
  *   TOF_USO:<0|1> → ACK_TOF_USO:<n>   enciende (1, por defecto) o apaga (0) la parada de emergencia del láser (el interruptor «Usar sensor de distancia» de la app); el láser sigue midiendo y mandando SENS
+ *   IMU_ESCALA:<ppm> → ACK_IMU_ESCALA:<ppm> o NAK_IMU_ESCALA   (J16) corrección de escala del giroscopio, de -50000 a 50000 ppm, solo con el carro detenido; se guarda en la
+ *                memoria no volátil. IMU_ESCALA? → IMU_ESCALA:<ppm>. CAPS la anuncia como IMUS=<ppm> (sin IMUS = firmware que no la entiende)
  */
 #ifndef SENSORES_H
 #define SENSORES_H

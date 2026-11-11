@@ -61,23 +61,25 @@ En estricto apego a la honestidad científica y a las directrices de entrega, el
 - **Ajuste de balance en línea recta:** Con potencia 255 (Perfil MANUAL), balance 988 (252 motor izquierdo / 255 motor derecho) reduce el desvío lateral de 14.5 cm a **3.0 cm** a 150 cm de avance sobre piso plano (`firmware_carro/config.h:103-104`).
 - **Rendimiento de cámara GC0308:** Con resolución HQVGA (240×176 px, calidad 50) entrega **12.4 fps** reales, 56 ms de tiempo de compresión y 137 ms de antigüedad de cuadro (`docs/camara_prueba.md`).
 - **Artefactos binarios oficiales:**
-  - APK Android: `dist/carro_fsi_0.4-074c9fd.apk` (**14,852,386 bytes**, SHA-256 `36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA`).
+  - APK Android J15 instalada y verificada por hash: `carro_fsi_0.4-074c9fd.apk` (**14,852,386 bytes**, SHA-256 `36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA`); en la rama `j16-precision` queda en el historial de Git y `dist/` tiene el candidato J16 (sin instalar, ver 3.3).
   - Imagen de firmware: `dist/firmware_carro_453ed20-20261027.bin` (**1,031,712 bytes**, SHA-256 `9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E`).
 - **Pruebas físicas completadas:** Escenarios B0, B1, B3, B4, B5 y B6 superados en pista física en la jornada J14.
 
 ### 3.2 Comprobado mediante simulación en PC
 - **Corrección de pose J15:** En 400 rutas simuladas del escenario B6 (esquivar una caja de 20 cm y reincorporarse a la trayectoria), la integración del rumbo instantáneo del giroscopio redujo el error lateral promedio de 13.2 cm a **1.9 cm** y el percentil 95 (p95) de 21.9 cm a **4.6 cm**, alcanzando 400 de 400 llegadas exitosas a menos de 20 cm del destino y sin contacto.
-- **Batería de pruebas automatizadas:**
-  - Núcleo cinemático C99: 21 ejecutables de prueba, **1598 casos evaluados, 0 fallos**.
-  - Firmware y simulación de hardware: **447 casos evaluados, 0 fallos**.
-  - Servidor WebSocket simulado: **46 casos evaluados, 0 fallos**.
-  - Verificador de integridad de versiones: **13 casos evaluados, 0 fallos**.
-- **Prueba de estrés de cola:** Inyección masiva de 100 000 comandos continuos procesados sin perder un solo comando de frenado (`STOP`).
+- **Precisión J16 (rama `j16-precision`):** simulador calibrado con las rectas B4 y el esquive B6 de J14; 1000 corridas por escenario. Con el firmware nuevo (RUMBO, rumbo sostenido con el giroscopio) el desvío medio de la recta de 150 cm baja de 8.0 a **1.0 cm** (p95 de 12.6 a 2.6 cm) y el del esquive de 3.7 a **1.7 cm**, con 0 toques en 1000 (antes 9). Cifras de la segunda ronda (rumbo con décimas entre comandos). Sin firmware nuevo, la recta de 150 cm vuelve a medir 150 cm (antes 160). Detalle en `docs/reporte_J16.md`.
+- **Batería de pruebas automatizadas (J16):**
+  - Núcleo cinemático C99: 22 ejecutables de prueba, **1655 casos evaluados, 0 fallos** (los 1598 anteriores, el banco de precisión J16 y la escala del giroscopio).
+  - Firmware y simulación de hardware: **540 casos evaluados, 0 fallos** (447 anteriores, 62 de RUMBO, 6 del aviso WD del watchdog y 25 de la escala del giroscopio).
+  - Servidor WebSocket simulado: **54 casos evaluados, 0 fallos**.
+  - Verificador de integridad de versiones: **18 casos evaluados, 0 fallos**.
+- **Prueba de estrés de cola:** Inyección masiva de 100 000 comandos continuos procesados sin perder un solo comando de frenado (`STOP`). En J16 se arregló el arnés de la prueba de 2 hilos, que fallaba de vez en cuando con la PC ocupada (no era un error del firmware): 0 fallos en 300 corridas en paralelo.
 
 ### 3.3 Pendiente y NO MEDIDO en hardware
 - **Validación física de J15:** El algoritmo de pose corregida cuenta con respaldo únicamente en simulación de PC; en el vehículo físico real se realizaron **cero corridas con esta versión** y el criterio de 5 de 6 llegadas consecutivas permanece como **NO MEDIDO**.
 - **Balance del perfil AUTO en pista:** La relación 207/210 fue escalada teóricamente a partir del perfil manual; no ha sido medida con cinta métrica en el carro físico (**NO MEDIDO**).
 - **Pruebas B7, B8, B9 y B2:** Suspendidas durante el cierre de J14 por decisión del dueño del proyecto.
+- **Validación física de J16:** cero corridas. APK `APP:0.4-873bfb9` sin instalar y firmware `FW:873bfb9-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
 
 ---
 

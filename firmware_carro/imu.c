@@ -5,7 +5,7 @@
  *   imu_iniciar()      escribe los registros del chip (±500 °/s, filtro de ~44 Hz, 100 muestras por segundo) y los lee de vuelta.
  *   imu_actualizar()   en cada vuelta de loop(): si pasaron 10 ms lee el eje Z (2 bytes) y
  *                        - CALIBRANDO: promedia IMU_SESGO_MUESTRAS lecturas con el carro quieto (el sesgo) y comprueba que casi no varían;
- *                        - LISTA: resta el sesgo, pasa a °/s, aplica la zona muerta y suma la velocidad por el tiempo (regla del trapecio).
+ *                        - LISTA: resta el sesgo, pasa a °/s, aplica la zona muerta y la corrección de escala (J16) y suma la velocidad por el tiempo (regla del trapecio).
  *   Con el carro detenido un rato y lecturas estables, el sesgo se corrige muy despacio (ZUPT).
  *
  * UNIDADES: las lecturas del sensor son "cuentas" (65.5 por °/s). El sesgo se guarda en 1/256 de cuenta, la velocidad en milésimas de °/s
@@ -48,6 +48,7 @@ static int64_t  angulo_udeg     = 0;     /* ángulo en millonésimas de grado */
 static int32_t  mdps_anterior   = 0;     /* velocidad anterior (para el trapecio), en milésimas de °/s */
 static int32_t  velocidad_x10   = 0;
 static uint32_t muestras_buenas = 0;
+static int32_t  escala_ppm      = 0;     /* J16: corrección de escala en partes por millón; es del chip: imu_iniciar no la borra (la pone sensores.c) */
 
 /* Calibración del sesgo en curso. */
 static int      cal_n           = 0;
@@ -84,6 +85,17 @@ int32_t imu_cuentas_a_mdps(int32_t cuentas_por_256)
         return (int32_t)((numerador + 1048) / 2096);
     }
     return (int32_t)(-((-numerador + 1048) / 2096));
+}
+
+/* J16: aplica la corrección de escala a una velocidad en milésimas de °/s, con redondeo al más cercano. Con 0 ppm devuelve exactamente lo mismo. */
+static int32_t aplicar_escala(int32_t mdps)
+{
+    int64_t p = (int64_t)mdps * (1000000 + escala_ppm);
+
+    if (p >= 0) {
+        return (int32_t)((p + 500000) / 1000000);
+    }
+    return (int32_t)(-((-p + 500000) / 1000000));
 }
 
 static int64_t c256_a_mdps(int64_t c256)
@@ -373,6 +385,7 @@ void imu_actualizar(uint32_t ahora_us, uint32_t quieto_ms)
     if (mdps > -IMU_ZONA_MUERTA_MDPS && mdps < IMU_ZONA_MUERTA_MDPS) {
         mdps = 0;
     }
+    mdps = aplicar_escala(mdps);   /* J16: el error de escala del chip (±3 % según el fabricante), medido por la app */
     angulo_udeg += ((int64_t)(mdps_anterior + mdps) * (int64_t)dt_us) / 2000;
     velocidad_x10 = (mdps_anterior + mdps) / 200;      /* promedio de 2 muestras, en décimas de °/s */
     mdps_anterior = mdps;
@@ -429,6 +442,22 @@ int32_t imu_velocidad_x10(void)
 void imu_cero(void)
 {
     angulo_udeg = 0;
+}
+
+void imu_poner_escala_ppm(int32_t ppm)
+{
+    if (ppm > IMU_ESCALA_MAX_PPM) {
+        ppm = IMU_ESCALA_MAX_PPM;
+    }
+    if (ppm < -IMU_ESCALA_MAX_PPM) {
+        ppm = -IMU_ESCALA_MAX_PPM;
+    }
+    escala_ppm = ppm;
+}
+
+int32_t imu_escala_ppm(void)
+{
+    return escala_ppm;
 }
 
 int imu_tomar_eventos(void)

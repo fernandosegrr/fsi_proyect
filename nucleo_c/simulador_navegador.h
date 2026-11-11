@@ -86,6 +86,7 @@ typedef struct {
      * medido 200 ms después. Con `tof_activo` = 1 manda SENS cada 100 ms y hace la parada de emergencia del láser (2 lecturas seguidas menores de 120 mm avanzando). */
     int fw_giroscopio;
     int fw_escala_pct;         /* error de escala del giroscopio: +2 = mide 2 % de más */
+    int fw_escala_ppm;         /* J16: error de escala fino en partes por millón (se suma al de arriba): el que queda tras calibrar con IMU_ESCALA */
     int fw_sesgo_x100;         /* sesgo sin corregir, en centésimas de grado por segundo */
     int fw_ruido_x10;          /* ruido de la medida de cada giro: ± décimas de grado */
     int fw_error_izq_x10, fw_error_der_x10; /* J15: error físico de cierre por lado; también se informa */
@@ -117,6 +118,41 @@ typedef struct {
     int tof_parado;            /* 1 mientras el firmware mantiene el carro frenado por TOF_PARO (hasta que el navegador cambia de comando) */
     int tof_cerca_seguidas;
     uint32_t proximo_sens_ms;
+
+    /* J16: modelo físico más fiel (todo opcional: con j16_activo = 0 el simulador hace exactamente lo de antes). Son SUPUESTOS para simular, ajustados a lo medido
+     * en J14 (ver pruebas_precision_j16.c y docs/precision/); no son mediciones nuevas.
+     *  - Avance: la velocidad media es la calibrada (por pct_avance); el giro sale de la diferencia de empuje de los lados: empuje = fuerza x (PWM - zona muerta),
+     *    con el lado izquierdo `desbalance_mil` más fuerte. Durante el arranque a plena potencia (j16_pleno_ms) los dos van a 255 (sin balance, como el firmware);
+     *    después, a j16_pwm_izq / j16_pwm_der. La diferencia responde con un retraso de primer orden (j16_tau_motor_ms).
+     *  - El rumbo del carro mueve x e y con resolución de centésimas de grado (antes, grado entero truncado hacia cero).
+     *  - RUMBO del firmware: la misma cuenta que firmware_carro/rumbo.c (con las constantes de su config.h), cada 10 ms con el ángulo que mide el giroscopio.
+     *  - Giroscopio: sesgo residual (el ángulo informado deriva); SENS llega con j16_latencia_sens_ms de atraso.
+     *  - Comandos: llegan al carro j16_latencia_cmd_ticks ticks después de que el navegador los decide. */
+    int  j16_activo;
+    int  j16_pleno_ms;               /* arranque a plena potencia (firmware: 250 ms) */
+    int  j16_pwm_izq, j16_pwm_der;   /* potencias del perfil después del arranque (AUTO: 207 y 210) */
+    int  j16_zona_muerta_pwm;        /* PWM por debajo del cual un lado no empuja (de ella sale la ganancia: a 210 con 100 de zona muerta, 1 % de PWM es ~1.9 % de empuje) */
+    int  j16_tau_motor_ms;           /* retraso de la diferencia de empuje */
+    int  j16_ejes_mm;                /* ancho entre ruedas para el giro por diferencia (120) */
+    long j16_delta_ppm;              /* diferencia de velocidad izquierda - derecha actual, en millonésimas de la velocidad media */
+    int  j16_sesgo_mdps;             /* sesgo residual del giroscopio (milésimas de °/s); + = el ángulo informado crece (izquierda) */
+    long j16_sesgo_acum_udeg;        /* lo que lleva acumulado ese sesgo */
+    int  j16_lateral_um_mm;          /* deslizamiento lateral puro (sin girar): µm por mm avanzado; + = derecha */
+    int  j16_latencia_sens_ms;       /* edad del ángulo que llega en SENS */
+    int  j16_latencia_cmd_ticks;     /* de 0 a 7 ticks */
+    ComandoNav j16_cola_cmd[8];      /* comandos en camino al carro */
+    int  j16_hist_angulo[16];        /* ángulo medido (décimas, + izquierda) de los últimos 16 ticks, para el SENS atrasado */
+    int  j16_n_ticks;
+    int  j16_ms_avance;              /* ms desde que empezó el FORWARD físico (para el arranque a plena potencia) */
+    long long j16_rumbo_resto_ucg;   /* giro pendiente de sumar al rumbo, en millonésimas de centésima de grado */
+    /* RUMBO (réplica de rumbo.c). */
+    int  j16_rumbo;                  /* 1 = el firmware entiende RUMBO y la app lo encendió */
+    int  j16_rumbo_en_marcha;
+    int  j16_rumbo_inicio_x10, j16_rumbo_objetivo_x10;
+    long j16_rumbo_integral;
+    int  j16_rumbo_aprendido_mil, j16_rumbo_corr_mil;
+    int  j16_rumbo_t_ms, j16_rumbo_dt_acum;
+    int  j16_rumbo_objetivos;        /* cuántos RUMBO:<n> recibió */
 
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];
@@ -150,6 +186,20 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms);
 
 /* Obstáculo programado igual que sim_agregar_obstaculo_creciente (sin crecer) pero que el láser ve a `laser_mm` mm cuando aparece (0 = el láser no lo ve). */
 int sim_agregar_obstaculo_laser(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania, int celdas, int laser_mm);
+
+/* J16: pone el modelo físico con valores de partida (AUTO 207/210, arranque pleno 250 ms, zona muerta 100, retraso 60 ms, ejes 120 mm) y lo activa.
+ * Lo demás (desbalance, sesgo, latencias, RUMBO) lo fija cada prueba. */
+void sim_j16_activar(Simulador *sim);
+
+/* J16: el rumbo REAL del carro en centésimas de grado (sin redondear a grados enteros). */
+long sim_rumbo_cgrados(const Simulador *sim);
+
+/* J16, réplica de firmware_carro/rumbo.c para comprobar que dan lo mismo: una corrección con el ángulo medido (décimas, + izquierda) y el reparto de potencias. */
+int  sim_j16_rumbo_corregir(Simulador *sim, int angulo_x10, int ahora_ms);
+void sim_j16_rumbo_repartir(int corr_mil, int base_izq, int base_der, int tope, int *izq, int *der);
+void sim_j16_rumbo_empezar(Simulador *sim, int angulo_x10, int ahora_ms);
+void sim_j16_rumbo_terminar(Simulador *sim);
+void sim_j16_rumbo_objetivo(Simulador *sim, int objetivo_x10);
 
 /* Posición real del carro simulado en milímetros y rumbo en grados. */
 int sim_x_mm(const Simulador *sim);

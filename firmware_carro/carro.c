@@ -25,6 +25,8 @@
 #include "config.h"
 #include "sensores.h"
 #include "giro.h"
+#include "imu.h"
+#include "rumbo.h"
 
 /* ── Estado del carro ──────────────────────────────────────────────────── */
 
@@ -52,6 +54,12 @@ static volatile int      hay_cliente_activo  = 0;
 static volatile uint32_t cliente_activo_id   = 0;
 static carro_bloqueo_fn  fn_bloquear         = hw_bloquear;
 static carro_bloqueo_fn  fn_desbloquear      = hw_desbloquear;
+static int      pwm_actual[4]       = { 0, 0, 0, 0 };   /* lo último escrito en IZQ_A, IZQ_B, DER_A y DER_B */
+static Rumbo    rumbo;                                /* J16: sostener el rumbo al avanzar (rumbo.h) */
+static uint32_t rumbo_muestra       = 0;              /* la muestra del giroscopio con la que se corrigió por última vez */
+static char     respuesta_rumbo[48];                  /* el texto de la respuesta a RUMBO:ON, RUMBO:OFF y RUMBO? */
+static volatile int rumbo_apagar_al_conectar = 0;    /* 1 = el siguiente __STOP_AUTO viene de una conexión o desconexión y apaga RUMBO */
+static uint32_t frenos_watchdog     = 0;              /* J16: cuántas veces frenó el watchdog desde el encendido (sensores.c lo avisa a la app: WD:<n>) */
 
 void carro_poner_bloqueo(carro_bloqueo_fn bloquear, carro_bloqueo_fn desbloquear)
 {
@@ -101,6 +109,10 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
     hw_motor_pwm(PIN_MOTOR_IZQ_B, izq_b);
     hw_motor_pwm(PIN_MOTOR_DER_A, der_a);
     hw_motor_pwm(PIN_MOTOR_DER_B, der_b);
+    pwm_actual[0] = izq_a;
+    pwm_actual[1] = izq_b;
+    pwm_actual[2] = der_a;
+    pwm_actual[3] = der_b;
     if (motores_en_marcha && !(izq_a > 0 || izq_b > 0 || der_a > 0 || der_b > 0)) {
         motores_apagados_desde_ms = hw_millis();
     }
@@ -124,11 +136,17 @@ static void avanzar(void)
     }
     pleno_modo = 1;
     pleno_hasta_ms = hw_millis() + PERFILES[perfil_actual].arranque_pleno_ms;
+    rumbo_terminar(&rumbo);   /* (no debería haber uno en curso: el FORWARD repetido se ignora antes de llegar aquí) */
+    if (rumbo.encendido && imu_estado() == IMU_ESTADO_LISTA) {
+        rumbo_empezar(&rumbo, imu_angulo_x10(), hw_millis());   /* J16: el objetivo es el rumbo de ahora */
+        rumbo_muestra = imu_muestras();
+    }
 }
 
 /* Ambos motores hacia atrás (los pines contrarios a avanzar). */
 static void retroceder(void)
 {
+    rumbo_terminar(&rumbo);
     if (ARRANQUE_ESCALONADO_MS > 0u) {
         poner_motores(VELOCIDAD, 0, 0, 0);       /* escalonado: primero el motor izquierdo */
         escalon_modo = 2;
@@ -145,6 +163,7 @@ static void retroceder(void)
  * suelto (PWM 0). */
 static void girar_izquierda(void)
 {
+    rumbo_terminar(&rumbo);
     poner_motores(0, 0, VELOCIDAD_GIRO, 0);
     pleno_modo = 0;
     escalon_modo = 0;
@@ -154,6 +173,7 @@ static void girar_izquierda(void)
  * suelto (PWM 0). */
 static void girar_derecha(void)
 {
+    rumbo_terminar(&rumbo);
     poner_motores(0, VELOCIDAD_GIRO, 0, 0);
     pleno_modo = 0;
     escalon_modo = 0;
@@ -169,6 +189,7 @@ void carro_pivote(int sentido)
     } else if (sentido < 0) {
         girar_derecha();
     } else {
+        rumbo_terminar(&rumbo);
         poner_motores(0, 0, 0, 0);
         pleno_modo = 0;
         escalon_modo = 0;
@@ -187,6 +208,11 @@ int carro_avanzando(void)
 int carro_motores_en_marcha(void)
 {
     return motores_en_marcha;
+}
+
+uint32_t carro_frenos_watchdog(void)
+{
+    return frenos_watchdog;
 }
 
 /* Cuántos ms lleva el carro con los motores apagados (0 si se mueve; un número enorme si no se ha movido desde el arranque). */
@@ -268,6 +294,66 @@ int carro_balance(int perfil)
     return (perfil == PERFIL_MANUAL || perfil == PERFIL_AUTO) ? balance_mil[perfil] : 0;
 }
 
+/* ── Rumbo al avanzar (J16, rumbo.h) ───────────────────────────────────── */
+
+/* 1 si el texto es RUMBO:... o RUMBO? (válido o no: un RUMBO mal escrito tampoco es un movimiento). */
+static int es_mensaje_rumbo(const char *texto)
+{
+    return strncmp(texto, "RUMBO:", 6) == 0 || strcmp(texto, "RUMBO?") == 0;
+}
+
+/* Las potencias de avanzar sin corrección en este momento: plena potencia durante el arranque; después, el tope del perfil y su balance. */
+static void potencias_de_avance(int *izq, int *der)
+{
+    *izq = (pleno_modo != 0) ? VELOCIDAD : velocidad_izquierda(perfil_actual);
+    *der = (pleno_modo != 0) ? VELOCIDAD : PERFILES[perfil_actual].velocidad_der;
+}
+
+static void atender_rumbo(const char *texto)
+{
+    int32_t objetivo;
+
+    if (strcmp(texto, "RUMBO:ON") == 0) {
+        rumbo.encendido = 1;   /* vale desde el siguiente FORWARD */
+    } else if (strcmp(texto, "RUMBO:OFF") == 0) {
+        int estaba = rumbo.en_marcha;
+
+        rumbo_terminar(&rumbo);
+        rumbo.encendido = 0;
+        if (estaba && motores_en_marcha && strcmp(comando_actual, "FORWARD") == 0 && escalon_modo == 0) {
+            int izq, der;
+
+            potencias_de_avance(&izq, &der);
+            poner_motores(0, izq, der, 0);   /* vuelve a las potencias fijas de siempre */
+        }
+    } else if (strncmp(texto, "RUMBO:", 6) == 0 && rumbo_leer_numero(texto + 6, &objetivo)) {
+        rumbo_poner_objetivo(&rumbo, objetivo);   /* sin avance en curso no hace nada */
+    }
+}
+
+/* Cada muestra nueva del giroscopio, mientras avanza con RUMBO: reparte la corrección entre los lados. Con el giroscopio caído vuelve a las potencias fijas. */
+static void corregir_rumbo(uint32_t ahora)
+{
+    int base_izq, base_der, izq, der;
+
+    if (!rumbo.en_marcha || !motores_en_marcha || escalon_modo != 0 || strcmp(comando_actual, "FORWARD") != 0) {
+        return;
+    }
+    potencias_de_avance(&base_izq, &base_der);
+    izq = base_izq;
+    der = base_der;
+    if (imu_estado() == IMU_ESTADO_LISTA) {
+        if (imu_muestras() != rumbo_muestra) {   /* la corrección se calcula una vez por muestra (100 Hz); se reparte en cada vuelta porque la base cambia al terminar el arranque */
+            rumbo_muestra = imu_muestras();
+            rumbo_corregir(&rumbo, imu_angulo_x10(), ahora);
+        }
+        rumbo_repartir(rumbo.corr_mil, base_izq, base_der, VELOCIDAD, &izq, &der);
+    }
+    if (pwm_actual[0] != 0 || pwm_actual[1] != izq || pwm_actual[2] != der || pwm_actual[3] != 0) {
+        poner_motores(0, izq, der, 0);
+    }
+}
+
 /* Interpreta el texto y actúa. No toca el reloj del watchdog (eso lo hace
  * carro_recibir_comando). */
 static void ejecutar_comando(const char *texto)
@@ -277,6 +363,10 @@ static void ejecutar_comando(const char *texto)
     if (strcmp(texto, "__STOP_AUTO") == 0) {
         carro_detener();
         carro_poner_perfil_auto();
+        if (rumbo_apagar_al_conectar) {   /* J16: solo el de una conexión o desconexión; el del láser (TOF_PARO) no apaga RUMBO */
+            rumbo_apagar_al_conectar = 0;
+            rumbo.encendido = 0;
+        }
         return;
     }
     /* Los cambios de perfil no son un movimiento: no se guardan como comando actual (así un FORWARD que ya estaba activo no se ignora). */
@@ -298,6 +388,11 @@ static void ejecutar_comando(const char *texto)
         return;
     }
     if (strcmp(texto, "BAL?") == 0) {
+        return;
+    }
+    /* J16: RUMBO:ON / RUMBO:OFF / RUMBO:<n> / RUMBO? (rumbo.h). Tampoco son un movimiento. */
+    if (es_mensaje_rumbo(texto)) {
+        atender_rumbo(texto);
         return;
     }
     /* Los mensajes de sensores (CAPS?, IMU?, TOF?, GIRAR:, IMU_CAL...) los entiende sensores.c; los de consulta no son movimiento. */
@@ -352,6 +447,10 @@ void carro_iniciar(void)
     procesando_cola = 0;
     hay_cliente_activo = 0;
     cliente_activo_id = 0;
+    rumbo_iniciar(&rumbo);         /* J16: apagado hasta que la app mande RUMBO:ON */
+    rumbo_apagar_al_conectar = 0;
+    rumbo_muestra = 0;
+    frenos_watchdog = 0;
     balance_mil[PERFIL_MANUAL] = PERFIL_MANUAL_BALANCE_DEFECTO;   /* el balance guardado en la memoria no volátil, si es válido; si no, el de siempre */
     balance_mil[PERFIL_AUTO] = PERFIL_AUTO_BALANCE_DEFECTO;
     for (int p = 0; p < 2; p++) {
@@ -481,6 +580,7 @@ void carro_conectar_cliente(uint32_t id)
     cola_inicio = 0;
     cola_fin = 0;
     cola_cantidad = 0;
+    rumbo_apagar_al_conectar = 1;   /* J16: el __STOP_AUTO de esta conexión apaga RUMBO: cada cliente lo pide con RUMBO:ON si lo sabe usar */
     carro_encolar_comando("__STOP_AUTO");
 }
 
@@ -494,6 +594,7 @@ int carro_desconectar_cliente(uint32_t id)
     cola_inicio = 0;
     cola_fin = 0;
     cola_cantidad = 0;
+    rumbo_apagar_al_conectar = 1;
     carro_encolar_comando("__STOP_AUTO");
     return 1;
 }
@@ -518,7 +619,8 @@ void carro_recibir_comando(const char *texto)
         return;
     }
     /* Las consultas de sensores (CAPS?, IMU?...) no cuentan como orden de movimiento: no renuevan el watchdog. GIRAR sí. */
-    if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0 && (!sensores_es_comando(texto) || strncmp(texto, "GIRAR:", 6) == 0)) {
+    if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0 && !es_mensaje_rumbo(texto) &&
+        (!sensores_es_comando(texto) || strncmp(texto, "GIRAR:", 6) == 0)) {
         ultimo_comando_ms = hw_millis();
     }
     ejecutar_comando(texto);
@@ -553,6 +655,18 @@ const char *carro_respuesta(const char *texto)
         snprintf(respuesta_balance, sizeof respuesta_balance, "BAL:%d:%d", balance_mil[PERFIL_AUTO], balance_mil[PERFIL_MANUAL]);
         return respuesta_balance;
     }
+    /* J16: la respuesta dice el estado que quedará al ejecutarse el mensaje (se encola antes de contestar). RUMBO:<n> no se contesta. */
+    if (strcmp(texto, "RUMBO:ON") == 0) {
+        return "ACK_RUMBO:1";
+    }
+    if (strcmp(texto, "RUMBO:OFF") == 0) {
+        return "ACK_RUMBO:0";
+    }
+    if (strcmp(texto, "RUMBO?") == 0) {
+        snprintf(respuesta_rumbo, sizeof respuesta_rumbo, "RUMBO:%d,%d,%ld,%d,%ld", rumbo.encendido, rumbo.en_marcha, (long)rumbo.objetivo_x10,
+                 rumbo.corr_mil, (long)rumbo.aprendido_mil);
+        return respuesta_rumbo;
+    }
     return NULL;
 }
 
@@ -577,6 +691,7 @@ void carro_detener(void)
         return;
     }
     giro_abortar();   /* un giro por ángulo en curso se corta (informa GIRO_ERROR:abortado cuando se asiente) */
+    rumbo_terminar(&rumbo);
     poner_motores(0, 0, 0, 0);
     pleno_modo = 0;
     escalon_modo = 0;
@@ -608,7 +723,9 @@ void carro_vigilar_comunicacion(void)
 
     /* Terminó el arranque a plena potencia: se aplica el ajuste por lado (el tope del perfil a la derecha y el tope por el balance a la izquierda). */
     if (pleno_modo != 0 && (int32_t)(ahora - pleno_hasta_ms) >= 0) {
-        if (pleno_modo == 1) {
+        if (pleno_modo == 1 && rumbo.en_marcha && escalon_modo == 0) {
+            pleno_modo = 0;   /* J16: las potencias de después del arranque (con la corrección) las pone corregir_rumbo, abajo */
+        } else if (pleno_modo == 1) {
             poner_motores(0, velocidad_izquierda(perfil_actual), PERFILES[perfil_actual].velocidad_der, 0);
         } else {
             poner_motores(velocidad_izquierda(perfil_actual), 0, 0, PERFILES[perfil_actual].velocidad_der);
@@ -616,13 +733,17 @@ void carro_vigilar_comunicacion(void)
         pleno_modo = 0;
     }
 
+    corregir_rumbo(ahora);   /* J16: solo con RUMBO encendido y avanzando; si no, no hace nada */
+
     /* Mientras corre un giro por ángulo el watchdog de 1 s no actúa (un giro largo dura más); el giro tiene su propio tiempo máximo. */
     if (motores_en_marcha && !giro_activo() && (uint32_t)(ahora - ultimo_comando_ms) > TIEMPO_WATCHDOG_MS) {
+        rumbo_terminar(&rumbo);
         poner_motores(0, 0, 0, 0);
         pleno_modo = 0;
         escalon_modo = 0;
         guardar_comando_actual("STOP");
         perfil_actual = PERFIL_AUTO;   /* tras perder la señal vuelve al perfil seguro; la app lo repone con MODO_MANUAL */
+        frenos_watchdog++;
         hw_registrar("Watchdog: Freno activado.");
     }
     en_vigilancia = 0;

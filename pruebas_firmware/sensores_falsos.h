@@ -39,6 +39,8 @@ extern int  falso_tof_fallos_inicio;
 extern int  falso_tof_iniciar_llamadas;
 extern int  falso_tof_hist;
 extern int  falso_imu_hist;
+extern int  falso_imu_escala;            /* J16: la corrección de escala guardada en la memoria no volátil falsa (ppm; 0 = nada) */
+extern int  falso_imu_escala_escrituras;
 
 /* Memoria no volátil falsa de la anticipación del giro: 4 ranuras (-1 = nada) y cuántas escrituras hubo. */
 extern int  falso_ant[4];

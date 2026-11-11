@@ -270,22 +270,29 @@ static void informar(uint32_t ahora_ms)
         int32_t error_x10 = sentido * real_x10 - objetivo_x10;
         int ignorar = 0;
 
+        /* J16 (GIRO_LARGO_POR_GRADO): la duración se compara en ms por cada 100° y solo con giros de GIRO_ANT_MIN_GRADOS o más. Antes se mezclaban giros de
+         * cualquier tamaño: tras tres giros chicos (correcciones de 5 a 29° o reintentos de 45°) todo giro de 90° parecía «largo» y la anticipación dejaba de aprender. */
+        int duracion = (GIRO_LARGO_POR_GRADO && objetivo_x10 > 0) ? (int)((int64_t)duracion_ms * 1000 / objetivo_x10) : duracion_ms;
+        int cuenta = !GIRO_LARGO_POR_GRADO || objetivo_x10 >= (int32_t)GIRO_ANT_MIN_GRADOS * 10;
+
         if (error_x10 > 200 || error_x10 < -200) {
             sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:error_grande");
             ignorar = 1;
-        } else if (n_duraciones[r] >= 3) {
+        } else if (cuenta && n_duraciones[r] >= 3) {
             int med = mediana_duracion(r);
 
-            if (duracion_ms > (med * 3) / 2) {
+            if (duracion > (med * 3) / 2) {
                 sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, "ANT_IGNORADO:giro_largo");
                 ignorar = 1;
             }
         }
         if (!ignorar) {
-            duraciones_hist[r][sig_duracion[r]] = duracion_ms;
-            sig_duracion[r] = (sig_duracion[r] + 1) % 5;
-            if (n_duraciones[r] < 5) {
-                n_duraciones[r]++;
+            if (cuenta) {
+                duraciones_hist[r][sig_duracion[r]] = duracion;
+                sig_duracion[r] = (sig_duracion[r] + 1) % 5;
+                if (n_duraciones[r] < 5) {
+                    n_duraciones[r]++;
+                }
             }
             corregir_anticipacion(angulo_ultimo_x10);
         }

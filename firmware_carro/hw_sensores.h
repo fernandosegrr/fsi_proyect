@@ -41,6 +41,10 @@ void hw_tof_hist_guardar(int valor);
 int  hw_imu_hist_leer(void);
 void hw_imu_hist_guardar(int valor);
 
+/* J16: memoria no volátil de la corrección de escala del giroscopio en partes por millón (IMU_ESCALA). hw_imu_escala_leer devuelve 0 si no hay nada guardado. */
+int  hw_imu_escala_leer(void);
+void hw_imu_escala_guardar(int ppm);
+
 /* Memoria no volátil de la anticipación del giro: 4 ranuras (perfil x sentido, ver giro.c). hw_ant_leer devuelve los ms guardados o -1 si no hay nada; hw_ant_borrar las borra todas. */
 int  hw_ant_leer(int ranura);
 void hw_ant_guardar(int ranura, int ms);

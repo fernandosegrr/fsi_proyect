@@ -3,6 +3,8 @@
 Uso: pruebas_firmware\\.venv\\Scripts\\python.exe scripts\\verificar_version.py --puerto COM6
 Se puede indicar --adb, --apk (para comparar también bytes) y --revision.
 Con --solo-apk no abre ningún puerto serie y deja el FW pendiente para Sensores.
+Con --solo-archivo --apk dist/<apk> (J16) no usa ni el teléfono ni el puerto serie: comprueba el APK de la entrega contra Git
+(versión incrustada, revisión, fuentes limpias y SHA256SUMS.txt). No sustituye la comprobación del APK instalado.
 Abrir el puerto no cambia DTR/RTS deliberadamente ni escribe NVS. Solo manda CAPS?.
 """
 import argparse
@@ -84,16 +86,53 @@ def consultar_caps(puerto):
     raise ValueError("El DevKit no respondió con una versión FW")
 
 
+def suma_declarada(apk):
+    """El SHA-256 que dist/SHA256SUMS.txt declara para ese APK (en minúsculas), o None si no aparece."""
+    sumas = apk.parent / "SHA256SUMS.txt"
+    if not sumas.exists():
+        return None
+    for linea in sumas.read_text(encoding="utf-8").splitlines():
+        partes = linea.split()
+        if len(partes) == 2 and partes[1].lstrip("*") == apk.name:
+            return partes[0].lower()
+    return None
+
+
+def verificar_archivo(apk, revision):
+    """J16: comprobación sin teléfono ni puerto serie del APK de la entrega. Devuelve 0 si pasa y 1 si no."""
+    datos = apk.read_bytes()
+    app, hash_app = version_apk(datos)
+    suma = hashlib.sha256(datos).hexdigest()
+    declarada = suma_declarada(apk)
+    nombre_ok = apk.name == "carro_fsi_" + app[4:] + ".apk"
+    fuentes_limpias = not ejecutar(["git", "status", "--porcelain", "--untracked-files=no", "--", "firmware_carro", "app_android", "nucleo_c", "scripts"]).strip()
+    revision_ok = coincide_revision(hash_app, revision)
+    ok = revision_ok and fuentes_limpias and declarada == suma and nombre_ok
+    print("FW: no se comprueba (sin puerto serie)")
+    print(app)
+    print("SHA-256=" + suma.upper())
+    print("SHA256SUMS.txt declara el mismo=" + str(declarada == suma))
+    print("Nombre del archivo coincide con la version=" + str(nombre_ok))
+    print("Fuentes versionadas sin cambios locales=" + str(fuentes_limpias))
+    print("Comparación con " + revision + ": " + ("PASA" if ok else "NO COINCIDE"))
+    return 0 if ok else 1
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     conexion = p.add_mutually_exclusive_group(required=True)
     conexion.add_argument("--puerto")
     conexion.add_argument("--solo-apk", action="store_true")
+    conexion.add_argument("--solo-archivo", action="store_true")
     p.add_argument("--adb", default=str(Path(os.environ.get("LOCALAPPDATA", "")) / "Android/Sdk/platform-tools/adb.exe"))
     p.add_argument("--apk", type=Path)
     p.add_argument("--revision", default="HEAD")
     a = p.parse_args()
     try:
+        if a.solo_archivo:
+            if a.apk is None:
+                raise ValueError("--solo-archivo necesita --apk dist/<archivo>.apk")
+            return verificar_archivo(a.apk, a.revision)
         caps = consultar_caps(a.puerto) if a.puerto else ""
         fw, hash_fw = version_fw(caps) if caps else ("FW PENDIENTE: comprobar en Sensores con el carro conectado", "")
         ruta = ejecutar([a.adb, "shell", "pm", "path", "com.fsi.carro"]).strip().splitlines()
