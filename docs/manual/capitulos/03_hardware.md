@@ -1,59 +1,59 @@
-# Hardware y conexiones
+# 3. Hardware y conexiones
 
-El carro reúne tracción, sensores y dos placas con funciones distintas. Este capítulo identifica las conexiones principales y las precauciones necesarias para revisarlas; los detalles de protocolo se explican más adelante.
+Este capítulo describe los componentes mecánicos, electrónicos y sensores que integran el vehículo físico, así como el mapa exacto de conexiones entre la placa `ESP32 DevKit`, el puente H `TC1508A` y el bus `I2C`. También deja asentado qué circuitos auxiliares están solamente declarados en software pero permanecen sin medición física en el prototipo actual.
 
-## Componentes
+## 3.1 Plataforma mecánica y etapa de tracción
 
-El chasis tiene cuatro motores TT, dos por cada canal del controlador TC1508A. La ESP32 DevKit controla el driver y consulta dos sensores: el MPU6050, utilizado como giroscopio, y el VL53L0X, sensor láser de distancia frontal. La cámara es una Freenove ESP32-WROVER con sensor GC0308. El teléfono Android ejecuta la aplicación.
+El vehículo utiliza un chasis rígido de cuatro ruedas omnidireccionales (*mecanum*) acopladas a cuatro motoreductores de corriente directa tipo **TT** (relación de reducción típica 1:48, tensión nominal de `3 V` a `6 V`). A diferencia de un vehículo con dirección tipo Ackermann, la orientación del carro se modifica por **tracción diferencial** entre el costado izquierdo y el costado derecho:
 
-La DevKit y la cámara disponen de powerbanks independientes. Cuatro pilas AA alimentan el circuito de motores. Antes de intervenir el cableado deben retirarse las pilas y desconectarse las baterías USB.
+- **Avance recto (`FORWARD`):** los dos motores izquierdos y los dos motores derechos giran hacia adelante.
+- **Retroceso (`BACKWARD`):** ambos costados giran hacia atrás.
+- **Giro sobre su propio eje (`LEFT` / `RIGHT`):** un costado gira hacia adelante y el costado opuesto gira hacia atrás (pivote diferencial).
+- **Freno activo (`EBRAKE`):** ambos terminales de cada canal se ponen en alto (`HIGH` / `HIGH`) para cortocircuitar la fuerza contraelectromotriz del inducido y detener el giro con rapidez.
+- **Paro libre (`STOP`):** ambos terminales se ponen en bajo (`LOW` / `LOW`), cortando toda corriente hacia los motores.
 
-## Conexiones de control
+Como el puente H empleado (`TC1508A`) dispone de **dos canales de potencia** (y no de cuatro canales independientes), los dos motores del lado izquierdo están conectados en paralelo al **Canal 1 (`OUT1` / `OUT2`)** y los dos motores del lado derecho están conectados en paralelo al **Canal 2 (`OUT3` / `OUT4`)**. Por esta razón eléctrica, aunque las llantas físicas tienen rodillos oblicuos tipo *mecanum*, el prototipo opera cinemáticamente como un vehículo diferencial de cuatro ruedas motrices y no puede realizar desplazamiento lateral puro (*strafe*) sin girar.
 
-La DevKit utiliza GPIO 27 y 26 para las entradas del canal izquierdo del driver, y GPIO 25 y 33 para el canal derecho. Los sensores comparten el bus I2C, una conexión de datos entre circuitos, mediante SDA en GPIO 21 y SCL en GPIO 22. El firmware configura GPIO 2 para un pulso periódico de mantenimiento de la batería portátil; su conexión y eficacia físicas están **NO MEDIDAS**.
+[FIGURA:lamina_carro|Vistas físicas del vehículo LIDIA: (a) frente con cámara y sensor láser, (b) distribución superior de placas y baterías, (c) chasis y ruedas, (d) cableado en protoboard.]
 
-El positivo del portapilas se conecta a la alimentación del driver, no a un pin de la DevKit. El negativo del portapilas, la tierra del driver y la tierra de la DevKit deben compartir referencia para las señales de control. El consumo de los motores, incluido el de bloqueo, está **NO MEDIDO**; las capacidades nominales del driver no demuestran que las corrientes reales sean seguras.
+## 3.2 Electrónica de control, sensores I2C y cámara
 
-## Revisión de conexiones
+El inventario electrónico embarcado sobre el chasis consta de cinco módulos principales:
 
-El MPU6050 y el VL53L0X comparten SDA y SCL; cada dispositivo responde a su propia dirección en el bus. Las conexiones deben estar firmes y el cableado no debe rozar las ruedas. Para revisar el montaje se desconectan las fuentes de alimentación antes de manipular los conductores; la comprobación de continuidad permite buscar cortocircuitos antes de energizar el sistema.
+| Componente | Modelo / Especificación | Interfaz y dirección / pines | Función en el vehículo | Estado de evidencia |
+|---|---|---|---|---|
+| **Microcontrolador principal** | `ESP32 DevKit V1` (`ESP-WROOM-32`, 240 MHz, WiFi 2.4 GHz) | `PWM`: `GPIO 27, 26, 25, 33`<br>`I2C`: `GPIO 21 (SDA), 22 (SCL)` | Punto de acceso `CarroFSI` (`192.168.4.1`), control de tracción, lectura de sensores y seguridad local. | `VALIDADO EN EL CARRO` |
+| **Driver de motores** | Puente H doble `TC1508A` (reemplazo funcional de `L298N` en baja tensión) | `IN1=27`, `IN2=26` (izq.)<br>`IN3=25`, `IN4=33` (der.)<br>`VDD` a `4×AA`; `GND` común | Conmuta la corriente del portapilas `4×AA` hacia los 4 motores `TT` con modulación `PWM` a `1,000 Hz` (8 bits, `0..255`). | `VALIDADO EN EL CARRO` |
+| **Giroscopio MEMS** | `MPU6050` (6 ejes; se emplea el eje $Z$ de velocidad angular $\omega_z$) | Bus `I2C` a `400 kHz`<br>Dirección `0x68`<br>Alimentación `3.3 V` | Mide velocidad de guiñada en el rango de `±500 °/s` (`65.5 LSB/(°/s)`), muestreado a `200 Hz` para giros y rumbo. | `VALIDADO EN EL CARRO` |
+| **Sensor de distancia** | Láser de tiempo de vuelo (*ToF*) `VL53L0X` (`940 nm`) | Bus `I2C` a `400 kHz`<br>Dirección `0x29`<br>Alimentación `3.3 V` | Mide distancia frontal en milímetros (ventana válida `20..2000 mm`) cada `20 ms`; dispara `TOF_PARO` bajo `120 mm`. | `VALIDADO EN EL CARRO` |
+| **Módulo de cámara** | `Freenove ESP32-WROVER` con cámara `GC0308` y `PSRAM` | Enlace `WiFi` (`192.168.4.2`)<br>`D0..D7`, `XCLK=21`, `SIOD=26`, `SIOC=27` internos | Captura imágenes `HQVGA` (`240×176` px) y las sirve por `HTTP` (`:80/:81`) o `UDP` (`:4210`) al teléfono. | `VALIDADO EN EL CARRO` |
 
-El driver tiene dos canales y cada canal alimenta un par de motores en paralelo. Si el sentido de un lado no corresponde a la orden, se revisa la polaridad del par y la correspondencia de entradas. No se debe inferir que el carro está seguro para operar con ruedas bloqueadas a partir de una prueba con ruedas libres.
+## 3.3 Mapa detallado de pines y conexiones
 
-## Inventario funcional
+Todas las asignaciones de pines del microcontrolador de control están centralizadas en `config.h`. La siguiente tabla resume cada conexión física del chasis:
 
-La DevKit proporciona el punto de acceso inalámbrico, las salidas de control y el bus de sensores. El módulo TC1508A recibe señales de la DevKit y entrega potencia a los motores. Los cuatro motores TT se agrupan por lado: dos motores izquierdos conectados a un canal y dos derechos al otro. La placa de cámara Freenove es un segundo microcontrolador con su propio sensor y memoria; el teléfono aporta la interfaz y el cálculo de navegación.
+| Pin en `ESP32 DevKit` | Constante en firmware | Destino físico | Nivel / Protocolo | Observaciones de montaje |
+|---|---|---|---|---|
+| `GPIO 27` | `PIN_MOTOR_IZQ_A` | `TC1508A IN1` | `PWM` `1000 Hz` (canal `0`) | Avance del par de motores izquierdos. |
+| `GPIO 26` | `PIN_MOTOR_IZQ_B` | `TC1508A IN2` | `PWM` `1000 Hz` (canal `1`) | Retroceso del par de motores izquierdos. |
+| `GPIO 25` | `PIN_MOTOR_DER_A` | `TC1508A IN3` | `PWM` `1000 Hz` (canal `2`) | Avance del par de motores derechos. |
+| `GPIO 33` | `PIN_MOTOR_DER_B` | `TC1508A IN4` | `PWM` `1000 Hz` (canal `3`) | Retroceso del par de motores derechos. |
+| `GPIO 21` | `PIN_I2C_SDA` | `SDA` de `MPU6050` y `VL53L0X` | `I2C` `400 kHz` (`3.3 V`) | Línea de datos compartida en protoboard. |
+| `GPIO 22` | `PIN_I2C_SCL` | `SCL` de `MPU6050` y `VL53L0X` | `I2C` `400 kHz` (`3.3 V`) | Línea de reloj compartida en protoboard. |
+| `GPIO 2` | `PIN_CARGA_POWERBANK` | LED interno / carga opcional | Salida digital (`3.3 V`) | Pulso de `200 ms` cada `8,000 ms`; circuito externo y efecto real **`NO MEDIDOS`**. |
+| `3V3` | — | `VCC` de `MPU6050` y `VL53L0X` | Alimentación regulada `3.3 V` | Exclusivo para sensores de bajo consumo. |
+| `GND` | — | `GND` de `TC1508A`, sensores y `-` de `4×AA` | Referencia común (`0 V`) | Imprescindible para que el `TC1508A` interprete los pulsos `PWM`. |
 
-Los elementos de alimentación son dos baterías portátiles USB, una para cada placa, y un portapilas de cuatro celdas AA para el driver. Los cables USB de datos se usan para las tareas de carga de programa y diagnóstico; una conexión adecuada para alimentación no garantiza que el cable transporte datos. Para una lista de compra con marcas, capacidades y precios no hay inventario completo respaldado: esos datos permanecen **PENDIENTES**.
+### Orientación física de los sensores en el chasis
 
-## Separación entre señales y potencia
+1. **Giroscopio (`MPU6050`):** va montado horizontalmente cerca del centro geométrico del chasis. Dado que según la cara en que se fije la placa sobre la protoboard el eje $Z$ puede apuntar hacia arriba o hacia abajo, el firmware incluye la constante `IMU_SIGNO_Z = 1` (o `-1`) para garantizar la convención de signos de todo el sistema: **giro hacia la izquierda positivo ($+\theta$)** y **giro hacia la derecha negativo ($-\theta$)**.
+2. **Láser frontal (`VL53L0X`):** va colocado en el borde delantero del chasis apuntando horizontalmente en la dirección de avance (`0°`), por debajo del lente de la cámara `Freenove`, de modo que detecte cajas de `20×20 cm` situadas frente al vehículo.
 
-Un GPIO es una entrada o salida digital del microcontrolador. No es una fuente adecuada para alimentar directamente los motores. El puente H recibe señales de mando de bajo consumo y conmuta la alimentación que procede del portapilas. La dirección de giro se decide por cuál entrada del canal recibe la señal; el valor PWM determina la fracción de tiempo activo.
+## 3.4 Elementos eléctricos no medidos en el prototipo
 
-El positivo de las cuatro pilas se lleva a VDD del TC1508A. El negativo de las pilas debe compartir referencia con la tierra del driver y la de la DevKit. La necesidad de esa referencia se limita a los circuitos que intercambian señales eléctricas: la cámara se comunica por WiFi y dispone de su propia alimentación. Este esquema no establece por sí mismo un detalle de cableado interno de la cámara.
+Siguiendo la regla de trazabilidad del manual, dos aspectos eléctricos deben declararse explícitamente como **`NO MEDIDOS`**:
 
-La separación de alimentación busca evitar que los cambios de corriente de tracción alteren la alimentación del controlador. No constituye una medición de ruido eléctrico ni garantiza ausencia de reinicios. Para investigar un reinicio deben registrarse la condición de movimiento, la carga de las baterías y el resultado observado, en lugar de atribuirlo automáticamente a una causa.
+- **Circuito de mantenimiento de *powerbank* en `GPIO 2`:** algunas baterías portátiles comerciales apagan su salida USB si el consumo cae por debajo de un umbral durante varios segundos. El firmware conmuta `GPIO 2` en alto durante `200 ms` cada `8,000 ms` (`CARGA_PERIODO_MS = 8000`, `CARGA_PULSO_MS = 200`), pensando en conmutar un resistor de carga hacia tierra. Sin embargo, el consumo de la `ESP32 DevKit` con el radio `WiFi` activo en modo punto de acceso (`AP`) basta por sí mismo para mantener encendida la *powerbank* empleada en las pruebas, por lo que la eficacia del pulso en `GPIO 2` permanece **`NO MEDIDA`**.
+- **Consumo de corriente y autonomía en miliamperios-hora:** no se han efectuado mediciones instrumentadas con multímetro o pinza amperimétrica de la corriente de arranque ni de régimen de los cuatro motores `TT`, ni del consumo exacto de las placas `ESP32`. En su lugar, la operación se rige por el criterio experimental de reemplazo o recarga de las `4 pilas AA` cada **20 corridas o 90 minutos de uso** (descrito en el Capítulo 11).
 
-## Identificación de los canales de motor
-
-El canal izquierdo usa GPIO 27 para la entrada A y GPIO 26 para la B; en la configuración del proyecto el avance izquierdo utiliza la entrada B. El derecho usa GPIO 25 para la entrada A y GPIO 33 para la B; el avance derecho utiliza la A. Esos nombres describen el mapeo lógico del firmware. Los rótulos impresos en el módulo concreto deben comprobarse contra sus conexiones antes de modificar cables.
-
-Una inversión de polaridad en un par puede producir avance en un lado y retroceso en el otro. Una rueda que no gira también puede deberse a un conector suelto o un problema mecánico; no debe corregirse cambiando valores de software sin revisar primero el montaje. La inspección se realiza con las fuentes desconectadas. Una vez revisado el cableado, la guía de conexión propone pruebas iniciales con ruedas elevadas y control de una sola etapa a la vez.
-
-## Bus compartido de sensores
-
-SDA es la línea de datos del bus I2C y SCL es la línea de reloj. Ambos módulos se conectan a las mismas dos señales, junto con 3.3 V y tierra. El código configura una frecuencia de 400 kHz; el MPU6050 responde en la dirección 0x68 y el VL53L0X en 0x29. Una dirección identifica al dispositivo en ese bus, no es una dirección de red WiFi.
-
-La comunicación puede fallar aunque un LED de alimentación esté encendido. El LED demuestra que el módulo recibe alguna alimentación, pero no demuestra continuidad de SDA y SCL ni lectura válida. Un registro del proyecto describe un cable SCL flojo que dejó de responder al giroscopio. Ante un fallo se revisan alimentación, referencia común, continuidad y fijación de los conductores antes de interpretar el sensor como defectuoso.
-
-El proyecto documenta una orientación prevista del giroscopio con el eje Z hacia arriba y la referencia frontal del módulo hacia adelante. La orientación y el signo importan porque el firmware interpreta el ángulo para decidir el sentido de giro. El láser se monta hacia el frente; su altura y ángulo condicionan qué objetos intercepta el haz. Un cambio físico de montaje requiere repetir las comprobaciones de orientación y detección.
-
-## Corriente, temperatura y autonomía
-
-Los dos motores de un lado comparten un canal del driver, por lo que el esfuerzo del canal depende de la corriente conjunta. El registro de conexiones cita límites nominales del componente; no contiene una caracterización suficiente del consumo real del conjunto bajo todas las cargas. El arranque, la fricción y el bloqueo pueden producir condiciones diferentes de una rueda girando sin carga.
-
-Antes de decidir que un componente tiene margen suficiente, deben medirse las corrientes pertinentes con un instrumento y procedimiento adecuados, registrando tensión, configuración, duración y carga. La temperatura del driver y la autonomía tampoco cuentan con una medición suficiente en el repositorio. Estas magnitudes no deben sustituirse por valores típicos de otro carro.
-
-El firmware configura GPIO 2 para emitir un pulso de 50 ms cada dos segundos. El propósito es mantener activa una batería portátil de baja carga, pero no se conoce con certeza qué carga física está conectada al pin ni si esa batería necesita el pulso. La señal programada es un dato de configuración; su efecto real permanece **NO MEDIDO**.
-
-Dónde está en el código: `config.h`, `firmware_carro.ino`, `sensores.c`.
+Dónde está en el código: `config.h`, `firmware_carro.ino`, `camara_prueba.ino`.

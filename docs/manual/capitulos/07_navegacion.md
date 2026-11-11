@@ -1,69 +1,92 @@
-# Núcleo de navegación en C
+# 7. Núcleo de navegación en C
 
-El núcleo transforma una ruta dibujada en la aplicación en acciones de avance y giro. Su implementación en C también puede ejecutarse en una computadora para probar la lógica con un vehículo simulado.
+Este capítulo explica la arquitectura matemática del núcleo de navegación escrito en estándar `C99` (`nucleo_c`), que se compila tanto dentro de la aplicación Android (vía `JNI`) como en computadora personal para las suites de pruebas y el simulador Monte Carlo. Describe el modelo de cuadrícula, las ecuaciones de calibración longitudinal y angular, la máquina de estados del navegador y las mejoras introducidas en los cierres **J15** y **J16**: integración de pose en décimas de grado (`rumbo_x10`), guiado continuo por punto de mira (`RUMBO`), geometría de esquive con margen longitudinal de `150 mm`, corrección de `override_largo_mm` y protección ante caída a giro por tiempo (`descartar_dt`).
 
-## Ruta, calibración y pose
+## 7.1 Por qué se navega por tiempo con giroscopio y cómo funciona la cuadrícula
 
-La cuadrícula de la aplicación representa celdas de 20 cm. La trayectoria se descompone en tramos y cambios de dirección. Como el carro no dispone de encoders para medir el giro de las ruedas, la distancia de avance se estima a partir del tiempo y de una calibración en milisegundos por centímetro. La calibración también contempla el arranque, el frenado y los giros.
+Los cuatro motores `TT` del vehículo carecen de codificadores ópticos o magnéticos (*encoders*) en sus ejes, y el entorno interior tampoco dispone de balizas externas. Por ello, el sistema divide la estimación cinemática en dos variables complementarias:
 
-La pose es la posición y orientación estimadas. Durante un avance, el navegador integra incrementos de distancia con el rumbo observado por el giroscopio cuando la lectura es válida. El giro medido mejora la orientación estimada, pero no detecta un deslizamiento lateral sin rotación. Los errores de calibración y de tracción pueden acumularse.
+1. **Distancia longitudinal por tiempo calibrado:** cada milímetro de avance se relaciona con un número de milisegundos de activación de los motores en perfil `AUTO`, compensando el retardo de arranque inicial y el deslizamiento por inercia al frenar.
+2. **Orientación por integración del giroscopio (`MPU6050`):** el ángulo real del vehículo se mide a `200 Hz` en el firmware y se transmite al navegador cada `100 ms` en décimas de grado (`SENS`), lo que permite cerrar los giros por ángulo medido (`GIRO:<grados>`), mantener el rumbo en rectas (`RUMBO:<décimas>`) y proyectar cada incremento de avance en la dirección verdadera a la que apunta el chasis.
 
-## Esquive y reincorporación
+### Cuadrícula de planificación (`trayectoria.c` y `ruta_editor.c`)
 
-Ante un obstáculo, el navegador puede detenerse, evaluar una alternativa lateral y planear el regreso a la trayectoria. Si no puede continuar, puede detenerse o solicitar ayuda según la configuración. La corrección J15 integra el rumbo observado durante el avance para actualizar la pose que usa la reincorporación.
+El usuario dibuja o selecciona rutas sobre una cuadrícula cartesiana donde **cada celda mide `20 cm × 20 cm` (`200 mm`)**. El eje $+Y$ apunta hacia el frente inicial del carro (`rumbo = 0°`), el eje $+X$ apunta hacia la derecha (`rumbo = -90°`) y los ángulos positivos ($+\theta$) miden giros hacia la izquierda (sentido antihorario visto desde arriba).
 
-En el escenario B6 **SIMULADO**, el error lateral medio pasó de 13.2 a 1.9 cm después de la corrección. Se terminaron 400 de 400 rutas y se registraron cero contactos en ambas versiones; con error menor de 20 cm terminaron 344 y 400, respectivamente. La validación de esa corrección en el carro físico permanece **NO MEDIDA**.
+Dada una lista de celdas consecutivas $(c_k, f_k)$, el módulo `trayectoria.c` fusiona los segmentos colineales y genera una lista compacta de pasos elementales (`Paso`):
 
-## Simulación
+- **`PASO_GIRAR`:** contiene el cambio de orientación requerido en grados (`grados`) y su duración de respaldo por tiempo (`duracion_ms`).
+- **`PASO_AVANZAR`:** contiene la distancia longitudinal del tramo en milímetros (`distancia_mm`), su duración calibrada (`duracion_ms`) y la celda destino.
 
-El simulador ejecuta la lógica del navegador sobre un modelo de movimiento y obstáculos. Permite repetir escenarios con condiciones controladas, pero no reproduce toda la percepción real, el deslizamiento, la iluminación ni la red. Un resultado simulado no demuestra que el vehículo físico siga la misma trayectoria.
+[FIGURA:navegacion|Ciclo de control del núcleo de navegación en C99: planificación en cuadrícula, guiado en recta con RUMBO, giro cerrado con MPU6050 e integración continua de pose en décimas de grado.]
 
-## Ajuste de movimiento
+## 7.2 Modelos de calibración longitudinal (`calibracion.c`) y angular (`calgiro.c`)
 
-La calibración relaciona una distancia conocida con el tiempo de avance observado y contempla el tiempo que tarda el carro en comenzar a desplazarse. El frenado representa la distancia recorrida después de ordenar la parada. Esos parámetros son específicos del montaje y de las condiciones del ensayo: una modificación de peso, pilas o superficie puede cambiar su efecto.
+### Conversión entre distancia y tiempo (`calibracion.c`)
 
-Los giros izquierdo y derecho no son necesariamente simétricos. El firmware utiliza el giroscopio para observar el ángulo y puede anticipar la detención para reducir el sobrepaso. Si el sensor no está listo o se agota el tiempo, la respuesta de giro informa el fallo. Una lectura tardía no debe presentarse como una posición absoluta medida.
+Un tramo recto de longitud $d_{\text{mm}}$ (o $d_{\text{cm}} = d_{\text{mm}}/10$) no es simplemente proporcional al tiempo: al energizar los motores existe un tiempo muerto de arranque $t_{\text{arr}}$ (`arranque_ms`, por defecto `120 ms` de latencia mecánica efectiva) y, al enviar `STOP`, el vehículo recorre todavía una distancia de frenado por inercia $d_{\text{freno}}$ (`frenado_mm`). Con una pendiente calibrada $m$ en milisegundos por centímetro (`ms_por_cm`, valor base `50 ms/cm`, equivalente a `200 mm/s`), el tiempo de comando $T(d_{\text{mm}})$ y su función inversa $\hat{d}(t)$ son:
 
-## Lectura de la simulación
+$$T(d_{\text{mm}}) = t_{\text{arr}} + \max\left(0,\ d_{\text{mm}} - d_{\text{freno}}\right) \cdot \frac{m}{10}, \qquad \hat{d}(t) = \max\left(0,\ t - t_{\text{arr}}\right) \cdot \frac{10}{m}$$
 
-El simulador distingue la posición de su vehículo virtual de la posición estimada por el navegador. En el ensayo B6 la caja, el chasis, el retraso de video y la variación de giro forman parte del modelo; algunas de esas magnitudes son supuestos. Se registran llegadas, contactos y error lateral. Esas métricas no miden la precisión longitudinal ni demuestran que una ruta física quede libre de contacto.
+Por ejemplo, con $m = 50\text{ ms/cm}$, $t_{\text{arr}} = 120\text{ ms}$ y $d_{\text{freno}} = 20\text{ mm}$, para recorrer una celda de $200\text{ mm}$ ($20\text{ cm}$) el navegador programa $T(200) = 120 + (200 - 20) \times 5 = 1{,}020\text{ ms}$.
 
-## De una cuadrícula a movimientos
+En el cierre **J16** se corrigió además una sutileza importante en las rutas predefinidas de un solo paso con longitud personalizada (`override_largo_mm > 0`, como `Recta 150 cm` que va de `(0,0)` a `(0,1)` pero mide `1,500 mm` en lugar de `200 mm`): antes de J16, `ModoSemiautonomo.kt` recalculaba la duración a partir de los dos puntos de cuadrícula (`200 mm`) y sobrescribía los `1,500 mm`. Ahora `ModoSemiautonomo` respeta `override_largo_mm` y calcula tanto `distancia_mm = 1500` como su `duracion_ms` real a partir de la calibración activa.
 
-La ruta se describe mediante puntos de una cuadrícula. Una celda representa 20 cm, de modo que dos puntos separados por cinco celdas en una misma dirección representan un tramo nominal de 100 cm. El núcleo transforma cada cambio de dirección en un giro y cada tramo en un avance. La duración del avance depende de la calibración; la cantidad de celdas no indica cuánto recorrieron realmente las ruedas.
+### Cuerda de pivote excéntrico y escala del giroscopio (`calgiro.c`)
 
-Por ejemplo, si una calibración hipotética indica 50 ms por centímetro, 100 cm corresponden a 5000 ms de movimiento calculado antes de considerar el tratamiento de arranque y frenado. La cifra es un ejemplo de cálculo, no una medición nueva. El programa contempla parámetros adicionales para el tiempo inicial y el movimiento posterior a la parada; esos valores deben corresponder al carro y al entorno utilizados.
+Si el centro de giro efectivo del vehículo no coincide exactamente con el punto de referencia de medición (excentricidad o radio de pivote $R$ en milímetros), al girar un ángulo $\Delta\theta$ sobre su sitio el punto de referencia describe un arco cuya **cuerda geométrica** es:
 
-Una ruta dibujada y una ruta ejecutada son objetos distintos. La primera contiene la intención del operador; la segunda resulta de las decisiones del navegador, de las observaciones disponibles y de cómo responde el vehículo. Si se cambia la ruta o se interrumpe la ejecución, debe comprobarse el estado de parada antes de volver a iniciar.
+$$c(\Delta\theta) = 2 R \sin\left(\frac{|\Delta\theta|}{2}\right)$$
 
-## Estados y transiciones
+El módulo `calgiro.c` permite estimar este radio a partir de la cuerda medida tras un giro de `90°` ($R = c_{90} / \sqrt{2}$) y proyecta ese desplazamiento al integrar giros grandes (`pivote_mm`). Asimismo, en el cierre **J16** se incorporó la función **`calgiro_escala`**, que calcula el ajuste en partes por millón (`escala_ppm`) para el giroscopio a partir del ángulo reportado por el `MPU6050` tras una vuelta física completa de `360°` sobre una marca en el piso (o del promedio de giros en ambos sentidos para cancelar asimetrías de colocación):
 
-El navegador organiza su trabajo como una máquina de estados: en cada instante tiene un estado y aplica las reglas asociadas a él. En ESPERANDO existe una ruta cargada que aún no se ejecuta. En SIGUIENDO se procesa el paso actual. En DETENIDO_OBSTACULO se mantiene la parada mientras se decide si es posible continuar o esquivar.
+$$\Delta\text{ppm} = \text{round}\left(\frac{360.0 - |\theta_{\text{medido}}|}{|\theta_{\text{medido}}|} \times 1{,}000{,}000\right)$$
 
-En ESQUIVANDO se ejecutan las maniobras para apartarse; en REINCORPORANDO se calcula el regreso a la línea original. TERMINADO indica fin de ruta y ERROR indica que no pudo continuarse. En ESPERANDO, TERMINADO y ERROR el núcleo devuelve STOP. La opción AYUDA permite intervención de una persona cuando está habilitada; durante esa intervención el responsable debe supervisar el espacio y las órdenes manuales.
+Por ejemplo, si tras girar exactamente `360.0°` físicos el giroscopio reporta `354.6°` (subestima un `1.5 %`), `calgiro_escala` devuelve `+15,228 ppm`, que se suma a la escala vigente y se guarda en `NVS` con `IMU_ESCALA:15228`.
 
-El estado es una descripción de la lógica, no una medición independiente del movimiento. Por ejemplo, TERMINADO indica que se alcanzó el criterio de la ruta en el modelo del navegador; no certifica por sí solo la posición física del chasis. La posición real se compara con una referencia externa, como una marca y una cinta métrica, cuando se desea medir error.
+## 7.3 Máquina de estados, integración en décimas de grado y guiado `RUMBO`
 
-## Confirmación de obstáculos y pérdida de imagen
+El módulo `navegador.c` gobierna la ejecución de la ruta mediante siete estados explícitos:
 
-La cercanía visual se expresa por niveles; no es una distancia física directa en centímetros. El código trata un obstáculo muy cercano con mayor urgencia que uno lejano. Para una detección de nivel 2 en una zona lateral se requiere confirmación temporal: 150 ms y al menos dos cuadros. Para volver a avanzar se exige una condición de frente libre durante 250 ms. Estos son parámetros del software, no resultados de tiempo de reacción medidos en el conjunto físico.
+| Estado (`EstadoNav`) | Comando emitido | Condición de entrada y función principal |
+|---|---|---|
+| `NAV_ESPERANDO` | `STOP` | Estado inicial o tras cancelar; espera `navegador_comenzar`. |
+| `NAV_SIGUIENDO` | `FORWARD` / `LEFT` / `RIGHT` + `RUMBO` | Ejecuta la secuencia de pasos (`PASO_GIRAR` y `PASO_AVANZAR`) hacia el siguiente nodo de la ruta. |
+| `NAV_DETENIDO_OBSTACULO` | `STOP` | Pausa de confirmación (`300 ms`) al detectar un obstáculo dentro del corredor frontal antes de decidir esquivar. |
+| `NAV_ESQUIVANDO` | Giros y avances de desvío | Ejecuta el rodeo lateral (`400 mm` a izquierda o derecha) y el avance paralelo para rebasar la caja. |
+| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Regresa desde el carril paralelo hacia un punto situado `300 mm` por delante del obstáculo sobre la línea original. |
+| `NAV_AYUDA` | Manual del operador | Cede el mando al usuario cuando ambos lados están bloqueados o se activa un paro de supervisión; espera hasta `3 min` a que pulse `Continuar`. |
+| `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin exitoso del último paso de la ruta o aborto por fallo irrecuperable. |
 
-La ausencia de cuadros también se considera una condición de riesgo. Para una ruta que exige cámara, el núcleo define un hueco máximo de video de 700 ms y, al superarlo, detiene la ruta y pasa a ERROR. Al empezar existe además un plazo para recibir el primer cuadro mientras el carro permanece quieto. La aplicación tiene sus propias comprobaciones; el valor de una capa no debe confundirse con una medición de latencia de toda la cadena.
+### Integración de pose en décimas de grado (`rumbo_x10` — Cierres J15 y J16)
 
-## Desvío y regreso a la ruta
+Antes del cierre J15, el navegador suponía que durante todo un paso de avance el carro se movía exactamente con el ángulo ideal del tramo ($0^\circ, 90^\circ, 180^\circ$) y solo actualizaba $(x, y)$ al terminar el paso. En J15 se introdujo la integración incremental cada `100 ms` usando el ángulo del giroscopio, y en **J16** se eliminó el truncamiento a grados enteros: ahora `PoseNav` almacena y propaga **`rumbo_x10` en décimas de grado** (por ejemplo, `15` equivale a `1.5°`, mientras que en entero se truncaba a `1°` perdiendo un tercio del ángulo). En cada intervalo $\Delta t$ de avance activo con distancia incremental $\Delta s = \hat{d}(t) - \hat{d}(t_{\text{ant}})$, la posición estimada se actualiza con el ángulo real medido:
 
-La configuración plantea un giro de 90 grados para apartarse y un tramo lateral nominal de 40 cm. El navegador busca superar el obstáculo antes de volver hacia la línea; el punto de reincorporación se define 30 cm por delante del punto de salida. Esos valores describen el plan del algoritmo, no las distancias necesariamente alcanzadas por el carro físico.
+$$x_{\text{mm}} \leftarrow x_{\text{mm}} - \Delta s \cdot \sin\left(\frac{\text{rumbo\_x10}}{10} \cdot \frac{\pi}{180}\right), \qquad y_{\text{mm}} \leftarrow y_{\text{mm}} + \Delta s \cdot \cos\left(\frac{\text{rumbo\_x10}}{10} \cdot \frac{\pi}{180}\right)$$
 
-El regreso se calcula a partir de la pose estimada. Si el carro ha girado o patinado de una manera que el modelo no representa, el punto calculado puede diferir del lugar real. La Figura 7 ilustra una trayectoria conceptual y no representa un plano de montaje ni una medición del recorrido.
+*(El signo menos en $x_{\text{mm}}$ obedece a que $\text{rumbo\_x10} = 0$ apunta hacia $+Y$ y los giros positivos $+\theta$ van hacia $-X$, es decir, hacia la izquierda).*
 
-El código también limita el retroceso de los reintentos: 15 cm y un máximo de 2000 ms. El vehículo no cuenta con un sensor posterior en esa maniobra. Por eso el operador debe mantener libre la zona detrás del carro; el límite programado no detecta a una persona, una pared o un borde en esa dirección.
+Además, el cierre **J16** corrigió una condición de carrera sutil al caer de giro por giroscopio a giro por tiempo (`descartar_dt`): si el sensor `MPU6050` deja de responder en mitad de un giro (`GIRO_ERR_IMU` o silencio `> 500 ms`), el navegador conmuta a giro por tiempo y activa la bandera `descartar_dt = 1` para que el primer ciclo de respaldo no multiplique el tiempo acumulado previo por la velocidad angular nominal.
 
-## Datos que conserva la calibración
+### Guiado continuo en rectas por punto de mira (`RUMBO` — Cierre J16)
 
-El modelo de calibración incluye el tiempo de arranque, el tiempo por centímetro, el avance posterior al STOP y parámetros separados para giros izquierdo y derecho. Puede incluir retroceso y desplazamiento del centro del carro durante un pivote. Separar ambos lados permite representar la asimetría del chasis, en vez de asumir que los dos motores y las dos maniobras son idénticos.
+Incluso si el controlador `PI` del firmware mantiene un ángulo constante, un pequeño error inicial al terminar el giro previo haría que el carro caminara en una recta paralela o divergente respecto al segmento deseado. Por ello, durante cada avance en `NAV_SIGUIENDO`, `navegador_rumbo_Correccion_x10` calcula un **punto de mira (*pure pursuit / lookahead*) situado `400 mm` por delante** sobre el segmento ideal de la ruta (o en el vértice final del tramo si faltan menos de `400 mm`):
 
-La aplicación guía mediciones por partes. En la prueba de avance se registran distancias recorridas para distintos tiempos y repeticiones; el cálculo ajusta los parámetros a esos datos. El tiempo de arranque incluye una intervención humana cuya reacción debe considerarse. Si se usan valores de ejemplo o parámetros antiguos, el simulador y la ruta real pueden divergir aunque ambos ejecuten correctamente el mismo código.
+1. Proyecta la pose actual $(x_{\text{mm}}, y_{\text{mm}})$ sobre el vector unitario del tramo para obtener la coordenada longitudinal alcanzada y el error transversal respecto a la línea.
+2. Ubica el punto objetivo $P_{\text{mira}}$ a `400 mm` por delante sobre la recta original y calcula su acimut deseado $\theta_{\text{mira}}$.
+3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_MAX_CORR_X10 = 120`) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
+4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8.0°`** (`NAV_GIRO_EN_MARCHA_MAX_X10 = 80`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
 
-La guía histórica de calibración afirma que el carro no tenía IMU. Esa descripción corresponde a una etapa anterior: el código actual utiliza el MPU6050. El avance continúa estimándose por tiempo, mientras que el giroscopio aporta información de giro y rumbo. Ambas afirmaciones pueden coexistir cuando se indica qué magnitud se mide y cuál se estima.
+## 7.4 Geometría de esquive en tres tramos y margen J16 de `150 mm`
 
-Dónde está en el código: `trayectoria.c`, `calibracion.c`, `navegador.c`, `simulador_navegador.c`, `sim_ruta.c`.
+Cuando el vehículo avanza en `NAV_SIGUIENDO` y el subsistema de percepción confirma durante `300 ms` un obstáculo dentro del corredor frontal a una distancia estimada $d_{\text{obs}}$ (acotada al rango `[150, 700] mm`), el navegador construye una maniobra de rodeo y reincorporación en tres tramos:
+
+[FIGURA:esquive|Geometría de la maniobra de esquive en tres tramos con margen longitudinal J16 de 150 mm y estado validado físicamente en el carro (escenario B6).]
+
+1. **Tramo 1 — Desvío lateral (`NAV_TRAMO_ESQUIVAR_CM = 40 cm` = `400 mm`):** el navegador consulta qué costado tiene más espacio libre en la imagen (`lado_libre`: izquierda `+1` o derecha `-1`). Gira `90°` hacia ese lado, avanza `400 mm` para salir de la línea del obstáculo y gira `-90°` para quedar nuevamente paralelo a la ruta original.
+2. **Tramo 2 — Avance paralelo de rebase con margen J16 (`NAV_PASO_MARGEN_MM = 150 mm`):** para rebasar por completo el cuerpo del obstáculo (cuya profundidad supuesta es `NAV_PROFUNDIDAD_OBS_MM = 250 mm`), el carro avanza en paralelo una distancia:
+   $$d_{\text{paso}} = \text{clamp}_{[400, 1100]}\left(d_{\text{obs}} + 250\text{ mm} + 150\text{ mm}\right)$$
+   En el cierre **J16** se amplió este margen de seguridad de `100 mm` a **`150 mm`** (`+5 cm` adicionales) porque cuando la distancia longitudinal se estima por tiempo con baterías parcialmente descargadas, un margen corto hacía que el vehículo iniciara el regreso diagonal rozando la esquina trasera de la caja.
+3. **Tramo 3 — Reincorporación calculada desde la pose integrada (`NAV_REINC_ADELANTE_CM = 30 cm` = `300 mm`):** al concluir el rebase paralelo, en lugar de ejecutar un regreso ciego de `-90°` y `400 mm` (que ignoraba cualquier desviación sufrida durante el rodeo), `iniciar_reincorporacion` toma la pose real integrada $(x_{\text{actual}}, y_{\text{actual}}, \text{rumbo\_x10})$ y calcula el vector directo $(\Delta x, \Delta y)$ hacia un punto de reincorporación situado sobre la línea original **`300 mm` por delante** del borde trasero del obstáculo (o hacia el destino final de la ruta si está más cerca). A partir de $(\Delta x, \Delta y)$ genera un giro hacia $\text{atan2}(-\Delta x, \Delta y)$, el avance por la hipotenusa $\sqrt{\Delta x^2 + \Delta y^2}$ y la alineación final con la ruta.
+
+Dónde está en el código: `navegador.h`, `navegador.c`, `trayectoria.h`, `trayectoria.c`, `calibracion.h`, `calibracion.c`, `calgiro.h`, `calgiro.c`, `ruta_editor.c`, `simulador_navegador.c`.

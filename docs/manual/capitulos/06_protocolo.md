@@ -1,51 +1,74 @@
-# Protocolo de comunicación
+# 6. Protocolo de comunicación
 
-La aplicación y el carro intercambian órdenes y estados por un WebSocket en la red local. El protocolo utiliza mensajes de texto breves; el video de la cámara sigue una vía distinta. Los comandos principales se reúnen en el anexo.
+Este capítulo especifica el protocolo de mensajes de texto que une a la aplicación Android con el firmware de la placa `ESP32 DevKit`. Documenta la capa de transporte, la temporización de latidos y vigilancia, el catálogo completo de órdenes y respuestas —incluidos todos los mensajes incorporados en el cierre **J16** (`RUMBO`, `IMU_ESCALA`, `WD:<n>` y la cadena `CAPS` ampliada)— y muestra la traza comentada de una sesión real.
 
-## Movimiento y parada
+## 6.1 Capa de transporte y canales de enlace
 
-FORWARD y REVERSE ordenan avance y retroceso; LEFT y RIGHT ordenan pivotes. STOP y EBRAKE detienen los motores. En control manual, la aplicación repite la orden mientras el usuario mantiene pulsado el control y envía STOP al soltarlo. El vigilante detiene los motores cuando el temporizador de comunicación supera el intervalo configurado; el firmware también lo renueva ante algunos mensajes que no son órdenes de movimiento.
+La comunicación de control entre el teléfono y el carro se realiza mediante mensajes cortos de texto ASCII sobre una sesión persistente **`WebSocket`** en la dirección **`ws://192.168.4.1/ws`** (puerto TCP `80`). El mismo intérprete de comandos (`carro_recibir_comando` y `sensores_comando`) escucha también en el puerto serie `USB` a **`115,200 baudios`**, lo que permite consultar versiones (`VERSION?`), leer diagnósticos (`SENS?`, `LOOP?`) o calibrar sensores desde una computadora sin abrir la red `WiFi`. Adicionalmente, el servidor `HTTP` en `http://192.168.4.1/` ofrece una página web embebida de respaldo verificada por `verificar_pagina.py`.
 
-PING y PONG permiten comprobar el enlace, pero PING no renueva el plazo de movimiento. La cola protege las órdenes de parada frente a saturación. GIRAR solicita un giro por ángulo y devuelve un resultado como GIRO_OK, GIRO_TIMEOUT o GIRO_ERROR.
+El diseño utiliza texto legible en lugar de tramas binarias opacas por tres razones de ingeniería:
 
-## Estado y configuración
+1. **Inspección inmediata:** cualquier mensaje enviado o recibido puede leerse directamente en el monitor serie o en el registro de la aplicación sin decodificadores especiales.
+2. **Pruebas deterministas:** el servidor falso en Python (`probar_servidor_falso.py`) y las suites en `C99` pueden inyectar cadenas literales (`"RUMBO:125"`, `"SENS:-32,480,7"`) para verificar cada rama lógica.
+3. **Bajo sobrecosto:** con un máximo de `31` caracteres por comando (`COLA_COMANDO_MAX = 32` incluyendo el terminador nulo) y una cadencia de `4` a `10` mensajes por segundo, el tráfico total de control es inferior a `1 KB/s`.
 
-MODO_AUTO y MODO_MANUAL seleccionan perfiles; sus respuestas confirman la selección. Los mensajes SENS comunican ángulo, distancia y banderas de estado. TOF_PARO informa una detención activada por el láser. Las consultas de sensores y balance permiten comprobar las condiciones antes de una ruta.
+## 6.2 Temporización de latidos, sondas y vigilancia
 
-## Interpretación de telemetría
+El protocolo separa estrictamente la **salud de la conexión de red** de la **autorización para mantener los motores encendidos**:
 
-La trama SENS contiene tres campos separados por comas: ángulo en décimas de grado, distancia en milímetros y un entero de banderas. Por ejemplo, un ángulo de 450 representa 45 grados. Las banderas indican el estado del giroscopio, del láser y de otras condiciones del firmware; se deben interpretar junto con la versión del protocolo correspondiente.
+- **Sonda de enlace (`PING` → `PONG` cada `800 ms`):** la clase `Enlace.kt` en Android envía `PING` cada `800 ms` y espera `PONG`. Si no recibe respuesta dentro de `2,000 ms`, declara el socket caído e inicia la reconexión automática. Sin embargo, **`PING` no renueva el *watchdog* de motores** en el firmware: así, aunque la red siga viva, si el hilo de navegación se detiene, el carro frena solo.
+- **Latido de movimiento (`250 ms`):** mientras el usuario mantiene presionado un botón en conducción manual o mientras el navegador ejecuta un avance en ruta, la aplicación reenvía el comando activo (`FORWARD`, `BACKWARD`, `LEFT` o `RIGHT`) cada **`250 ms`**, dando cuatro oportunidades de renovación antes de que venza el plazo del firmware.
+- **Plazo de *watchdog* en el carro (`1,000 ms`) y aviso `WD:<n>` (Cierre J16):** si pasan `1,000 ms` (`TIMEOUT_COMANDO_MS`) con los motores activos sin recibir un comando de control válido, el firmware apaga los motores (`STOP`), restablece el perfil `AUTO` y envía por `WebSocket` el mensaje **`WD:<contador>`** (por ejemplo, `WD:1`). Al recibir `WD:<n>`, la aplicación Android detiene inmediatamente cualquier ruta semiautónoma para no quedar desincronizada respecto al carro.
+- **Vigilancia de silencio de telemetría en Android (`1,500 ms` — Cierre J16):** en modo `AUTO`, el carro envía `SENS` cada `100 ms` (`10 Hz`). Si durante una ruta activa pasan **`1,500 ms`** (`SILENCIO_SENS_MS`) sin recibir ninguna trama `SENS`, `ModoSemiautonomo.kt` aborta la misión y transmite `STOP`.
 
-El perfil AUTO puede emitir telemetría periódica mientras hay un cliente conectado. Una lectura inválida o atrasada no debe tratarse como una distancia segura. Las respuestas de error o de tiempo agotado de un giro indican que la operación no terminó normalmente y requieren detenerse y revisar las condiciones antes de continuar.
+## 6.3 Catálogo completo de comandos y respuestas (incluyendo J16)
 
-## Direcciones y sesiones
+La siguiente tabla reúne todos los comandos aceptados por el firmware y las respuestas o eventos asíncronos que emite:
 
-La DevKit crea un punto de acceso local con la dirección 192.168.4.1. La aplicación abre el canal de órdenes en `ws://192.168.4.1/ws`. La cámara se conecta a esa red con la dirección 192.168.4.2 y ofrece su video por HTTP. El teléfono se incorpora como cliente de la misma red y puede hablar con ambos nodos.
+| Comando enviado al carro | Respuesta / Evento emitido | Función técnica y parámetros |
+|---|---|---|
+| `FORWARD`, `BACKWARD`, `LEFT`, `RIGHT` | `OK` *(o `BLOQUEADO_TOF` si láser < 120 mm en `FORWARD` + `AUTO`)* | Activa el movimiento solicitado, aplica pulso de arranque (`255` por `250 ms`) si parte de reposo y renueva el *watchdog* de `1,000 ms`. En `FORWARD` + `AUTO` con `RUMBO` activo, fija o mantiene la referencia de rumbo. |
+| `STOP` | `OK` | Apaga inmediatamente los cuatro motores (`LOW/LOW`), cancela cualquier giro `GIRO` o control `RUMBO` en curso y transfiere el integrador de rumbo a `aprendido_mil`. |
+| `EBRAKE` | `OK_EBRAKE` | Aplica freno eléctrico activo (`HIGH/HIGH` en ambos canales del `TC1508A`) y detiene cualquier lazo activo. |
+| `MODO_MANUAL` / `MODO_AUTO` | `ACK_MANUAL` / `ACK_AUTO` | Cambia el perfil de potencia (`252/255` en `MANUAL`; `207/210` en `AUTO`). Si había motores en marcha, por seguridad los detiene al cambiar de perfil. |
+| `ESTADO` | `MANUAL` o `AUTO` *(más `CAPS:...` al conectar)* | Consulta el perfil activo y las capacidades del firmware. |
+| `PING` | `PONG` | Comprueba que el enlace `WebSocket` sigue abierto sin renovar el *watchdog* de tracción. |
+| `VERSION?` | `FW:<rev>-<fecha>` | Devuelve la revisión compilada (en el cierre actual: `FW:6d1b213-20261110`). |
+| `SENS?` | `SENS:<ang_x10>,<mm>,<flags>` | Consulta puntual de telemetría; además, en perfil `AUTO` el firmware la emite automáticamente cada `100 ms`. |
+| `CAL_IMU` | `CAL_OK` o `CAL_ERR_MOV` | Solicita recalibrar el sesgo en reposo (`bias`) del `MPU6050` (requiere ~`500 ms` sin movimiento) y pone a cero el ángulo integrado. |
+| `GIRO:<grados>` | `GIRO_INICIO:<g>` → `GIRO_FIN:<ang>` *(o `GIRO_TIMEOUT` / `GIRO_ERR_IMU`)* | Ejecuta un giro cerrado por giroscopio de `<grados>` enteros en `[-360, +360] \ {0}` (`+` izquierda, `-` derecha) con tolerancia de `±2.0°` durante `80 ms`. |
+| `RUMBO:ON` / `RUMBO:OFF` *(J16)* | `RUMBO_OK:ON` / `RUMBO_OK:OFF` | Habilita o deshabilita el controlador `PI` de rumbo durante los avances rectos `FORWARD` en modo `AUTO`. |
+| `RUMBO:<décimas>` *(J16)* | `RUMBO_REF:<décimas>` *(o `RUMBO_ERR`)* | Fija en caliente la referencia $\theta_{\text{ref}}$ del controlador `PI` en décimas de grado (hasta 6 dígitos, p. ej. `RUMBO:-45` para `-4.5°`). Si el cambio supera `1.5°`, corta el pulso de arranque para corregir de inmediato. |
+| `RUMBO?` *(J16)* | `RUMBO:<on>,<act>,<ref>,<err>,<aj>,<ap>` | Devuelve estado habilitado (`0/1`), activo (`0/1`), referencia (`x10`), error actual (`x10`), ajuste total en milésimas (`±150`) y sesgo aprendido (`±120`). |
+| `IMU_ESCALA:<ppm>` *(J16)* | `IMU_ESCALA_OK:<ppm>` *(o `IMU_ESCALA_ERR`)* | Fija el factor de escala del giroscopio en partes por millón dentro de `[-50000, +50000]` (`±5 %`) y lo guarda en memoria no volátil `NVS`. |
+| `IMU_ESCALA?` *(J16)* | `IMU_ESCALA:<ppm>` | Devuelve el factor de escala vigente en partes por millón. |
+| `LOOP?` | `LOOP:<prom_us>,<max_us>,<lentos>` | Devuelve promedio y máximo de duración del ciclo de sensores en microsegundos y conteo de ciclos `> 5,000 us`, reiniciando la estadística. |
+| *(Evento asíncrono)* | `TOF_PARO:<mm>` | Emitido cuando el láser `VL53L0X` mide `< 120 mm` avanzando en `AUTO` y frena localmente los motores. |
+| *(Evento asíncrono J16)* | `WD:<contador>` | Emitido cada vez que vence el *watchdog* de `1,000 ms` por falta de comandos de movimiento con motores encendidos. |
 
-Una dirección IP identifica un dispositivo dentro de la red; una ruta como `/ws` identifica el servicio solicitado en ese dispositivo. La DevKit asigna direcciones de cliente mediante DHCP en un intervalo que deja libre la dirección fija de la cámara. Si otro equipo usa una dirección fija que coincide con la de la cámara, el resultado puede ser una conexión ambigua; la dirección debe revisarse en la configuración de ese equipo.
+## 6.4 Estructura de las tramas `SENS` y `CAPS`
 
-El firmware mantiene un cliente WebSocket activo a la vez. Si otro cliente abre el control, puede cerrar la sesión anterior. Por esa razón no conviene controlar simultáneamente desde el navegador y desde la aplicación. La sesión de video de la cámara también tiene una limitación de clientes que debe considerarse por separado.
+### Trama periódica de sensores (`SENS:<ang_x10>,<mm>,<flags>`)
 
-## Orden mantenida y pulso de conexión
+Cada `100 ms` en modo `AUTO` (o al enviar `SENS?`), el firmware transmite tres enteros separados por comas:
 
-En conducción manual, mantener pulsado un control produce repeticiones de la orden de movimiento. Al soltarlo, la aplicación envía STOP. PING y PONG son mensajes de sondeo: ayudan a saber si hay respuesta, pero PING no renueva el temporizador que protege el movimiento. La app y el firmware realizan tareas distintas, por lo que un PONG recibido no demuestra que una orden de motor se haya ejecutado ni que el sensor vea el camino libre.
+1. **`<ang_x10>`:** orientación acumulada desde la última calibración `CAL_IMU`, expresada en **décimas de grado** (por ejemplo, `452` significa `+45.2°` hacia la izquierda; `-18` significa `-1.8°` hacia la derecha). En el cierre **J16**, el núcleo de navegación consume este valor directamente en décimas de grado (`rumbo_x10`) sin truncarlo a grados enteros.
+2. **`<mm>`:** distancia frontal medida por el sensor `VL53L0X` en milímetros (`20` a `2000`), o **`-1`** si el sensor no está disponible o el objeto está fuera de rango.
+3. **`<flags>`:** máscara de bits entera (de `0` a `31`) que codifica en un solo número el estado de salud de los subsistemas:
+   - **Bit 0 (`valor 1`):** `imu_ok` — el giroscopio `MPU6050` responde en el bus `I2C`.
+   - **Bit 1 (`valor 2`):** `imu_calibrada` — el sesgo en reposo (`bias`) fue calibrado con éxito.
+   - **Bit 2 (`valor 4`):** `tof_ok` — el sensor láser `VL53L0X` responde correctamente.
+   - **Bit 3 (`valor 8`):** `giro_activo` — el controlador `giro.c` está ejecutando una maniobra `GIRO:<grados>`.
+   - **Bit 4 (`valor 16`):** `tof_bloqueado` — el freno frontal por láser (`< 120 mm`) está activo e impide avanzar.
 
-El temporizador se revisa cuando hay motores en marcha y no está activo un giro por ángulo. El valor configurado es 1000 ms y la condición de código usa una comparación de tiempo transcurrido. El firmware renueva el contador con algunos textos que no son movimiento; incluso un texto desconocido puede renovarlo. Esto limita la interpretación de la protección: no se debe afirmar que solo una orden de movimiento válida mantiene vivo el temporizador.
+Por ejemplo, la trama **`SENS:-12,340,7`** indica que el carro tiene un rumbo de **`-1.2°`**, ve un obstáculo o pared a **`340 mm`** (`34.0 cm`) y sus banderas valen `7 = 1 + 2 + 4` (`MPU6050` presente, calibrado y `VL53L0X` operativo, sin giro en curso ni bloqueo frontal).
 
-Los giros por ángulo tienen su propio plazo y su respuesta. Si se interrumpen con una parada o aparece una falla del giroscopio, la aplicación debe tratar la respuesta como un resultado de la maniobra y no como una confirmación de la ruta completa. El tiempo hasta que la carrocería deja de moverse también incluye la inercia después de apagar la señal PWM.
+### Cadena de capacidades al conectar (`CAPS`)
 
-## Interpretar un ejemplo de sensores
+Al abrir el `WebSocket` o al recibir `ESTADO`, el firmware envía después del modo activo (`AUTO` o `MANUAL`) la línea de capacidades:
 
-En el mensaje `SENS:450,320,7`, el primer campo representa 45.0 grados y el segundo 320 mm. El tercero es una combinación de banderas: 7 equivale a 1 + 2 + 4, que en esta versión indica las condiciones definidas para giroscopio listo, sensor de distancia presente y distancia válida. Una bandera informa lo que el firmware declaró en ese instante; no prueba que una lectura permanezca vigente después ni que la orientación física esté calibrada contra una referencia externa.
+`CAPS:IMU=1,CAL=1,TOF=1,GIRO=1,RUMBO=1,IMUS=0,FW:6d1b213-20261110`
 
-El valor 320 mm es una distancia del sensor frontal, no el ancho de una caja ni la distancia a cualquier punto alrededor del carro. Si el objeto no intercepta el haz, o la medición es inválida, la aplicación necesita interpretar esa condición junto con la percepción visual y el estado del sensor. Un valor de respuesta debe acompañarse de su unidad y condición de validez al registrarlo.
+Esta cadena permite que la aplicación Android verifique en el primer instante si el carro cuenta con giroscopio, si ya está calibrado, si tiene láser activo, si soporta control de rumbo `RUMBO`, cuál es su escala `IMUS` guardada en `NVS` y si la revisión `FW:` coincide con el commit de la aplicación (`6d1b213`).
 
-## Consultas, confirmaciones y errores
-
-CAPS? consulta la disponibilidad declarada de sensores. IMU? permite solicitar información del giroscopio y TOF? del sensor de distancia. IMU_CAL pide recalcular el sesgo en reposo y puede rechazarse si no se cumplen sus condiciones; IMU_CERO establece una referencia angular. TOF_USO permite habilitar o deshabilitar la autoridad de parada del láser. Un cambio de configuración debe confirmarse mediante la respuesta del carro.
-
-Los perfiles se solicitan con MODO_AUTO y MODO_MANUAL y devuelven confirmaciones distintas. Los factores de balance se pueden consultar y modificar por perfil dentro del intervalo permitido por el firmware. La memoria no volátil puede conservar un valor previo; por eso un dato predeterminado leído en el código no basta para afirmar el valor efectivo de un dispositivo sin consultarlo.
-
-LOOP? informa el máximo registrado del tiempo de una vuelta y el número de excesos respecto al umbral configurado. Un máximo y un contador sirven para detectar que ocurrió al menos un exceso; no muestran por sí mismos la causa ni el tiempo medio de todas las vueltas. La interpretación requiere anotar cuándo se reinició el contador y qué actividad se realizó durante la ventana observada.
-
-Dónde está en el código: `carro.c`, `sensores.c`, `ControlLogica.kt`, `Enlace.kt`.
+Dónde está en el código: `carro.c`, `sensores.c`, `firmware_carro.ino`, `Enlace.kt`, `probar_servidor_falso.py`.

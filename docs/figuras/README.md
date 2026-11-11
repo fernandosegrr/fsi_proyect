@@ -1,37 +1,29 @@
-# Figuras del manual
+# Figuras y láminas del Manual Técnico (Versión final 1.1)
 
-**Generado por** `docs/figuras/generar_figuras.py` a partir de `docs/figuras/catalogo.py`.
-No se editan a mano: se cambia el dibujo y se vuelve a ejecutar el script.
+Todas las figuras y láminas del manual se generan de manera reproducible mediante `docs/figuras/generar_figuras.py` (que delega en `docs/figuras/generar_figuras_v2.py`). Ninguna imagen se edita a mano: cualquier cambio se realiza en el script generador y se vuelve a ejecutar.
 
-Cada figura existe en PNG (170 dpi, para el PDF) y SVG (vectorial, para ampliar o editar).
-Los pies y las notas viven en `catalogo.py`, para que el texto y la imagen no se separen.
+## Salidas generadas
 
-| N.º | Título | Archivo | Capítulo | Qué muestra |
+- **`docs/figuras/v2/*.png` y `*.pdf` (`220 dpi`):** las 12 figuras y láminas empleadas directamente por `docs/manual/generar_manual.py`.
+- **`docs/figuras/fig_*.png` y `*.svg`:** copias con los nombres históricos en la raíz de `docs/figuras/` para compatibilidad con los enlaces de la documentación en Markdown.
+
+| Figura en el manual | Archivo en `docs/figuras/v2/` | Copia compatible en `docs/figuras/` | Capítulo | Contenido técnico |
 |---|---|---|---|---|
-| 01 | El sistema completo | `fig_01_sistema.png` / `fig_01_sistema.svg` | Arquitectura del sistema | Teléfono, ESP32, cámara, sensores, driver y dos circuitos de alimentación. |
-| 02 | Capas del firmware | `fig_02_capas_firmware.png` / `fig_02_capas_firmware.svg` | Firmware del carro | La lógica en C se separa del hardware por las funciones hw_..., y por eso se puede probar en el PC. |
-| 03 | Qué pasa cuando llega un comando | `fig_03_flujo_comando.png` / `fig_03_flujo_comando.svg` | Firmware del carro | Recorrido de un FORWARD desde la app hasta los motores, y el PING que mantiene viva la conexión. |
-| 04 | Estados del navegador | `fig_04_estados_navegador.png` / `fig_04_estados_navegador.svg` | Núcleo de navegación en C | El navegador siempre está en un estado conocido y solo cambia con reglas explícitas. |
-| 05 | Cómo se estima la pose | `fig_05_pose_j15.png` / `fig_05_pose_j15.svg` | Núcleo de navegación en C | Antes todo el avance se proyectaba con un rumbo fijo; J15 integra cada tramo con el rumbo del giroscopio. |
-| 06 | Esquivar y volver a la línea | `fig_06_esquive.png` / `fig_06_esquive.svg` | Núcleo de navegación en C | El carro se aparta 40 cm, pasa la caja y busca un punto 30 cm por delante para reincorporarse. |
-| 07 | El corredor de trayectoria | `fig_07_corredor.png` / `fig_07_corredor.svg` | Núcleo de navegación en C | La franja de la imagen por la que el carro va a pasar se estrecha con la distancia; un objeto fuera de ella solo avisa. |
-| 08 | Mapa de pantallas de la app | `fig_08_pantallas_app.png` / `fig_08_pantallas_app.svg` | Aplicación Android | Cuatro pestañas principales y cinco pantallas completas que comparten la conexión y el video. |
-| 09 | Los tres modos de la cámara | `fig_09_camara_modos.png` / `fig_09_camara_modos.svg` | Cámara ESP32 | JPEG para ver, RAW para procesar sin pérdida y CELDAS para detectar obstáculos con muy pocos bytes. |
-| 10 | Los dos circuitos de alimentación | `fig_10_alimentacion.png` / `fig_10_alimentacion.svg` | Hardware y cableado | La electrónica va por USB y los motores por cuatro pilas AA; las tierras van unidas y el positivo de las pilas no toca la ESP32. |
-| 11 | Mensajes entre la app y el carro | `fig_11_protocolo.png` / `fig_11_protocolo.svg` | Protocolo de comunicación | Órdenes, ACK, PING/PONG, SENS y el watchdog que frena si no llega un comando real. |
-| 12 | Navegar por tiempo | `fig_12_calibracion.png` / `fig_12_calibracion.svg` | Calibración | El carro convierte distancia y ángulo en tiempo con la calibración; el arranque y el frenado se miden aparte. |
+| **Figura 1** | `arquitectura.png` | `fig_01_sistema.png` / `.svg` | Cap. 2 | Topología de tres nodos (Android, ESP32 DevKit, Freenove), enlaces de red y tres fuentes de energía. |
+| **Figura 2** | `alimentacion.png` | `fig_10_alimentacion.png` / `.svg` | Cap. 2 | Tres suministros independientes (Powerbank #1, portapilas 4×AA, Powerbank #2 exclusiva de cámara) y tierra común `GND`. |
+| **Figura 3** | `seguridad.png` | `fig_02_capas_firmware.png` / `.svg` | Cap. 2 | Defensa en profundidad de 4 capas (operador, supervisión Android J16, watchdog 1000 ms y paro láser a 120 mm). |
+| **Figura 4** | `lamina_carro.png` | *(Lámina fotográfica 2×2)* | Cap. 3 | Cuatro vistas reales del prototipo físico ensamblado (`docs/imagenes/foto_01..04`). |
+| **Figura 5** | `comandos.png` | `fig_03_flujo_comando.png` / `fig_11_protocolo.png` | Cap. 4 | Cola de 32 órdenes, bucle `loop()` en C99, lazos `RUMBO`/`GIRO` y retorno de telemetría `SENS`. |
+| **Figura 6** | `camara_modos.png` | `fig_09_camara_modos.png` / `.svg` | Cap. 5 | Tres modos de entrega de la cámara Freenove (`MJPEG`, `RGB565` crudo y celdas `UDP :4210`). |
+| **Figura 7** | `navegacion.png` | `fig_04_estados_navegador.png` / `fig_05_pose_j15.png` / `fig_12_calibracion.png` | Cap. 7 | Planificación en cuadrícula de 20 cm, guiado `RUMBO`, giro cerrado `GIRO` e integración de pose en décimas de grado. |
+| **Figura 8** | `esquive.png` | `fig_06_esquive.png` / `.svg` | Cap. 7 | Geometría del esquive en 3 tramos con margen de 150 mm y estado `VALIDADO EN EL CARRO` (B6, 6 corridas). |
+| **Figura 9** | `percepcion.png` | `fig_07_corredor.png` / `.svg` | Cap. 8 | Tubería multimodal de percepción (YCbCr, EfficientDet-Lite0, láser VL53L0X, corredor y mutex `candado_vision`). |
+| **Figura 10** | `pantallas.png` | `fig_08_pantallas_app.png` / `.svg` | Cap. 9 | Mapa de las 4 pestañas principales, las 5 actividades completas y las sesiones compartidas en Android. |
+| **Figura 11** | `lamina_app.png` | *(Lámina de capturas 1×3)* | Cap. 9 | Tres estados operativos reales de la app (`Conectado`, `Reconectando` y `Sin conexión`). |
+| **Figura 12** | `desarrollo.png` | *(Diagrama de evolución)* | Cap. 14 | Evolución técnica del sistema en 5 etapas hasta el cierre de precisión J16. |
 
 ## Cómo regenerar
 
-```bash
+```powershell
 python docs/figuras/generar_figuras.py
 ```
-
-Requiere Python 3.9 o más nuevo y `matplotlib` 3.9.4 (el entorno usado en este repositorio).
-El script no necesita conexión a internet ni el carro.
-
-## Reglas
-
-- Ninguna figura inventa una medición. Si un valor es simulado o no medido, se dice en la figura o en el pie.
-- Las figuras son esquemas: no son planos de montaje ni sustituyen una foto.
-- Las fotos reales van en `docs/imagenes/` y el manual las incluye aparte.

@@ -1,79 +1,69 @@
-# Anexos
+# 16. Anexos
 
-Los anexos reúnen términos y datos de consulta para usar junto con los capítulos anteriores. Los valores configurados no sustituyen las mediciones físicas pendientes.
+Este capítulo reúne las referencias de consulta rápida del proyecto: (16.1) el glosario de términos técnicos, (16.2) el resumen completo de comandos del protocolo y de pines de hardware, (16.3) la tabla de correspondencia entre los capítulos de este manual y las rutas exactas de archivos en el repositorio, y (16.4) la lista consolidada de mediciones físicas y tareas pendientes.
 
-## Glosario
+## 16.1 Glosario técnico
 
-**ESP32:** familia de microcontroladores con conectividad inalámbrica. **I2C:** bus compartido para comunicar circuitos mediante líneas de datos y reloj. **PWM:** señal cuyo ciclo de encendido regula la potencia aplicada. **Pose:** posición y orientación estimadas del vehículo. **WebSocket:** canal de comunicación bidireccional persistente. **Watchdog:** mecanismo que vigila un plazo y ejecuta una acción si no se cumple la condición esperada. **ToF:** medición de distancia basada en el tiempo de vuelo de la luz.
+- **Anti-*windup* (saturación de integrador):** técnica de control que impide que el término integral de un controlador `PI` siga acumulando error cuando el actuador ya alcanzó su límite físico (`±150` milésimas en `rumbo.c`).
+- **Buzón de último cuadro (*latest-frame mailbox*):** estructura de memoria compartida en la cámara `Freenove` que conserva únicamente el cuadro más reciente capturado por el sensor, descartando cuadros anteriores no consumidos para evitar latencia acumulada.
+- **Corredor de perspectiva:** proyección trapezoidal sobre la imagen (`corredor.c`) que delimita la franja exacta del piso por la que pasarán las ruedas del carro (`150 mm` de ancho físico más `50 mm` de margen por lado).
+- **Cuerda de pivote ($2R\sin(\Delta\theta/2)$):** desplazamiento lineal que experimenta un punto del chasis situado a una distancia $R$ del centro instantáneo de rotación cuando el vehículo gira un ángulo $\Delta\theta$.
+- **Décimas de grado (`rumbo_x10` / `ang_x10`):** unidad angular entera empleada en la telemetría `SENS`, en el controlador `rumbo.c` y en el estimador de pose de `navegador.c` (`10` unidades equivalen a `1.0°`), que evita el uso de punto flotante en el microcontrolador sin perder resolución por truncamiento.
+- **Escala del giroscopio en ppm (`escala_ppm` / `IMU_ESCALA`):** corrección multiplicativa en partes por millón (`10,000 ppm = 1.0 %`) almacenada en la memoria `NVS` de la `ESP32` para compensar el error de sensibilidad de fábrica del `MPU6050`.
+- **Histéresis de desbloqueo (`TOF_LIBRE_MM = 150 mm`):** diferencia deliberada entre el umbral que activa el freno láser (`120 mm`) y el umbral que permite volver a avanzar (`150 mm`), necesaria para evitar oscilaciones de encendido/apagado frente a un obstáculo cercano.
+- **JNI (*Java Native Interface*):** interfaz binaria (`puente.c`) que permite a la aplicación Android en Kotlin invocar directamente las funciones compiladas en `C99` de `nucleo_c` protegidas por `candado_vision`.
+- **NVS (*Non-Volatile Storage*):** partición de memoria flash interna de la `ESP32` donde el firmware conserva parámetros entre apagados, como `escala_ppm` del giroscopio.
+- **Punto de mira (*lookahead* de `400 mm`):** punto objetivo situado `40 cm` por delante sobre el segmento ideal de la ruta hacia el cual `navegador.c` orienta continuamente la referencia `RUMBO:<décimas>`.
+- **Sesgo aprendido (`aprendido_mil`):** valor de compensación diferencial de `PWM` (acotado a `±120` milésimas) que el controlador `PI` de `rumbo.c` transfiere al finalizar un tramo recto para arrancar el siguiente tramo ya compensado.
+- **ToF (*Time of Flight*, tiempo de vuelo):** principio físico del sensor láser `VL53L0X`, que determina la distancia en milímetros midiendo el tiempo que tarda un pulso de luz infrarroja (`940 nm`) en ir hasta el objeto y regresar al fotodiodo.
+- **Watchdog de comunicación (`1,000 ms`):** temporizador de seguridad en `carro.c` que apaga los motores y emite `WD:<n>` si transcurre un segundo sin recibir órdenes de movimiento válidas.
 
-## Comandos principales
+## 16.2 Referencia rápida de comandos y pines
 
-La Tabla 1 resume las órdenes principales. La activación de la autoridad del láser se controla con `TOF_USO`.
+### Resumen compacto de comandos del protocolo (`ws://192.168.4.1/ws` y serie `115200`)
 
-## Pines de la DevKit
+| Categoría | Comando | Respuesta normal | Descripción rápida |
+|---|---|---|---|
+| **Tracción** | `FORWARD`, `BACKWARD`, `LEFT`, `RIGHT` | `OK` *(o `BLOQUEADO_TOF`)* | Mueve el carro y renueva el *watchdog* de `1000 ms` (latido cada `250 ms`). |
+| **Parada** | `STOP` / `EBRAKE` | `OK` / `OK_EBRAKE` | Paro libre (`LOW/LOW`) o freno activo (`HIGH/HIGH`) con prioridad en cola. |
+| **Perfil** | `MODO_AUTO` / `MODO_MANUAL` / `ESTADO` | `ACK_AUTO` / `ACK_MANUAL` / `AUTO`+`CAPS` | Selecciona `PWM` `207/210` (`AUTO`) o `252/255` (`MANUAL`) y reporta capacidades. |
+| **Enlace y versión** | `PING` / `VERSION?` / `LOOP?` | `PONG` / `FW:6d1b213-20261110` / `LOOP:...` | Sonda de red (`800 ms`), revisión compilada y tiempos de bucle en microsegundos. |
+| **Sensores e IMU** | `SENS?` / `CAL_IMU` | `SENS:<ang_x10>,<mm>,<flags>` / `CAL_OK` | Telemetría en décimas de grado y milímetros (`10 Hz` en `AUTO`) y calibración en reposo. |
+| **Giro y escala** | `GIRO:<g>` / `IMU_ESCALA:<ppm>` / `IMU_ESCALA?` | `GIRO_FIN:<a>` / `IMU_ESCALA_OK:<ppm>` | Giro cerrado en `[-360,360]` (`±2.0°`) y factor de escala en `[-50000,50000] ppm` en `NVS`. |
+| **Rumbo en rectas** | `RUMBO:ON` / `RUMBO:OFF` / `RUMBO:<d>` / `RUMBO?` | `RUMBO_OK:...` / `RUMBO_REF:<d>` / `RUMBO:...` | Activa/desactiva el lazo `PI` en rectas, fija referencia en décimas de grado o consulta estado. |
 
-La Tabla 2 reúne la asignación de los pines empleados por el controlador.
+### Resumen de pines en la placa `ESP32 DevKit` y direcciones de red
 
-## Fuentes por tema
+| Recurso | Pin / Dirección | Función asignada | Parámetros clave |
+|---|---|---|---|
+| **Motor izquierdo (`IN1`, `IN2`)** | `GPIO 27`, `GPIO 26` | Canal 1 del puente H `TC1508A` | `PWM` `1000 Hz`, 8 bits (`MANUAL=252`, `AUTO=207`). |
+| **Motor derecho (`IN3`, `IN4`)** | `GPIO 25`, `GPIO 33` | Canal 2 del puente H `TC1508A` | `PWM` `1000 Hz`, 8 bits (`MANUAL=255`, `AUTO=210`). |
+| **Bus `I2C` (`SDA`, `SCL`)** | `GPIO 21`, `GPIO 22` | `MPU6050` (`0x68`) y `VL53L0X` (`0x29`) | Reloj `400 kHz`, alimentación `3.3 V`. |
+| **Carga de *powerbank*** | `GPIO 2` | Pulso de `200 ms` cada `8,000 ms` | Declarado en `config.h`; efecto físico `NO MEDIDO`. |
+| **Red `CarroFSI` (carro / cámara)** | `192.168.4.1` / `192.168.4.2` | Control `:80/ws`; video `:81/stream`, `:80/raw`, `UDP :4210` | Un cliente de video simultáneo; paquetes `CEL1` de `1,244 B`. |
 
-Arquitectura y hardware: `conexiones.md`, `config.h`. Firmware y protocolo: `carro.c`, `sensores.c`, `protocolo.md`. Cámara: `camara_prueba.ino`, `camara_prueba.md`. Navegación: `navegador.c`, `calibracion.c`, `reporte_J15.md`. Percepción: `obstaculos.c`, `fusion.c`, `corredor.c`. Aplicación: `MainActivity.kt`, `ModoSemiautonomo.kt`. Resultados físicos: `reporte_J13_fisico.md`, `reporte_J14.md`.
+## 16.3 Correspondencia entre capítulos y archivos del repositorio
 
-## Pendientes
+Esta tabla concentra todas las rutas de archivos del repositorio correspondientes a cada capítulo del manual:
 
-Validar físicamente el esquive y la reincorporación J15; medir el balance AUTO, el consumo eléctrico y el comportamiento de GPIO 2; comprobar la versión de firmware en la placa cuando se disponga del equipo.
+| Capítulos | Subsistema | Rutas exactas de archivos en el repositorio |
+|---|---|---|
+| **Cap. 1 y 2** | Documentación general, arquitectura y seguridad | `README.md`, `LICENSE`, `docs/README.md`, `docs/entrega.md`, `docs/arquitectura.md`, `docs/seguridad_fisica.md`, `docs/estado_20261110.md`, `docs/limites_conocidos.md`, `docs/reporte_J16.md`. |
+| **Cap. 3 y 4** | Hardware y firmware del carro (`ESP32 DevKit`) | `firmware_carro/firmware_carro.ino`, `firmware_carro/config.h`, `firmware_carro/secretos.ejemplo.h`, `firmware_carro/pagina.h`, `firmware_carro/carro.h`, `firmware_carro/carro.c`, `firmware_carro/sensores.h`, `firmware_carro/sensores.c`, `firmware_carro/rumbo.h`, `firmware_carro/rumbo.c`, `firmware_carro/imu.h`, `firmware_carro/imu.c`, `firmware_carro/giro.h`, `firmware_carro/giro.c`, `firmware_carro/tof.h`, `firmware_carro/tof.c`. |
+| **Cap. 5** | Firmware de cámara (`Freenove GC0308`) | `camara_prueba/camara_prueba.ino`, `camara_prueba/recuperacion.h`, `camara_prueba/recuperacion.c`, `camara_prueba/secretos.ejemplo.h`, `camara_prueba/src/JPEGENC/`, `nucleo_c/paquete_celdas.h`, `nucleo_c/paquete_celdas.c`. |
+| **Cap. 6** | Protocolo y pruebas de enlace | `docs/protocolo.md`, `pruebas_firmware/Makefile`, `pruebas_firmware/pruebas.c`, `pruebas_firmware/pruebas_sensores.c`, `pruebas_firmware/pruebas_rumbo.c`, `pruebas_firmware/pruebas_recuperacion.c`, `pruebas_firmware/pruebas_integracion.c`, `pruebas_firmware/probar_servidor_falso.py`. |
+| **Cap. 7** | Núcleo de navegación, calibración y simulación en C99 | `nucleo_c/Makefile`, `nucleo_c/navegador.h`, `nucleo_c/navegador.c`, `nucleo_c/trayectoria.h`, `nucleo_c/trayectoria.c`, `nucleo_c/calibracion.h`, `nucleo_c/calibracion.c`, `nucleo_c/calgiro.h`, `nucleo_c/calgiro.c`, `nucleo_c/ruta_editor.h`, `nucleo_c/ruta_editor.c`, `nucleo_c/simulador_navegador.h`, `nucleo_c/simulador_navegador.c`, `nucleo_c/sim_ruta.h`, `nucleo_c/sim_ruta.c`, `nucleo_c/pruebas_precision_j16.c`, `nucleo_c/pruebas_reincorporacion_j15.c`. |
+| **Cap. 8** | Visión, corredor y puente JNI | `nucleo_c/obstaculos.h`, `nucleo_c/obstaculos.c`, `nucleo_c/corredor.h`, `nucleo_c/corredor.c`, `nucleo_c/fusion.h`, `nucleo_c/fusion.c`, `nucleo_c/cualquiera.h`, `nucleo_c/cualquiera.c`, `nucleo_c/mascara_vision.h`, `nucleo_c/mascara_vision.c`, `nucleo_c/movimiento_piso.c`, `nucleo_c/movimiento_visual.c`, `app_android/app/src/main/cpp/puente.c`, `app_android/app/src/main/cpp/CMakeLists.txt`, `app_android/app/src/main/assets/efficientdet_lite0.tflite`. |
+| **Cap. 9** | Aplicación Android (`Kotlin` y vistas) | `app_android/app/build.gradle.kts`, `app_android/app/src/main/AndroidManifest.xml`, `app_android/app/src/main/java/com/example/carro_ilib/MainActivity.kt`, `InicioFragment.kt`, `ManualFragment.kt`, `RutasFragment.kt`, `EjecutarRutaFragment.kt`, `MasFragment.kt`, `AjustesFragment.kt`, `VisionActivity.kt`, `CalibracionActivity.kt`, `CalibrarGiroActivity.kt`, `SensoresActivity.kt`, `BenchmarkActivity.kt`, `ControlLogica.kt`, `ModoSemiautonomo.kt`, `CalibracionGuardada.kt`, `SesionCarro.kt`, `SesionVideo.kt`, `Enlace.kt`, `DetectorTflite.kt`, `ModeloEnHilo.kt`, `*Nativa.kt`. |
+| **Cap. 10 a 15** | Scripts, artefactos `dist/`, pruebas físicas y generador del manual | `scripts/cargar.ps1`, `scripts/compilar_app.ps1`, `scripts/verificar_version.py`, `scripts/probar_version.py`, `scripts/verificar_pagina.py`, `dist/carro_fsi_0.4-6d1b213.apk`, `dist/SHA256SUMS.txt`, `dist/FIRMWARE_LOCAL.txt`, `dist/LEEME.txt`, `docs/pruebas_fisicas_20261110.csv`, `docs/precision/monte_carlo_1000.txt`, `docs/precision/calibracion_j14.txt`, `docs/figuras/generar_figuras.py`, `docs/manual/generar_manual.py`, `docs/manual/Manual_Proyecto_Carro_FSI.pdf`. |
 
-## Glosario ampliado: electrónica y energía
+## 16.4 Lista consolidada de pruebas y mediciones pendientes
 
-**Alimentación:** suministro de energía a un circuito. En este proyecto deben distinguirse la alimentación USB de cada placa y la de los motores mediante pilas y driver. Que una fuente funcione no garantiza el funcionamiento de las demás.
-
-**Balance:** ajuste relativo de potencia entre los lados del carro para reducir una desviación. Su valor depende del perfil y sus resultados físicos deben evaluarse en las condiciones de prueba. Un valor guardado no equivale, por sí mismo, a un ajuste verificado en todos los pisos.
-
-**Bus I2C:** medio compartido en el que dispositivos intercambian datos utilizando las líneas SDA y SCL. Los dispositivos deben ser compatibles con las condiciones eléctricas del bus y tener conexiones correctas. El hecho de compartir líneas facilita el cableado, pero una falla común puede afectar varias lecturas.
-
-**Ciclo de trabajo PWM:** proporción del periodo durante la cual una señal está activa. El firmware utiliza valores para controlar la potencia aplicada por el driver. El efecto mecánico no depende solo de ese número: también intervienen la batería, el motor, la carga y la fricción.
-
-**Driver o puente H:** etapa de potencia que permite gobernar los motores a partir de señales de control. Separa la función de decisión del microcontrolador de la conmutación de energía para los motores. Debe estar correctamente alimentado y conectado a la referencia común indicada para el montaje.
-
-**GPIO:** pin de entrada o salida de propósito general del microcontrolador. La función concreta de un pin depende de la configuración del firmware y de su conexión física. La presencia de una definición en el código no confirma que el circuito asociado esté montado o medido.
-
-**Tierra común:** referencia eléctrica compartida entre circuitos que intercambian señales. En el carro se indica para la DevKit, el driver y el negativo del portapilas de motores. No debe confundirse con unir indiscriminadamente todas las fuentes sin revisar el esquema.
-
-## Glosario ampliado: comunicaciones
-
-**Cliente y servidor:** un servidor ofrece un servicio y un cliente inicia una conexión para utilizarlo. Una misma aplicación puede ser cliente de servicios distintos, como control y video. La disponibilidad de un servicio no demuestra la disponibilidad de los demás.
-
-**Dirección IP:** identificador de un dispositivo en una red concreta. Las direcciones descritas para la DevKit y la cámara pertenecen a la configuración del proyecto. Una dirección correcta ayuda a encontrar el servicio, pero no verifica la versión que ejecuta el dispositivo.
-
-**Latencia:** tiempo transcurrido entre un evento y su observación o respuesta. Para interpretar una cifra hay que conocer sus puntos de inicio y fin. El tiempo de captura de la cámara no representa necesariamente toda la demora entre la escena y la pantalla del teléfono.
-
-**Telemetría:** información que un dispositivo comunica sobre su estado o sus sensores. En el perfil correspondiente, los mensajes SENS reúnen valores de orientación, distancia y banderas. Una lectura se interpreta junto con las banderas y el estado de la conexión.
-
-**WebSocket:** canal de comunicación bidireccional sobre una conexión persistente. Puede transportar órdenes y respuestas sin abrir una conexión nueva por cada mensaje. Una sesión activa necesita vigilancia de desconexiones y de datos atrasados.
-
-**Watchdog:** mecanismo de vigilancia de un plazo. Si se cumple su condición de vencimiento, el firmware aplica la acción programada. Su comportamiento debe describirse con el código concreto: en este proyecto no todos los mensajes tratan el temporizador de la misma manera.
-
-## Glosario ampliado: movimiento y percepción
-
-**Calibración:** procedimiento para relacionar una señal o parámetro con una referencia. La calibración del tiempo de desplazamiento y la del sesgo del giroscopio resuelven problemas distintos. En ambos casos, las condiciones de la medición influyen en el resultado.
-
-**Giroscopio:** sensor que mide velocidad angular. Integrando esa información se estima el cambio de orientación. El sesgo y otros errores pueden acumularse; el sensor no mide directamente la distancia recorrida ni la posición lateral.
-
-**Modelo de piso:** representación usada por el procesamiento de imagen para decidir qué regiones se parecen al suelo aprendido. La interpretación puede verse afectada por cambios de iluminación, textura y composición de la escena. El modelo no identifica de forma infalible todos los objetos.
-
-**Pose:** combinación de posición y orientación empleada para representar el estado del vehículo. En este proyecto la pose es una estimación calculada por software. Debe compararse con una referencia física si se quiere cuantificar su error real.
-
-**Reincorporación:** maniobra destinada a regresar hacia la ruta después de apartarse de ella. En J15 existen resultados de simulación de la corrección de pose y reincorporación; la validación física de esa revisión permanece pendiente.
-
-**Sensor ToF:** sensor que estima distancia a partir del tiempo de vuelo de la luz. Su lectura depende del alcance y de las condiciones del objeto observado. Su orientación frontal no proporciona una cobertura completa alrededor del carro.
-
-## Glosario ampliado: pruebas
-
-**Caso de prueba:** conjunto de condiciones, acciones y resultado esperado usado para comprobar un comportamiento. Debe poder repetirse y distinguir claramente el resultado observado del esperado.
-
-**Percentil 95:** valor por debajo o igual al cual se encuentra aproximadamente el 95 % de una muestra ordenada. Resume la parte alta de una distribución, pero no es el máximo y no explica por sí solo cómo se recogieron los datos.
-
-**Simulación:** ejecución con un modelo que representa parte del sistema o su entorno. Permite repetir escenarios y explorar variaciones, pero sus conclusiones están limitadas por los fenómenos que el modelo incluye.
-
-**Trazabilidad:** capacidad de relacionar un resultado con su versión, configuración, procedimiento y condiciones. Facilita repetir la prueba y evita atribuir a una revisión un comportamiento observado en otra.
-
-**Validación física:** comprobación en el equipo real bajo condiciones registradas. Su alcance depende del número y variedad de pruebas; una ejecución satisfactoria no demuestra funcionamiento en todas las condiciones posibles.
+| Identificador | Descripción de la medición o mejora pendiente | Estado actual | Prioridad sugerida |
+|---|---|---|---|
+| **P-01 (`B5`)** | Medir con cinta métrica en el carro físico la recta de `150 cm` con `RUMBO:OFF` vs `RUMBO:ON` (5 corridas por modo con pilas al 100 %). | `SIMULADO` / `NO MEDIDO` en carro | Alta |
+| **P-02 (`B7` / `B8`)** | Ejecutar en el carro físico la ruta en L (`60×60 cm`) y el cuadrado de `60 cm` con el cierre J16 completo. | `SIMULADO` / `NO MEDIDO` en carro | Alta |
+| **P-03 (`IMU_ESCALA`)** | Realizar la calibración física de `360°` en piso desde `SensoresActivity` y medir la mejora de cierre angular en el cuadrado. | `VERIFICADO` en código / `NO MEDIDO` en piso | Media |
+| **P-04 (`B9` / `TOF`)** | Medir físicamente la distancia de paro ante corte inducido de WiFi en marcha y en serie aislada de freno láser a `120 mm`. | `VERIFICADO` en software / `NO MEDIDO` aislado | Media |
+| **P-05 (Telemetría)** | Añadir exportación automática de bitácora `.csv`/`.jsonl` por corrida en Android para diagnosticar transiciones a `AYUDA` como la Corrida 5 de B6. | `PENDIENTE` | Media |
+| **P-06 (Hardware)** | Medir con amperímetro el consumo de arranque y régimen de los 4 motores `TT` y verificar en banco el circuito externo de `GPIO 2`. | `NO MEDIDO` | Baja |

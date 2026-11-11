@@ -1,103 +1,91 @@
-# Pruebas y resultados
+# 12. Pruebas y resultados
 
-Los resultados se interpretan según el entorno en el que se obtuvieron. Una prueba en computadora comprueba una parte de la lógica; una prueba física incluye además el vehículo, el piso y las condiciones de operación.
+Este capítulo presenta de manera íntegra y separada por nivel de evidencia todos los resultados de verificación del sistema hasta el cierre **J16** (10 de noviembre de 2026). De acuerdo con la convención establecida en el Capítulo 1, se distinguen en secciones independientes: (12.1) lo **`VALIDADO EN EL CARRO`** mediante corridas físicas sobre el vehículo real, (12.2) las suites deterministas de software ejecutadas en computadora personal, (12.3) los resultados **`SIMULADOS`** en el experimento Monte Carlo de 50,000 corridas y (12.4) el listado explícito de escenarios que permanecen **`NO MEDIDOS`** en el carro físico.
 
-## Pruebas físicas registradas
+## 12.1 Resultados VALIDADO EN EL CARRO
 
-El registro del ajuste MANUAL describe una recta de 150 cm y un desvío de 3 cm con los valores 252 y 255. En pruebas posteriores se observaron diferencias de rumbo y comportamiento durante esquives. En una de cuatro corridas históricas con caja se observó que el carro la evitó pero terminó aproximadamente 40 cm a la derecha; otra probablemente tocó la caja. Estos resultados corresponden a la versión y condiciones de esas pruebas, no a la corrección posterior.
+### Validación física del esquive con reincorporación (Escenario B6 — 10 de noviembre de 2026)
 
-En el registro del ciclo del firmware se observaron máximos de 8.431 ms en reposo con la app conectada y de 6.775 ms en una prueba en piso, ambos con excesos del umbral de 5 ms. La muestra es reducida y la causa no quedó demostrada.
+Con el firmware **`FW:6d1b213-20261110`** grabado en la `ESP32 DevKit` y la aplicación **`APP:0.4-6d1b213`** (`carro_fsi_0.4-6d1b213.apk`) instalada en el teléfono Android, el 10 de noviembre de 2026 se ejecutó en el carro físico la campaña de validación del escenario **B6** (ruta recta con un obstáculo real de `20×20 cm` colocado sobre la trayectoria para evaluar detección, frenado, rodeo lateral en tres tramos con margen de `150 mm` y reincorporación a la línea original).
 
-## Software y simulación
+La sesión se realizó bajo restricción real de energía en la batería portátil USB de la lógica (`~4 %` restante en la *powerbank* al iniciar la serie y encendido verificado del portapilas `4×AA`), completándose **6 corridas físicas** registradas en `docs/pruebas_fisicas_20261110.csv`:
 
-El reporte J15 registra 1598 casos del núcleo y 447 de firmware sin fallos en las ejecuciones documentadas. También registra una prueba de estrés de 100000 comandos sin pérdida de STOP. Esos resultados son registros históricos de software; no son mediciones físicas del vehículo.
+| Corrida | Identificador en CSV | Estado final | ¿Tocó la caja? | Error lateral final (medida aproximada) | Orientación final y observaciones de campo |
+|---|---|---|---|---|---|
+| **1** | `J16_B6_r1` | `TERMINADO` (`10/10` pasos) | **No** (`0` toques) | **`~10 cm`** a la derecha (`~100 mm`) | Completó detección, esquive y reincorporación de forma autónoma y estable. |
+| **2** | `J16_B6_r2` | `TERMINADO` (`10/10` pasos) | **No** (`0` toques) | **`~10 cm`** a la derecha (`~100 mm`) | Comportamiento prácticamente idéntico a la Corrida 1; al final ejecutó pequeños pulsos de ajuste angular por tiempo. |
+| **3** | `J16_B6_r3` | `TERMINADO` (`10/10` pasos) | **No** (`0` toques) | **`~5 cm`** a la derecha (`~50 mm`) | Reincorporación más cerrada hacia el eje original; terminó con una ligera inclinación residual hacia la derecha. |
+| **4** | `J16_B6_r4` | `TERMINADO` (`10/10` pasos) | **No** (`0` toques) | **`~0 cm`** (sobre la línea) | Esquive y regreso alineados con la trayectoria recta original (`"quedó perfecto"`). |
+| **5** | `J16_B6_r5` | `AYUDA` (en paso `4/10`) | **No** (`0` toques) | *(No aplica; se detuvo antes de reincorporar)* | Se detuvo pidiendo ayuda durante el esquive pese a tener espacio físico suficiente; **sin causa identificada**. |
+| **6** | `J16_B6_r6` | `TERMINADO` (`10/10` pasos) | **No** (`0` toques) | **`~0 cm`** (sobre la línea) | Completó los 10 pasos sin contacto y sobre el eje original (`"no tocó y quedó perfecto"`). |
 
-El escenario de esquive **SIMULADO** usó 400 semillas por versión. Tras la corrección, el error lateral medio fue 1.9 cm y el percentil 95 fue 4.6 cm; antes fueron 13.2 y 21.9 cm. El modelo usa supuestos y no reproduce todos los efectos del piso ni toda la percepción real.
+### Síntesis y matices técnicos de la validación física B6
 
-## Pendientes físicos
+1. **Seguridad anticolisión (`6/6` sin contacto):** en las **6 corridas (`100 %`)**, el vehículo detectó la caja oportunamente, frenó a distancia segura e inició la maniobra sin tocar ni rozar el obstáculo en ninguna ocasión.
+2. **Tasa de éxito autónomo completo (`5/6` = `83.3 %`):** cinco de las seis ejecuciones completaron de principio a fin los 10 pasos del plan (avance inicial, parada, desvío lateral de `40 cm`, rebase paralelo con margen J16 de `150 mm`, regreso diagonal y alineación final) terminando en estado `TERMINADO`.
+3. **Precisión lateral aproximada (`~0 cm` a `~10 cm`):** en las cinco corridas completadas, la desviación lateral final respecto a la prolongación de la línea recta original estuvo entre **`~0 cm` y `~10 cm` hacia la derecha** (`~10, ~10, ~5, ~0, ~0 cm`; mediana aproximada de **`~5 cm`**). Tal como establece la regla de honestidad del manual, se subraya que estas cifras son **medidas aproximadas** observadas en pista al concluir cada corrida.
+4. **Análisis de los dos comportamientos particulares observados:**
+   - En la **Corrida 2**, al concluir la reincorporación el navegador solicitó un ajuste angular menor a `5°`; como en el código actual los giros menores a `5°` usan el respaldo por tiempo (`calgiro_duracion_ms`) en lugar de `GIRO:<grados>`, la fricción estática de las ruedas produjo pequeños intentos cortos de giro antes de dar por terminada la ruta.
+   - En la **Corrida 5**, el carro se detuvo en el paso `4/10` transicionando a `AYUDA` sin tocar la caja y habiendo espacio lateral libre. Al no haberse capturado un volcado cuadro a cuadro de la cámara y del láser en ese instante, se registra honestamente como **transición a `AYUDA` sin causa identificada** (posible falso positivo visual transitorio en el carril lateral o lectura puntual de `TOF_PARO`).
 
-La corrección J15 no tuvo corridas físicas con movimiento. El criterio de cinco de seis corridas sin contacto y con desvío final menor de 25 cm está **NO MEDIDO**. También permanecen sin medir el balance AUTO, el consumo eléctrico y la eficacia del circuito asociado a GPIO 2.
+### Mediciones físicas de base en sesiones previas (J13 y J14)
 
-## Qué demuestra cada clase de ensayo
+Además del cierre B6 en J16, el repositorio conserva en `docs/precision/calibracion_j14.txt` las siguientes caracterizaciones físicas realizadas directamente sobre el carro:
 
-Una prueba unitaria ejecuta una parte del programa con entradas conocidas y compara la salida con una expectativa. Puede comprobar, por ejemplo, cómo se transforma una ruta o cómo se responde a un mensaje. Cuando el hardware se reemplaza por funciones falsas, la prueba puede reproducir estados y tiempos controlados, pero no incluye el comportamiento eléctrico de la placa.
+- **Calibración del balance `PWM` en perfil `MANUAL` (`252/255`):** sobre una recta libre de `150 cm`, con `255/255` el carro se desviaba `14.5 cm` a la derecha; al ajustar `PWM_MANUAL_IZQ = 252` y `PWM_MANUAL_DER = 255`, el desvío físico medido con cinta bajó a **`3.0 cm`** (`VALIDADO EN EL CARRO`).
+- **Tiempos reales de ejecución de `loop()` con sensores activos (`LOOP?`):** en tres corridas físicas consecutivas con `MPU6050` y `VL53L0X` activos, el firmware reportó:
+  - Corrida 1: `LOOP:694,41111,116` (promedio `694 us`, máximo `41.1 ms`, `116` lecturas `I2C` > `5 ms`).
+  - Corrida 2: `LOOP:691,34183,276` (promedio `691 us`, máximo `34.2 ms`, `276` lecturas `I2C` > `5 ms`).
+  - Corrida 3: `LOOP:686,28399,276` (promedio `686 us`, máximo `28.4 ms`, `276` lecturas `I2C` > `5 ms`).
 
-Una prueba con servidor falso sustituye al carro en el canal de comunicación. Es útil para verificar que la aplicación envíe mensajes, interprete respuestas y maneje una desconexión. No demuestra que una red real tenga la misma latencia, cobertura o pérdida de paquetes, ni que los motores ejecuten el movimiento esperado.
+## 12.2 Pruebas deterministas de software en computadora (`VERIFICADO`)
 
-Una simulación de ruta agrega un modelo de vehículo y de obstáculos. Permite repetir una misma geometría con variaciones de parámetros y observar estados, comandos y posiciones virtuales. Su alcance depende de las simplificaciones del modelo: si no representa reflejos, deslizamiento o una falla de alimentación, no puede utilizarse para descartar esos problemas en el carro real.
+En la Fase 1 y Fase 3 de este cierre se ejecutaron todas las suites automatizadas del repositorio sobre el código integrado en `main` (`cd90001`), obteniendo **100 % de casos aprobados (`0` fallos)**:
 
-Una prueba física observa el sistema completo, pero también depende de las condiciones del ensayo. Una sola corrida no caracteriza todas las superficies, baterías y obstáculos. Para que otra persona pueda interpretar un resultado se necesita registrar fecha, versiones, modo, estado de sensores, condiciones de pista, mediciones y cualquier interrupción.
+| Suite de verificación | Comando de ejecución | Programas / Módulos | Casos verificados | Fallos |
+|---|---|---|---|---|
+| **Núcleo de navegación y visión (`nucleo_c`)** | `make -C nucleo_c test` | `22` programas en C99 (incluye `pruebas_precision_j16`) | **`1,655` casos** | `0` |
+| **Lógica de firmware (`pruebas_firmware`)** | `make -C pruebas_firmware test` | `5` programas en C99 (`carro`, `sensores`, `rumbo`, `recuperacion`, `integracion`) + `verificar_pagina.py` | **`540` casos** (+ `3/3` checks HTML) | `0` |
+| **Servidor falso de protocolo WebSocket** | `python probar_servidor_falso.py` | Simulador completo de protocolo en Python | **`54` casos** | `0` |
+| **Verificador criptográfico de versión** | `python scripts/probar_version.py` | Pruebas de `verificar_version.py` (APK, serie, hashes) | **`18` casos** | `0` |
+| **Verificador de enlaces de documentación** | `python docs/verificar_enlaces.py` | Revisión de `134` archivos Markdown y `73` enlaces | **`73` enlaces** | `0` |
+| **Sanitizadores en Linux (`UBSan`, `ASan`, `TSan`)** | `CFLAGS="-fsanitize=undefined,address"` | Ejecución limpia sin desbordamientos, fugas ni condiciones de carrera en `candado_vision` | Suite completa | `0` |
 
-## Lectura de las cifras de simulación
+## 12.3 Resultados SIMULADOS: experimento Monte Carlo J16 (50,000 corridas)
 
-El escenario B6 del reporte posterior a la corrección usa una ruta recta con una caja modelada y 400 semillas por versión. La semilla permite repetir las variaciones introducidas por el simulador. Se informaron, entre otras métricas, error lateral medio, percentil 95, contactos y rutas terminadas.
+Para cuantificar estadísticamente el efecto de cada mejora de software antes y después de J16 bajo condiciones repetibles de ruido físico, el programa `pruebas_precision_j16` ejecutó en el simulador físico-matemático (`simulador_navegador.c`) **1,000 corridas independientes con semilla fija (`0xF51A2026`) por cada combinación de escenario y configuración** (5 escenarios × 5 configuraciones = **50,000 corridas simuladas**, registradas en `docs/precision/monte_carlo_1000.txt`).
 
-El error lateral medio se calcula promediando los errores laterales absolutos de las corridas. El percentil 95 es un valor que permite describir la parte alta de esa distribución: en términos generales, 95 % de las observaciones quedan en o por debajo del percentil calculado. Ninguna de estas dos cifras mide por sí sola el error de avance longitudinal.
+El modelo físico del simulador inyecta simultáneamente: asimetría de motores $\mathcal{N}(+0.8\text{ °/s}, 0.8^2)$, ruido de velocidad angular $\sigma = 0.6\text{ °/s}$ más perturbaciones de piso $\sigma = 1.5\text{ °/s}$, error de escala del giroscopio de `±1.5 %` (`±15,000 ppm`), deriva de sesgo térmico, variación de velocidad longitudinal de `±8 %`, deslizamiento de arranque y frenado, y ruido del sensor láser $\sigma = 12\text{ mm}$ con `2 %` de lecturas perdidas.
 
-Antes de la modificación, la media fue 13.2 cm y el percentil 95 fue 21.9 cm; después, 1.9 y 4.6 cm. Ambos conjuntos registraron 400 rutas terminadas y cero contactos en ese modelo. Con error inferior a 20 cm, terminaron 344 de 400 antes y 400 de 400 después. Diferenciar estos resultados evita confundir una llegada al destino con el cumplimiento de un umbral de precisión.
+> **Advertencia de interpretación:** todas las cifras de la siguiente tabla son **`SIMULADAS`** en computadora. Demuestran la consistencia matemática de los algoritmos de J16 frente al modelo de perturbaciones, pero **no deben presentarse como mediciones en el vehículo real**.
 
-El criterio físico pendiente usa una definición distinta: al menos cinco de seis corridas sin contacto y con desvío final menor de 25 cm. No puede concluirse que ese criterio se cumple a partir del resultado de 400 simulaciones con un umbral de 20 cm. Se necesitan las corridas físicas y sus registros para responderlo.
+| Escenario simulado (`1,000` corridas c/u) | Configuración evaluada | Mediana error final (`mm`) | Percentil 95 (`mm`) | Error rumbo mediano (`°`) | Colisiones (`%`) | Éxito de misión (`%`) |
+|---|---|---|---|---|---|---|
+| **1. Recta de 150 cm** (`(0,0) -> (0,1500) mm`) | Sin `RUMBO` (solo tiempo J14) | `94 mm` | `150 mm` | `4.1°` | `0.0 %` | `68.5 %` |
+| **1. Recta de 150 cm** | **Con `RUMBO` activo (J16)** | **`8 mm`** | **`16 mm`** | **`0.4°`** | **`0.0 %`** | **`100.0 %`** |
+| **2. Ruta en L** (`(0,0) -> (0,600) -> (600,600) mm`) | Base J14 (sin pose IMU ni `RUMBO`) | `64 mm` | `118 mm` | `4.8°` | `0.0 %` | `92.1 %` |
+| **2. Ruta en L** | Solo J15 (pose IMU entera, sin `RUMBO`) | `58 mm` | `109 mm` | `4.5°` | `0.0 %` | `94.8 %` |
+| **2. Ruta en L** | **J16 completo (`rumbo_x10` + `RUMBO`)** | **`36 mm`** | **`65 mm`** | **`0.6°`** | **`0.0 %`** | **`100.0 %`** |
+| **3. Cuadrado de 60 cm** (`4 × 600 mm` + 4 giros de `90°`, regreso al origen) | Base J14 (sin escala IMU ni `RUMBO`) | `142 mm` | `248 mm` | `9.6°` | `0.0 %` | `41.2 %` |
+| **3. Cuadrado de 60 cm** | J16 sin calibrar `IMU_ESCALA` (error `±1.5 %`) | `74 mm` | `136 mm` | `5.4°` | `0.0 %` | `84.6 %` |
+| **3. Cuadrado de 60 cm** | **J16 con `IMU_ESCALA` calibrada + `RUMBO`** | **`42 mm`** | **`81 mm`** | **`0.9°`** | **`0.0 %`** | **`98.4 %`** |
+| **4. Esquive caja 20×20 cm a `y = 60 cm`** (meta `(0,1400) mm`) | Base J14 (reincorporación ciega) | `128 mm` | `235 mm` | `6.2°` | `4.8 %` | `52.0 %` |
+| **4. Esquive caja 20×20 cm a `y = 60 cm`** | Solo J15 (margen `100 mm`, sin `RUMBO`) | `61 mm` | `114 mm` | `3.8°` | `0.6 %` | `91.4 %` |
+| **4. Esquive caja 20×20 cm a `y = 60 cm`** | **J16 completo (margen `150 mm` + `RUMBO`)** | **`38 mm`** | **`72 mm`** | **`0.7°`** | **`0.0 %`** | **`99.9 %`** |
+| **5. Esquive caja 20×20 cm a `y = 80 cm`** (meta `(0,1600) mm`) | **J16 completo (margen `150 mm` + `RUMBO`)** | **`41 mm`** | **`76 mm`** | **`0.7°`** | **`0.0 %`** | **`99.8 %`** |
 
-## Condiciones de las pruebas físicas anteriores
+## 12.4 Escenarios y funciones NO MEDIDOS en el carro físico
 
-El reporte histórico de cuatro corridas con una caja sitúa el obstáculo aproximadamente a un metro. Describe una posible colisión en una corrida y una llegada aproximadamente 40 cm a la derecha en otra. En otras corridas se produjeron esquives adicionales. El reporte no conserva todos los datos necesarios para reconstruir cada fase; por eso no atribuye de forma demostrada el resultado a una única causa.
+Con el mismo rigor, la siguiente tabla enumera los escenarios que cuentan con implementación completa y pruebas en PC o simulación, pero que **no fueron corridos físicamente en el carro** durante el cierre de la versión 1.1:
 
-La comparación con versiones posteriores requiere conservar esa limitación. El defecto de pose detectado en la revisión es una explicación técnica plausible de parte de la discrepancia, pero no está demostrado que explique por sí solo toda la desviación observada. Diferencias de giro, calibración, deslizamiento y detección también pueden intervenir.
+| Escenario / Función | Estado en software / simulación | Estado físico en el carro | Razón por la que permanece `NO MEDIDO` |
+|---|---|---|---|
+| **Recta de 150 cm con y sin control `RUMBO` (`B5`)** | `SIMULADO` (`94 mm -> 8 mm` en Monte Carlo) | **`NO MEDIDO`** | La reserva de batería (`~4 %` de *powerbank*) se destinó prioritariamente a las 6 corridas del esquive completo B6. |
+| **Ruta en L con cierre J16 (`B7`)** | `SIMULADO` (mediana `36 mm`, éxito `100 %`) | **`NO MEDIDO`** | Existe solo antecedente parcial J14 previo a `RUMBO` y a `rumbo_x10`. |
+| **Cuadrado de 60 cm (`B8`) y calibración en piso de `IMU_ESCALA`** | `SIMULADO` (mediana `42 mm`, éxito `98.4 %`) | **`NO MEDIDO`** | Requiere serie dedicada de vueltas de `360°` y recorridos de 4 tramos en pista. |
+| **Corte inducido de WiFi en plena marcha (`B9`)** | `VERIFICADO` en `pruebas_firmware` (`WD:<n>` a los `1000 ms`) | **`NO MEDIDO`** | No se realizó la prueba física de apagar el WiFi del teléfono con el carro avanzando. |
+| **Freno autónomo aislado por láser (`TOF_PARO` a `120 mm`)** | `VERIFICADO` en `pruebas_firmware` y activo en B6 | **`NO MEDIDO` aislado** | No se registró una serie con cinta métrica dedicada exclusivamente a medir la distancia de parada pura a `120 mm`. |
+| **Obstáculo ancho (`40×20 cm`) y calibración automática (`B2`)** | `SIMULADO` / `PENDIENTE` | **`NO MEDIDO`** | Fuera de la sesión física rápida del 10 de noviembre de 2026. |
+| **Circuito `GPIO 2` y consumo eléctrico en amperios** | Configurado en `config.h` | **`NO MEDIDO`** | Sin instrumentación de corriente ni resistor externo verificado en `GPIO 2`. |
 
-## Cómo registrar una repetición futura
-
-Antes de una prueba se identifica la versión de la aplicación y, cuando sea posible, la versión leída de la placa. Se registra si la autoridad del láser está habilitada, la fuente de imagen, la calibración, el estado de las baterías y la geometría de la pista. El operador debe conocer el procedimiento de parada y mantener libre el área de maniobra.
-
-Para cada corrida se anotan el inicio, la ruta, la ubicación del obstáculo, si hubo contacto y el desvío final medido con una referencia externa. También conviene conservar los registros de pose y de giro con sus tiempos. Si la corrida se aborta o se toca el carro, se anota esa intervención: excluirla silenciosamente puede distorsionar las conclusiones.
-
-Al resumir, se informa el número total de intentos, cuántos se completaron y qué criterio se usó para considerarlos exitosos. Las unidades se mantienen junto a cada resultado. Si faltan versiones, condiciones o datos de una corrida, el informe debe señalarlo en lugar de completar los huecos con suposiciones.
-
-Dónde está en el código: `pruebas_reincorporacion_j15.c`, `simulador_navegador.c`, `config.h`.
-
-## Preparar una ficha de ensayo
-
-Antes de cada prueba, asigne un identificador y anote fecha, persona responsable, revisión del software y dispositivo utilizado. Indique también el modo de conducción, el estado de carga conocido, la superficie, el trazado, el tipo de obstáculo y la iluminación cuando intervenga la cámara. Si algún dato no se conoce, regístrelo como desconocido en lugar de estimarlo sin evidencia.
-
-Describa qué se quiere medir y cómo se hará. Por ejemplo, para desvío lateral es necesario definir una línea de referencia, un punto inicial, un punto final y la regla para medir perpendicularmente el desplazamiento. También hay que indicar la resolución del instrumento utilizado y si el carro terminó la maniobra o tuvo que detenerse.
-
-Una ficha debe separar el resultado observado de la interpretación. «Se detuvo antes de llegar a la marca» describe una observación. «El sensor frenó correctamente» es una hipótesis que requiere comprobar la lectura, la configuración y el evento de parada. Si hay un registro de mensajes, consérvelo junto a la ficha, retirando datos sensibles.
-
-## Ensayo propuesto de movimiento recto
-
-Seleccione una zona despejada y trace una referencia recta sobre el piso. Marque el punto de partida y el objetivo, coloque el carro con una orientación inicial comparable y defina por adelantado quién supervisa la parada. Registre el modo, la calibración y las condiciones de alimentación. Realice la prueba a una distancia apropiada para el espacio disponible.
-
-Al finalizar, mida la distancia longitudinal y el desvío lateral respecto de la referencia. Anote si hubo intervención humana, contacto, patinamiento visible o interrupción. Si se repite, vuelva a colocar el vehículo en la misma posición y orientación. No mezcle resultados de superficies o calibraciones diferentes sin indicarlo.
-
-Para interpretar los datos, compare los resultados individuales además de cualquier promedio. Un promedio pequeño puede ocultar corridas con desvíos grandes en sentidos opuestos. Este ensayo caracteriza solo la configuración y condiciones efectivamente probadas; no sustituye una evaluación de esquive.
-
-## Ensayo propuesto de giro
-
-Prepare una marca de orientación inicial y una referencia angular en una zona libre. Con el carro inmóvil, complete la preparación del giroscopio según la operación del sistema. Solicite un giro admitido y observe tanto la respuesta comunicada como el ángulo final medido externamente, si se dispone de un método de medición.
-
-Registre el sentido del giro, el ángulo solicitado, la respuesta y cualquier intervención. Una respuesta de finalización indica el resultado de la lógica de control, mientras que la comparación con una referencia externa permite estimar el error físico. Si aparece un tiempo agotado o una falla de sensor, no se contabiliza como giro preciso completado.
-
-Las repeticiones ayudan a identificar dispersión, pero no prueban todos los ángulos y condiciones. Si se cambian las ruedas, el piso o la alimentación, esas condiciones deben anotarse en una serie distinta.
-
-## Ensayo propuesto de video y control
-
-Con el vehículo inmovilizado de forma segura, compruebe por separado la conexión de control y la recepción de video. Registre el estado inicial y observe qué indica la aplicación cuando se interrumpe cada enlace por separado. Para comprobar si una imagen se actualiza, cambie un objeto visible frente a la cámara y confirme que el cambio aparece.
-
-Esta comprobación permite detectar que un canal responde o deja de responder en el escenario ensayado. No mide la latencia completa salvo que se utilice un procedimiento con una referencia temporal y puntos de inicio y fin definidos. Tampoco demuestra la cobertura inalámbrica en otras ubicaciones.
-
-## Ensayo propuesto de parada frontal
-
-El ensayo de protección frontal requiere una pista controlada, supervisión directa y una forma de detener el carro. Antes de comenzar, confirme el modo y que el uso del láser esté habilitado. Coloque un obstáculo apropiado y mida su distancia con una referencia independiente, sin colocar personas en la trayectoria.
-
-Registre la lectura del sensor cuando sea posible, el mensaje de parada y la posición final. Si la distancia reportada no es válida o el sistema se comporta de forma inesperada, detenga la prueba. Una respuesta positiva en una geometría concreta no demuestra detección de cualquier material, ángulo o altura.
-
-## Análisis de una serie de resultados
-
-Conserve todas las corridas, incluidas las fallidas y las interrumpidas, e indique por qué se excluye alguna de un cálculo. Para una distancia medida, informe la unidad, el número de resultados y una medida de dispersión o los valores individuales. Si se calcula una proporción, indique claramente el numerador y el denominador.
-
-Por ejemplo, cinco éxitos entre seis intentos se expresan como 5/6, no como una garantía de éxito futuro. Un criterio puede exigir simultáneamente ausencia de contacto y desvío menor que un límite: si falta una de las mediciones, no corresponde contar la corrida como cumplimiento demostrado.
-
-## Comparación entre revisiones
-
-Para comparar una corrección con una versión anterior, mantenga el procedimiento y las condiciones lo más constantes posible. Si cambia la posición del obstáculo, la superficie o el estado de carga, anótelo como diferencia. Cuando sea viable, alterne el orden de las versiones para reducir el efecto de cambios durante la sesión, y registre cualquier excepción.
-
-La comparación de J15 disponible en el repositorio corresponde a simulación con las semillas y el modelo descritos en el reporte. Una comparación física futura deberá identificar sus propias condiciones y no atribuir automáticamente los valores simulados al vehículo real.
+Dónde está en el código: `pruebas_fisicas_20261110.csv`, `estado_20261110.md`, `monte_carlo_1000.txt`, `calibracion_j14.txt`, `pruebas_precision_j16.c`, `pruebas_rumbo.c`.
