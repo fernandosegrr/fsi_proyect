@@ -1,63 +1,51 @@
-# Documentación técnica del carro FSI
+# Centro de Documentación Técnica — Proyecto Carro FSI (LIDIA · Versión final 1.1)
 
-Bienvenido al centro de documentación del proyecto del carro con navegación asistida de la materia **Fundamentos de los Sistemas de Información (FSI)**, a cargo del profesor **Dr. Horacio Rostro González**.
+Bienvenido al centro de documentación del proyecto **LIDIA (*Carro FSI*)** de la materia **Fundamentos de los Sistemas de Información (FSI)** (Universidad de Guanajuato · DICIS, profesor **Dr. Horacio Rostro González**).
 
 ---
 
-## 1. Convenciones y honestidad técnica
+## 1. Entregable principal: Manual Técnico en PDF (Versión final 1.1)
 
-Toda afirmación técnica en esta documentación distingue explícitamente su grado de certeza mediante las siguientes etiquetas normalizadas:
+- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`51` páginas, `12` figuras, `23` tablas, índice general interactivo): documento principal autocontenido y reescrito para la **Versión final 1.1** (cierre J16).
+- **[docs/manual/README.md](manual/README.md):** instrucciones para regenerar el PDF con `python docs/manual/generar_manual.py`, diagnóstico de la versión previa ([manual/diagnostico_v1.md](manual/diagnostico_v1.md)), plan editorial ([manual/plan_final.md](manual/plan_final.md)) y auditoría de afirmaciones ([manual/auditoria_afirmaciones.md](manual/auditoria_afirmaciones.md)).
+- **[docs/figuras/README.md](figuras/README.md):** catálogo y generador reproducible (`docs/figuras/generar_figuras_v2.py`) de los diagramas y láminas del manual.
 
-| Etiqueta | Significado y rigor |
+---
+
+## 2. Convención de evidencia y documentos de cierre J16
+
+Toda afirmación técnica distingue explícitamente su grado de evidencia:
+
+| Etiqueta | Significado técnico |
 |---|---|
-| **VERIFICADO** | Comprobado directamente en el código fuente versionado o medido físicamente en el carro y registrado con evidencia en reportes de pruebas. |
-| **SIMULADO** | Resultado obtenido mediante modelos matemáticos y simulaciones computacionales en PC; no constituye una medición en el vehículo físico real. |
-| **HIPÓTESIS** | Explicación técnica plausible que carece de instrumentación o pruebas definitivas para confirmarse. |
-| **NO MEDIDO** | Parámetro, tiempo o magnitud que no ha sido medido o cuyos registros físicos no se conservan. |
-| **PENDIENTE** | Elemento pendiente de realización, fotografía o resolución por parte del equipo. |
+| **`VALIDADO EN EL CARRO` / `VERIFICADO`** | Comprobado físicamente en el carro (en rutas del cierre J16, **únicamente el esquive con reincorporación B6**: 6 corridas el 10-nov-2026, `0/6` toques, `5/6` autónomas completas con error lateral aproximado de `~0` a `~10 cm` y `1/6` en `AYUDA` sin causa identificada) o verificado en las suites automatizadas de PC (`2,267` casos con `0` fallos). |
+| **`SIMULADO`** | Resultado obtenido en el simulador físico-matemático (`simulador_navegador.c`, `50,000` corridas Monte Carlo con semilla fija `0xF51A2026`). No sustituye mediciones en el carro físico. |
+| **`NO MEDIDO`** | Implementado y probado en software/simulación, pero sin corridas físicas en el carro (rectas con y sin `RUMBO`, ruta en L, cuadrado, corte de WiFi en marcha, freno láser aislado, caja ancha, calibración en piso de `IMU_ESCALA`, `GPIO 2` y consumo en amperios). |
+| **`PENDIENTE`** | Trabajo futuro identificado (odometría por codificadores, control de 4 canales independientes, bitácora `.jsonl` por corrida). |
+
+### Registros maestros de estado y pruebas (Versión final 1.1)
+- [estado_20261110.md](estado_20261110.md): estado integral de validación al 10 de noviembre de 2026 (`FW:6d1b213-20261110` y `APP:0.4-6d1b213`).
+- [pruebas_fisicas_20261110.csv](pruebas_fisicas_20261110.csv): registro de las 6 corridas físicas del escenario B6 en el carro.
+- [limites_conocidos.md](limites_conocidos.md): límites físicos, geométricos, visuales y de protocolo vigentes.
+- [entrega.md](entrega.md): guía de verificación de artefactos de `dist/`, hashes SHA-256 e instalación.
+- [reporte_J16.md](reporte_J16.md) y [precision/monte_carlo_1000.txt](precision/monte_carlo_1000.txt): detalle matemático del cierre J16 y tabla de `50,000` corridas Monte Carlo.
 
 ---
 
-## 2. Organización de la documentación
+## 3. Documentos temáticos y referencias por área
 
-### 2.1 Documentos temáticos generales (vigentes y consolidados)
+### 3.1 Guías temáticas generales
+- [index.md](index.md): índice temático general.
+- [arquitectura.md](arquitectura.md): topología de tres nodos (Android, `ESP32 DevKit`, `Freenove`) y tres fuentes de energía independientes.
+- [protocolo.md](protocolo.md): catálogo de comandos sobre `WebSocket /ws`, puerto serie y tramas `SENS` / `CAPS`.
+- [operacion.md](operacion.md) y [seguridad.md](seguridad.md): secuencia segura de encendido, conducción y cuatro capas de protección.
+- [calibracion_guia.md](calibracion_guia.md): calibración longitudinal, angular y factor de escala del giroscopio en ppm (`IMU_ESCALA`).
+- [resultados.md](resultados.md): compendio de resultados físicos, suites en PC y simulaciones.
+- [historia.md](historia.md): evolución técnica y justificación de diseño.
+- [solucion_problemas.md](solucion_problemas.md) y [mantenimiento.md](mantenimiento.md): diagnóstico por síntoma y cuidado de baterías/componentes.
+- [glosario.md](glosario.md): definiciones técnicas.
+- [exposicion.md](exposicion.md): material de apoyo para presentación oral (separado del manual técnico entregable).
 
-- [`index.md`](file:///e:/Dev/fsi_proyecto/docs/index.md): Índice temático de consulta rápida.
-- [`arquitectura.md`](file:///e:/Dev/fsi_proyecto/docs/arquitectura.md): Visión global del sistema, diagramas de interacción y flujos de datos.
-- [`protocolo.md`](file:///e:/Dev/fsi_proyecto/docs/protocolo.md): Especificación exhaustiva de comandos WebSocket, respuestas, mensajes de telemetría y códigos de error.
-- [`operacion.md`](file:///e:/Dev/fsi_proyecto/docs/operacion.md): Guía operativa paso a paso: encendido, emparejamiento WiFi, modos de conducción y rutinas de prueba.
-- [`calibracion_guia.md`](file:///e:/Dev/fsi_proyecto/docs/calibracion_guia.md): Procedimiento metrológico para calibrar avance en recta, balance de tracción y pivote angular con giroscopio.
-- [`seguridad.md`](file:///e:/Dev/fsi_proyecto/docs/seguridad.md): Análisis de riesgos eléctricos (separación de tierras y potencia), mecánicos, térmicos y mitigaciones de software (watchdogs).
-- [`resultados.md`](file:///e:/Dev/fsi_proyecto/docs/resultados.md): Compendio transparente de lo validado en hardware, lo comprobado en simulación y lo que permanece no medido.
-- [`historia.md`](file:///e:/Dev/fsi_proyecto/docs/historia.md): Evolución cronológica del proyecto a lo largo de las jornadas de trabajo (J1 a J15).
-- [`glosario.md`](file:///e:/Dev/fsi_proyecto/docs/glosario.md): Definición detallada de términos, siglas y unidades utilizadas.
-- [`exposicion.md`](file:///e:/Dev/fsi_proyecto/docs/exposicion.md): Guion estructurado para la presentación oral y banco de preguntas frecuentes con respuestas técnicas sólidas.
-- [`solucion_problemas.md`](file:///e:/Dev/fsi_proyecto/docs/solucion_problemas.md): Matriz de diagnóstico: síntomas, causas probables y acciones correctivas.
-- [`mantenimiento.md`](file:///e:/Dev/fsi_proyecto/docs/mantenimiento.md): Cuidado de celdas de alimentación, motores TT, limpieza de óptica y conservación.
-
-### 2.2 Referencias técnicas por área (`docs/referencia/`)
-
-Contienen el desglose técnico en profundidad con referencias cruzadas a archivos y líneas de código:
-1. [`hardware.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/hardware.md): Chasis, microcontroladores, driver TC1508A, cableado y buses.
-2. [`firmware.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/firmware.md): Arquitectura del firmware del ESP32 DevKit, comandos y watchdog.
-3. [`nucleo.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/nucleo.md): Algoritmos en C del navegador, estimación de pose e integración angular.
-4. [`app.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/app.md): Estructura de la aplicación Android, enlace JNI y sesiones compartidas.
-5. [`camara.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/camara.md): Placa Freenove ESP32-WROVER, modos de streaming y compresión por software.
-6. [`compilacion.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/compilacion.md): Cadenas de compilación para ESP32, C nativo y Gradle Android.
-7. [`pruebas.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/pruebas.md): Resumen de los 2045 casos de prueba automatizados en PC.
-8. [`simulador.md`](file:///e:/Dev/fsi_proyecto/docs/referencia/simulador.md): Modelado virtual cinemático, escenarios de ruido y validación montecarlo.
-
-### 2.3 Recorridos de código fuente (`docs/codigo/`)
-
-Análisis minucioso archivo por archivo con explicación pedagógica, estructuras y fragmentos comentados.
-
-### 2.4 Figuras, imágenes y manual
-- [`docs/figuras/`](file:///e:/Dev/fsi_proyecto/docs/figuras/README.md): Catálogo y scripts reproducibles de las 12 figuras técnicas en PNG y SVG.
-- [`docs/imagenes/`](file:///e:/Dev/fsi_proyecto/docs/imagenes/README.md): Fotografías físicas y capturas reales del sistema.
-- [Manual técnico del Carro FSI](manual/Manual_Proyecto_Carro_FSI.pdf): arquitectura, operación, resultados y límites del proyecto.
-
----
-
-## 3. Documentos históricos del proyecto
-
-Los archivos de registro previo existentes en `docs/` (como `bitacora.md`, `reporte_J13.md`, `reporte_J14.md`, `reporte_J15.md`, `conexiones.md`, `sensores.md`, `calibracion.md`, etc.) son **documentos históricos de trabajo**. Se mantienen intactos en el repositorio como memoria evolutiva. Para cualquier discrepancia entre un texto histórico y la implementación vigente, prevalece el código fuente y las anotaciones en [`pendientes_documentacion.md`](file:///e:/Dev/fsi_proyecto/docs/pendientes_documentacion.md).
+### 3.2 Monografías de referencia (`docs/referencia/`) y recorridos de código (`docs/codigo/`)
+- [referencia/hardware.md](referencia/hardware.md), [referencia/firmware.md](referencia/firmware.md), [referencia/nucleo.md](referencia/nucleo.md), [referencia/app.md](referencia/app.md), [referencia/camara.md](referencia/camara.md), [referencia/compilacion.md](referencia/compilacion.md), [referencia/pruebas.md](referencia/pruebas.md) y [referencia/simulador.md](referencia/simulador.md).
+- Recorridos archivo por archivo en `docs/codigo/`.

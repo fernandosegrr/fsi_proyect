@@ -1,193 +1,118 @@
-# Proyecto Carro FSI — Vehículo autónomo con navegación asistida
+# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (Versión final 1.1)
 
 [![CI Tests](https://github.com/fernandosegrr/fsi_proyect/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandosegrr/fsi_proyect/actions)
-[![Estado J15](https://img.shields.io/badge/Estado-J15%20Cierre-blue.svg)](docs/reporte_J15.md)
-[![Entrega FSI](https://img.shields.io/badge/Entrega-1%20Diciembre%202026-green.svg)](docs/plan_documentacion.md)
+[![Versión 1.1](https://img.shields.io/badge/Versi%C3%B3n-final%201.1%20(J16)-blue.svg)](docs/estado_20261110.md)
+[![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green.svg)](LICENSE)
 
+**Institución:** Universidad de Guanajuato · División de Ingenierías · Campus Irapuato-Salamanca (DICIS)  
 **Materia:** Fundamentos de los Sistemas de Información (FSI)  
 **Profesor:** Dr. Horacio Rostro González  
-**Equipo:**
+**Integrantes del equipo:**
 - Jaime Fernando Guerrero Segoviano
 - Melanie Contreras Solis
 - Vitto Eduardo Rangel Fortuna
-- Azul Abril Cadena Campos  
-**Manual técnico en PDF:** [Manual del Carro FSI](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
-**Centro de documentación:** [`docs/`](file:///e:/Dev/fsi_proyecto/docs/README.md) e [`docs/index.md`](file:///e:/Dev/fsi_proyecto/docs/index.md)  
+- Azul Abril Cadena Campos
+
+**Accesos rápidos del repositorio:**
+- **Manual técnico completo en PDF (Versión final 1.1, 51 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
+- **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
+- **Artefactos listos para instalar (`dist/`):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
+- **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
 
 ---
 
-## 1. Qué es el proyecto en un párrafo
+## 1. Qué es el proyecto
 
-El carro FSI es un vehículo robótico terrestre de cuatro ruedas motrices gobernado por un microcontrolador ESP32 DevKit y supervisado desde un teléfono móvil Android mediante una red WiFi local. Integra un módulo de cámara inalámbrica independiente (Freenove ESP32-WROVER v3.0) para streaming de video continuo y detección visual de obstáculos, un giroscopio digital MPU6050 para control angular de precisión en bucle cerrado, un sensor láser ToF VL53L0X para parada de emergencia milimétrica autónoma, y una biblioteca cinemática matemática escrita en C estándar (C99) enlazada por JNI que planifica rutas sobre una cuadrícula de 20 cm, sortea obstáculos de manera reactiva y reporta telemetría bidireccional en tiempo real a través de un canal WebSocket protegido por un watchdog estricto de 1000 ms.
+**LIDIA (*Carro FSI*)** es un vehículo robótico terrestre de cuatro ruedas con tracción diferencial y rodillos tipo *mecanum*, gobernado en tiempo real por tres nodos cooperativos conectados mediante una red inalámbrica local (`CarroFSI`, 2.4 GHz):
 
----
-
-## 2. Diagrama general de arquitectura
-
-```
-                            ┌────────────────────────────────┐
-                            │        Teléfono Android        │
-                            │   (App FSI / Núcleo en C)      │
-                            │   192.168.4.10 (cliente DHCP)  │
-                            └───────▲────────────────┬───────┘
-                                    │                │
-                      HTTP /stream  │                │ WebSocket /ws
-                      o UDP :4210   │                │ (comandos y SENS)
-                                    │                │
-            ┌───────────────────────┴──┐     ┌───────▼────────────────────────┐
-            │ Freenove ESP32-WROVER    │     │ ESP32 DevKit (WROOM-32)        │
-            │ Cámara GC0308 + PSRAM    │     │ Punto de Acceso WiFi (AP)      │
-            │ 192.168.4.2 (IP estática)│     │ 192.168.4.1 · Servidor Web :80 │
-            └──────────────────────────┘     └───────┬────────────┬───────────┘
-                                                     │            │
-                                         I2C 21/22   │            │ GPIO 27/26/25/33
-                                         (400 kHz)   │            │ PWM (1500 Hz)
-                                        ┌────────────┴──┐         ▼
-                                        │ MPU6050 (IMU) │     TC1508A
-                                        │ VL53L0X (ToF) │  (Driver puente H)
-                                        └───────────────┘         │
-                                                                  ▼
-                                                            4 motores TT
-                                                       (VDD = 4 pilas AA ~6V)
-```
+1. **Placa de control y sensores (`ESP32 DevKit`, `192.168.4.1`):** actúa como punto de acceso WiFi, procesa los comandos entrantes mediante una cola determinista de 32 ranuras con prioridad absoluta para `STOP`/`EBRAKE`, controla los cuatro motores TT a través de un puente H doble `TC1508A` (`1 kHz`), integra un giroscopio `MPU6050` a `200 Hz` con factor de escala en partes por millón (`IMU_ESCALA` en NVS), supervisa la distancia frontal con un sensor láser `VL53L0X` (paro autónomo a `120 mm`) y ejecuta el controlador proporcional-integral de mantenimiento de rumbo en rectas (`RUMBO`) y giro cerrado (`GIRO`).
+2. **Placa de cámara independiente (`Freenove ESP32-WROVER` con sensor `GC0308`, `192.168.4.2`):** alimentada por su propia *powerbank* USB independiente, captura imágenes en resolución `HQVGA` (`240×176` píxeles a `20 MHz`, `12.4 fps`, edad media de cuadro `137 ms`) mediante una arquitectura de doble núcleo con buzón de último cuadro, exponiendo flujo `MJPEG` (`:81/stream`), cuadro crudo `RGB565` (`:80/raw`) y rejilla compacta de celdas por `UDP :4210` (`1,244 bytes`).
+3. **Teléfono Android (`APP:0.4-6d1b213`):** presenta la interfaz de operación y ejecuta de forma nativa vía `JNI` el núcleo matemático de navegación y visión en estándar `C99` (`nucleo_c`: planificación en cuadrícula de `20 cm`, integración de pose en décimas de grado `rumbo_x10`, guiado por punto de mira a `400 mm`, esquive en tres tramos con margen de `150 mm`, clasificador cromático `YCbCr`, inferencia `EfficientDet-Lite0` en hilo propio y fusión sincronizada bajo mutex `candado_vision`).
 
 ---
 
-## 3. Estado actual de validación (Transparencia técnica)
+## 2. Estado de validación en la Versión final 1.1 (Cierre J16)
 
-En estricto apego a la honestidad científica y a las directrices de entrega, el estado del proyecto se desglosa explícitamente en tres categorías:
+En estricto apego a la honestidad técnica, el repositorio separa lo validado físicamente en el carro, lo verificado en software/simulación y lo que permanece no medido:
 
-### 3.1 Verificado físicamente en hardware
-- **Ajuste de balance en línea recta:** Con potencia 255 (Perfil MANUAL), balance 988 (252 motor izquierdo / 255 motor derecho) reduce el desvío lateral de 14.5 cm a **3.0 cm** a 150 cm de avance sobre piso plano (`firmware_carro/config.h:103-104`).
-- **Rendimiento de cámara GC0308:** Con resolución HQVGA (240×176 px, calidad 50) entrega **12.4 fps** reales, 56 ms de tiempo de compresión y 137 ms de antigüedad de cuadro (`docs/camara_prueba.md`).
-- **Artefactos binarios oficiales:**
-  - APK Android J15 instalada y verificada por hash: `carro_fsi_0.4-074c9fd.apk` (**14,852,386 bytes**, SHA-256 `36CE38F2ABD11C1030A7DE7B8A23009A865A01365900192E69CED9CDDE9513BA`); en la rama `j16-precision` queda en el historial de Git y `dist/` tiene el candidato J16 (sin instalar, ver 3.3).
-  - Imagen de firmware: `dist/firmware_carro_453ed20-20261027.bin` (**1,031,712 bytes**, SHA-256 `9FD1BB5103D1AD66652ADEA68B009D54D30B5C5B6F07F8CA7488A4FBF274048E`).
-- **Pruebas físicas completadas:** Escenarios B0, B1, B3, B4, B5 y B6 superados en pista física en la jornada J14.
+### 2.1 VALIDADO EN EL CARRO (pruebas físicas)
+- **Esquive autónomo con reincorporación (Escenario B6 — 10 de noviembre de 2026):** validado físicamente en el carro con el firmware `FW:6d1b213-20261110` y la aplicación `APP:0.4-6d1b213` ([docs/pruebas_fisicas_20261110.csv](docs/pruebas_fisicas_20261110.csv) y [docs/estado_20261110.md](docs/estado_20261110.md)):
+  - **6 corridas físicas ejecutadas** (`J16_B6_r1` a `J16_B6_r6`).
+  - **`0/6` toques o contactos con la caja** (`100 %` de seguridad anticolisión).
+  - **`5/6` corridas autónomas completas (`TERMINADO`, `10/10` pasos)** con desviación lateral final respecto a la línea recta original de **`~0 cm` a `~10 cm` hacia la derecha** (`~10 cm`, `~10 cm`, `~5 cm`, `~0 cm` y `~0 cm`; **medidas aproximadas** observadas en pista).
+  - **`1/6` corrida (`J16_B6_r5`) detenida de forma segura en estado `AYUDA`** (paso `4/10`) sin tocar la caja y con espacio físico suficiente, **sin causa identificada**.
+- **Caracterización física de base (sesiones J13/J14):** balance `PWM` en perfil `MANUAL` (`252/255`) que redujo el desvío en recta de `150 cm` de `14.5 cm` a `3.0 cm`, tiempos reales de `loop()` (`~690 us` promedio) y cadencia de cámara `HQVGA` (`12.4 fps`, edad media `137 ms`).
 
-### 3.2 Comprobado mediante simulación en PC
-- **Corrección de pose J15:** En 400 rutas simuladas del escenario B6 (esquivar una caja de 20 cm y reincorporarse a la trayectoria), la integración del rumbo instantáneo del giroscopio redujo el error lateral promedio de 13.2 cm a **1.9 cm** y el percentil 95 (p95) de 21.9 cm a **4.6 cm**, alcanzando 400 de 400 llegadas exitosas a menos de 20 cm del destino y sin contacto.
-- **Precisión J16 (rama `j16-precision`):** simulador calibrado con las rectas B4 y el esquive B6 de J14; 1000 corridas por escenario. Con el firmware nuevo (RUMBO, rumbo sostenido con el giroscopio) el desvío medio de la recta de 150 cm baja de 8.0 a **1.0 cm** (p95 de 12.6 a 2.6 cm) y el del esquive de 3.7 a **1.7 cm**, con 0 toques en 1000 (antes 9). Cifras de la segunda ronda (rumbo con décimas entre comandos). Sin firmware nuevo, la recta de 150 cm vuelve a medir 150 cm (antes 160). Detalle en `docs/reporte_J16.md`.
-- **Batería de pruebas automatizadas (J16):**
-  - Núcleo cinemático C99: 22 ejecutables de prueba, **1655 casos evaluados, 0 fallos** (los 1598 anteriores, el banco de precisión J16 y la escala del giroscopio).
-  - Firmware y simulación de hardware: **540 casos evaluados, 0 fallos** (447 anteriores, 62 de RUMBO, 6 del aviso WD del watchdog y 25 de la escala del giroscopio).
-  - Servidor WebSocket simulado: **54 casos evaluados, 0 fallos**.
-  - Verificador de integridad de versiones: **18 casos evaluados, 0 fallos**.
-- **Prueba de estrés de cola:** Inyección masiva de 100 000 comandos continuos procesados sin perder un solo comando de frenado (`STOP`). En J16 se arregló el arnés de la prueba de 2 hilos, que fallaba de vez en cuando con la PC ocupada (no era un error del firmware): 0 fallos en 300 corridas en paralelo.
+### 2.2 VERIFICADO en software y SIMULADO en PC
+- **Suites deterministas de software en PC (`100 %` en verde, `0` fallos):**
+  - `make -C nucleo_c test`: **`22` programas y `1,655` casos de prueba** en `C99`.
+  - `make -C pruebas_firmware test`: **`5` programas y `540` casos de prueba** + verificador de página embebida (`3/3` checks).
+  - `python pruebas_firmware/probar_servidor_falso.py`: **`54` casos** de protocolo WebSocket.
+  - `python scripts/probar_version.py`: **`18` casos** del verificador criptográfico de versiones.
+  - `python docs/verificar_enlaces.py`: **`0` enlaces rotos** en toda la documentación.
+- **Experimento Monte Carlo J16 (`SIMULADO`, [docs/precision/monte_carlo_1000.txt](docs/precision/monte_carlo_1000.txt)):** `1,000` corridas por escenario y configuración con semilla fija (`0xF51A2026`, `50,000` corridas en total):
+  - Recta de `150 cm`: error mediano baja de `94 mm` (sin `RUMBO`) a **`8 mm`** (con `RUMBO`, éxito `100 %`).
+  - Ruta en L (`60×60 cm`): error mediano baja de `64 mm` a **`36 mm`** (éxito `100 %`).
+  - Cuadrado de `60 cm`: error mediano de cierre baja de `142 mm` a **`42 mm`** con `IMU_ESCALA` + `RUMBO` (éxito `98.4 %`).
+  - Esquive `20×20 cm`: error mediano baja de `128 mm` (`4.8 %` colisiones en base J14) a **`38 mm`** con **`0.0 %` colisiones** y **`99.9 %` de éxito**.
 
-### 3.3 Pendiente y NO MEDIDO en hardware
-- **Validación física de J15:** El algoritmo de pose corregida cuenta con respaldo únicamente en simulación de PC; en el vehículo físico real se realizaron **cero corridas con esta versión** y el criterio de 5 de 6 llegadas consecutivas permanece como **NO MEDIDO**.
-- **Balance del perfil AUTO en pista:** La relación 207/210 fue escalada teóricamente a partir del perfil manual; no ha sido medida con cinta métrica en el carro físico (**NO MEDIDO**).
-- **Pruebas B7, B8, B9 y B2:** Suspendidas durante el cierre de J14 por decisión del dueño del proyecto.
-- **Validación física de J16:** cero corridas. APK `APP:0.4-873bfb9` sin instalar y firmware `FW:873bfb9-20261031` compilado sin cargar. Plan de pruebas en `docs/precision/plan_pruebas.md` (**NO MEDIDO**).
-
----
-
-## 4. Estructura del repositorio
-
-```
-fsi_proyecto/
-├── app_android/            Código fuente de la aplicación Android en Kotlin y C++ (JNI)
-│   ├── app/src/main/cpp/   Adaptador nativo JNI (puente.c y CMakeLists.txt)
-│   └── app/src/main/java/  Vistas, sesiones persistentes, visión y navegación
-├── camara_prueba/          Firmware de la cámara Freenove ESP32-WROVER v3.0 (GC0308)
-├── dist/                   Artefactos oficiales compilados y hashes criptográficos SHA-256
-├── docs/                   Centro de documentación técnica completa, guías y referencias
-│   ├── codigo/             Recorridos pedagógicos archivo por archivo del código fuente
-│   ├── figuras/            Fuentes en Python (matplotlib) y catálogo de las 12 figuras (PNG y SVG)
-│   ├── imagenes/           Carpeta para fotografías físicas reales y capturas de pantalla
-│   ├── manual/             Script automatizado y Manual del Proyecto consolidado en PDF
-│   └── referencia/         Monografías técnicas profundas de las 8 áreas del sistema
-├── firmware_carro/         Firmware del microcontrolador de tracción (ESP32 DevKit)
-├── nucleo_c/               Biblioteca matemática en C99 puro (trayectorias, navegador, obstáculos)
-├── pruebas_firmware/       Banco de pruebas en PC con hardware simulado y servidor mock
-├── original_backup/        Copia histórica de referencia (no se toca ni versiona)
-└── scripts/                Herramientas de verificación, empaquetado y comprobación de integridad
-```
+### 2.3 NO MEDIDO en el carro físico
+Permanecen como **`NO MEDIDO`** en el vehículo físico (contando únicamente con verificación en software o simulación):
+- Rectas físicas de `150 cm` comparando `RUMBO:OFF` contra `RUMBO:ON` (`B5`).
+- Ruta en L (`B7`) y cuadrado de `60 cm` (`B8`) con el cierre J16.
+- Calibración física de vuelta completa (`360°`) en piso para `IMU_ESCALA`.
+- Corte inducido de WiFi en plena marcha (`B9`) y serie aislada con cinta métrica del freno autónomo por láser (`TOF_PARO` a `120 mm`).
+- Obstáculo ancho (`40×20 cm`), calibración automática (`B2`), circuito externo `GPIO 2` y consumo eléctrico en amperios.
 
 ---
 
-## 5. Requisitos del sistema
+## 3. Artefactos publicados en `dist/` y verificación rápida
 
-- **Para desarrollo y pruebas en PC:**
-  - Sistema Operativo: Windows 10/11, Linux o macOS.
-  - Compilador C: `gcc` compatible con estándar C99 (vía MinGW-w64 o nativo).
-  - Herramienta de construcción: GNU `make` y `cmake` ($\ge 3.20$).
-  - Python: versión 3.9 o superior con bibliotecas `websockets`, `matplotlib` y `reportlab`.
-- **Para compilación de microcontroladores:**
-  - `arduino-cli` ($\ge 0.35$) con el core `esp32:esp32` versión `3.3.12`.
-  - Bibliotecas Arduino: `AsyncTCP` y `ESPAsyncWebServer`.
-- **Para compilar la app Android:**
-  - Android Studio Ladybug / Meerkat o herramientas SDK/NDK de línea de comandos.
-  - Android SDK Platform 34 (Android 14) y NDK versión 25 o superior.
-  - Java Development Kit (JDK) 17.
+| Artefacto | Versión interna | Tamaño | SHA-256 | Estado en el repositorio |
+|---|---|---|---|---|
+| [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk) | `APP:0.4-6d1b213` | `14,881,402` bytes | `C5B36FEC74BFEDE9798B4BE7C992D7FEA8369F456DA4D4A10D61A4BBB25ED02F` | Publicado en `dist/` y validado en el carro (B6). |
+| Firmware `ESP32 DevKit` | `FW:6d1b213-20261110` | `1,034,112` bytes | `71D671A4E64E0F234015E8685D4E741B87471534E3E50869EE023C5A657B79FC` | Registrado en [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt) (el `.bin` no se publica por contener credenciales WiFi). |
 
----
-
-## 6. Guía paso a paso: Compilación, instalación y verificación
-
-### 6.1 Ejecutar la suite completa de pruebas en PC (sin hardware)
-
-No requiere placas ni teléfono; evalúa la lógica en C estándar con hardware simulado:
+Para comprobar el hash de la APK e instalarla en un teléfono Android por `ADB` conservando la calibración guardada:
 
 ```powershell
-# 1. Pruebas del núcleo cinemático y navegador (1598 casos)
-cd nucleo_c
-make test
+# 1. Verificar hash y metadatos de versión del archivo APK
+python scripts\verificar_version.py --solo-archivo --apk dist\carro_fsi_0.4-6d1b213.apk --revision 6d1b213
 
-# 2. Pruebas de firmware, watchdog y cámara (447 casos)
-cd ..\pruebas_firmware
-make test
-```
-
-### 6.2 Compilar y cargar el firmware del carro (ESP32 DevKit)
-
-```powershell
-# 1. Crear archivo de credenciales locales (ignorado en git)
-Copy-Item firmware_carro\secretos.ejemplo.h firmware_carro\secretos.h
-# Configurar WIFI_SSID y WIFI_PASSWORD en firmware_carro\secretos.h
-
-# 2. Compilar firmware con arduino-cli
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware_carro
-
-# 3. Flashear al DevKit conectado por USB (ej. puerto COM3)
-arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 firmware_carro
-```
-
-### 6.3 Compilar y cargar el firmware de la cámara (Freenove ESP32-WROVER)
-
-```powershell
-# 1. Compilar para modelo WROVER con PSRAM
-arduino-cli compile --fqbn esp32:esp32:esp32wrover camara_prueba
-
-# 2. Flashear la placa de la cámara conectada por USB (ej. puerto COM4)
-arduino-cli upload -p COM4 --fqbn esp32:esp32:esp32wrover camara_prueba
-```
-
-### 6.4 Instalar y verificar el APK en el teléfono Android
-
-```powershell
-# 1. Verificar la integridad criptográfica del APK oficial
-python scripts\verificar_version.py --solo-apk
-
-# 2. Instalar en el teléfono conectado por ADB
-adb install -r dist\carro_fsi_0.4-074c9fd.apk
+# 2. Instalar en el teléfono (conservando preferencias con -r)
+adb install -r dist\carro_fsi_0.4-6d1b213.apk
 ```
 
 ---
 
-## 7. Aviso de seguridad eléctrica y límites conocidos
+## 4. Cómo conectar y operar el sistema de forma segura
 
-> **ADVERTENCIA ELÉCTRICA:** El portapilas de 4 pilas AA (~6 V) alimenta **exclusivamente el pin VDD del driver TC1508A**. Bajo ninguna circunstancia debe conectarse a los pines de alimentación de 3.3 V o 5 V del microcontrolador ESP32. La tierra (GND) del portapilas y la de la powerbank deben permanecer unidas en un punto común.
+> **REGLA DE PROTECCIÓN ELÉCTRICA:** El vehículo utiliza **tres fuentes de alimentación separadas**: (1) **Powerbank USB #1** para la placa `ESP32 DevKit` y sensores `I2C`, (2) **Portapilas de 4 pilas AA** conectado **exclusivamente al pin `VDD` del puente H `TC1508A`** (con tierra común `GND` unida a la `ESP32 DevKit`), y (3) **Powerbank USB #2 exclusiva para la cámara `Freenove`**. Jamás conecte el positivo de las pilas AA a la `ESP32`.
 
-- **Límites de autonomía:** Realizar un máximo de 20 corridas o 90 minutos de prueba continuas por juego de pilas para evitar degradación de torque por caída de voltaje.
-- **Autoridad de parada ToF:** El sensor láser tiene autoridad absoluta para detener el carro de manera autónoma (`TOF_PARO`) si detecta un obstáculo a menos de la distancia crítica de seguridad.
-
-Para consultar el diagnóstico de incidencias, véase [`docs/solucion_problemas.md`](file:///e:/Dev/fsi_proyecto/docs/solucion_problemas.md) y [`docs/pendientes_documentacion.md`](file:///e:/Dev/fsi_proyecto/docs/pendientes_documentacion.md).
+1. **Encender con el carro inmóvil:** coloque el chasis sobre el piso plano y nivelado sin tocarlo durante el primer segundo tras conectar la **Powerbank USB #1** (para que `CAL_IMU` calcule el sesgo del giroscopio en reposo). Después encienda la **Powerbank USB #2** de la cámara y el interruptor del portapilas `4×AA`.
+2. **Conectar el teléfono:** asocie el teléfono Android a la red WiFi `CarroFSI` (desactive datos móviles o acepte mantener la conexión sin internet).
+3. **Verificar enlace y calibración:** abra la aplicación `LIDIA`, confirme en la pestaña **Inicio** que el carro (`192.168.4.1`) y la cámara (`192.168.4.2`) aparezcan **Conectados**, verifique en **Más → Sensores** que `Control de rumbo en rectas` (`RUMBO`) esté activo y en **Más → Visión** pulse **Aprender piso** sobre el tramo despejado antes de ejecutar una ruta.
 
 ---
 
-## 8. Licencia
+## 5. Reproducir las pruebas en PC y regenerar el manual en PDF
 
-Este proyecto se distribuye bajo la Licencia MIT (titular Jaime Fernando Guerrero Segoviano, 2026). Consulte el archivo [`LICENSE`](LICENSE) para más detalles.
+```powershell
+# Ejecutar suites en C99 (núcleo y firmware)
+make -C nucleo_c test
+make -C pruebas_firmware test
 
+# Ejecutar pruebas de protocolo, verificador de versión y enlaces
+python pruebas_firmware\probar_servidor_falso.py
+python scripts\probar_version.py
+python docs\verificar_enlaces.py
+
+# Regenerar las 12 figuras/láminas y el Manual Técnico v1.1 en PDF
+python docs\manual\generar_manual.py
+```
+
+---
+
+## 6. Licencia
+
+Este proyecto se distribuye bajo la **Licencia MIT** (2026). Consulte el archivo [LICENSE](LICENSE) para el texto legal íntegro.
