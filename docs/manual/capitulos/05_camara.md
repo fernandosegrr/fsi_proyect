@@ -1,65 +1,62 @@
-# Cámara Freenove
+# 5. Cámara
 
-La cámara es un nodo separado que se conecta a la red creada por el carro. Su función es proporcionar imágenes o datos resumidos al teléfono, sin encomendar la compresión de video a la DevKit que controla la tracción.
+Este capítulo documenta el firmware que ejecuta la placa independiente `Freenove ESP32-WROVER` con el sensor de imagen `GC0308` (`192.168.4.2`). Explica por qué se seleccionó la resolución `HQVGA` (`240×176` píxeles) con reloj a `20 MHz` frente a `QVGA`, cómo opera la arquitectura de doble núcleo con buzón de último cuadro para eliminar el rezago visual, qué entregan sus tres modos de transmisión y cómo gestiona las desconexiones el módulo de recuperación en `C99`.
 
-## Captura y transmisión
+## 5.1 Hardware de captura y justificación de la resolución `HQVGA`
 
-El sensor GC0308 entrega imágenes sin compresión JPEG de hardware. La placa comprime los cuadros por software y ofrece un flujo de imágenes JPEG mediante HTTP. También existen modos para obtener un cuadro RGB565 sin comprimir y para transmitir por UDP un resumen de colores por celdas. UDP es un protocolo de envío de datagramas que no confirma por sí mismo la entrega.
+La placa `Freenove ESP32-WROVER` integra un microcontrolador `ESP32` de doble núcleo, memoria `PSRAM` externa y un sensor óptico CMOS **`GC0308`**. A diferencia de sensores como el `OV2640`, el chip `GC0308` **no posee codificador JPEG por hardware**: entrega cada cuadro únicamente en formatos sin comprimir (`RGB565` de 2 bytes por píxel o `YUV422`). Por lo tanto, cuando se desea transmitir video `MJPEG` al teléfono, la propia `ESP32-WROVER` debe comprimir la imagen por software empleando la biblioteca `JPEGENC` (con factor de calidad `50`).
 
-La configuración predeterminada del código usa HQVGA de 240 × 176 píxeles, RGB565, reloj de 20 MHz y calidad JPEG 50. La cámara emplea la dirección 192.168.4.2 y necesita conectarse a la red del carro para que el teléfono acceda a sus servicios.
+Para determinar la configuración óptima en navegación semiautónoma, se realizó un barrido experimental de **100 cuadros consecutivos** comparando las resoluciones `HQVGA` (`240×176` píxeles = `42,240` píxeles) y `QVGA` (`320×240` píxeles = `76,800` píxeles) con frecuencias de reloj externo (`XCLK`) de `16 MHz` y `20 MHz`:
 
-## Rendimiento y límites
+| Configuración probada (100 cuadros) | Tasa media (`fps`) | Tiempo de captura (`ms`) | Compresión JPEG (`ms`) | Edad media de cuadro (`ms`) | Edad percentil 95 (`ms`) | Tamaño medio JPEG (`B`) |
+|---|---|---|---|---|---|---|
+| **`HQVGA` (`240×176`) @ `20 MHz`** *(elegida)* | **`12.4 fps`** | `2.6 ms` | `9.2 ms` | **`137 ms`** | **`165 ms`** | `4,837 B` |
+| `HQVGA` (`240×176`) @ `16 MHz` | `10.1 fps` | `3.1 ms` | `9.3 ms` | `164 ms` | `198 ms` | `4,812 B` |
+| `QVGA` (`320×240`) @ `20 MHz` | `8.8 fps` | `8.0 ms` | `16.4 ms` | `252 ms` | `317 ms` | `7,940 B` |
+| `QVGA` (`320×240`) @ `16 MHz` | `7.3 fps` | `9.4 ms` | `16.5 ms` | `289 ms` | `358 ms` | `7,905 B` |
 
-En un barrido local sin cliente se midieron 100 cuadros por combinación. Con 20 MHz y RGB565, HQVGA registró 12.4 cuadros por segundo y 137 ms de edad del cuadro hasta terminar la compresión; QVGA registró 8.8 cuadros por segundo y 252 ms con calidad 50. Son resultados de ese ensayo, no una medición del retraso total hasta la pantalla del teléfono.
+### Por qué la edad de cuadro importa más que los megapíxeles
 
-El firmware intenta recuperar la conexión y reiniciarse en determinadas fallas. La transmisión y la percepción siguen dependiendo de la red, la iluminación, la orientación de la cámara y el procesamiento posterior. El comportamiento de la cámara montada durante el movimiento requiere validación física.
+En un robot móvil que avanza en modo `AUTO` a una velocidad típica de `~20 cm/s` (`200 mm/s`), una edad de cuadro de `252 ms` (con p95 de `317 ms` en `QVGA`) significa que el teléfono está tomando decisiones sobre una imagen capturada cuando el carro estaba entre `5.0 cm` y `6.3 cm` más atrás. Al reducir la resolución a **`HQVGA` (`240×176`) con `XCLK = 20 MHz`**, la edad media de extremo a extremo baja a **`137 ms`** (p95 de **`165 ms`**) y la cadencia sube a **`12.4 fps`**, reduciendo casi a la mitad el desplazamiento ciego entre captura y decisión, mientras que una rejilla de `240×176` píxeles sigue ofreciendo `24×17` bloques de `10×10` píxeles más que suficientes para detectar una caja de `20×20 cm` en el piso.
 
-## Servicios y gestión de cuadros
+## 5.2 Arquitectura de doble núcleo y buzón de último cuadro
 
-El servicio `/stream` entrega una sucesión de imágenes JPEG; `/capture` entrega una captura y `/raw` expone un cuadro RGB565. La ruta `/stats` informa datos de funcionamiento para diagnóstico. El modo de celdas resume los colores de bloques de la imagen y los transmite por el puerto UDP 4210. La aplicación utiliza la dirección de la cámara configurada en Ajustes.
+En una cámara de red convencional, si los cuadros capturados se depositan en una cola FIFO de varios elementos (`fb_count > 1` con retención) y el enlace `WiFi` sufre una pausa momentánea, el consumidor lee cuadros atrasados acumulados en memoria. Para evitarlo, `camara_prueba.ino` implementa una arquitectura de **buzón de último cuadro (*latest-frame mailbox*)** repartida entre los dos núcleos del `ESP32-WROVER`:
 
-La captura y la transmisión se organizan con una casilla para el cuadro más reciente. Si el consumidor no alcanza el ritmo de captura, se descartan cuadros anteriores en lugar de acumular una cola cada vez más atrasada. Esto reduce acumulación de imágenes viejas, pero no elimina la latencia de extremo a extremo.
+1. **Tarea de captura (`Core 1`):** extrae continuamente el buffer del driver `esp_camera` (`fb_count = 2`, modo `CAMERA_GRAB_LATEST`), copia o comprime el cuadro en un doble buffer en `PSRAM` protegido por semáforo mutex y actualiza el puntero al cuadro más reciente, descartando cualquier cuadro anterior que aún no haya sido enviado.
+2. **Tareas de red (`Core 0`):** atienden las peticiones `HTTP` y el transmisor `UDP`, leyendo siempre la última instantánea disponible en el buzón sin bloquear la captura del siguiente cuadro.
 
-La placa intenta reconectarse cuando pierde la red y contempla reinicios ante determinadas fallas del servicio. Una ausencia de video puede tener varias causas: alimentación, conexión WiFi, una dirección incorrecta o un cliente de video anterior. Antes de interpretar un resultado de percepción, debe comprobarse que los cuadros estén llegando y que correspondan a la fuente seleccionada.
+Además, el servidor de video continuo (`:81/stream`) acepta deliberadamente **un solo cliente a la vez**: si un segundo dispositivo intentara abrir otro flujo `MJPEG` simultáneo, degradaría el ancho de banda del canal `WiFi` compartido con el control del carro. En la aplicación Android, `SesionVideo` comparte ese único flujo entre todas las pantallas.
 
-## Placa, sensor y formatos
+[FIGURA:camara_modos|Los tres modos de transmisión de la cámara Freenove: flujo MJPEG para vista humana y red neuronal, cuadro crudo RGB565 y rejilla compacta de celdas por UDP.]
 
-La Freenove ESP32-WROVER v3.0 incorpora un sensor GC0308 y memoria adicional PSRAM. Es una placa diferente de la DevKit de tracción, aunque ambas pertenezcan a la familia ESP32. Cada una tiene su propio programa, sus propias conexiones y su batería portátil. El teléfono no controla los motores mediante los pines de la cámara: envía comandos por la red a la DevKit.
+## 5.3 Endpoints HTTP y protocolo UDP de celdas (`1,244` bytes)
 
-El sensor del montaje entrega imágenes en formatos como RGB565; la compresión JPEG la realiza la placa por software. JPEG reduce el tamaño del cuadro a costa de pérdida de información. RGB565 representa colores con un número fijo de bits por píxel y se utiliza como entrada de procesamiento. El modo adecuado depende de si se necesita visualización, acceso al cuadro sin compresión JPEG o un resumen de color por celdas.
+La cámara se conecta como estación (`STA`) a la red `CarroFSI` solicitando la dirección IP estática **`192.168.4.2`** y expone cinco servicios de red:
 
-La resolución determina cuántos píxeles se procesan. HQVGA en esta configuración corresponde a 240 por 176 píxeles y QVGA a 320 por 240. Un cuadro más grande contiene más muestras de imagen, pero necesita más memoria y trabajo de compresión. No se puede deducir de la resolución, por sí sola, que un detector reconocerá todos los objetos.
+| Servicio / Endpoint | Protocolo y puerto | Formato de salida | Tamaño por entrega | Uso dentro del sistema |
+|---|---|---|---|---|
+| `/stream` | `HTTP` `:81` | `multipart/x-mixed-replace` (`MJPEG`) | `~4.8 KB` / cuadro | Flujo principal en vivo en la aplicación Android (vista humana, `obstaculos.c` y `DetectorTflite`). |
+| `/capture` | `HTTP` `:80` | `image/jpeg` (cuadro único) | `~4.8 KB` | Captura puntual y pruebas de conectividad. |
+| `/raw` | `HTTP` `:80` | `application/octet-stream` (`RGB565`) | `84,480 B` (`240×176×2`) | Procesamiento sin artefactos de compresión `JPEG` y cabeceras `X-Width`, `X-Height`, `X-Frame-Seq`. |
+| `/stats` | `HTTP` `:80` | `application/json` | `~220 B` | Telemetría interna de tiempos de captura, compresión, envío, RSSI y memoria libre. |
+| **Modo celdas** | `UDP` `:4210` | Binario `CEL1` (promedios RGB de `10×10` px) | **`1,244 B`** exactos | Envío ultracompacto de la rejilla de `24×17` celdas (`408` celdas) para detección cromática de baja latencia. |
 
-## Dirección y conexión a la red
+### Estructura del paquete UDP de celdas (`paquete_celdas.h`)
 
-La cámara trabaja como cliente de la red creada por la DevKit. Su dirección fija es 192.168.4.2; la puerta de enlace configurada corresponde a la DevKit. La dirección fija permite que la aplicación conozca dónde buscar el flujo sin depender de qué dirección dinámica se entregue en cada arranque.
+Cuando un cliente envía un datagrama de suscripción al puerto `UDP 4210` de la cámara (y lo renueva antes de `5,000 ms`), la propia `ESP32-WROVER` divide cada imagen `RGB565` de `240×176` píxeles en **`24` columnas por `17` filas** de `10×10` píxeles (descartando las 6 líneas inferiores sobrantes), calcula el promedio $(R, G, B)$ de 8 bits de cada bloque y transmite un único datagrama `UDP` de **`1,244` bytes**:
 
-El servicio dinámico de direcciones de la DevKit reserva otro intervalo para clientes. Si la cámara arranca cuando la red aún no está disponible, la lógica de recuperación realiza intentos de conexión. Es posible encender las placas en orden distinto, pero el video no estará disponible hasta que ambas tengan alimentación y la cámara se haya asociado a la red.
+- **Cabecera (`20` bytes, *little-endian*):** magia `"CEL1"` (`4 B`), versión `1` (`1 B`), columnas `24` (`1 B`), filas `17` (`1 B`), reservado `0` (`1 B`), número de secuencia `seq` (`4 B`), marca de tiempo `ts_ms` (`4 B`), tiempo de captura `cap_us` (`2 B`) y tiempo de cálculo de celdas `proc_us` (`2 B`).
+- **Carga útil (`1,224` bytes):** `408` tripletas consecutivas $(R, G, B)$ en orden por filas ($24 \times 17 \times 3 = 1{,}224\text{ bytes}$).
 
-## Un cuadro frente a un flujo continuo
+De este modo, en lugar de transmitir `84,480` bytes crudos o `~4,837` bytes comprimidos y decodificarlos en el teléfono, el enlace inalámbrico transporta solo `1,244` bytes que alimentan directamente al clasificador `obstaculos_procesar_celdas_rgb`.
 
-Una captura aislada entrega un cuadro. Un flujo MJPEG es una sucesión de cuadros JPEG que se envían por una misma conexión; cada cuadro se puede mostrar de forma individual. Para la percepción, la edad de cada cuadro importa: si se procesa una imagen vieja, el carro puede haber cambiado de posición desde el momento de captura.
+## 5.4 Vigilancia y recuperación automática ante fallos (`recuperacion.c`)
 
-La implementación conserva el cuadro más reciente en una casilla compartida. Cuando el productor genera otro cuadro antes de que se consuma el anterior, el anterior se sustituye. La ventaja es evitar una cola creciente de imágenes antiguas; la consecuencia es que no todos los cuadros capturados llegan necesariamente al consumidor.
+Dado que la cámara opera con su propia batería portátil y sobre un enlace `WiFi` sujeto a interferencias, el firmware incluye el módulo en `C99` `recuperacion.c` (verificado en computadora dentro de `pruebas_firmware`), que supervisa tres contadores de salud y aplica acciones escalonadas sin intervención humana:
 
-El código descarta cuadros cuya edad supera el límite configurado al salir de la cámara. Ese filtro no mide el retraso restante de red, decodificación o presentación en la pantalla. Si se necesita medir el retardo total, debe definirse un método que observe el mismo evento al inicio y al final de la cadena, y registrarse varias muestras en condiciones reproducibles.
+1. **Pérdida de asociación `WiFi`:** si la cámara pierde conexión con el punto de acceso `CarroFSI`, intenta reconectar cada **`2,000 ms`** (`RECUP_WIFI_REINTENTO_MS`). Si acumula **`15` intentos fallidos** (`~30 s` sin red), solicita un reinicio limpio del microcontrolador (`RECUP_REINICIAR_ESP`).
+2. **Fallos consecutivos del sensor `GC0308`:** si `esp_camera_fb_get()` devuelve `NULL` en **`5` lecturas seguidas** (`RECUP_FALLOS_CAM_REINICIO`), el módulo ejecuta una reinicialización en caliente del periférico de cámara (`RECUP_REINICIAR_CAMARA`). Si aun así alcanza **`20` fallos consecutivos** (`RECUP_FALLOS_CAM_ESP`), reinicia la placa completa.
+3. **Inactividad prolongada sin producir cuadros:** si transcurren **`10,000 ms`** (`RECUP_SIN_CUADRO_MS`) sin que la tarea de captura logre actualizar el buzón, dispara un reinicio completo para destrabar el bus `I2S/DMA` de la cámara.
 
-## Datos por celdas
-
-En el modo de celdas, la imagen se resume mediante promedios de color de bloques. El paquete incluye dimensiones y datos que permiten reconstruir una cuadrícula de análisis. El teléfono solicita este servicio por UDP; la cámara responde y recuerda al cliente. La transmisión usa el puerto 4210. El modo de celdas puede coexistir con la disponibilidad de JPEG en el servicio de flujo.
-
-Este resumen reduce la cantidad de datos respecto de enviar cada píxel, pero también elimina detalle. No es equivalente a una fotografía completa ni transmite por sí mismo la identidad de un objeto. La percepción por color interpreta las celdas según el piso aprendido y sus umbrales; la comunicación por UDP, a diferencia de un flujo confiable de bytes, no garantiza por sí sola la llegada de cada paquete.
-
-## Leer los resultados del barrido
-
-El barrido histórico comparó combinaciones de resolución, formato, reloj y calidad. Cada combinación se evaluó con 100 cuadros y sin un cliente de video externo. A 20 MHz con RGB565, HQVGA registró 12.4 cuadros por segundo y QVGA 8.8 con la calidad indicada. En ese ensayo, la compresión media informada fue 56 ms para HQVGA y 107 ms para QVGA.
-
-La comparación ayuda a entender la elección del valor predeterminado, pero no representa la velocidad de todas las escenas ni la latencia completa de la app. Las condiciones de luz, la complejidad de imagen, la carga del procesador y la presencia de un cliente pueden cambiar el resultado. La cifra de edad del cuadro reportada en el barrido debe conservar su definición de ensayo; no debe reemplazarse por una afirmación de tiempo hasta pantalla.
-
-## Fallas y recuperación
-
-La lógica de recuperación distingue pérdida de WiFi, falta de respuesta de un servicio y ausencia prolongada de cuadros cuando existe demanda. Para algunas condiciones intenta reconexión y para otras solicita reinicio. El registro de estado ayuda a investigar si hubo reinicios o reconexiones; observar video después de una recuperación no identifica por sí solo la causa inicial.
-
-Una autoprueba local puede verificar que ciertos servicios respondan dentro de la placa, pero no reproduce el enlace inalámbrico con el teléfono. Si la autoprueba pasa y la aplicación no recibe video, aún deben revisarse la red, la dirección, la sesión de video y el cliente conectado. Si el sensor no inicializa, no se debe asumir que cada falla será recuperada automáticamente.
-
-Dónde está en el código: `camara_prueba.ino`, `recuperacion.c`, `paquete_celdas.c`.
+Dónde está en el código: `camara_prueba.ino`, `recuperacion.h`, `recuperacion.c`, `paquete_celdas.h`, `paquete_celdas.c`.

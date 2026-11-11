@@ -1,43 +1,47 @@
-# Proceso de desarrollo
+# 14. Proceso de desarrollo
 
-El proyecto evolucionó desde un control de carro basado en ESP32 hacia una arquitectura distribuida con pruebas de software y sensores. Esta sección resume las decisiones que ayudan a comprender el diseño actual.
+Este capítulo resume la evolución técnica del proyecto desde el prototipo inicial de control por WiFi hasta la arquitectura distribuida con verificación automatizada y cierre de precisión de la **Versión final 1.1**. Más que enumerar fechas, explica qué problema concreto apareció en cada etapa y por qué se tomaron las decisiones de ingeniería que dieron forma al sistema actual.
 
-La lógica de control se separó de las funciones de hardware para poder ejecutar pruebas con implementaciones simuladas. El núcleo de navegación se escribió en C y se integró en Android, lo que permite reutilizar la lógica en computadora y teléfono sin mantener dos algoritmos independientes.
+## 14.1 Del control monolítico al desacoplamiento por interfaces en C99
 
-Después se incorporaron el giroscopio y el sensor frontal de distancia. El giroscopio permite cerrar giros por ángulo; el láser agrega una condición de parada en avance. La cámara Freenove quedó en otra placa porque la captura y la compresión tienen un costo de procesamiento distinto del control de tracción.
+En el punto de partida del proyecto (`original_backup`), un solo archivo de Arduino concentraba la configuración de la red `WiFi`, el servidor web, la recepción de mensajes y la escritura directa en los pines de los motores, mientras que la aplicación Android únicamente mostraba botones básicos. Ese enfoque inicial tenía dos limitaciones severas:
 
-Las pruebas físicas mostraron variaciones de movimiento y de orientación. La calibración manual redujo el desvío de una recta en las condiciones registradas. En el análisis de reincorporación posterior se identificó que la estimación proyectaba los avances con un rumbo fijo. Se cambió la integración para aprovechar el rumbo observado durante el avance y se probó la corrección en simulación. Su desempeño físico continúa pendiente.
+1. **Imposibilidad de probar la lógica sin el carro físico:** cualquier cambio en el manejo de comandos exigía grabar la placa `ESP32`, encender las baterías y observar manualmente si las ruedas giraban, sin forma de reproducir fallos de temporización o condiciones de frontera.
+2. **Vulnerabilidad ante pérdida de conexión o saturación de mensajes:** si el teléfono se desconectaba mientras enviaba una orden de avance, o si los mensajes llegaban desde el hilo asíncrono de red al mismo tiempo que el bucle principal tocaba los pines, el vehículo podía quedar con los motores encendidos.
 
-El diseño no dispone de encoders ni de una referencia externa de posición. La elección de avance por tiempo simplifica el montaje y permite trabajar con los componentes disponibles, pero exige calibración y deja incertidumbre acumulada. Las simulaciones ayudan a explorar la lógica sin mover el carro; no reemplazan la validación de las hipótesis sobre tracción y percepción.
+La primera decisión estructural consistió en extraer toda la lógica del firmware a módulos en estándar **`C99` puro** (`carro.c`) separados del hardware mediante funciones abstractas (`hw_*`), introducir la **cola determinista de 32 ranuras con prioridad absoluta para `STOP` y `EBRAKE`**, fijar el *watchdog* de comunicación en **`1,000 ms`** y crear la suite `pruebas_firmware` junto con el servidor falso de protocolo.
 
-## Separar el control del hardware
+## 14.2 Creación del núcleo matemático compartido (`nucleo_c`) y puente JNI
 
-En el prototipo inicial, la lógica de movimiento, el servidor y el acceso a pines estaban concentrados en el programa de la placa. La reorganización introdujo una interfaz de hardware para que la lógica de control pudiera invocarse con funciones reales en la ESP32 o con funciones falsas en computadora. Esto permitió ensayar estados y respuestas sin que cada prueba necesitara un vehículo energizado.
+Para dotar al vehículo de navegación por rutas sobre una cuadrícula de `20 cm` sin duplicar código entre la computadora de desarrollo y el teléfono Android, se diseñó la biblioteca **`nucleo_c`** en `C99` sin dependencias externas:
 
-El mismo criterio se aplicó al núcleo de navegación. Las operaciones de ruta y calibración se conservaron en C; la aplicación Android las invoca mediante una interfaz nativa. Así se puede ensayar la lógica con un simulador y, a la vez, usarla en la interfaz del teléfono. Las pruebas de cada capa comprueban propiedades distintas: una suite en computadora no incluye automáticamente el comportamiento de WiFi, ruedas y piso.
+- Se implementaron el planificador geométrico (`trayectoria.c`), el editor de rutas (`ruta_editor.c`), el modelo lineal de conversión distancia-tiempo con compensación de arranque y frenado (`calibracion.c`) y la máquina de estados del navegador (`navegador.c`), enlazándolos con Kotlin mediante `puente.c` (`JNI`).
+- Al mantener el núcleo en `C99`, se pudo construir un **simulador de vehículo y entorno (`simulador_navegador.c`)** capaz de ejecutar miles de recorridos completos en milisegundos dentro de `make -C nucleo_c test`.
 
-## Incorporar sensores y calibrar
+[FIGURA:desarrollo|Evolución técnica del sistema en cinco etapas: desde el control WiFi inicial hasta el cierre de precisión J16 y la validación física del esquive B6.]
 
-La navegación original dependía del tiempo para avanzar y girar. El giroscopio incorporó una observación de velocidad angular para controlar los giros por ángulo; el sensor de distancia frontal añadió una condición de parada en avance. La separación entre ambos sensores importa: el giroscopio observa orientación y el láser una distancia en su dirección de montaje.
+## 14.3 Integración de cámara independiente y percepción multimodal
 
-El ajuste de balance MANUAL responde a una asimetría observada en el carro. En una recta de 150 cm el comentario de configuración registra 14.5 cm de desvío con ambos lados a 255 y 3 cm con el ajuste de 252 a la izquierda. El valor AUTO se obtuvo al escalar la relación y permanece sin medición física. La separación entre un parámetro calculado y uno medido evita atribuir a ambos la misma evidencia.
+La incorporación de visión artificial planteó un dilema de rendimiento: el sensor `GC0308` de la placa `Freenove ESP32-WROVER` carece de compresión `JPEG` por hardware y requiere codificación por software. Un barrido sistemático de resoluciones y frecuencias de reloj demostró que **`HQVGA` (`240×176` píxeles) a `20 MHz`** reducía la edad media de cuadro a **`137 ms`** (`12.4 fps`), casi la mitad del rezago de `QVGA` (`252 ms`), y el diseño de **buzón de último cuadro** más el modo `UDP` de celdas (`1,244` bytes) eliminaron la acumulación de imágenes viejas en cola.
 
-## Cámara y procesamiento local
+En el lado de percepción, las pruebas con pisos reales mostraron que ni el color del suelo ni una red neuronal por separado bastaban para todos los objetos. Se construyó entonces la tubería multimodal: clasificador `YCbCr` de hasta tres clústeres con la regla de tolerancia en filas lejanas (`obstaculos.c`), máscara de artefactos (`mascara_vision.c`), red `EfficientDet-Lite0` en hilo dedicado con vigencia de `300 ms` (`ModeloEnHilo.kt`), proyección trapezoidal del ancho del carro (`corredor.c`) y módulo de fusión (`fusion.c`).
 
-El GC0308 entrega cuadros que requieren compresión JPEG por software. El proyecto probó combinaciones de formato, reloj y resolución para evaluar el costo de captura y compresión. La configuración actual usa HQVGA; el barrido local permitió comparar su rendimiento con QVGA bajo condiciones concretas. La decisión intercambia detalle espacial por una mayor frecuencia y menor edad de cuadro en ese ensayo.
+## 14.4 Sensores embarcados (`MPU6050` y `VL53L0X`) e integración de pose
 
-Mantener la placa de cámara separada de la DevKit reduce la interacción directa entre el trabajo de video y el control de motores. El teléfono recibe el video y ejecuta el procesamiento necesario para la aplicación. Este reparto también introduce dependencia de dos enlaces: la disponibilidad del video y la del control deben observarse por separado.
+Las primeras pruebas físicas en pista revelaron dos fenómenos mecánicos propios del chasis de cuatro motores `TT`:
 
-## Diagnóstico de reincorporación
+1. Con ambos lados al máximo (`255/255`), la asimetría de los motores desviaba el carro `14.5 cm` en una recta de `150 cm` (corregido inicialmente a `3.0 cm` en modo `MANUAL` ajustando `252/255`), y los giros calculados solo por tiempo variaban con la carga de las pilas `AA` y la textura del piso.
+2. En la maniobra de esquive, el navegador proyectaba los avances suponiendo que el carro mantenía siempre el rumbo ideal del tramo ($0^\circ, \pm 90^\circ$), por lo que cualquier error angular durante el rodeo desplazaba el punto de reincorporación.
 
-En las pruebas históricas con una caja se observaron desviaciones y esquives adicionales. La revisión posterior encontró que la estimación proyectaba un avance completo usando un rumbo fijo, aunque el giroscopio transmitía información durante el recorrido. El cambio integra incrementos con el rumbo observado cuando la lectura es válida; no convierte la distancia por tiempo en una distancia medida.
+Para resolver el primer punto se integraron en el bus `I2C` (`GPIO 21/22`) el giroscopio **`MPU6050`** (muestreado a `200 Hz` con lazo cerrado de giro `giro.c` a `±2.0°`) y el sensor láser **`VL53L0X`** (con paro reflejo local a `120 mm` en `tof.c`). Para resolver el segundo punto, se rediseñó el estimador de pose de `navegador.c` para que integrara cada incremento de avance usando el ángulo real reportado por el giroscopio en `SENS` y calculara trigonométricamente el vector de regreso hacia la línea original.
 
-Para comparar el cambio se ejecutaron escenarios simulados con una posición virtual independiente de la estimación. La mejora del error lateral en ese modelo respalda la modificación de la lógica, pero los propios registros señalan que el escenario no reproduce exactamente las desviaciones históricas ni toda la percepción real. La pregunta sobre la mejora en el carro queda abierta hasta realizar el ensayo físico.
+## 14.5 Cierre de precisión J16 y validación física del esquive en el carro
 
-## Alternativas y compromisos
+Finalmente, el análisis de precisión y concurrencia condujo al cierre **J16** que culmina esta **Versión final 1.1**:
 
-El diseño utiliza la red local y el teléfono para la interacción y el cálculo, sin requerir un servidor externo para el recorrido. No hay encoders ni localización externa; por ello la distancia depende de la calibración y no puede corregirse todo deslizamiento. El láser agrega una parada frontal independiente de la clasificación de imagen, pero no cubre todo el entorno y su autoridad es configurable.
+- Se eliminó la pérdida de precisión por truncamiento integrando la pose en **décimas de grado (`rumbo_x10`)** y corrigiendo `override_largo_mm` y `descartar_dt`.
+- Se implementó el **controlador `PI` de rumbo en rectas (`rumbo.c`)** con aprendizaje de sesgo entre tramos (`aprendido_mil`), guiado por punto de mira a `400 mm` y supresión de giros detenidos pequeños ($\le 8^\circ$).
+- Se agregó el **factor de escala del giroscopio en partes por millón (`IMU_ESCALA` en `NVS`)**, la normalización de frenado en giros largos (`GIRO_LARGO_POR_GRADO`), el candado mutex `candado_vision` en `JNI`, el aviso `WD:<n>` y la vigilancia triple en `ModoSemiautonomo.kt`.
+- Tras verificar el conjunto con **50,000 corridas Monte Carlo** y **2,267 casos de prueba automatizados en PC**, se validó físicamente en el carro el **esquive con reincorporación B6** (6 corridas el 10 de noviembre de 2026: `0/6` toques de caja y `5/6` corridas autónomas completas con error lateral aproximado entre `~0` y `~10 cm`).
 
-El arranque a potencia plena durante un intervalo corto responde al comportamiento observado cuando los motores zumbaban sin arrancar a valores menores. Una rampa progresiva puede ser deseable en otros montajes, pero el cambio de estrategia debe evaluarse con el vehículo y sus cargas reales. Estas decisiones son compromisos del prototipo, no garantías universales de desempeño.
-
-Dónde está en el código: `carro.c`, `trayectoria.c`, `navegador.c`, `simulador_navegador.c`.
+Dónde está en el código: `bitacora_desarrollo.md`, `decisiones_diseno.md`, `reporte_J16.md`, `carro.c`, `rumbo.c`, `navegador.c`, `puente.c`.

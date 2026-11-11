@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="486pt" viewBox="0 0 864 486" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="636.48pt" height="294.264pt" viewBox="0 0 636.48 294.264" xmlns="http://www.w3.org/2000/svg" version="1.1">
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-10-27T20:08:45.633231</dc:date>
+    <dc:date>2026-11-10T22:57:47.392987</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -21,208 +21,171 @@
  </defs>
  <g id="figure_1">
   <g id="patch_1">
-   <path d="M 0 486 
-L 864 486 
-L 864 0 
+   <path d="M 0 294.264 
+L 636.48 294.264 
+L 636.48 0 
 L 0 0 
 z
 " style="fill: #ffffff"/>
   </g>
   <g id="axes_1">
-   <g id="line2d_1">
-    <path d="M 67.9104 401.6304 
-L 379.9872 401.6304 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke: #6c757d; stroke-width: 1.4; stroke-linecap: square"/>
-   </g>
-   <g id="line2d_2">
-    <path d="M 67.9104 401.6304 
-L 67.9104 90.7848 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke: #6c757d; stroke-width: 1.4; stroke-linecap: square"/>
-   </g>
-   <g id="line2d_3">
-    <path d="M 75.168 378.8856 
-L 125.9712 378.8856 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke: #1d3557; stroke-width: 3; stroke-linecap: square"/>
-   </g>
-   <g id="line2d_4">
-    <path d="M 125.9712 378.8856 
-L 300.1536 159.0192 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke: #2a9d8f; stroke-width: 3; stroke-linecap: square"/>
-   </g>
-   <g id="line2d_5">
-    <path d="M 300.1536 159.0192 
-L 350.9568 128.6928 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke: #e76f51; stroke-width: 3; stroke-linecap: square"/>
-   </g>
-   <g id="line2d_6">
-    <path d="M 125.9712 378.8856 
-L 125.9712 333.396 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke-dasharray: 1,1.65; stroke-dashoffset: 0; stroke: #6c757d"/>
-   </g>
-   <g id="line2d_7">
-    <path d="M 300.1536 159.0192 
-L 300.1536 219.672 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke-dasharray: 1,1.65; stroke-dashoffset: 0; stroke: #6c757d"/>
-   </g>
-   <g id="line2d_8">
-    <path d="M 300.1536 159.0192 
-L 358.2144 159.0192 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke-dasharray: 0.8,1.32; stroke-dashoffset: 0; stroke: #6c757d; stroke-width: 0.8"/>
-   </g>
-   <g id="line2d_9">
-    <path d="M 350.9568 128.6928 
-L 358.2144 128.6928 
-" clip-path="url(#pc42144fdcd)" style="fill: none; stroke-dasharray: 0.8,1.32; stroke-dashoffset: 0; stroke: #6c757d; stroke-width: 0.8"/>
-   </g>
-   <g id="text_1">
-    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'; text-anchor: end" x="379.9872" y="423.024319" transform="rotate(-0 379.9872 423.024319)">tiempo</text>
-   </g>
-   <g id="text_2">
-    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'" transform="translate(59.286687 264.709491) rotate(-90)">distancia</text>
-   </g>
    <g id="patch_2">
-    <path d="M 78.509645 363.7224 
-Q 100.570245 363.7224 122.630844 363.7224 
-" style="fill: none; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 82.509645 365.7224 
-L 78.509645 363.7224 
-L 82.509645 361.7224 
+    <path d="M 22.63392 137.518704 
+L 145.12608 137.518704 
+Q 153.25056 137.518704 153.25056 133.843032 
+L 153.25056 36.013608 
+Q 153.25056 32.337936 145.12608 32.337936 
+L 22.63392 32.337936 
+Q 14.50944 32.337936 14.50944 36.013608 
+L 14.50944 133.843032 
+Q 14.50944 137.518704 22.63392 137.518704 
 z
-" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 118.630844 361.7224 
-L 122.630844 363.7224 
-L 118.630844 365.7224 
-z
-" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
+" clip-path="url(#p009c9afe33)" style="fill: #e9f1f7; stroke: #163c60; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
-   <g id="text_3">
-    <text style="fill: #1d3557; font: 8.2px 'DejaVu Sans'; text-anchor: middle" x="100.5696" y="346.625794" transform="rotate(-0 100.5696 346.625794)">arranque_ms</text>
-   </g>
-   <g id="text_4">
-    <g id="patch_3">
-     <path d="M 126.303156 218.401994 
-L 241.760844 218.401994 
-Q 243.910844 218.401994 243.910844 216.251994 
-L 243.910844 207.928806 
-Q 243.910844 205.778806 241.760844 205.778806 
-L 126.303156 205.778806 
-Q 124.153156 205.778806 124.153156 207.928806 
-L 124.153156 216.251994 
-Q 124.153156 218.401994 126.303156 218.401994 
+   <g id="patch_3">
+    <path d="M 178.87392 137.518704 
+L 301.36608 137.518704 
+Q 309.49056 137.518704 309.49056 133.843032 
+L 309.49056 36.013608 
+Q 309.49056 32.337936 301.36608 32.337936 
+L 178.87392 32.337936 
+Q 170.74944 32.337936 170.74944 36.013608 
+L 170.74944 133.843032 
+Q 170.74944 137.518704 178.87392 137.518704 
 z
-" style="fill: #ffffff; opacity: 0.95"/>
-    </g>
-    <text style="fill: #2a9d8f; font: 8.6px 'DejaVu Sans'; text-anchor: middle" x="184.032" y="214.463462" transform="rotate(-0 184.032 214.463462)">avance = tiempo × ms/cm</text>
+" clip-path="url(#p009c9afe33)" style="fill: #e6f5f3; stroke: #00877e; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
-    <path d="M 184.032 225.459772 
-Q 184.032 263.262826 184.032 301.065879 
-" style="fill: none; stroke-dasharray: 0.8,1.32; stroke-dashoffset: 0; stroke: #2a9d8f; stroke-width: 0.8; stroke-linecap: round"/>
+    <path d="M 335.11392 137.518704 
+L 457.60608 137.518704 
+Q 465.73056 137.518704 465.73056 133.843032 
+L 465.73056 36.013608 
+Q 465.73056 32.337936 457.60608 32.337936 
+L 335.11392 32.337936 
+Q 326.98944 32.337936 326.98944 36.013608 
+L 326.98944 133.843032 
+Q 326.98944 137.518704 335.11392 137.518704 
+z
+" clip-path="url(#p009c9afe33)" style="fill: #fef4e8; stroke: #d9822b; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
-    <path d="M 358.2144 155.674803 
-Q 358.2144 143.855561 358.2144 132.036319 
-" style="fill: none; stroke: #e76f51; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 360.2144 151.674803 
-L 358.2144 155.674803 
-L 356.2144 151.674803 
+    <path d="M 491.35392 137.518704 
+L 613.84608 137.518704 
+Q 621.97056 137.518704 621.97056 133.843032 
+L 621.97056 36.013608 
+Q 621.97056 32.337936 613.84608 32.337936 
+L 491.35392 32.337936 
+Q 483.22944 32.337936 483.22944 36.013608 
+L 483.22944 133.843032 
+Q 483.22944 137.518704 491.35392 137.518704 
 z
-" style="fill: #e76f51; stroke: #e76f51; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 356.2144 136.036319 
-L 358.2144 132.036319 
-L 360.2144 136.036319 
-z
-" style="fill: #e76f51; stroke: #e76f51; stroke-width: 1.2; stroke-linecap: round"/>
-   </g>
-   <g id="text_5">
-    <text style="fill: #e76f51; font: 8.2px 'DejaVu Sans'; text-anchor: start" x="365.472" y="146.004656" transform="rotate(-0 365.472 146.004656)">frenado_mm</text>
-   </g>
-   <g id="text_6">
-    <text style="fill: #6c757d; font: 8.2px 'DejaVu Sans'; text-anchor: start" x="67.9104" y="434.042256" transform="rotate(-0 67.9104 434.042256)">Un avance: primero espera, luego corre y al final se desliza.</text>
-   </g>
-   <g id="text_7">
-    <text style="fill: #1d3557; font: 700 11px 'DejaVu Sans'; text-anchor: start" x="53.3952" y="80.189081" transform="rotate(-0 53.3952 80.189081)">Perfil de un avance</text>
-   </g>
-  </g>
-  <g id="axes_2">
-   <g id="line2d_10">
-    <path d="M 498.528 378.8856 
-L 788.832 121.1112 
-" clip-path="url(#p29e2b29de6)" style="fill: none; stroke: #2a9d8f; stroke-width: 2.6; stroke-linecap: square"/>
-   </g>
-   <g id="text_8">
-    <text style="fill: #2a9d8f; font: 8.6px 'DejaVu Sans'" transform="translate(656.198623 362.528538) rotate(-40)">pendiente = ms/cm</text>
+" clip-path="url(#p009c9afe33)" style="fill: #e8f5ee; stroke: #2d6a4f; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
-    <path d="M 498.528 405.867603 
-Q 498.528 394.048361 498.528 382.229119 
-" style="fill: none; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 500.528 401.867603 
-L 498.528 405.867603 
-L 496.528 401.867603 
+    <path d="M 47.63232 261.926064 
+L 588.84768 261.926064 
+Q 596.97216 261.926064 596.97216 258.250392 
+L 596.97216 183.040488 
+Q 596.97216 179.364816 588.84768 179.364816 
+L 47.63232 179.364816 
+Q 39.50784 179.364816 39.50784 183.040488 
+L 39.50784 258.250392 
+Q 39.50784 261.926064 47.63232 261.926064 
 z
-" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
-    <path d="M 496.528 386.229119 
-L 498.528 382.229119 
-L 500.528 386.229119 
+" clip-path="url(#p009c9afe33)" style="fill: #f4f6f8; stroke: #52606d; stroke-width: 1.4; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(46.932984 64.887622)">1. Planificar ruta</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(55.854234 73.740451)">trayectoria.c</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(42.131719 82.654218)">• Cuadrícula 20 cm</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(40.159172 91.507047)">• Convierte nodos a</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(47.636203 100.359877)">  pasos de giro y</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(49.360125 109.273643)">  avance en mm</text>
+   </g>
+   <g id="text_2">
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(203.184563 64.764942)">2. Guiar en recta</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(185.782031 73.924068)">RUMBO:&lt;décimas&gt; (J16)</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(186.222609 82.776897)">• Punto de mira 400 mm</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(187.554094 91.629727)">• Tope ±12° sobre recta</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(194.866594 100.482556)">• Suprime giros ≤ 8°</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(202.870125 109.396323)">• Lazo PI a 50 Hz</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(364.488469 64.887622)">3. Cerrar giros</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(347.672766 73.801388)">GIRO:&lt;grados&gt; + IMU</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(351.369234 82.715155)">• MPU6050 a 200 Hz</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(346.814156 91.567985)">• Escala en ppm (NVS)</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(350.850047 100.420814)">• Freno proporcional</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(346.817813 109.273643)">• Respaldo por tiempo</text>
+   </g>
+   <g id="text_4">
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(517.245891 64.558364)">4. Integrar pose</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(508.369734 73.472131)">rumbo_x10 (J15/J16)</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(509.230781 82.922538)">• Décimas de grado</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(511.107047 91.836305)">• Cuerda de pivote</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(522.851531 100.689134)">  2R·sin(Δθ/2)</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(505.336875 109.541963)">• Descarte dt en fallo</text>
+   </g>
+   <g id="text_5">
+    <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(122.879789 213.60454)">Realimentación continua cada 100 ms (navegador_aportar_imu + navegador_aportar_tof + visión)</text>
+    <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(89.544258 222.790586)">La pose integrada (x_mm, y_mm, rumbo_x10) corrige la referencia RUMBO en el siguiente ciclo sin detener el carro</text>
+    <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(129.703414 232.362152)">y sirve de base geométrica para el esquive en 3 tramos si aparece un obstáculo en el corredor.</text>
+   </g>
+   <g id="patch_7">
+    <path d="M 154.625899 84.92832 
+Q 162.000392 84.92832 167.474226 84.92832 
+" clip-path="url(#p009c9afe33)" style="fill: none; stroke: #163c60; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 162.674226 82.52832 
+L 167.474226 84.92832 
+L 162.674226 87.32832 
 z
-" style="fill: #1d3557; stroke: #1d3557; stroke-width: 1.2; stroke-linecap: round"/>
+" clip-path="url(#p009c9afe33)" style="fill: #163c60; stroke: #163c60; stroke-width: 1.7; stroke-linecap: round"/>
    </g>
-   <g id="text_9">
-    <text style="fill: #1d3557; font: 8px 'DejaVu Sans'; text-anchor: start" x="505.7856" y="400.0471" transform="rotate(-0 505.7856 400.0471)">arranque</text>
-   </g>
-   <g id="text_10">
-    <text style="fill: #1d3557; font: 700 11px 'DejaVu Sans'; text-anchor: start" x="484.0128" y="95.352281" transform="rotate(-0 484.0128 95.352281)">Recta de calibración</text>
-   </g>
-   <g id="text_11">
-    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'" transform="translate(546.845725 416.520125)">Se mide con varias distancias y se ajusta una recta;</text>
-    <text style="fill: #6c757d; font: 8px 'DejaVu Sans'" transform="translate(567.759475 426.50225)">la pendiente es el tiempo por centímetro.</text>
-   </g>
-   <g id="line2d_11">
-    <defs>
-     <path id="m83a7e43f9d" d="M 0 4 
-C 1.060812 4 2.078319 3.578535 2.828427 2.828427 
-C 3.578535 2.078319 4 1.060812 4 0 
-C 4 -1.060812 3.578535 -2.078319 2.828427 -2.828427 
-C 2.078319 -3.578535 1.060812 -4 0 -4 
-C -1.060812 -4 -2.078319 -3.578535 -2.828427 -2.828427 
-C -3.578535 -2.078319 -4 -1.060812 -4 0 
-C -4 1.060812 -3.578535 2.078319 -2.828427 2.828427 
-C -2.078319 3.578535 -1.060812 4 0 4 
+   <g id="patch_8">
+    <path d="M 310.865899 84.92832 
+Q 318.240392 84.92832 323.714226 84.92832 
+" clip-path="url(#p009c9afe33)" style="fill: none; stroke: #00877e; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 318.914226 82.52832 
+L 323.714226 84.92832 
+L 318.914226 87.32832 
 z
-" style="stroke: #e76f51"/>
-    </defs>
-    <g clip-path="url(#p29e2b29de6)">
-     <use xlink:href="#m83a7e43f9d" x="556.5888" y="329.6052" style="fill: #e76f51; stroke: #e76f51"/>
-    </g>
+" clip-path="url(#p009c9afe33)" style="fill: #00877e; stroke: #00877e; stroke-width: 1.7; stroke-linecap: round"/>
    </g>
-   <g id="line2d_12">
-    <g clip-path="url(#p29e2b29de6)">
-     <use xlink:href="#m83a7e43f9d" x="643.68" y="242.4168" style="fill: #e76f51; stroke: #e76f51"/>
-    </g>
+   <g id="patch_9">
+    <path d="M 467.105899 84.92832 
+Q 474.480392 84.92832 479.954226 84.92832 
+" clip-path="url(#p009c9afe33)" style="fill: none; stroke: #d9822b; stroke-width: 1.7; stroke-linecap: round"/>
+    <path d="M 475.154226 82.52832 
+L 479.954226 84.92832 
+L 475.154226 87.32832 
+z
+" clip-path="url(#p009c9afe33)" style="fill: #d9822b; stroke: #d9822b; stroke-width: 1.7; stroke-linecap: round"/>
    </g>
-   <g id="line2d_13">
-    <g clip-path="url(#p29e2b29de6)">
-     <use xlink:href="#m83a7e43f9d" x="730.7712" y="155.2284" style="fill: #e76f51; stroke: #e76f51"/>
-    </g>
+   <g id="patch_10">
+    <path d="M 552.6 139.236947 
+Q 552.6 158.443334 552.6 175.860866 
+" clip-path="url(#p009c9afe33)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 555 171.060866 
+L 552.6 175.860866 
+L 550.2 171.060866 
+z
+" clip-path="url(#p009c9afe33)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
-  </g>
-  <g id="text_12">
-   <text style="fill: #1d3557; font: 700 18px 'DejaVu Sans'; text-anchor: middle" x="432" y="30.687187" transform="rotate(-0 432 30.687187)">Navegar por tiempo</text>
-  </g>
-  <g id="text_13">
-   <text style="fill: #6c757d; font: 10px 'DejaVu Sans'; text-anchor: middle" x="432" y="49.308438" transform="rotate(-0 432 49.308438)">El carro no mide centímetros: mide milisegundos. La calibración convierte unos en otros.</text>
-  </g>
-  <g id="text_14">
-   <text style="fill: #6c757d; font: 7.6px 'DejaVu Sans'; text-anchor: middle" x="432" y="473.727438" transform="rotate(-0 432 473.727438)">Ejemplo ilustrativo: 50 ms/cm y 10 ms/grado son valores de partida. Los reales se miden con la app (docs/calibracion.md).</text>
+   <g id="patch_11">
+    <path d="M 240.12 177.646573 
+Q 240.12 158.440186 240.12 141.022654 
+" clip-path="url(#p009c9afe33)" style="fill: none; stroke: #00877e; stroke-width: 1.6; stroke-linecap: round"/>
+    <path d="M 237.72 145.822654 
+L 240.12 141.022654 
+L 242.52 145.822654 
+z
+" clip-path="url(#p009c9afe33)" style="fill: #00877e; stroke: #00877e; stroke-width: 1.6; stroke-linecap: round"/>
+   </g>
   </g>
  </g>
  <defs>
-  <clipPath id="pc42144fdcd">
-   <rect x="38.88" y="68.04" width="362.88" height="379.08"/>
-  </clipPath>
-  <clipPath id="p29e2b29de6">
-   <rect x="462.24" y="68.04" width="362.88" height="379.08"/>
+  <clipPath id="p009c9afe33">
+   <rect x="5.76" y="5.76" width="624.96" height="282.744"/>
   </clipPath>
  </defs>
 </svg>
