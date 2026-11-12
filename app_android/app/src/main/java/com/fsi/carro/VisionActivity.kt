@@ -418,7 +418,7 @@ class VisionActivity : androidx.appcompat.app.AppCompatActivity() {
                 camara.aprendiendoPiso -> "Aprendiendo el piso... deja el carro quieto y sin objetos adelante."
                 camara.errorAprender.isNotEmpty() -> camara.errorAprender
                 camara.informePiso != null -> camara.informePiso!!.texto()
-                else -> "Piso: todavía no se aprendió con el botón (se usa lo que ve la tira de abajo)."
+                else -> "Aviso: falta Aprender piso con esta iluminación. Deja el carro quieto y el piso libre; vuelve a aprender si cambia la luz."
             } + (cuadro?.let { "\nBrillo medio del cuadro: ${it.resultado[ObstaculosNativa.BRILLO_MEDIO]}  motivo: ${ObstaculosNativa.textoMotivo(it.resultado[ObstaculosNativa.MOTIVO])}" } ?: "")
             actualizarEstadoCamara()
             registrosPendientes++

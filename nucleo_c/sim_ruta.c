@@ -150,6 +150,22 @@ static int azar_mil(uint32_t semilla)
 /* La simulación usa memoria estática (cabe en la pila del hilo principal de la app, pero no se repite en otros hilos): se llama siempre desde el mismo hilo. */
 static Navegador nav_sim;
 static Simulador car_sim;
+
+/* Haz independiente de la camara: las cajas son de 200 x 200 mm. El fondo
+ * medible a 1200 mm es un supuesto del simulador, no equivale a perder eco. */
+static int sr_laser(int x, int y, int rumbo, const Punto *cajas, int n)
+{
+    int d, k, s = seno_mil(rumbo), c = coseno_mil(rumbo);
+    for (d = 5; d < 1200; d += 5) {
+        int px = x + s * (NAV_SENSOR_FRENTE_MM + d) / 1000;
+        int py = y - c * (NAV_SENSOR_FRENTE_MM + d) / 1000;
+        for (k = 0; k < n; k++) {
+            int dx = px - cajas[k].columna * CELDA_MM, dy = py - cajas[k].fila * CELDA_MM;
+            if (dx >= -100 && dx <= 100 && dy >= -100 && dy <= 100) return d;
+        }
+    }
+    return 1200;
+}
 static int desbalance_global_mil = 1000;   /* ver sr_poner_balance */
 static int balance_global_mil = 1000;
 
@@ -184,6 +200,9 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
     }
     navegador_iniciar(&nav_sim);
     navegador_poner_calibracion(&nav_sim, &calibracion);
+    navegador_poner_sensor_distancia(&nav_sim, 1);
+    navegador_poner_autoridad_laser(&nav_sim, 1);
+    navegador_poner_pedir_ayuda(&nav_sim, 1);
     if (navegador_cargar_ruta(&nav_sim, ruta, n_ruta) != NAV_OK) {
         r->codigo = SR_ERR_RUTA;
         r->codigo_ruta = nav_sim.codigo_trayectoria;
@@ -191,6 +210,7 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
     }
     sim_iniciar(&car_sim, ruta[0].columna, ruta[0].fila, 0);
     car_sim.real = calibracion;
+    car_sim.tof_activo = car_sim.laser_externo = 1;
     car_sim.desbalance_mil = desbalance_global_mil;
     car_sim.balance_mil = balance_global_mil;
     car_sim.periodo_cuadro_ms = NAV_TICK_MS;
@@ -208,6 +228,7 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
         int y = sim_y_mm(&car_sim);
 
         sr_vista(x, y, sim_rumbo_grados(&car_sim), obstaculos, n_obs, hay, cerc, celdas);
+        car_sim.laser_externo_mm = sr_laser(x, y, sim_rumbo_grados(&car_sim), obstaculos, n_obs);
         car_sim.n_eventos = 0;
         for (z = 0; z < 3; z++) {
             if (hay[z]) {
@@ -240,7 +261,7 @@ int sr_simular(const Punto *ruta, int n_ruta, const CalibracionCarro *cal, const
         if (x < -MITAD_CELDA_MM || x > (RE_COLUMNAS - 1) * CELDA_MM + MITAD_CELDA_MM || y < -MITAD_CELDA_MM || y > (RE_FILAS - 1) * CELDA_MM + MITAD_CELDA_MM) {
             r->advertencias |= SR_ADV_SALE_CUADRICULA;
         }
-        if (nav_sim.estado == NAV_TERMINADO || nav_sim.estado == NAV_ERROR) {
+        if (nav_sim.estado == NAV_TERMINADO || nav_sim.estado == NAV_ERROR || nav_sim.estado == NAV_AYUDA) {
             t += NAV_TICK_MS;
             break;
         }
@@ -370,6 +391,14 @@ int sr_texto_causa(const ResultadoSimRuta *r, char *texto, int capacidad)
         return 0;
     }
     switch (r->error_causa) {
+    case NAV_CAUSA_ARCO:
+        return copiar_frase("No hay espacio frontal para el giro de salida medido: pide ayuda.", texto, capacidad);
+    case NAV_CAUSA_SIN_CONFIRMACION:
+        return copiar_frase("Detenido: la vision no tiene confirmacion laser cercana y valida.", texto, capacidad);
+    case NAV_CAUSA_OBSTACULO_NO_PASADO:
+        return copiar_frase("No se comprobo haber pasado el obstaculo: falta espacio o sigue bloqueado.", texto, capacidad);
+    case NAV_CAUSA_FIN_NO_LIBRE:
+        return copiar_frase("Ruta sin cerrar: falta comprobar el frente libre con el laser.", texto, capacidad);
     case NAV_CAUSA_LADOS:
         return copiar_frase("No había por dónde esquivar: los dos lados estaban ocupados.", texto, capacidad);
     case NAV_CAUSA_MAX_ESQUIVADAS:

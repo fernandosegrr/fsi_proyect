@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-generar_manual.py — Genera el Manual Técnico del Carro FSI (Versión final 1.1).
+generar_manual.py — Genera el Manual Técnico del Carro FSI (Base v1.1 · revisión pendiente).
 
 Uso reproducible en un solo comando:
     python docs/manual/generar_manual.py
@@ -412,7 +412,7 @@ def crear_encabezado(texto, nivel, key, in_toc=True):
 
 
 def dibujar_marco_pagina(canvas, doc):
-    canvas.setTitle("Manual técnico del Carro FSI (LIDIA) — Versión final 1.1")
+    canvas.setTitle("Manual técnico del Carro FSI (LIDIA) — Base v1.1 · revisión pendiente")
     canvas.setAuthor(
         "Jaime Fernando Guerrero Segoviano; Melanie Contreras Solis; "
         "Vitto Eduardo Rangel Fortuna; Azul Abril Cadena Campos"
@@ -428,7 +428,7 @@ def dibujar_marco_pagina(canvas, doc):
         canvas.drawString(
             doc.leftMargin,
             A4[1] - 36,
-            "Carro FSI (LIDIA) · Manual técnico · Versión final 1.1",
+            "Carro FSI (LIDIA) · Manual técnico · Base v1.1 · revisión pendiente",
         )
         canvas.setStrokeColor(BORDE_TABLA)
         canvas.setLineWidth(0.6)
@@ -438,7 +438,7 @@ def dibujar_marco_pagina(canvas, doc):
 
 
 def construir_portada(story):
-    rev_corta = git("rev-parse", "--short=7", "HEAD")
+    rama = git("branch", "--show-current")
     story.append(Spacer(1, 28))
     story.append(Paragraph("UNIVERSIDAD DE GUANAJUATO", STYLES["cover_inst"]))
     story.append(
@@ -464,7 +464,8 @@ def construir_portada(story):
             STYLES["cover_sub"],
         )
     )
-    story.append(Paragraph("Versión final 1.1", STYLES["cover_ver"]))
+    story.append(Paragraph("Base v1.1 · revisión pendiente", STYLES["cover_ver"]))
+    story.append(Paragraph("11-nov-2026: esquive confirmado, NO MEDIDO en el carro.\nNo constituye una publicación v1.2.", STYLES["cover_sub"]))
     linea_inf = Table([[""]], colWidths=[ANCHO_UTIL * 0.55], rowHeights=[1.5])
     linea_inf.setStyle(
         TableStyle([("BACKGROUND", (0, 0), (-1, -1), VERDE), ("ALIGN", (0, 0), (-1, -1), "CENTER")])
@@ -493,11 +494,11 @@ def construir_portada(story):
             ),
         ],
         [
-            Paragraph("<b>Fecha de cierre:</b>", STYLES["td"]),
+            Paragraph("<b>Cierre físico histórico:</b>", STYLES["td"]),
             Paragraph("10 de noviembre de 2026", STYLES["td"]),
         ],
         [
-            Paragraph("<b>Artefactos validados:</b>", STYLES["td"]),
+            Paragraph("<b>Artefactos históricos:</b>", STYLES["td"]),
             Paragraph(
                 '<font name="DejaVuMono" size="8.2">APP:0.4-6d1b213</font> · '
                 '<font name="DejaVuMono" size="8.2">FW:6d1b213-20261110</font>',
@@ -507,8 +508,8 @@ def construir_portada(story):
         [
             Paragraph("<b>Revisión del repositorio:</b>", STYLES["td"]),
             Paragraph(
-                f'<font name="DejaVuMono" size="8.2">v1.1 ({html.escape(rev_corta)})</font> · '
-                "https://github.com/fernandosegrr/fsi_proyect",
+                '<font name="DejaVuMono" size="8.2">Base v1.1: bd1727b; revisión 11-nov-2026</font><br/>'
+                f"{html.escape(rama)} (pendiente de validación física)",
                 STYLES["td"],
             ),
         ],
@@ -797,12 +798,13 @@ def limpiar_helvetica_sin_uso(ruta_pdf):
 
 
 def main():
-    # Paso 1: Regenerar todas las figuras vectoriales y láminas
-    subprocess.run(
-        [sys.executable, str(ROOT / "docs" / "figuras" / "generar_figuras.py")],
-        cwd=ROOT,
-        check=True,
-    )
+    # --sin-figuras conserva las láminas existentes en revisiones solo de texto.
+    if "--sin-figuras" not in sys.argv:
+        subprocess.run(
+            [sys.executable, str(ROOT / "docs" / "figuras" / "generar_figuras.py")],
+            cwd=ROOT,
+            check=True,
+        )
 
     out_pdf = MANUAL / "Manual_Proyecto_Carro_FSI.pdf"
     doc = ManualDocTemplate(
@@ -812,7 +814,7 @@ def main():
         rightMargin=MARGEN_X,
         topMargin=MARGEN_TOP,
         bottomMargin=MARGEN_BOT,
-        title="Manual técnico del Carro FSI (LIDIA) — Versión final 1.1",
+        title="Manual técnico del Carro FSI (LIDIA) — Base v1.1 · revisión pendiente",
     )
 
     story = []
@@ -826,7 +828,7 @@ def main():
             "toc0",
             fontName="DejaVu-Bold",
             fontSize=8.8,
-            leading=11.0,
+            leading=10.6,
             textColor=AZUL,
             leftIndent=0,
             firstLineIndent=0,
@@ -836,7 +838,7 @@ def main():
             "toc1",
             fontName="DejaVu",
             fontSize=8.1,
-            leading=9.7,
+            leading=9.3,
             textColor=TEXTO,
             leftIndent=12,
             firstLineIndent=0,

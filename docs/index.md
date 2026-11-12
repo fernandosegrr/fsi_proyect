@@ -1,5 +1,7 @@
 # Índice general de documentación — Carro FSI
 
+**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
+
 Este índice organiza de manera temático-secuencial todos los recursos documentales del proyecto para facilitar su lectura por estudiantes, evaluadores y desarrolladores.
 
 ---

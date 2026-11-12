@@ -1,6 +1,6 @@
 # 11. Operación y seguridad física
 
-Este capítulo establece el protocolo paso a paso para preparar el vehículo, encender sus tres fuentes de energía en el orden correcto, verificar los sensores antes de mover las ruedas, operar los modos manual y semiautónomo y actuar ante una emergencia. Su cumplimiento evita daños eléctricos al microcontrolador, choques por baterías descargadas y lecturas sesgadas del giroscopio.
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
 
 ## 11.1 Lista de verificación previa al encendido
 
@@ -35,7 +35,7 @@ El orden de encendido es importante porque el firmware de la `ESP32 DevKit` cali
 
 ### Ejecución de una ruta semiautónoma (`Pestaña Rutas`)
 
-1. **Aprendizaje previo del color del piso:** antes de correr una ruta con esquive visual en un salón nuevo o si cambió la iluminación, abrir `Más → Visión`, apuntar el carro hacia el piso despejado y pulsar **`Aprender piso`**. Comprobar en la superposición gráfica que el trapecio del corredor aparece libre (verde) sobre el suelo y se marca como ocupado (rojo/naranja) al colocar la caja de prueba de `20×20 cm` a `60 cm` del frente.
+1. **Aprendizaje previo del color del piso:** antes de cada nueva ruta con cámara y siempre que cambie la iluminación, abrir `Más → Visión`, apuntar el carro hacia el piso despejado y pulsar **`Aprender piso`**. Debe terminar correctamente; un intento fallido invalida el anterior y un segundo toque en Iniciar no lo sustituye. Comprobar en la superposición gráfica que el trapecio del corredor aparece libre (verde) sobre el suelo y se marca como ocupado (rojo/naranja) al colocar la caja de prueba de `20×20 cm` a `60 cm` del frente.
 2. **Revisión del estado de calibración (J16):** al abrir la pestaña `Rutas`, verificar que no aparezca el cintillo de advertencia de calibración inválida o sin medir.
 3. **Selección y simulación previa:** elegir una ruta predefinida (por ejemplo, `Recta 150 cm` o una ruta de esquive) o trazarla en la cuadrícula de `20 cm`, y pulsar primero **`Simular`** para inspeccionar en pantalla la secuencia de pasos que calculará el núcleo en `C99`.
 4. **Inicio desde `0.0°`:** alinear físicamente el carro con el eje de salida, pulsar **`Ejecutar`** (lo que envía `MODO_AUTO`, consulta/activa `RUMBO` y pone a cero la referencia inicial) y acompañar visualmente el recorrido a menos de un metro de distancia, listo para pulsar el botón rojo **`PARO`** si fuera necesario.

@@ -1,0 +1,10 @@
+Comparacion pareada vs v1.1 bd1727b, 1000 corridas/caso/configuracion.
+Criterio preexistente: media +5 mm; p95 +10 mm o +20%; sin menos llegadas ni mas contactos/ayudas.
+OK esquive_20x20 / DESPUES sin firmware nuevo: media 33->31, p95 78->79, llegan 1000->1000, contactos 0->0, ayuda 0->0
+OK esquive_20x20 / DESPUES con RUMBO (firmware nuevo): media 17->16, p95 40->37, llegan 1000->1000, contactos 0->0, ayuda 0->0
+OK esquive_20x20 / DESPUES con RUMBO y escala calibrada (IMU_ESCALA): media 17->16, p95 40->36, llegan 1000->1000, contactos 0->0, ayuda 0->0
+OK esquive_ancha / DESPUES sin firmware nuevo: media 33->31, p95 79->77, llegan 1000->1000, contactos 0->0, ayuda 0->0
+OK esquive_ancha / DESPUES con RUMBO (firmware nuevo): media 17->16, p95 40->37, llegan 1000->1000, contactos 0->0, ayuda 0->0
+OK esquive_ancha / DESPUES con RUMBO y escala calibrada (IMU_ESCALA): media 17->16, p95 39->37, llegan 1000->1000, contactos 0->0, ayuda 0->0
+6 comparaciones, 0 fallos. Fondo valido pareado en v1.1: las seis filas identicas.
+La subida de p95 de 78 a 79 mm sin RUMBO en caja 20x20 se declara; no es mejora estricta de toda metrica.

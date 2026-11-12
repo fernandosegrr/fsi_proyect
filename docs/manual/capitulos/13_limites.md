@@ -1,5 +1,7 @@
 # 13. Límites y trabajo futuro
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo analiza con rigor las limitaciones físicas, sensoriales y algorítmicas inherentes al diseño actual del vehículo **LIDIA**, explica por qué ocurren y propone las líneas de trabajo futuro (`PENDIENTE`) para evoluciones posteriores del proyecto. Reconocer explícitamente estos límites impide extrapolar los resultados fuera de las condiciones reales en que fueron obtenidos.
 
 ## 13.1 Límites estructurales de locomoción y odometría
@@ -23,7 +25,7 @@ Para evitar que el controlador `GIRO:<grados>` del firmware oscile dentro de su 
 
 | Límite identificado en el código / hardware | Valor o condición actual | Consecuencia operativa y mitigación vigente |
 |---|---|---|
-| **Profundidad fija supuesta del obstáculo (`NAV_PROFUNDIDAD_OBS_MM`)** | `250 mm` (`25 cm`) y desvío lateral fijo de `400 mm` (`40 cm`) | Diseñado para cajas estándar de `20×20 cm`. Ante un obstáculo mucho más profundo (> `40 cm`) o más ancho (`40×20 cm`, `NO MEDIDO`), el rebase de un solo tramo puede ser insuficiente y requerir un segundo esquive o entrar en `AYUDA`. |
+| **Profundidad fija supuesta del obstáculo (`NAV_OBSTACULO_PROFUNDO_MM`)** | `250 mm` (`25 cm`) y desvío lateral fijo de `400 mm` (`40 cm`) | Diseñado para cajas estándar de `20×20 cm`. Ante un obstáculo mucho más profundo (> `40 cm`) o más ancho (`40×20 cm`, `NO MEDIDO`), el rebase puede ser insuficiente: la revisión exige comprobación y pide `AYUDA` si sigue detectando el costado, sin declarar Terminado. El haz puede perder patas; no garantiza detectar todo tamaño. |
 | **Objetos del mismo color que el piso y no reconocidos por `COCO`** | Clasificador `YCbCr` + `EfficientDet-Lite0` | Si un obstáculo tiene exactamente la misma crominancia que la baldosa y no pertenece a una clase reconocible por la red neuronal, la cámara puede no marcarlo; la defensa es habilitar `usar_tof_en_ruta` (esquive láser a `400 mm`) y el freno local `TOF_PARO` a `120 mm`. |
 | **Geometría puntual del láser `VL53L0X`** | Cono frontal de `~25°` a la altura del borde delantero | Objetos muy bajos (< `4 cm`, por debajo del haz) o muy estrechos desplazados hacia una rueda pueden no reflejar el pulso láser. |
 | **Límite de 6 dígitos en el comando `RUMBO:<décimas>`** | Máximo `±99999` décimas (`~±10,000°` $\approx 27.7$ vueltas completas) | En cualquier ruta normal o cuadrado los ángulos se mantienen dentro de `±360°`; solo una rotación continua en espiral de más de 27 vueltas sin recalibrar `CAL_IMU` excedería el formato de 6 caracteres. |
@@ -45,3 +47,7 @@ Para orientar a futuros equipos o siguientes iteraciones del proyecto, las mejor
    - Caracterizar con amperímetro el perfil de corriente en arranque (`250 ms` a `PWM 255`), avance continuo y bloqueo, así como verificar en banco el circuito externo de `GPIO 2`.
 
 Dónde está en el código: `limites_conocidos.md`, `estado_20261110.md`, `reporte_J16.md`, `navegador.h`, `config.h`.
+
+## 13.4 Confirmación conservadora y alcance
+
+Sin lectura frontal válida no hay esquive autónomo: se pide AYUDA, incluso tras muchos cuadros visuales. Una lectura inválida o sin eco tampoco permite cerrar la ruta. El supuesto sensor-centro de 120 mm y la profundidad fija de 250 mm siguen pendientes de medición. El banquito reportado no equivale a la caja estándar y su prueba permanece NO MEDIDA hasta repetir primero con caja de 20×20 cm. La app exige Aprender piso para la ruta actual, pero no identifica automáticamente todos los cambios de iluminación. Véase `docs/limites_conocidos.md`.

@@ -718,7 +718,8 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
                 angulo = sim->j16_hist_angulo[(sim->j16_n_ticks - 1 - atraso) & 15];
             }
             sim->proximo_sens_ms = sim->t_ms + 100;
-            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0, sim->tof_activo && mm < 1200, angulo, sim->t_ms);
+            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0,
+                                 sim->tof_activo && !sim->tof_sin_eco && mm > 0, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
                 sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */

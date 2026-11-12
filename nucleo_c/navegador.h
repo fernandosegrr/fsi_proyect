@@ -119,10 +119,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_ESQ_CERCANIA_LADO       3
 
 /* PASAR EL OBSTACULO ANTES DE VOLVER. Después de apartarse y enderezarse (VOLVER), el carro sigue PARALELO a la línea, a la distancia lateral a la que quedó, hasta
- * haber pasado el obstáculo, y solo entonces vuelve a la línea (con el punto de NAV_REINC_ADELANTE_CM cm de arriba). Si volviera a la línea justo al lado del obstáculo, el camino
- * de vuelta lo cruzaría o quedaría de nuevo frente a él. La distancia que avanza en paralelo, medida desde el punto de salida, es lo que había hasta la cara del obstáculo
- * (se estima con la cercanía con la que frenó: NAV_CARA_CERCANIA_x_MM son los límites de cada banda del detector) más NAV_OBSTACULO_PROFUNDO_MM (cuánto fondo se supone que
- * tiene) más NAV_PASO_MARGEN_MM. Nunca pasa de NAV_PARALELO_FIN_MM antes del final de la ruta. Si ya está más adelante que eso, no avanza. */
+ * haber pasado el obstáculo. Usa la distancia láser confirmada al detenerse, el desplazamiento frontal del sensor,
+ * NAV_OBSTACULO_PROFUNDO_MM y NAV_PASO_MARGEN_MM. Si no cabe en el tramo recto, pide AYUDA: nunca recorta el rebase.
+ * La vuelta pendiente de comprobar apunta casi transversalmente a la línea (50 mm hacia delante), vigila el costado
+ * y exige láser libre de nuevo al recuperar el rumbo original. Las bandas visuales de abajo no miden profundidad. */
 #define NAV_CARA_CERCANIA_3_MM    300    /* con cercanía 3 el obstáculo estaba a menos de esto */
 #define NAV_CARA_CERCANIA_2_MM    500
 #define NAV_CARA_CERCANIA_1_MM    800
@@ -185,10 +185,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  * firmware como GIRAR:<grados> (la app lo manda al ver navegador_tomar_giro_fw); el firmware gira hasta el ángulo MEDIDO y contesta con el ángulo REAL (navegador_aporte_giro): la pose usa ese
  * ángulo (con el desplazamiento del pivote calculado con él). Si el giro termina mal (GIRO_TIMEOUT / GIRO_ERROR) se usa el ángulo real que informó, si lo hay, y los giros siguientes de la ruta
  * vuelven al método por tiempo (con aviso SENS_DIAG). Un giro sin respuesta en la espera máxima también cae al tiempo.
- * El láser (navegador_poner_sensor_distancia) hace dos cosas: (1) TOF_PARO, el freno de emergencia del firmware, entra como obstáculo confirmado SIN información lateral: espera hasta
- * NAV_TOF_ESPERA_LADO_MS a que la cámara aporte el lado libre y si no llega esquiva hacia el lado con más espacio de la última rejilla (o a la izquierda); (2) confirma o corrige a la cámara: con
- * cercanía 2 en el centro y el láser libre (más de NAV_TOF_LIBRE_MM en NAV_TOF_LIBRE_LECTURAS lecturas) se pide UN cuadro más de la cámara antes de frenar; con el láser a menos de
- * NAV_TOF_CONFIRMA_MM se frena con un solo cuadro. Con cercanía 3 no hay confirmación que valga. La cámara nunca se ignora por más de ese cuadro. */
+ * La visión puede ordenar STOP; un esquive exige tres lecturas láser válidas, frescas y de 1 a NAV_REACCION_MAX_MM,
+ * además de cámara para elegir un lado libre. TOF_PARO tampoco permite girar sin esos datos. La persistencia visual
+ * por sí sola no aporta distancia: tras NAV_CONFIRMAR_LASER_MS detenido se pide AYUDA. El cierre y la reincorporación
+ * requieren tres lecturas nuevas mayores que NAV_TOF_LIBRE_MM; sin eco no significa libre. */
 #define NAV_GIRO_FW_MIN_GRADOS       5    /* un giro de menos de esto no se pide al firmware (no se hace) */
 #define NAV_GIRO_FW_MAX_GRADOS     200    /* el firmware no gira más de esto de una vez; uno mayor se hace por tiempo */
 #define NAV_GIRO_FW_BASE_MS        500    /* tiempo máximo propio del firmware: base + por grado (igual que GIRO_TIEMPO_BASE_MS y GIRO_TIEMPO_POR_GRADO_MS de config.h) */
@@ -197,11 +197,15 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_GIRO_FW_CONSULTA_MS   1000    /* si no llega GIRO_OK ni GIRO_TIMEOUT se pregunta IMU? y se espera tanto la respuesta (si no llega se usa el último SENS fresco) */
 #define NAV_GIRO_FW_YA_GIRO_PCT     80    /* con el mensaje perdido, si el giroscopio dice que ya giró al menos este % de lo pedido NO se repite el giro */
 #define NAV_TOF_ESPERA_LADO_MS     700    /* tras TOF_PARO se espera tanto (como máximo) a que la cámara dé el lado libre */
-#define NAV_TOF_LIBRE_MM           800    /* el láser «ve libre» si mide más de esto (o no tiene eco) */
+#define NAV_TOF_LIBRE_MM           800    /* libre solo con una medida válida mayor que esto */
 #define NAV_TOF_LIBRE_LECTURAS       3
-#define NAV_TOF_CONFIRMA_MM        500    /* el láser «confirma» el obstáculo si mide menos de esto */
+#define NAV_TOF_CONFIRMA_MM        500    /* referencia histórica; reacción actual limitada por NAV_REACCION_MAX_MM */
 #define NAV_TOF_FRESCO_MS          400    /* una lectura del láser más vieja que esto ya no sirve */
-#define OBSTACULO_LASER_MM         400    /* autoridad opcional en columnas 3 a 6 de la rejilla 10x10 */
+#define OBSTACULO_LASER_MM         400    /* autoridad opcional: agrega bloqueo central; no borra visión */
+#define NAV_REACCION_MAX_MM       500    /* distancia frontal maxima para planear un esquive automatico */
+#define NAV_SENSOR_FRENTE_MM     120    /* centro a sensor frontal: SUPUESTO de chasis de 240 mm; pendiente medir */
+#define NAV_CONFIRMAR_LASER_MS   1000    /* espera detenido; sin confirmacion pide AYUDA */
+#define NAV_VERIFICAR_FIN_MS     1000    /* espera lecturas nuevas con el carro parado y alineado */
 
 /* RUMBO DEL FIRMWARE (J16, ver firmware_carro/rumbo.h y navegador_poner_rumbo_fw). Con el firmware sosteniendo el rumbo al avanzar, el navegador le manda el rumbo
  * que quiere mientras avanza: sobre la línea de la ruta apunta a un punto NAV_RUMBO_MIRA_MM más adelante (si el carro quedó de lado, vuelve a ella poco a poco, sin
@@ -278,6 +282,9 @@ typedef enum {
 #define NAV_CAUSA_INDICE                10   /* freno anti-locura: el índice del siguiente punto de la ruta retrocedió */
 #define NAV_CAUSA_RECORRIDO             11   /* freno anti-locura: recorrió más de 2.5 veces la distancia de la ruta */
 #define NAV_CAUSA_LEJOS                 12   /* freno anti-locura: la pose quedó a más de 1 m de la ruta */
+#define NAV_CAUSA_SIN_CONFIRMACION      13   /* vision persistente sin distancia laser cercana y valida */
+#define NAV_CAUSA_OBSTACULO_NO_PASADO   14   /* la recta no alcanza o la vuelta sigue bloqueada */
+#define NAV_CAUSA_FIN_NO_LIBRE          15   /* no se pudo comprobar el frente libre al cerrar */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -301,6 +308,7 @@ typedef enum {
 #define NAV_RF_PAUSA2         4   /* STOP */
 #define NAV_RF_GIRO2          5   /* gira al rumbo original de la línea */
 #define NAV_RF_PAUSA3         6   /* STOP; al terminar la pausa vuelve a SIGUIENDO */
+#define NAV_RF_VERIFICAR      7   /* STOP; verifica frente libre antes de retomar la ruta */
 
 /* Códigos de retorno de las funciones de configuración. */
 #define NAV_OK                 0
@@ -410,6 +418,9 @@ typedef struct {
     int salida_cercania;         /* cercanía (1 a 3) con la que frenó: dice a qué distancia estaba el obstáculo */
     int cerc_detenido_max;       /* la mayor cercanía (dentro del corredor) vista desde que se detuvo por obstáculo hasta decidir: el último cuadro puede venir vacío */
     int fin_obstaculo_mm;        /* hasta dónde (distancia a lo largo de la ruta) se supone que llega el último obstáculo que lo detuvo; -1 = ninguno */
+    int obstaculo_pendiente;     /* exige superar fin_obstaculo y verificar el frente antes de retomar */
+    int verificando_frente, fin_pendiente, fin_verificado;
+    uint32_t verificar_frente_ms;
     int paralelo_mm;             /* cuánto debe avanzar en paralelo a la línea para pasar el obstáculo (se calcula al terminar de enderezarse) */
 
     /* Reincorporación a la línea (REINCORPORANDO). Se calcula una vez, en la fase PLAN, y se ejecuta por fases (NAV_RF_*). */
@@ -505,8 +516,8 @@ typedef struct {
     int      tof_vivo;               /* 1 si el láser funciona (según SENS) */
     int      tof_mm;                 /* última lectura (1200 = libre) */
     int      tof_valida;             /* 1 si esa lectura fue una medida real */
-    int      tof_libre_lecturas;     /* lecturas seguidas «libres» (más de NAV_TOF_LIBRE_MM o sin eco) */
-    int      tof_cerca_lecturas;     /* lecturas seguidas con una medida real menor de NAV_TOF_CONFIRMA_MM */
+    int      tof_libre_lecturas;     /* lecturas válidas seguidas mayores que NAV_TOF_LIBRE_MM */
+    int      tof_cerca_lecturas;     /* lecturas válidas seguidas de 1 a NAV_REACCION_MAX_MM */
     uint32_t tof_t_ms;               /* hora de la última lectura */
     int      tof_paro_activo;        /* 1 desde TOF_PARO hasta que empieza a esquivar */
     int      tof_pendiente;          /* 1 = TOF_PARO llegó mientras esquivaba o volvía a la línea: lo atiende el siguiente tick */
@@ -606,7 +617,7 @@ int navegador_ayuda_comando(Navegador *nav, ComandoNav comando);
  * (las esquivadas se cuentan de nuevo desde cero). Devuelve NAV_OK o NAV_ERR_ESTADO (no está en AYUDA). */
 int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
 
-/* GIROSCOPIO (J11). poner_giroscopio / poner_sensor_distancia encienden (1) o apagan (0) cada uno (por defecto apagados: el navegador se comporta como siempre). Devuelven NAV_OK o NAV_ERR_ARGUMENTO.
+/* GIROSCOPIO (J11). poner_giroscopio / poner_sensor_distancia encienden (1) o apagan (0) cada uno (por defecto apagados; sin láser no se autoriza esquive). Devuelven NAV_OK o NAV_ERR_ARGUMENTO.
  * navegador_tomar_giro_fw: si hay un giro por ángulo que todavía no se pidió al firmware devuelve 1 y deja en *grados_izq_positivo los grados con la convención del firmware (POSITIVO = izquierda)
  * para mandar GIRAR:<grados>; solo devuelve 1 una vez por giro. navegador_giro_fw_en_curso: 1 mientras el firmware hace el giro (la app NO manda LEFT ni RIGHT en ese tiempo).
  * navegador_aporte_giro: llegó la respuesta del firmware: `codigo` es NAV_GIRO_*, `real_x10_fw` los grados por 10 que giró (POSITIVO = izquierda) y `ms` lo que tardó.

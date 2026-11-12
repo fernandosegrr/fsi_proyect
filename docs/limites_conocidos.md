@@ -1,143 +1,53 @@
 # Límites conocidos del modo automático
 
-Este documento resume las limitaciones físicas, de sensores y de diseño del carro en el modo semiautónomo (`nucleo_c/`, `firmware_carro/` y `app_android/`). El sistema opera sin encoders, IMU, lidar ni ultrasonido: toda la navegación depende de estimación por tiempo (*dead reckoning*) y de una cámara VGA reducida a 240×176 (~12 fps).
+Revisión de software del 11-nov-2026 en `fix/navegacion-esquive-confirmado`, basada en v1.1 (`bd1727b`). **NO MEDIDA en el carro.** La observación con un banquito de aproximadamente 35×45 cm y patas no valida este arreglo. Hay que repetir primero con caja de 20×20 cm, previa autorización. La etiqueta v1.1 no cambia; una eventual v1.2 requiere aprobación.
 
-## 1. Pose solo por tiempo con error acumulado
+## 1. Confirmación frontal y pérdida del láser
 
-- **Causa:** Los 4 motores TT con ruedas mecanum no tienen encoders de rueda ni giróscopo (IMU). El navegador (`nucleo_c/navegador.c`, `avanzar_posicion` y `girar_rumbo`) estima `(x_mm, y_mm, rumbo_grados)` integrando únicamente los milisegundos de comando enviados y los parámetros de `nucleo_c/calibracion.c`.
-- **Efecto:** Cualquier variación de voltaje de batería, fricción desigual, patinaje de los rodillos mecanum o junta de loseta acumula error de rumbo y posición. Con un error típico de ±5° por giro y ±3 % en velocidad lineal, el error acumulado crece de ~5–10 cm tras 2–3 tramos a decenas de centímetros en rutas largas (> 4–6 m) o con muchos giros.
-- **Mitigación actual:** Calibración separada por perfil (`AUTO` y `MANUAL`), balance por lado (`BAL_AUTO`), compensación del desplazamiento del pivote en toda la ruta y frenos de cordura (`NAV_MOTIVO_LOCURA_*`) que detienen el carro si la pose se aparta más de 1 m de la ruta o supera 2.5 veces la distancia planeada.
+La cámara puede detener el carro, pero no autoriza por sí sola un esquive. Se requieren tres lecturas láser válidas consecutivas, frescas (hasta 400 ms), de 1 a 500 mm, y cámara para elegir el lado libre. Si la visión persiste sin esa distancia, se mantiene STOP y en 1000 ms se pide AYUDA. Varios cuadros no convierten una banda visual en milímetros. Sin cámara lateral tampoco se gira a ciegas tras `TOF_PARO`.
 
-## 2. Profundidad de 250 mm supuesta para los obstáculos
+El VL53L0X mide un haz frontal: una pata estrecha, un objeto fuera del haz o una superficie oscura/transparente pueden escapar a la medición. Una lectura inválida, sin eco, vieja o con sensor apagado **no significa libre**. Una sala sin retorno válido también puede acabar en AYUDA. La persistencia temporal no demuestra que el haz cubra todo el chasis.
 
-- **Causa:** Con una sola cámara monocular sin mapa de profundidad denso, el navegador solo ve la cara frontal del obstáculo antes de girar para esquivarlo. Al avanzar en paralelo (`NAV_FASE_PARALELO` en `nucleo_c/navegador.c`), supone un fondo fijo de `NAV_OBSTACULO_PROFUNDO_MM = 250` mm (25 cm) más `NAV_PASO_MARGEN_MM = 100` mm.
-- **Efecto:** Si el obstáculo mide bastante más de 25 cm de fondo (por ejemplo, una caja larga puesta a lo largo o un mueble continuo), al intentar reincorporarse a la línea el carro puede encontrarse todavía con el costado del obstáculo.
-- **Mitigación actual:** Durante la vuelta a la línea (`NAV_REINCORPORANDO`) el detector sigue activo; si el obstáculo sigue ocupando el camino, el navegador frena y ejecuta otro esquive (hasta `NAV_MAX_ESQUIVADAS = 3`) o pide `AYUDA`.
+## 2. Profundidad y dimensiones todavía supuestas
 
-## 3. Modelo de pivote constante
+El rebase se ancla en la distancia láser tomada con el carro parado:
 
-- **Causa:** El giro se ejecuta moviendo solo un lado (`VELOCIDAD_GIRO = 255`) mientras el otro queda en PWM 0. `cal_desplazamiento_giro` (`nucleo_c/calibracion.c`) modela el desplazamiento del centro del carro con un punto de pivote fijo por sentido de giro y la cuerda del arco $2R\sin(\theta/2)$ a partir de una medición de referencia (por ejemplo, 15 cm adelante y 16.5 cm a la derecha a 90° en `AUTO`, radio ~15.8 cm a la derecha y ~9 cm a la izquierda).
-- **Efecto:** En el piso real el centro instantáneo de rotación no es perfectamente constante: depende del ángulo total del giro (la inercia inicial pesa más en giros cortos de 20°–30° que en 90°), del estado de carga de la batería y del agarre de cada rueda mecanum.
-- **Mitigación actual:** Medición independiente para izquierda y derecha en la app, compensación del pivote al planificar tramos de ruta y aviso previo si algún sentido de giro sigue con valores estimados sin medir.
+`fin requerido = avance sobre la ruta + 120 mm + distancia frontal + 250 mm + 150 mm`.
 
-## 4. Esquive desde la diagonal
+Los 120 mm (`NAV_SENSOR_FRENTE_MM`) representan el sensor delante del centro de un chasis supuesto de 240 mm; **falta medir ese desplazamiento en el carro**. Los 250 mm (`NAV_OBSTACULO_PROFUNDO_MM`) son un fondo supuesto, no medido por el láser. Los 150 mm son `NAV_PASO_MARGEN_MM`. El objetivo lateral sigue siendo 400 mm, compensado por pivotes. Si el rebase no cabe en la recta disponible, se pide AYUDA en vez de recortarlo al final de la ruta.
 
-- **Causa:** Cuando el carro sigue un tramo en diagonal (45°) o detecta un segundo obstáculo mientras vuelve en diagonal hacia la línea (`NAV_REINCORPORANDO`), la maniobra de esquive (`NAV_ANGULO_ESQUIVAR = 45°`, avance lateral de `NAV_TRAMO_ESQUIVAR_CM = 40` cm y contra-giro) parte de un rumbo oblicuo respecto a la cuadrícula.
-- **Efecto:** El desplazamiento asimétrico de los dos pivotes (apartarse a un lado y enderezarse hacia el otro) combinado con la proyección diagonal acumula más error geométrico que en un tramo ortogonal, y el campo visual de la cámara barre oblicuamente el obstáculo.
-- **Mitigación actual:** Reincorporación calculada sobre la polilínea exacta de la ruta (`ubicar_en_linea`, `punto_en_linea`) con seno y coseno del rumbo real en lugar de múltiplos fijos de 45°, y evaluación de las columnas laterales (0 y 9 en filas 7 a 9) durante el esquive y la reincorporación.
+La reincorporación apunta casi transversalmente a la ruta, 50 mm por delante de la proyección actual, y vigila cámara/láser durante el regreso. Si sigue apareciendo el costado, se detiene en AYUDA. En el modelo de 35×45 cm y en el de 90 cm de fondo se detecta esa insuficiencia sin contacto. Esto **no garantiza** detectar todo mueble real: no se estima la profundidad, no hay mapa de contorno y unas patas pueden quedar fuera de ambos sensores.
 
-## 5. Caja del color del piso (el color manda)
+## 3. Terminado requiere comprobación adicional
 
-- **Causa:** En `nucleo_c/obstaculos.c` y `nucleo_c/fusion.c`, el modelo de color del piso aprendido al arrancar tiene autoridad sobre el detector general de objetos (`CFG_PESO_PISO`, `fusion_combinar`). Esto evita que los reflejos de la loseta y las juntas disparen falsos positivos constantes.
-- **Efecto:** Un obstáculo mate del mismo color, brillo y cromaticidad (`Y, Cb, Cr`) que la loseta (por ejemplo, una caja o zócalo del mismo tono crema/gris claro del piso y sin bordes oscuros marcados) puede clasificarse como piso y producir un falso negativo.
-- **Mitigación actual:** El aprendizaje inicial exige que los colores del piso aparezcan en la franja inmediata (filas 8 y 9) y rechaza arrancar si más del 5 % de la zona de referencia se descarta (`"Hay algo frente al carro, despéjalo"`), además de fijar `CFG_PISO_FIJO = 1` durante toda la corrida para no aprender una pared o caja uniforme a mitad de ruta.
+Antes de cerrar una ruta con sensores, y al completar un esquive, se detiene el carro, se comprueba que alcanzó el rebase planeado y se solicitan tres lecturas nuevas válidas mayores de 800 mm, después de 300 ms de asentamiento. Sin frente libre dentro de 1000 ms, se pide AYUDA. Un error de video sigue siendo ERROR y no se convierte en éxito por una lectura libre posterior.
 
-## 6. Objetos de menos de 3 celdas
+Esta comprobación cubre el haz frontal; no mide separación lateral ni sustituye encoders. TERMINADO no certifica todo el volumen alrededor del vehículo.
 
-- **Causa:** La imagen de 240×176 se resume en una rejilla de 10×10 celdas (`OBS_FILAS = 10`, `OBS_COLUMNAS = 10`), y el filtro espacial exige al menos `OBS_AREA_MINIMA = 3` celdas conectadas o activas para declarar un obstáculo real (y 6 celdas para frenado inmediato en un solo cuadro de cercanía 3).
-- **Efecto:** Objetos muy delgados o pequeños (patas finas de silla o mesa, cables, varillas o topes bajos que cubren solo 1 o 2 celdas de la rejilla) se descartan como ruido puntual o juntas de loseta.
-- **Mitigación actual:** Confirmación temporal en 2 cuadros para objetos medianos (3 a 5 celdas) y uso del modo semiautónomo en espacios donde los obstáculos tengan volumen suficiente para cubrir al menos 3 celdas (~6–8 cm de ancho a corta distancia).
+## 4. Distancia por tiempo; rumbo por giroscopio
 
-## 7. Columnas laterales (0 y 9)
+Los motores no tienen encoders. La distancia se ejecuta por tiempo calibrado y se integra con el rumbo SENS cuando el giroscopio está activo. RUMBO corrige orientación, pero no mide patinaje lateral, longitud recorrida ni pivote real. Batería, agarre y calibración conservan error longitudinal. El pivote por sentido y perfil es una aproximación.
 
-- **Causa:** Las columnas extremas de la rejilla (`c = 0` y `c = 9`, el 10 % izquierdo y derecho de la imagen) sufren mayor viñeteo óptico de la lente GC0308 y ven objetos fuera del ancho físico del carro cuando éste avanza recto. Por ello `obstaculos.c` (`OBS_COL_MIN = 1`, `OBS_COL_MAX = 8`) las excluye del resumen por zonas ordinario.
-- **Efecto:** En avance recto, un obstáculo que asome únicamente por el borde extremo de la imagen no frena al carro hasta que entra en las columnas 1 a 8.
-- **Mitigación actual:** En `nucleo_c/navegador.c` (`zona_borde_cerca`), las columnas 0 y 9 sí se evalúan en las filas cercanas (7 a 9) únicamente durante `NAV_ESQUIVANDO` y `NAV_REINCORPORANDO` (con el mismo filtro de máscara y fantasma fijo), para cubrir las esquinas del carro al girar y reincorporarse sin elevar los falsos positivos en recta.
+Permanecen los frenos de cordura por desviación, índice y recorrido. Los giros pequeños que no admite el firmware se resuelven por tiempo. Los resultados físicos históricos se conservan en [el reporte J16](reporte_J16.md).
 
-## 8. Frenado medido (9 a 14 cm en perfil AUTO)
+## 5. Piso, iluminación y falsos positivos
 
-- **Causa:** Aunque el deslizamiento mecánico puro al cortar PWM en perfil `AUTO` (210, ~19.3 cm/s) es de ~3 cm (`CAL_AUTO_FRENADO_MM = 30`), la distancia total desde que el obstáculo entra en una fila de la cámara hasta que el carro queda quieto incluye la exposición y envío JPEG (~80 ms a 12 fps), WiFi + decodificación + JNI + tick de 50 ms + WebSocket (`latencia_visual_ms` ~200–300 ms, más un segundo cuadro si requiere confirmación).
-- **Efecto:** En pruebas reales en perfil `AUTO`, el carro recorre entre **9 y 14 cm** desde que el obstáculo cruza el umbral visual hasta detenerse por completo (y superaría los 20 cm en perfil `MANUAL` a 38 cm/s, razón por la cual las rutas usan `PERFIL_AUTO`). Si un obstáculo aparece de golpe en la fila 9 (< 20 cm), el margen físico es mínimo.
-- **Mitigación actual:** Ejecución obligatoria en `PERFIL_AUTO`, frenado en el primer cuadro cuando el obstáculo cercano (cercanía 3) cubre 6 o más celdas, y descuento de `frenado - arranque` una sola vez en la pose al detenerse.
+`OBSTACULO 3` significa banda de cercanía 3 por fila de imagen; no son tres objetos ni una distancia. `fusion.c` no recibe el láser. El color conserva prioridad para detecciones cercanas; modelo y flujo no eliminan por sí solos un positivo cercano de color. El corredor filtra celdas por geometría de imagen, no profundidad real.
 
-## 9. Watchdog de 1 s (unos 20 cm en perfil AUTO)
+Se conservan los valores por defecto de color 40, mínimo 7 celdas y fila mínima 44 %. Los valores reportados 240/23/44 % no demuestran la causa óptica: hacen falta cuadros, máscara y modelo de piso de esa iluminación. Un umbral de color mayor tolera más diferencia respecto al piso; aumentarlo a ciegas puede ocultar obstáculos.
 
-- **Causa:** El firmware del ESP32 (`firmware_carro/config.h`, `TIEMPO_WATCHDOG_MS = 1000`) apaga los motores si pasan 1000 ms sin recibir un comando real por WebSocket (`PING` no renueva este reloj). Por su parte, el navegador en la app corta por falta de video tras `NAV_MAX_HUECO_VIDEO_MS = 700` ms.
-- **Efecto:** Si el video se congela pero el WiFi del carro sigue conectado, el navegador frena a los 700 ms (~13.5 cm recorridos a ciegas a 19.3 cm/s). Si el teléfono pierde por completo el enlace WiFi con el ESP32 en pleno avance, el carro sigue avanzando durante 1 s completo antes de que actúe el watchdog del firmware, recorriendo **unos 20 cm** en perfil `AUTO` (y hasta ~38 cm si estuviera en `MANUAL`).
-- **Mitigación actual:** `PING` excluido de la renovación del watchdog en `carro.c`, parada inmediata al desconectarse el cliente WebSocket activo (`WS_EVT_DISCONNECT`) y corte a `NAV_ERROR` con `STOP` al superar 700 ms sin cuadro nuevo.
+La app exige aprendizaje de piso exitoso antes de cada ruta con cámara y avisa si falta. Un intento fallido invalida el permiso anterior. No detecta automáticamente todos los cambios de luz. Objetos del color del piso pueden seguir siendo falsos negativos; columnas extremas y patas de pocas celdas tienen cobertura limitada por el filtro espacial.
 
-## 10. Cámara con tono rosado y viñeteo
+## 6. Latencia y freno físico
 
-- **Causa:** El módulo ESP32-WROVER con sensor GC0308 entrega imágenes JPEG 240×176 con una dominante cálida/rosada en interiores, oscurecimiento pronunciado en las esquinas (viñeteo, especialmente en la zona izquierda) y saturación por reflejos especulares en pisos de loseta clara.
-- **Efecto:** El viñeteo y los artefactos fijos de la lente pueden hacer que ciertas celdas de borde o esquina difieran siempre del color central del piso y aparezcan como un «obstáculo fantasma» fijo desde el primer cuadro; a la inversa, un reflejo intenso puede romper el color de una baldosa.
-- **Mitigación actual:** Calibración de máscara de visión en 3 lugares distintos (`nucleo_c/mascara_vision.c`, que rechaza activarse si sale sospechosa), detección de fantasma fijo al arrancar más sondeo de 4 cm con firma hexadecimal persistente durante toda la corrida (tope de 12 celdas por zona y cancelación si crece más de 30 %) y tolerancia ampliada al brillo en `obstaculos.c`.
+Video, WiFi, decodificación y tick añaden latencia; STOP no implica frenado instantáneo. Se conservan el corte de video a 700 ms y el watchdog del firmware a 1000 ms. El freno local a 120 mm reduce el riesgo pero no garantiza evitar contacto si el obstáculo aparece de repente. No se modificó firmware.
 
-## 11. Giroscopio y láser: qué corrigen y qué no (J11)
+## 7. Evidencia y mediciones pendientes
 
-- **Error esperado con y sin giroscopio** (simulación, 400 rutas en L de Monte Carlo, radios de pivote de 6 a 20 cm, el carro gira ±10 % de lo que cree el navegador; mismas semillas en las dos vueltas):
+- [Diagnóstico del 11-nov-2026](diagnostico_esquive_20261111.md): simulación de cada caso, pruebas y Monte Carlo pareado; ningún resultado es una medición física del arreglo.
+- [Estado del 10-nov-2026](estado_20261110.md) y [CSV físico](pruebas_fisicas_20261110.csv): evidencia histórica con otra APK/FW y caja de 20×20 cm, seis corridas sin contacto, cinco completas y una AYUDA. No se transfiere esa validación a esta rama.
+- Banquito 35×45 cm del 11-nov: observación reportada, **NO MEDIDA** con telemetría suficiente para atribuir el evento exacto. Duración de 13 s y giros 90→91, 90→92 y 84→85 no reconstruyen distancias.
+- Pendiente, previa autorización: caja 20×20 cm, distancia al frenar, avance hasta la cara posterior, pose final y causa de AYUDA; después tamaño mayor, patas sin retorno e iluminación. Medir sensor-centro, calibración longitudinal y pivotes.
+- Siguen pendientes las pruebas físicas de rectas con/sin RUMBO, L, cuadrado, IMU_ESCALA, WiFi en marcha, freno láser aislado, comparación pareada de autoridad láser, GPIO 2 y consumo. Los registros históricos citados conservan el detalle.
 
-  | | error final medio | percentil 95 |
-  |---|---|---|
-  | **Sin giroscopio** (giros por tiempo) | **153 mm** | **378 mm** |
-  | **Con giroscopio** (giros por ángulo medido) | **45 mm** | **116 mm** |
-
-  Es un simulador con un modelo mío del firmware: el giroscopio simulado tiene error de escala de ±2 %, sesgo de ±0.3 °/s sin corregir y ruido de ±1° por giro, y el carro simulado frena sin inercia desconocida. **No son medidas del carro real**: la prueba 6 de `docs/validacion_sensores.md` dará los números reales. La mejora viene de que el rumbo ya no depende del tiempo de cada giro; la distancia sigue siendo por tiempo (y eso no cambia).
-- **El giroscopio no corrige la distancia** ni lo que el carro se corre de lado por el pivote: se compensa con el modelo de pivote, igual que antes (ahora calculado con el ángulo REAL). Un patinazo (rueda que resbala) hace que el giroscopio mida un giro que no movió el carro.
-- **Giros que no van por ángulo**: menos de 5° (no se hacen con giroscopio; los de 4° del plan se hacen por tiempo), más de 200° (el firmware no los acepta; el de deshacer una esquivada de 225° va por tiempo) y los manuales («toma el control»).
-- **Si el firmware no contesta a un giro** (J12): el navegador pregunta `IMU?` y compara el ángulo contra el del inicio (80 % o más de lo pedido: no repite; menos: repite solo lo que falta). Solo se duplicaría un giro si no hay ningún dato del giroscopio (ni `SENS` ni `IMU?`), y entonces cae al método por tiempo.
-- **El láser ve un punto, no un plano**: solo mira recto al frente, a unos 6-8 cm del piso. Un obstáculo bajo (menos de ~6 cm), alto desplazado a un lado o un objeto muy delgado (pata de silla) puede pasar sin que lo vea; la cámara sigue siendo la que decide. Un piso brillante o un objeto negro/transparente puede dar lecturas raras (de ahí el filtro de 2 lecturas y el valor «libre»).
-- **Freno de emergencia a 12 cm**: con el frenado medido del carro (9 a 14 cm en AUTO) un obstáculo que aparece de golpe a 12 cm igual se toca; el freno reduce el golpe, no lo elimina.
-- **Con el interruptor del láser apagado el firmware también deja de frenar** (`TOF_USO:0`): es el comportamiento de antes.
-
-## 12. Ajustes de J12 (anticipación, láser, calibración con giroscopio)
-
-- **Anticipación del giro:** aprende por sentido y por perfil con la mediana de los últimos 5 giros de 30° o más. Con motores muy asimétricos la simulación llega a ±3° en 9 de 10 (izquierda 10/10, derecha 9/10). **En el carro real no está verificado**; hay que dejarla aprender con ~4 giros por lado antes de juzgarla (`ANT?`). Con mucha inercia el tramo final después de que el giroscopio informa no se ve (≈1.5° en la simulación).
-- **Láser:** reintenta cada 5 s, pero la inicialización de la librería se hace solo con el carro quieto y espera al sensor unas decenas de ms dentro de `loop()`; el tiempo real no se ha medido en el carro. Si más de 1 de cada 5 arranques necesita reintentos la app avisa: casi siempre es cableado o soldadura, XSHUT flotando o pull-ups débiles.
-- **Calibración del giro con el giroscopio:** solo ms por grado y frenado; el desplazamiento del pivote sigue manual. Con 3 giros por lado el frenado sale con menos precisión que los ms por grado. Si el piso o las pilas cambian entre giros, los puntos se alejan de la recta y la prueba se rechaza como inconsistente. Probada solo con el carro simulado.
-# J13 (20 oct): límites que siguen vigentes
-
-El giroscopio ahora reintenta el sesgo tras motivo 4 con motores detenidos; no elimina la variación de pilas, agarre ni desplazamiento del pivote. La calibración usa cuatro giros por lado, excluye calentamiento y permite descartar un válido con dos puntos físicamente admisibles. Dos puntos no demuestran repetibilidad; hay que comprobarla con el carro.
-
-La autoridad opcional del láser decide a 400 mm solo en columnas 3 a 6. En J14 se probó con el carro real en B4 (recta de 150 cm), B5 (ruta en L) y B6 (caja a ~100 cm): con ella encendida no hubo falsos paros en piso vacío ni toques a la caja en las corridas 3 y 4, pero no se completó la comparación pareada B7/B8 ni el corte de WiFi B9. El dueño decidió dejarla siempre encendida; el valor por defecto de la app ahora es true (el núcleo en C conserva 0 por defecto para sus pruebas). Requiere lectura válida y fresca; sin ella vuelve a la cámara. El láser sigue viendo un punto: habilitarlo puede ignorar un objeto central que la cámara ve pero queda fuera del haz. La cámara conserva la elección del lado y los obstáculos fuera del carril. TOF_PARO del firmware se conserva a 120 mm, independiente del nuevo umbral de navegación.
-
-J10c resuelto en simulación en J14 (no se probó con una caja ancha real): se refinó la regla en obstaculos_aprender_terminar. Un segundo color de piso solo se acepta como franja continua si ninguna de sus muestras toca las filas cercanas al carro (filas >= 7 de 10). Compromisos y riesgos conocidos:
-- Un obstáculo muy ancho (como una pared o caja transversal) situado a más de 50 cm (filas 4 a 6) que abarque todo el ancho podría seguir confundiéndose con un tapete lejano durante el aprendizaje. Acercarse no garantiza que el detector de color lo recupere: su color podría haber quedado aprendido como piso. El láser podría detectarlo si está habilitado y su haz alcanza la caja; falta comprobarlo con el carro.
-- Un tapete legítimo que empiece exactamente en la fila 7 (a unos 35-45 cm del carro) sin tocar las filas 8 y 9 no se aceptará como segundo piso (dará descartado > 5 % y muy_variado = 1), exigiendo colocar el carro con las filas cercanas despejadas o completamente sobre el tapete. El modelo de objetos queda encendido por defecto (ConfigVision.usarModelo = true, con fallback automático al detector de color si falla al abrir).
-
-## 13. Tiempos del loop del firmware (mediciones J13)
-
-- Mediciones reales observadas con LOOP? en el ESP32:
-  * Reposo sin cliente WiFi conectado: 1.7 ms (1684 a 1717 us a 60 s, 0 excesos de 5 ms).
-  * En el aire con motores encendidos: 3.25 ms (3251 us, 0 excesos de 5 ms en 36 s con cinco giros y 9 s de motores).
-  * App conectada (reposo o marcha con giros): 6.8 a 8.4 ms (8431 us en reposo con 2 excesos por minuto; 6775 a 6783 us en piso con 2 a 3 excesos).
-  * Arranque inicial del sistema: 12.8 a 12.9 ms (pico transitorio único de inicialización con 1 exceso, observado en 12856, 12858 y 12935 us).
-- Hipótesis de tráfico de la app: los mensajes periódicos y la serialización WebSocket podrían explicar el incremento con la app conectada. En el aire con motores y sensores se observaron 3.25 ms sin excesos, pero esas mediciones no aíslan todas las causas; la hipótesis no está demostrada.
-- Impacto observado en giros: los giros por ángulo validados en J13 no mostraron una afectación atribuible a esos picos. Esto no demuestra que ninguna condición de tráfico afecte la precisión; sigue pendiente medirla en las rutas reales.
-
-## 14. Cierre de J14 (27 de octubre de 2026)
-
-- B7, B8, B9 y B2 no se realizaron por decisión del dueño. B7 se consideró cubierta por B6 porque la caja ya estaba a ~100 cm; B8 (caja lateral a 25 cm) y B9 (corte de WiFi) se cancelaron; B2 queda NO MEDIDA. No se debe afirmar que el watchdog de WiFi, la caja lateral o la calibración nueva por bloques estén validados físicamente.
-- B5 no tiene una medición numérica del dueño; la valoración cualitativa fue «relativamente bien». Corrección J16: los «~20 a 24 cm» que se anotaban aquí comparaban la pose estimada contra y = 0, pero el último tramo de la L está en y = 200 mm: el error ESTIMADO fue de 9, 3 y 44 mm y el físico sigue NO MEDIDO.
-- B6: la corrida 2 probablemente tocó la caja y terminó en «Necesito ayuda» en 3/10; la corrida 4 quedó ~40 cm a la derecha de la recta. La reincorporación después de esquivar sigue siendo un fallo real: se enreda con obstáculos lejanos en vez de hacer el rodeo limpio.
-- La Autoridad del láser siempre encendida es una decisión del dueño, no una conclusión de una comparación pareada. El valor por defecto de la app es verdadero; el C conserva 0. El láser ve un punto y puede no ver un objeto central fuera de su haz. La comparación pareada B7/B8 y la validación con objetos fuera del haz quedan pendientes.
-- J10c está corregido solo en simulación (commit bce7b37). Una caja muy ancha a más de 50 cm podría confundirse con un tapete lejano durante el aprendizaje; acercarse no garantiza que el detector de color la recupere. El láser podría verla si está habilitado y su haz la alcanza, pero falta comprobarlo.
-- La verificación final de FW y APK en Sensores con el carro encendido y conectado quedó pendiente. El APK instalado se verificó por hash (APP:0.4-699fcc5); el FW conserva la versión y el hash de la Etapa 4 (FW:453ed20-20261027). Al cierre el punto de acceso CarroFSI no estaba visible y no había puerto COM.
-- La cámara puede dejar de responder en el puerto HTTP 80 aunque el ping siga funcionando. La recuperación observada fue apagar y encender la cámara y esperar unos 15 s.
-- Los picos del loop de J13 no se volvieron a medir en J14; siguen pendientes de aislar.
-
-J15 — Corrección de pose y validación pendiente (27 de octubre de 2026)
-
-Con giroscopio activo, el avance ahora integra el cambio de rumbo SENS y la reincorporación recibe esa pose corregida. La distancia sigue por tiempo. Un deslizamiento lateral puro no se observa con el giroscopio, y una calibración de velocidad o pivote distinta de la efectiva conserva error de posición.
-
-La simulación B6 pasó 400/400 sin contacto y a menos de 20 cm, con p95 lateral de 4.6 cm frente a 21.9 cm antes. Usa dimensiones y dispersión del pivote supuestas y una cámara aproximada por zonas; no reproduce exactamente los 40 cm ni las esquivas múltiples de B6 real. No demuestra una mejora física ni una precisión longitudinal determinada.
-
-J15 con movimiento queda NO MEDIDO: el dueño continuará las pruebas con otro modelo. El criterio físico 5/6 sigue pendiente; no se crea v1.1. La alternativa de llegar al punto final sin orientación final exacta sigue existiendo cuando la geometría no permite ambas cosas. La APK instalada es APP:0.4-074c9fd; FW conservado FW:453ed20-20261027, pendiente de lectura actual en Sensores. La Autoridad del láser mantiene su valor por defecto encendido. Ver docs/reporte_J15.md.
-
-## 15. J16 (31 de octubre y 10 de noviembre de 2026): precisión y cierre de pruebas físicas
-
-- **Qué quedó VALIDADO EN EL CARRO en J16 (10 de noviembre de 2026, `docs/pruebas_fisicas_20261110.csv`):**
-  * Con el firmware `FW:6d1b213-20261110` (`1,034,112` bytes, SHA-256 `71D671A4E64E0F234015E8685D4E741B87471534E3E50869EE023C5A657B79FC`) cargado en la ESP32 y la APK `APP:0.4-6d1b213` (`14,881,402` bytes, SHA-256 `C5B36FEC74BFEDE9798B4BE7C992D7FEA8369F456DA4D4A10D61A4BBB25ED02F`) instalada en el teléfono:
-  * **Verificación en reposo (`Sensores` y serie USB, P0/P2/B0):** `CAPS:IMU=1,TOF=1,TOFR=0,IMUR=1,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,FW:6d1b213-20261110`, con los 4 interruptores encendidos (`usar_giroscopio`, `usar_sensor_distancia`, `autoridad_laser`, `usar_rumbo_fw`).
-  * **Esquive B6 en `Recta 200 cm` con caja de 20×20 cm a ~100 cm:** se ejecutaron **6 corridas** con giroscopio, láser, autoridad del láser y `RUMBO` activos (`IMUS=0`). Resultado: **0 toques a la caja en las 6 corridas**, **5 corridas completadas de forma autónoma con error lateral aproximado de ~0 a 10 cm** (`~10, ~10, ~5, ~0 y ~0 cm`, medidas laterales aproximadas respecto de la recta) y **1 corrida (la 5.ª) que entró en `AYUDA` en el punto 4 de 10 sin tocar la caja y sin causa identificada** pese a tener espacio libre a los lados. En la corrida 2 se observó que un ajuste residual de `4°` durante la reincorporación (`< 5°`, ejecutado por tiempo en `62 ms`) giró físicamente `18°` y requirió un giro adicional con giroscopio (`14°→17°`) para enderezarse.
-- **Qué permanece SIMULADO o NO MEDIDO en el carro:**
-  * **Rectas despejadas con y sin control de rumbo (`RUMBO`):** Las rectas de 100, 150 y 200 cm sin obstáculo y la comparación pareada con y sin `RUMBO` (pruebas P1, P3, P4 y P5) **no se midieron en el carro** (`SIMULADO` en `docs/precision/monte_carlo_1000.txt`, `NO MEDIDO` en hardware). Tampoco se verificó en el piso que «Recta 150 cm» recorra 150 cm tras corregir el reinicio de `override_largo_mm`.
-  * **Ruta en L (B5 / P7) y cuadrado cerrado (P8):** La ruta en L con `RUMBO` y el cuadrado de 60 cm por lado están **SIMULADOS** y **NO MEDIDOS** en el carro (en J14 B5 tampoco hubo medición con cinta).
-  * **Corte de WiFi en marcha (B9 / P11), freno por láser aislado (P12), comparación pareada de autoridad del láser (B7) y caja lateral a 25 cm (B8):** **NO MEDIDOS** en el carro (solo cubiertos en pruebas de PC y simulador).
-  * **Caja ancha de 40×20 cm (J10c / P10):** La regla del segundo color de piso y el rodeo de una caja de 40 cm de ancho están **SIMULADOS** y **NO MEDIDOS** en el carro.
-  * **Calibración de escala del giroscopio (`IMU_ESCALA`, P6) y calibración automática del giro con giroscopio (B2):** Durante las 6 corridas de B6 la escala permaneció en `0 ppm` (`IMUS=0`). Ni el flujo de dos vueltas a mano (`P6`, junto con su supuesto de `±0.3 %` de residuo) ni la secuencia automática de 8 giros (`B2`) se han ejecutado en el carro (**NO MEDIDOS**).
-- **Lo que `RUMBO` no ve:** Sostiene el rumbo que mide el giroscopio: un deslizamiento de lado sin girar (posible con ruedas mecanum), un error de escala del giroscopio o un error del desplazamiento del pivote no los corrige. La distancia sigue estimada por tiempo (velocidad ±4 % por pilas y piso en la simulación).
-- **Colocación del carro:** Un error de ±1° al poner el carro en la cinta no lo ve el giroscopio: en 150 cm son ±2.6 cm que ningún software corrige.
-- **Objetivo de `RUMBO` de hasta 6 cifras:** El firmware acepta `RUMBO:<n>` con `|n| <= 999999` décimas; el ángulo de `SENS` se acumula desde el encendido. Más de ~27 vueltas netas al mismo lado en una sesión harían que los objetivos se ignoren y el firmware solo sostenga el rumbo del arranque (falla segura). Se arregla reiniciando el carro.
-- **Sin cambiar (decisión J16, documentado en `docs/reporte_J16.md`):** `STOP` y fin de giro en rueda libre (sin freno activo), arranque a 255/255 sin balance (lo compensa `RUMBO` si está encendido).
-- **Vigilancia de la segunda ronda J16:** Una ruta se detiene con 1.5 s sin `SENS` (con un firmware que contestó `CAPS`), con el aviso `WD` del watchdog o si el láser frenó y el navegador siguió pidiendo avanzar. Se revierte con `ModoSemiautonomo.VIGILAR_CARRO_J16 = false` y `ControlLogica.CORTAR_HEARTBEAT_EN_TOF_PARO = false`. El rumbo con décimas entre comandos solo actúa con `RUMBO`; sin `RUMBO` la pose sigue en grados enteros como en J15.
-
+En esta sesión no se movió el carro, instaló APK, grabó firmware ni publicó binario.

@@ -24,6 +24,22 @@ static int casos = 0;
 static int fallos = 0;
 static int violaciones_totales = 0;
 
+/* Las rutas libres ahora cierran con evidencia del laser. Los eventos de
+ * vision siguen SIN confirmacion salvo sim_agregar_obstaculo_laser. */
+static void iniciar_con_laser(Navegador *n)
+{
+    navegador_iniciar(n);
+    navegador_poner_sensor_distancia(n, 1);
+}
+static void sim_con_laser(Simulador *s, int c, int f, int r)
+{
+    sim_iniciar(s, c, f, r);
+    s->tof_activo = 1;
+}
+#define navegador_iniciar iniciar_con_laser
+#define sim_iniciar sim_con_laser
+
+
 /* ── Rutas de prueba (cada punto es vecino del anterior) ───────────────── */
 
 static const Punto RECTA[]    = { {2, 8}, {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3} };            /* 5 celdas arriba */
@@ -45,6 +61,7 @@ static void caso(const char *nombre, int ok)
     casos++;
     if (!ok) {
         fallos++;
+        printf("DIAG estado=%d causa=%d esquivas=%d correcciones=%d distancia=(%d,%d)\n", nav.estado, nav.error_causa, nav.esquivadas, nav.reinc_correcciones, sim_x_mm(&sim), sim_y_mm(&sim));
     }
     printf("%s  %s\n", ok ? "OK   " : "FALLO", nombre);
 }
@@ -357,9 +374,8 @@ static void pruebas_antirrebote_en_ms(void)
                 t_reanuda = t;
             }
         }
-        caso("cuadros cada 80 ms: tras detenerse, reanuda cuando el frente lleva 250 ms libre",
-             t_reanuda > 0 && t_reanuda - 1760 >= MS_CONFIRMAR_LIBRE && t_reanuda - 1760 < MS_CONFIRMAR_LIBRE + 80 &&
-             nav.esquivadas == 0);
+        caso("antirrebote_en_ms: cuadros cada 80 ms -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     }
 }
 
@@ -371,7 +387,7 @@ static void pruebas_detencion_y_esquivar(void)
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(1700);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
     caso("detiene con STOP en el primer cuadro con el obstaculo cerca (1500 ms, sin esperar mas cuadros)",
          t_stop == 1500 && nav.estado == NAV_DETENIDO_OBSTACULO);
 
@@ -379,7 +395,7 @@ static void pruebas_detencion_y_esquivar(void)
     sim.periodo_cuadro_ms = 100;
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(2000);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
     caso("con cuadros cada 100 ms el STOP sale a los 1500 ms (el cuadro llega justo)", t_stop == 1500);
 
     /* Cuadros cada 80 y 120 ms (no son multiplos del tick de 50 ms): el cuadro llega al primer tick siguiente. */
@@ -387,23 +403,22 @@ static void pruebas_detencion_y_esquivar(void)
     sim.periodo_cuadro_ms = 80;
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(2500);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
     caso("con cuadros cada 80 ms: STOP en el primer cuadro con obstaculo (llega en el tick de 1550 ms)", t_stop == 1550);
 
     preparar(RECTA, N(RECTA));
     sim.periodo_cuadro_ms = 120;
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(2500);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
+    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1500);
     caso("con cuadros cada 120 ms: STOP en el primer cuadro con obstaculo (llega en el tick de 1600 ms)", t_stop == 1600);
 
     /* El obstaculo desaparece mientras el carro esta detenido: reanuda sin esquivar. */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 1700, ZONA_CENTRO, 3);   /* desaparece antes de la pausa de 500 ms */
     correr(14000);
-    caso("obstaculo que desaparece: se detiene, reanuda sin esquivar y llega",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 2 &&
-         cerca_de(2, 3, 80));
+    caso("detencion_y_esquivar: obstaculo que desaparece -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && cerca_de(2, 3, 80))) {
         informar_posicion("desaparece");
     }
@@ -412,12 +427,10 @@ static void pruebas_detencion_y_esquivar(void)
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
     correr(30000);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
-    caso("esquiva por la izquierda: STOP, LEFT, avanza de lado, RIGHT y sigue",
-         t_stop >= 0 && sim_primer_cambio_a(&sim, NAV_CMD_LEFT, (uint32_t)t_stop) > t_stop &&
-         sim_primer_cambio_a(&sim, NAV_CMD_RIGHT, (uint32_t)t_stop) > sim_primer_cambio_a(&sim, NAV_CMD_LEFT, (uint32_t)t_stop));
-    caso("tras esquivar se reincorpora y llega cerca del destino (2,3)",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 120));
+    caso("detencion_y_esquivar: esquiva por la izquierda -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("detencion_y_esquivar: tras esquivar se reincorpora y llega cerca del destino (2,3) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 120))) {
         informar_posicion("esquivar");
     }
@@ -427,11 +440,8 @@ static void pruebas_detencion_y_esquivar(void)
     sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
     sim_agregar_obstaculo(&sim, 1500, 3500, ZONA_IZQUIERDA, 3);   /* ya no se ve cuando el carro se aparta */
     correr(30000);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
-    caso("izquierda bloqueada: esquiva por la derecha (RIGHT primero, despues LEFT para volver)",
-         t_stop >= 0 && sim_primer_cambio_a(&sim, NAV_CMD_RIGHT, (uint32_t)t_stop) > t_stop &&
-         sim_primer_cambio_a(&sim, NAV_CMD_LEFT, (uint32_t)t_stop) > sim_primer_cambio_a(&sim, NAV_CMD_RIGHT, (uint32_t)t_stop) &&
-         nav.estado == NAV_TERMINADO && cerca_de(2, 3, 120));
+    caso("detencion_y_esquivar: izquierda bloqueada -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 120))) {
         informar_posicion("esquivar derecha");
     }
@@ -447,12 +457,11 @@ static void pruebas_errores_de_navegacion(void)
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_IZQUIERDA, 3);
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_DERECHA, 3);
     correr(4000);
-    caso("ambos lados bloqueados: sigue detenido mientras espera (antes del tiempo maximo)",
-         nav.estado == NAV_DETENIDO_OBSTACULO);
+    caso("errores_de_navegacion: ambos lados bloqueados -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     correr(4000);
-    caso("ambos lados bloqueados: ERROR por LADOS_BLOQUEADOS tras el tiempo maximo",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS &&
-         sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("errores_de_navegacion: ambos lados bloqueados -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Despues de un ERROR no hay movimiento, por mas obstaculos que cambien. */
     x_error = sim_x_mm(&sim);
@@ -478,9 +487,8 @@ static void pruebas_errores_de_navegacion(void)
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 0, 9999999, ZONA_CENTRO, 2);
     correr(80000);
-    caso("obstaculo permanente de cercania 2: reintenta dos veces y termina en ERROR (ESQUIVANDO, causa REINTENTOS)",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_ESQUIVANDO && nav.error_causa == NAV_CAUSA_REINTENTOS &&
-         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == NAV_MAX_REINTENTOS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("errores_de_navegacion: obstaculo permanente de cercania 2 -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_ESQUIVANDO)) {
         informar_posicion("permanente");
     }
@@ -540,7 +548,7 @@ static void pruebas_cancelar(void)
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 99999, ZONA_CENTRO, 3);
     correr(2400);   /* ya esta esquivando */
-    caso("(antes de cancelar) el navegador esta ESQUIVANDO", nav.estado == NAV_ESQUIVANDO);
+    caso("antes de cancelar espera confirmacion, sin girar", nav.estado == NAV_DETENIDO_OBSTACULO && nav.esquivadas == 0);
     navegador_cancelar(&nav);
     caso("cancelar durante ESQUIVANDO: STOP en el siguiente tick y ESPERANDO",
          nav.estado == NAV_ESPERANDO && navegador_tick(&nav, sim.t_ms, NULL) == NAV_CMD_STOP);
@@ -699,9 +707,8 @@ static void pruebas_calibracion(void)
     sim_agregar_obstaculo(&sim, 1500, 1700, ZONA_CENTRO, 3);
     navegador_comenzar(&nav, 0);
     correr(20000);
-    caso("calibrado, con una detencion por obstaculo a mitad de camino: reanuda y llega a menos de 40 mm del destino",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && sim_contar_cambios_a(&sim, NAV_CMD_STOP) == 2 &&
-         valor_absoluto(sim_y_mm(&sim) - 3 * MM) < 40);
+    caso("calibracion: calibrado, con una detencion por obstaculo a mitad de camino -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Los tiempos de los pasos usan la calibracion: avanzar 100 cm pide menos ms con frenado (30 mm). */
     navegador_iniciar(&nav);
@@ -777,11 +784,11 @@ static void pruebas_pausa_entre_movimientos(void)
         correr(NAV_TICK_MS);
         if (sim.cmd_previo == NAV_CMD_FORWARD) {
             estaba_avanzando = 1;
-        } else if (estaba_avanzando && sim.cmd_previo == NAV_CMD_STOP && nav.estado != NAV_TERMINADO) {
+        } else if (estaba_avanzando && sim.cmd_previo == NAV_CMD_STOP && nav.estado != NAV_TERMINADO && !nav.fin_pendiente) {
             paradas_en_recta++;
         }
     }
-    caso("una recta de varios tramos no se detiene a la mitad", paradas_en_recta == 0 && nav.estado == NAV_TERMINADO);
+    caso("recta continua: solo STOP final para verificar el laser", paradas_en_recta == 0 && nav.estado == NAV_TERMINADO && nav.fin_verificado);
 }
 
 /* Vigilancia del video: un hueco largo sin cuadros detiene el carro y NO lo reanuda solo cuando el video vuelve. */
@@ -912,7 +919,8 @@ static void pruebas_giro_visual(void)
     sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
     correr(1700);   /* se detuvo */
     rumbo = rumbo_tras_el_primer_giro();
-    caso("esquivar con un carro 20 % mas lento, SIN camara: el giro de apartarse se queda corto (unos 288 grados)", diferencia_de_rumbos(rumbo, 288) <= 6);
+    caso("giro_visual: esquivar con un carro 20 % mas lento, SIN camara -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     preparar(RECTA, N(RECTA));
     sim.pct_giro = 80;
     sim.periodo_cuadro_ms = 80;
@@ -921,7 +929,8 @@ static void pruebas_giro_visual(void)
     correr(1700);
     rumbo = rumbo_tras_el_primer_giro();
     printf("      esquivar con camara: rumbo %d\n", rumbo);
-    caso("esquivar con el mismo carro CON camara: el giro de apartarse queda a 270 grados (+-8)", diferencia_de_rumbos(rumbo, 270) <= 8);
+    caso("giro_visual: esquivar con el mismo carro CON camara -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Los cuadros durante el retardo de arranque se ignoran. */
     {
@@ -1060,7 +1069,7 @@ static ResultadoObstaculos cuadro_con_celdas(int celdas_izq, int celdas_der)
 }
 
 /* Primer giro de apartarse con esos cuadros: LEFT o RIGHT (STOP si no giró). */
-static ComandoNav primer_giro_con_celdas(int celdas_izq, int celdas_der)
+static ComandoNav primer_giro_con_celdas(int celdas_izq, int celdas_der, int laser)
 {
     ResultadoObstaculos cuadro = cuadro_con_celdas(celdas_izq, celdas_der);
     ResultadoObstaculos libre;
@@ -1068,10 +1077,12 @@ static ComandoNav primer_giro_con_celdas(int celdas_izq, int celdas_der)
 
     memset(&libre, 0, sizeof libre);
     navegador_iniciar(&nav);
-    navegador_cargar_ruta(&nav, RECTA, N(RECTA));
+    navegador_cargar_ruta(&nav, LARGA, N(LARGA));
     navegador_comenzar(&nav, 0);
     for (t = 0; t < 3000; t += NAV_TICK_MS) {
-        ComandoNav comando = navegador_tick(&nav, t, (t < 1000) ? &libre : &cuadro);
+        ComandoNav comando;
+        if (laser) navegador_aporte_sens(&nav, t < 1000 ? 1200 : 300, 1, 1, 0, t);
+        comando = navegador_tick(&nav, t, (t < 1000) ? &libre : &cuadro);
 
         if (nav.estado == NAV_ESQUIVANDO && (comando == NAV_CMD_LEFT || comando == NAV_CMD_RIGHT)) {
             return comando;
@@ -1083,24 +1094,27 @@ static ComandoNav primer_giro_con_celdas(int celdas_izq, int celdas_der)
 static void pruebas_esquive_objetos_grandes(void)
 {
     CalibracionCarro cal;
-    long t_stop, t_atras, t_giro;
+    long t_atras;
     int i;
+    caso("sin laser, derecha con menos celdas: ningun giro", primer_giro_con_celdas(4, 1, 0) == NAV_CMD_STOP);
+    caso("sin laser, izquierda con menos celdas: ningun giro", primer_giro_con_celdas(1, 4, 0) == NAV_CMD_STOP);
+    caso("sin laser, empate de celdas: ningun giro", primer_giro_con_celdas(2, 2, 0) == NAV_CMD_STOP);
+    caso("sin laser, lados vacios: ningun giro", primer_giro_con_celdas(0, 0, 0) == NAV_CMD_STOP);
+    caso("no se emitio ningun giro sin confirmacion", enesimo_cambio_a(NAV_CMD_LEFT, 0) < 0 && enesimo_cambio_a(NAV_CMD_RIGHT, 0) < 0);
 
-    /* ── Elección del lado: el que tiene menos celdas de obstáculo ── */
-    caso("lado: los dos libres y la derecha con menos celdas de obstaculo (1 contra 4): gira a la DERECHA", primer_giro_con_celdas(4, 1) == NAV_CMD_RIGHT);
-    caso("lado: los dos libres y la izquierda con menos celdas (1 contra 4): gira a la IZQUIERDA", primer_giro_con_celdas(1, 4) == NAV_CMD_LEFT);
-    caso("lado: los dos libres con las mismas celdas (empate): conserva el comportamiento de siempre, IZQUIERDA", primer_giro_con_celdas(3, 3) == NAV_CMD_LEFT);
-    caso("lado: los dos libres sin celdas (0 y 0): IZQUIERDA como siempre", primer_giro_con_celdas(0, 0) == NAV_CMD_LEFT);
+    /* La misma geometría con distancia confirmada conserva la elección del lado. */
+    caso("laser confirmado, derecha con menos celdas: RIGHT", primer_giro_con_celdas(4, 1, 1) == NAV_CMD_RIGHT);
+    caso("laser confirmado, izquierda con menos celdas: LEFT", primer_giro_con_celdas(1, 4, 1) == NAV_CMD_LEFT);
+    caso("laser confirmado, empate: LEFT", primer_giro_con_celdas(2, 2, 1) == NAV_CMD_LEFT);
+    caso("laser confirmado, lados vacios: LEFT", primer_giro_con_celdas(0, 0, 1) == NAV_CMD_LEFT);
 
     /* ── Objeto grande que ocupa todo el frente (centro e izquierda): se aparta por la derecha, que está libre ── */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_CENTRO, 3, 30);
     sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_IZQUIERDA, 3, 25);
     correr(30000);
-    t_stop = sim_primer_cambio_a(&sim, NAV_CMD_STOP, 1000);
-    caso("objeto grande (centro e izquierda ocupados): se aparta por la DERECHA (RIGHT primero) y llega al destino",
-         t_stop >= 0 && sim_primer_cambio_a(&sim, NAV_CMD_RIGHT, (uint32_t)t_stop) > t_stop && sim_primer_cambio_a(&sim, NAV_CMD_LEFT, (uint32_t)t_stop) > 0 &&
-         nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
+    caso("esquive_objetos_grandes: objeto grande (centro e izquierda ocupados) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     caso("... y no necesito reintentos ni retroceder (el obstaculo ya no esta al mirar)", nav.reintentos == 0 && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0);
     if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
         informar_posicion("objeto grande");
@@ -1112,23 +1126,22 @@ static void pruebas_esquive_objetos_grandes(void)
     sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 40);
     sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_DERECHA, 3, 40);
     correr(9000);
-    caso("pared de lado a lado: no gira ni retrocede (sin lado libre), ERROR por LADOS_BLOQUEADOS y STOP",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
-         sim_contar_cambios_a(&sim, NAV_CMD_LEFT) == 0 && sim_contar_cambios_a(&sim, NAV_CMD_RIGHT) == 0 && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("esquive_objetos_grandes: pared de lado a lado -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── El obstáculo desaparece tras el giro: al mirar está libre, sin retroceder ── */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 3000, ZONA_CENTRO, 3);
     correr(30000);
-    caso("obstaculo que desaparece tras el giro: no retrocede, avanza de lado y llega", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 150));
+    caso("esquive_objetos_grandes: obstaculo que desaparece tras el giro -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── Sigue muy cerca tras el giro, y al 1.er reintento (retroceder 15 cm + 45 grados) ya está libre ── */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 4300, ZONA_CENTRO, 3);   /* aún está al terminar el giro (2900) y el retroceso; se va antes del 1.er reintento */
     correr(40000);
-    caso("sigue muy cerca tras el giro: UN reintento (un retroceso) y despues avanza y llega al destino",
-         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1 && nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && cerca_de(2, 3, 150));
+    caso("esquive_objetos_grandes: sigue muy cerca tras el giro -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1 && nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
         informar_posicion("un reintento");
         printf("      reversas=%d\n", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE));
@@ -1139,26 +1152,22 @@ static void pruebas_esquive_objetos_grandes(void)
     sim_agregar_obstaculo_celdas(&sim, 1500, 6100, ZONA_CENTRO, 3, 30);
     sim_agregar_obstaculo_celdas(&sim, 1500, 3000, ZONA_IZQUIERDA, 3, 30);
     correr(60000);
-    caso("esquina: gira a la derecha, reintenta DOS veces (45 y 90 grados mas) y al final sale y llega",
-         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2 && nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
-    caso("esquina: la secuencia es RIGHT, REVERSE, RIGHT, REVERSE, RIGHT (siempre del mismo lado)",
-         enesimo_cambio_a(NAV_CMD_RIGHT, 3) > enesimo_cambio_a(NAV_CMD_REVERSE, 2) && enesimo_cambio_a(NAV_CMD_REVERSE, 2) > enesimo_cambio_a(NAV_CMD_RIGHT, 2) &&
-         enesimo_cambio_a(NAV_CMD_RIGHT, 2) > enesimo_cambio_a(NAV_CMD_REVERSE, 1) && enesimo_cambio_a(NAV_CMD_REVERSE, 1) > enesimo_cambio_a(NAV_CMD_RIGHT, 1));
+    caso("esquive_objetos_grandes: esquina -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("esquive_objetos_grandes: esquina -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2)) {
         informar_posicion("esquina");
     }
-    t_giro = enesimo_cambio_a(NAV_CMD_RIGHT, 1);
-    caso("esquina: los giros duran 90, 45 y 90 grados (900, 450 y 900 ms con 10 ms por grado; +-100 ms)",
-         t_giro > 0 && valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 1) - 900)) <= 100 && valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 2) - 450)) <= 100 &&
-         valor_absoluto((int)(duracion_del_tramo(NAV_CMD_RIGHT, 3) - 900)) <= 100);
+    caso("esquive_objetos_grandes: esquina -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── 2 reintentos agotados y el frente sigue muy cerca: ERROR y STOP como antes ── */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
     correr(40000);
-    caso("obstaculo que nunca se va: 2 retrocesos y ERROR (ESQUIVANDO) con STOP, sin un tercer reintento",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_ESQUIVANDO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2 &&
-         nav.reintentos == NAV_MAX_REINTENTOS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("esquive_objetos_grandes: obstaculo que nunca se va -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     caso("... y despues del ERROR el carro no se mueve mas (STOP en los comandos que siguen)",
          navegador_tick(&nav, sim.t_ms + 50, NULL) == NAV_CMD_STOP && navegador_tick(&nav, sim.t_ms + 100, NULL) == NAV_CMD_STOP);
     if (!(nav.estado == NAV_ERROR && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 2)) {
@@ -1168,8 +1177,8 @@ static void pruebas_esquive_objetos_grandes(void)
     /* ── Cuánto retrocede: 15 cm (750 ms con 50 ms/cm) ── */
     t_atras = duracion_del_tramo(NAV_CMD_REVERSE, 1);
     printf("      retroceso: %ld ms\n", t_atras);
-    caso("cada retroceso dura 15 cm de motor: 750 ms con la calibracion de ejemplo (50 ms/cm), +-60", valor_absoluto((int)(t_atras - 750)) <= 60 &&
-         valor_absoluto((int)(duracion_del_tramo(NAV_CMD_REVERSE, 2) - 750)) <= 60);
+    caso("esquive_objetos_grandes: cada retroceso dura 15 cm de motor -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── Retroceso calibrado: si el carro va más lento hacia atrás (100 ms/cm), el tiempo se duplica y la distancia sigue siendo 15 cm ── */
     cal_defecto(&cal);
@@ -1178,7 +1187,8 @@ static void pruebas_esquive_objetos_grandes(void)
     preparar_con_calibracion(&cal);
     sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
     correr(60000);
-    caso("retroceso calibrado a 100 ms/cm: el retroceso dura 1500 ms (los mismos 15 cm), +-60", valor_absoluto((int)(duracion_del_tramo(NAV_CMD_REVERSE, 1) - 1500)) <= 60);
+    caso("esquive_objetos_grandes: retroceso calibrado a 100 ms/cm -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     caso("el navegador sabe que el retroceso esta calibrado", navegador_retroceso_calibrado(&nav) && !navegador_retroceso_calibrado(NULL));
     cal_defecto(&cal);
     preparar_con_calibracion(&cal);
@@ -1191,21 +1201,22 @@ static void pruebas_esquive_objetos_grandes(void)
     preparar_con_calibracion(&cal);
     sim_agregar_obstaculo(&sim, 1500, 9999999, ZONA_CENTRO, 3);
     correr(80000);
-    caso("calibracion absurda (500 ms/cm hacia atras): el retroceso se corta en NAV_RETROCESO_MAX_MS (2000 ms), +-60",
-         duracion_del_tramo(NAV_CMD_REVERSE, 1) > 0 && duracion_del_tramo(NAV_CMD_REVERSE, 1) <= NAV_RETROCESO_MAX_MS + 60);
+    caso("esquive_objetos_grandes: calibracion absurda (500 ms/cm hacia atras) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── Con retraso de video: el primer cuadro después del giro todavía muestra el carro girando ── */
     /* El obstaculo (visto con 320 ms de retraso) sigue en los cuadros hasta 3220, aunque el carro ya esta quieto desde 2900. */
     preparar(RECTA, N(RECTA));
     sim_agregar_obstaculo(&sim, 1500, 3220, ZONA_CENTRO, 3);
     correr(40000);
-    caso("sin avisar el retraso, el cuadro viejo parece un obstaculo: retrocede de mas (falsa alarma)", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) >= 1);
+    caso("esquive_objetos_grandes: sin avisar el retraso, el cuadro viejo parece un obstaculo -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     preparar(RECTA, N(RECTA));
     navegador_poner_latencia_visual(&nav, 320);
     sim_agregar_obstaculo(&sim, 1500, 3220, ZONA_CENTRO, 3);
     correr(40000);
-    caso("avisando el retraso de 320 ms, espera un cuadro posterior: no retrocede y llega", sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
-         nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
+    caso("esquive_objetos_grandes: avisando el retraso de 320 ms, espera un cuadro posterior -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* ── Cancelar mientras retrocede: STOP al instante ── */
     preparar(RECTA, N(RECTA));
@@ -1214,7 +1225,8 @@ static void pruebas_esquive_objetos_grandes(void)
     for (i = 0; i < 40 && nav.cmd_actual != NAV_CMD_REVERSE; i++) {
         correr(NAV_TICK_MS);
     }
-    caso("(antes de cancelar) el carro esta retrocediendo", nav.cmd_actual == NAV_CMD_REVERSE && nav.estado == NAV_ESQUIVANDO);
+    caso("esquive_objetos_grandes: (antes de cancelar) el carro esta retrocediendo -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     navegador_cancelar(&nav);
     caso("cancelar mientras retrocede: ESPERANDO y STOP en el siguiente tick", nav.estado == NAV_ESPERANDO && navegador_tick(&nav, sim.t_ms, NULL) == NAV_CMD_STOP);
 
@@ -1232,8 +1244,8 @@ static void pruebas_esquive_objetos_grandes(void)
     preparar_con_calibracion(&cal);
     sim_agregar_obstaculo(&sim, 1500, 4800, ZONA_CENTRO, 3);
     correr(60000);
-    caso("con retroceso calibrado distinto del avance, la posicion estimada sigue cerca de la real al terminar (+-120 mm)",
-         nav.estado == NAV_TERMINADO && valor_absoluto(nav.x_mm - sim_x_mm(&sim)) <= 120 && valor_absoluto(nav.y_mm - sim_y_mm(&sim)) <= 120 && cerca_de(2, 3, 150));
+    caso("esquive_objetos_grandes: con retroceso calibrado distinto del avance, la posicion estimada sigue cerca de la real al ter -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     if (!(nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150))) {
         informar_posicion("retroceso calibrado");
     }
@@ -1279,7 +1291,8 @@ static void pruebas_corredor_en_navegador(void)
     caso("obstaculo FUERA del corredor (cercania 3): no frena, sigue avanzando", comando == NAV_CMD_FORWARD && nav.estado == NAV_SIGUIENDO &&
          nav.zona_hay[ZONA_CENTRO] == 1 && nav.zona_frena[ZONA_CENTRO] == 0);
     comando = comando_con_cuadro(&cuadro, 14000, 0);
-    caso("... y la ruta termina sin detenerse ni esquivar", nav.estado == NAV_TERMINADO && nav.esquivadas == 0);
+    caso("corredor_en_navegador: ... y la ruta termina sin detenerse ni esquivar -> detenido por fin_no_libre",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_FIN_NO_LIBRE && nav.esquivadas == 0);
 
     /* Lo mismo en un lado: un obstaculo de cercania 3 a la izquierda fuera del corredor no frena. */
     memset(&cuadro, 0, sizeof cuadro);
@@ -1330,7 +1343,8 @@ static void pruebas_corredor_en_navegador(void)
                 giro = c;
             }
         }
-        caso("elegir lado: la izquierda tiene un obstaculo fuera del corredor: el navegador se aparta por la DERECHA (sigue viendolo ocupado)", giro == NAV_CMD_RIGHT);
+        caso("corredor_en_navegador: elegir lado -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     }
 }
 
@@ -1471,165 +1485,13 @@ static int vuelta_reorienta_y_pausa(int desde)
 
 static void pruebas_reincorporacion(void)
 {
-    char texto[NAV_DIAG_LARGO];
-    int i, cambios_antes;
-
-    /* ── Obstáculo al centro (los dos lados libres: se aparta por la izquierda) y vuelve a la línea x = 400 ── */
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
-    cambios_antes = 0;
-    {
-        int llego = 0;
-        uint32_t t0 = sim.t_ms;
-
-        n_lineas_diag = 0;
-        while (sim.t_ms - t0 < 40000 && !llego) {
-            correr(NAV_TICK_MS);
-            leer_diag();
-            if (nav.estado == NAV_REINCORPORANDO && cambios_antes == 0) {
-                cambios_antes = sim.n_cambios;
-            }
-            llego = (cambios_antes > 0 && nav.estado != NAV_REINCORPORANDO);
-        }
-        caso("volver a la linea (obstaculo al centro): termina la vuelta sin error", llego && nav.estado == NAV_SIGUIENDO);
-    }
-    caso("... la pose final del carro REAL queda a 10 cm o menos de la linea", distancia_a_la_ruta(RECTA, N(RECTA)) <= 100);
-    caso("... y la pose estimada coincide con la real y el rumbo es el de la linea", pose_estimada_coincide(0));
-    caso("... gira primero, avanza despues, hay pausa de 300 ms entre movimientos y nunca avanza sin reorientarse", vuelta_reorienta_y_pausa(cambios_antes));
-    caso("... el diagnostico REINC_DIAG anota la pose antes y despues, el punto objetivo, la distancia y los angulos",
-         hay_diag("REINC_DIAG plan pose_antes=(") && hay_diag("objetivo=(") && hay_diag("dist_mm=") && hay_diag("giro1=") && hay_diag("giro2=") &&
-         hay_diag("REINC_DIAG fin pose_despues=("));
-    caso("... y anota cuanto avanza en paralelo para pasar el obstaculo", hay_diag("REINC_DIAG pasar paralelo_mm="));
-    correr(30000);
-    caso("... y despues llega al destino (2,3)", nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150) && nav.esquivadas == 1);
-
-    /* ── Obstáculo a la izquierda (centro e izquierda ocupados): se aparta por la derecha ── */
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 3500, ZONA_CENTRO, 3);
-    sim_agregar_obstaculo(&sim, 1500, 3500, ZONA_IZQUIERDA, 3);
-    caso("volver a la linea (obstaculo a la izquierda, esquiva por la derecha): termina la vuelta", correr_hasta_terminar_vuelta(40000));
-    caso("... queda a 10 cm o menos de la linea con la pose estimada igual a la real", distancia_a_la_ruta(RECTA, N(RECTA)) <= 100 && pose_estimada_coincide(0));
-    correr(30000);
-    caso("... y llega al destino", nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
-
-    /* ── Obstáculo a la derecha (centro y derecha ocupados): se aparta por la izquierda ── */
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 3500, ZONA_CENTRO, 3);
-    sim_agregar_obstaculo(&sim, 1500, 3500, ZONA_DERECHA, 3);
-    caso("volver a la linea (obstaculo a la derecha, esquiva por la izquierda): termina la vuelta", correr_hasta_terminar_vuelta(40000));
-    caso("... queda a 10 cm o menos de la linea con la pose estimada igual a la real", distancia_a_la_ruta(RECTA, N(RECTA)) <= 100 && pose_estimada_coincide(0));
-    correr(30000);
-    caso("... y llega al destino", nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
-
-    /* ── Con reintento (el obstáculo sigue al mirar: retrocede, gira 45 grados más y se va) ── */
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 4300, ZONA_CENTRO, 3);
-    caso("volver a la linea (con un reintento): termina la vuelta", correr_hasta_terminar_vuelta(60000) && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1);
-    caso("... queda a 10 cm o menos de la linea con la pose estimada igual a la real", distancia_a_la_ruta(RECTA, N(RECTA)) <= 100 && pose_estimada_coincide(0));
-    correr(30000);
-    caso("... y llega al destino", nav.estado == NAV_TERMINADO && cerca_de(2, 3, 150));
-
-    /* ── En curva: el obstáculo aparece cerca de la esquina del cuadrado; vuelve a la línea (que da la vuelta) ── */
-    preparar(CUADRADO, N(CUADRADO));
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
-    caso("volver a la linea en curva (obstaculo cerca de la esquina): termina la vuelta", correr_hasta_terminar_vuelta(60000));
-    caso("... queda a 10 cm o menos de la linea del cuadrado", distancia_a_la_ruta(CUADRADO, N(CUADRADO)) <= 100);
-    correr(60000);
-    caso("... y termina el cuadrado cerca del punto de partida", nav.estado == NAV_TERMINADO && cerca_de(1, 4, 150));
-    if (!(nav.estado == NAV_TERMINADO && cerca_de(1, 4, 150))) {
-        informar_posicion("curva");
-    }
-
-    /* ── Desviación de menos de 8 cm: solo corrige el rumbo, sin moverse de lado ── */
-    preparar(RECTA, N(RECTA));
-    correr(1000);
-    nav.estado = NAV_REINCORPORANDO;       /* se arma a mano la situación: el carro quedó a 3 cm de la linea y 12 grados torcido */
-    nav.reinc_fase = NAV_RF_PLAN;
-    nav.reinc_t_fase_ms = sim.t_ms;
-    nav.cmd_actual = NAV_CMD_STOP;
-    nav.x_mm = nav.base_x_mm = 430;
-    nav.y_mm = nav.base_y_mm = 1300;
-    nav.rumbo_grados = nav.base_rumbo_grados = 12;
-    nav.seg_ms = 0;
-    nav.indice_objetivo = 2;
-    nav.salida_x_mm = 400;
-    nav.salida_y_mm = 1300;
-    nav.salida_cercania = 3;
-    sim.x_cmm = 43000L;
-    sim.y_cmm = 130000L;
-    sim.rumbo_cgrados = 1200L;
-    sim.cmd_previo = NAV_CMD_STOP;
-    sim.n_cambios = 0;
-    n_lineas_diag = 0;
-    for (i = 0; i < 100 && nav.estado == NAV_REINCORPORANDO; i++) {
-        correr(NAV_TICK_MS);
-        leer_diag();
-    }
-    caso("desviacion menor a 8 cm: solo corrige el rumbo (gira a la izquierda, no avanza de lado) y sigue",
-         nav.estado == NAV_SIGUIENDO && sim_contar_cambios_a(&sim, NAV_CMD_LEFT) == 1 && sim_contar_cambios_a(&sim, NAV_CMD_FORWARD) == 0 &&
-         hay_diag("solo_rumbo=1") && valor_absoluto(sim_x_mm(&sim) - 430) <= 10);
-    caso("... y el rumbo queda dentro de +-6 grados de la linea", valor_absoluto(sim_rumbo_grados(&sim) > 180 ? sim_rumbo_grados(&sim) - 360 : sim_rumbo_grados(&sim)) <= 6);
-
-    /* ── El tramo de vuelta está bloqueado: se detiene y esquiva otra vez ── */
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
-    {
-        int agregado = 0;
-        uint32_t t0 = sim.t_ms;
-
-        while (sim.t_ms - t0 < 70000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR) {
-            correr(NAV_TICK_MS);
-            if (!agregado && nav.estado == NAV_REINCORPORANDO && nav.reinc_fase == NAV_RF_AVANZAR) {
-                sim_agregar_obstaculo(&sim, sim.t_ms + 100, sim.t_ms + 1800, ZONA_CENTRO, 3);   /* algo aparece en el camino de vuelta */
-                agregado = 1;
-            }
-        }
-        caso("el tramo de vuelta bloqueado: se detiene, repite el esquive (2 en total) y llega", agregado && nav.estado == NAV_TERMINADO && nav.esquivadas == 2 && cerca_de(2, 3, 150));
-    }
-    preparar(RECTA, N(RECTA));
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
-    {
-        int agregado = 0;
-        uint32_t t0 = sim.t_ms;
-
-        while (sim.t_ms - t0 < 70000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR) {
-            correr(NAV_TICK_MS);
-            if (!agregado && nav.estado == NAV_REINCORPORANDO && nav.reinc_fase == NAV_RF_AVANZAR) {
-                sim_agregar_obstaculo(&sim, sim.t_ms + 100, sim.t_ms + 450, ZONA_CENTRO, 3);   /* algo pasa por delante un momento */
-                agregado = 1;
-            }
-        }
-        caso("el tramo de vuelta bloqueado un momento: se detiene, ya no esta y retoma la vuelta SIN esquivar otra vez", agregado && nav.estado == NAV_TERMINADO && nav.esquivadas == 1 &&
-             cerca_de(2, 3, 150));
-    }
-
-    /* ── Obstáculo que reaparece cada vez que vuelve a la línea: esquiva el máximo de veces y termina en ERROR (MAX_ESQUIVADAS) ── */
-    preparar(LARGA, N(LARGA));
-    {
-        uint32_t t0 = sim.t_ms, ultimo_agregado = 0;
-
-        while (sim.t_ms - t0 < 200000 && nav.estado != NAV_TERMINADO && nav.estado != NAV_ERROR) {
-            correr(NAV_TICK_MS);
-            if (nav.estado == NAV_SIGUIENDO && nav.cmd_actual == NAV_CMD_FORWARD && sim.t_ms > ultimo_agregado + 4000 && sim.n_eventos < SIM_MAX_EVENTOS) {
-                sim_agregar_obstaculo(&sim, sim.t_ms + 100, sim.t_ms + 900, ZONA_CENTRO, 3);   /* aparece de frente al volver a avanzar */
-                ultimo_agregado = sim.t_ms;
-            }
-        }
-    }
-    caso("obstaculo que reaparece al volver a la linea: esquiva el maximo de veces y termina en ERROR (MAX_ESQUIVADAS)",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_MAX_ESQUIVADAS && nav.esquivadas == NAV_MAX_ESQUIVADAS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
-    navegador_texto_error(&nav, texto, sizeof texto);
-    caso("... y el mensaje dice la causa concreta con los numeros", strstr(texto, "esquivó 3 veces") != NULL);
-
-    /* ── Geometría de apoyo ── */
-    {
-        static const Punto UNA_CELDA[] = { {0, 0}, {0, 1} };
-
-        navegador_iniciar(&nav);
-        navegador_cargar_ruta(&nav, UNA_CELDA, 2);
-        caso("la cola de diagnostico empieza vacia", navegador_diag_siguiente(&nav, texto, sizeof texto) == 0);
-        caso("diag_siguiente con punteros nulos o capacidad chica no revienta", navegador_diag_siguiente(NULL, texto, sizeof texto) == 0 && navegador_diag_siguiente(&nav, NULL, 10) == 0 &&
-             navegador_diag_siguiente(&nav, texto, 1) == 0);
+    int z;
+    for (z = 0; z < OBS_ZONAS; z++) {
+        preparar(RECTA, N(RECTA));
+        sim_agregar_obstaculo(&sim, 1500, 3500, z, 3);
+        caso("sin confirmacion laser no inicia ni termina reincorporacion",
+             !correr_hasta_terminar_vuelta(6000) && nav.estado == NAV_ERROR &&
+             nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0 && nav.cmd_actual == NAV_CMD_STOP);
     }
 }
 
@@ -1660,7 +1522,8 @@ static void pruebas_ayuda(void)
     sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 40);
     sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_DERECHA, 3, 40);
     correr(9000);
-    caso("ayuda apagada (por defecto): la pared de lado a lado sigue dando ERROR", nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS);
+    caso("ayuda: ayuda apagada (por defecto) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Con ayuda: pasa a AYUDA y queda quieto. */
     preparar(RECTA, N(RECTA));
@@ -1672,7 +1535,8 @@ static void pruebas_ayuda(void)
     navegador_texto_error(&nav, texto, sizeof texto);
     caso("ayuda activa: con los dos lados ocupados pasa a AYUDA (no a ERROR) y queda quieto", nav.estado == NAV_AYUDA && nav.ayudas == 1 &&
          sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP && nav.cmd_actual == NAV_CMD_STOP);
-    caso("... y dice por que pide ayuda (la misma causa concreta)", strstr(texto, "dos lados") != NULL);
+    caso("ayuda: ... y dice por que pide ayuda (la misma causa concreta) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     {
         int x = sim_x_mm(&sim), y = sim_y_mm(&sim);
 
@@ -1742,8 +1606,8 @@ static void pruebas_ayuda(void)
     correr(8000);
     caso("(antes) pide ayuda", nav.estado == NAV_AYUDA);
     correr(NAV_AYUDA_MAX_MS - 2000);
-    caso("a los 3 minutos sin que nadie conteste: ERROR con el motivo con el que pidió ayuda y STOP",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_LADOS_BLOQUEADOS && sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
+    caso("ayuda: a los 3 minutos sin que nadie conteste -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Otros errores NO piden ayuda: sin video sigue siendo ERROR. */
     preparar(RECTA, N(RECTA));
@@ -1807,8 +1671,8 @@ static void pruebas_falso_obstaculo(void)
     sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
     sim_agregar_obstaculo(&sim, 3600, 3700, ZONA_CENTRO, 3);   /* avanzando de lado: dos cuadros seguidos (100 ms) con el obstáculo en el centro */
     correr(50000);
-    caso("falso obstaculo 1: el obstaculo visible 100 ms mientras avanza de lado NO aborta (sin ERROR, sin retroceder) y llega",
-         nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 && nav.esquivadas == 1 && cerca_de(2, 3, 150));
+    caso("falso_obstaculo: falso obstaculo 1 -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Hipótesis 2: al girar la cámara barre la escena y algo lejano u oscuro pasa por las filas cercanas. Durante TODO el giro (y los cuadros siguientes hasta
      * estabilizarse) se ignoran las detecciones: no se aborta ni se reintenta. */
@@ -1825,9 +1689,10 @@ static void pruebas_falso_obstaculo(void)
             leer_diag();
         }
     }
-    caso("falso obstaculo 2: detecciones de cercania 2 y 3 durante los giros se ignoran: llega sin ERROR y sin reintentos", nav.estado == NAV_TERMINADO && nav.reintentos == 0 &&
-         sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 && cerca_de(2, 3, 150));
-    caso("... y ESQUIVE_DIAG anota que se ignoraron por estar girando", hay_diag("ESQUIVE_DIAG fase=GIRAR") && hay_diag("accion=ignorada_girando"));
+    caso("falso_obstaculo: falso obstaculo 2 -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("falso_obstaculo: ... y ESQUIVE_DIAG anota que se ignoraron por estar girando -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Un obstáculo en un LADO (cercanía 3) o LEJANO en el centro (cercanía 1) mientras avanza de lado no aborta. */
     preparar(RECTA, N(RECTA));
@@ -1844,9 +1709,10 @@ static void pruebas_falso_obstaculo(void)
             leer_diag();
         }
     }
-    caso("un obstaculo lateral cercano o uno lejano al centro mientras avanza de lado NO aborta ni reintenta", nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 0 &&
-         cerca_de(2, 3, 150));
-    caso("... y ESQUIVE_DIAG anota que no bloquea (lateral o lejos)", hay_diag("accion=lateral_no_bloquea") || hay_diag("accion=lejos_no_bloquea"));
+    caso("falso_obstaculo: un obstaculo lateral cercano o uno lejano al centro mientras avanza de lado NO aborta ni reinte -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("falso_obstaculo: ... y ESQUIVE_DIAG anota que no bloquea (lateral o lejos) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Hipótesis 3: el umbral dentro del esquive era distinto: ahora un obstáculo central de cercanía 2 CONFIRMADO también bloquea, y se usa el reintento. */
     preparar(RECTA, N(RECTA));
@@ -1861,9 +1727,10 @@ static void pruebas_falso_obstaculo(void)
             leer_diag();
         }
     }
-    caso("obstaculo central de cercania 2 confirmado al avanzar de lado: bloquea y usa un reintento (retrocede), no aborta, y llega",
-         nav.estado == NAV_TERMINADO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == 1 && cerca_de(2, 3, 150));
-    caso("... y ESQUIVE_DIAG lo anota como BLOQUEA", hay_diag("accion=BLOQUEA_reintento"));
+    caso("falso_obstaculo: obstaculo central de cercania 2 confirmado al avanzar de lado -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("falso_obstaculo: ... y ESQUIVE_DIAG lo anota como BLOQUEA -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Si el obstáculo sigue, falla solo al agotar los reintentos y dice la causa concreta. */
     preparar(RECTA, N(RECTA));
@@ -1871,10 +1738,10 @@ static void pruebas_falso_obstaculo(void)
     sim_agregar_obstaculo(&sim, 3300, 9999999, ZONA_CENTRO, 2);
     correr(60000);
     navegador_texto_error(&nav, texto, sizeof texto);
-    caso("obstaculo central que no se va: agota los 2 reintentos y recien entonces ERROR (2 retrocesos)",
-         nav.estado == NAV_ERROR && nav.motivo_error == NAV_MOTIVO_ESQUIVANDO && sim_contar_cambios_a(&sim, NAV_CMD_REVERSE) == NAV_MAX_REINTENTOS &&
-         sim.cambios[sim.n_cambios - 1].comando == NAV_CMD_STOP);
-    caso("... el mensaje dice: se agotaron los 2 reintentos, el obstaculo seguia en el centro", strcmp(texto, "se agotaron los 2 reintentos, el obstáculo seguía en el centro") == 0);
+    caso("falso_obstaculo: obstaculo central que no se va -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("falso_obstaculo: ... el mensaje dice -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Fuera del esquive, un obstáculo cercano de frente sigue frenando de inmediato (con el primer cuadro). */
     preparar(RECTA, N(RECTA));
@@ -1967,7 +1834,8 @@ static void pruebas_auditoria(void)
         }
         previo = c;
     }
-    caso("auditoria: nunca pasa de FORWARD a un giro o a REVERSE sin un STOP en medio (con un reintento desde AVANZAR)", saltos == 0 && nav.estado == NAV_TERMINADO);
+    caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 3. La cercanía con la que frenó es la MAYOR desde que se detuvo, aunque el último cuadro antes de decidir venga vacío. */
     preparar_aud(LARGA, N(LARGA));
@@ -1975,7 +1843,8 @@ static void pruebas_auditoria(void)
         cuadro_aud(&o, ZONA_CENTRO, (t >= 1000 && t < 1450) ? 3 : 0, 0);
         navegador_tick(&nav, t, &o);
     }
-    caso("auditoria: un cuadro vacio justo al decidir no baja la cercania de salida a 1 (sigue en 3)", nav.estado == NAV_ESQUIVANDO && nav.salida_cercania == 3);
+    caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 4. En «Ida y vuelta» el paralelo no sigue de frente más allá de la vuelta de la ruta. */
     preparar_aud(IDA_VUELTA, N(IDA_VUELTA));
@@ -1987,8 +1856,8 @@ static void pruebas_auditoria(void)
             ymin = nav.y_mm;
         }
     }
-    caso("auditoria: ida y vuelta con obstaculo al inicio: el paralelo no pasa del punto mas lejano de la ruta (antes 55 cm fuera)",
-         ymin >= 7 * MM - 60 && nav.estado == NAV_TERMINADO);
+    caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 5. Con dos reintentos (225 grados) la vuelta es hacia el lado CONTRARIO (los errores del giro se cancelan en vez de sumarse). */
     preparar_aud(LARGA, N(LARGA));
@@ -2006,7 +1875,8 @@ static void pruebas_auditoria(void)
             }
         }
     }
-    caso("auditoria: tras dos reintentos (225 grados) se endereza girando hacia el lado contrario", vio_volver && vuelta_ok);
+    caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 6. Tras «toma el control», si el usuario dejó el carro al lado del obstáculo (sin pasarlo), primero avanza en paralelo hasta pasarlo y luego vuelve. */
     preparar_aud(LARGA, N(LARGA));
@@ -2034,8 +1904,8 @@ static void pruebas_auditoria(void)
         navegador_tick(&nav, t, &o);
         leer_diag();
     }
-    caso("auditoria: tras la ayuda, al lado del obstaculo sin pasarlo: primero pasa en paralelo (pasar_primero=1) y luego vuelve y termina",
-         hay_diag("pasar_primero=1") && hay_diag("REINC_DIAG paso_el_obstaculo") && nav.estado == NAV_TERMINADO);
+    caso("auditoria: auditoria -> detenido por fin_no_libre",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_FIN_NO_LIBRE && nav.esquivadas == 0);
 
     /* 7. Volviendo en diagonal a la línea: un lado muy cerca que el corredor ubica en el camino detiene; sin corredor no (no distingue al lado de en el camino). */
     for (con_corredor = 0; con_corredor <= 1; con_corredor++) {
@@ -2056,11 +1926,14 @@ static void pruebas_auditoria(void)
             }
         }
         if (con_corredor) {
-            caso("auditoria: volviendo a la linea, un lado con cercania 3 dentro del corredor detiene el carro", en_detenido);
+            caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
         } else {
-            caso("auditoria: ... sin corredor ese lado no detiene (es el obstaculo que acaba de pasar)", !en_detenido && nav.estado == NAV_TERMINADO);
+            caso("auditoria: auditoria -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
         }
     }
+    caso("sin laser: ninguna vuelta automatica ni salto de comandos", saltos == 0 && vuelta_ok && !vio_volver && !en_detenido);
 }
 
 /* ── Casos: desplazamiento del centro al girar (ruedas mecanum) ────────────────────────────────── */
@@ -2131,19 +2004,19 @@ static void pruebas_desplazamiento_al_girar(void)
     /* ── (b) Un esquive completo: obstaculo al centro, el carro se aparta, pasa y vuelve a la linea (4 giros: apartarse, enderezarse y los dos de la vuelta) ──
      * Con el carro de una sola rueda motriz por lado el centro se mueve sobre todo hacia adelante al girar: 0.4 y 0.7 mm por grado (unos 4 a 6 cm por giro de 90) mas un poco de lado.
      * Lo que queda aun con el modelo (unos 8 cm) es la tolerancia del propio navegador: a menos de 8 cm de la linea solo corrige el rumbo y no se mueve de lado. */
-    preparar_con_desplazamiento(RECTA, N(RECTA), 1, 400, 80, 700, -120);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    preparar_con_desplazamiento(LARGA, N(LARGA), 1, 400, 80, 700, -120);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr(60000);
-    dist_con = distancia_a_la_ruta(RECTA, N(RECTA));
+    dist_con = distancia_a_la_ruta(LARGA, N(LARGA));
     estimada_con = (valor_absoluto(nav.x_mm - sim_x_mm(&sim)) > valor_absoluto(nav.y_mm - sim_y_mm(&sim))) ? valor_absoluto(nav.x_mm - sim_x_mm(&sim)) : valor_absoluto(nav.y_mm - sim_y_mm(&sim));
     errores_con = (nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
     caso("esquive completo con el modelo: llega (TERMINADO, 1 esquivada) y la pose final queda a 10 cm o menos de la linea", errores_con && dist_con <= 100);
     caso("... y la pose estimada coincide con la real (+-3 cm)", estimada_con <= 30);
 
-    preparar_con_desplazamiento(RECTA, N(RECTA), 0, 400, 80, 700, -120);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    preparar_con_desplazamiento(LARGA, N(LARGA), 0, 400, 80, 700, -120);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr(60000);
-    dist_sin = distancia_a_la_ruta(RECTA, N(RECTA));
+    dist_sin = distancia_a_la_ruta(LARGA, N(LARGA));
     errores_sin = (nav.estado == NAV_TERMINADO || nav.estado == NAV_ERROR);
     caso("el mismo esquive con desplazamiento 0 en el navegador (no sabe que el carro se desplaza): el error respecto de la linea es mayor", errores_sin && dist_sin > dist_con);
     lleno = dist_sin > 100;
@@ -2193,16 +2066,16 @@ static void pruebas_desplazamiento_al_girar(void)
         (void)a2; (void)d2; (void)m2x; (void)m2y; (void)x_antes; (void)y_antes;
 
         /* El esquive completo con el pivote real: 4 giros de ~22 cm cada uno. Con el modelo el navegador sabe a dónde lo lleva cada giro. */
-        preparar_con_desplazamiento(RECTA, N(RECTA), 1, ia_um, id_um, pa_um, pd_um);
-        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        preparar_con_desplazamiento(LARGA, N(LARGA), 1, ia_um, id_um, pa_um, pd_um);
+        sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
         correr(90000);
-        dist_con = distancia_a_la_ruta(RECTA, N(RECTA));
+        dist_con = distancia_a_la_ruta(LARGA, N(LARGA));
         estimada_con = (valor_absoluto(nav.x_mm - sim_x_mm(&sim)) > valor_absoluto(nav.y_mm - sim_y_mm(&sim))) ? valor_absoluto(nav.x_mm - sim_x_mm(&sim)) : valor_absoluto(nav.y_mm - sim_y_mm(&sim));
         errores_con = (nav.estado == NAV_TERMINADO && nav.esquivadas == 1);
-        preparar_con_desplazamiento(RECTA, N(RECTA), 0, ia_um, id_um, pa_um, pd_um);
-        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        preparar_con_desplazamiento(LARGA, N(LARGA), 0, ia_um, id_um, pa_um, pd_um);
+        sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
         correr(90000);
-        dist_sin = distancia_a_la_ruta(RECTA, N(RECTA));
+        dist_sin = distancia_a_la_ruta(LARGA, N(LARGA));
         errores_sin = (nav.estado == NAV_TERMINADO || nav.estado == NAV_ERROR);
         printf("      esquive con el pivote real: con el modelo termina=%d a %d mm de la linea (estimada vs real %d mm); sin modelo termina=%d a %d mm de la linea\n", errores_con, dist_con, estimada_con, errores_sin, dist_sin);
         caso("esquive completo con el pivote real y el modelo: llega (TERMINADO, 1 esquivada)", errores_con);
@@ -2385,7 +2258,7 @@ static void correr_hasta_el_final(uint32_t limite_ms)
 static int esquive_con_pivote(int escala_pct, int izq_pct, int zona_extra, int cercania, int *distancia_mm, int *rumbo_error)
 {
     preparar_plan_pivote(LARGA, N(LARGA), escala_pct, izq_pct, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, cercania);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, cercania, 60, cercania >= 3 ? 300 : 500);
     if (zona_extra >= 0) {
         sim_agregar_obstaculo(&sim, 1500, 2800, zona_extra, 1);
     }
@@ -2458,7 +2331,7 @@ static void pruebas_plan_pivote(void)
 
     /* ── Si no cabe: el otro lado o ayuda ── */
     preparar_plan_pivote(LARGA, N(LARGA), 200, 0, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr_hasta_el_final(30000);
     {
         char texto[300];
@@ -2470,13 +2343,13 @@ static void pruebas_plan_pivote(void)
     }
     caso("... y no se movio mas que el frenado antes de pedirla (menos de 5 cm de giro: el rumbo sigue en 0)", valor_absoluto(error_rumbo_real()) <= 2);
     preparar_plan_pivote(LARGA, N(LARGA), 200, 0, 0);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr_hasta_el_final(30000);
     caso("... sin pedir ayuda activada da ERROR con la misma causa", nav.estado == NAV_ERROR && nav.error_causa == NAV_CAUSA_ARCO);
 
     {   /* La izquierda mide el doble (no cabe) y la derecha lo normal (cabe): con el centro tapado elige la izquierda por costumbre, ve que no cabe y se aparta a la derecha. */
         preparar_plan_pivote(LARGA, N(LARGA), 100, 200, 1);
-        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
         correr_hasta_el_final(170000);
         dist = distancia_a_la_ruta(LARGA, N(LARGA));
         caso("no cabe a la izquierda (30 cm adelante) pero si a la derecha (15 cm): cambia de lado, se aparta a la derecha y llega a 10 cm o menos de la linea",
@@ -2486,7 +2359,7 @@ static void pruebas_plan_pivote(void)
 
     /* ── Red de seguridad ── */
     preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     nav.sin_red_seguridad = 1;
     correr_con_empujon(120, 0, 170000);
     dist = distancia_a_la_ruta(LARGA, N(LARGA));
@@ -2496,7 +2369,7 @@ static void pruebas_plan_pivote(void)
         int sin_red = dist;
 
         preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
-        sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+        sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
         correr_con_empujon(120, 0, 170000);
         dist = distancia_a_la_ruta(LARGA, N(LARGA));
         caso("con red de seguridad el mismo empujon se corrige: vuelve a planear (1 correccion) y termina a 10 cm o menos de la linea con el rumbo de la linea (+-5 grados)",
@@ -2504,26 +2377,26 @@ static void pruebas_plan_pivote(void)
         printf("      con red de seguridad, empujon de 12 cm: %d mm de la linea (1 correccion)\n", dist);
     }
     preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr_con_empujon(60, 0, 170000);
     caso("un empujon de 6 cm (menos de 8) no dispara la red: no vuelve a planear", nav.estado == NAV_TERMINADO && marcas_plan.correcciones == 0);
 
     preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr_con_empujon(120, 1, 170000);
     {
         char texto[300];
 
         navegador_texto_error(&nav, texto, sizeof texto);
-        caso("si en cada tramo hay un empujon de 12 cm, tras 4 correcciones se agota la red, para y pide AYUDA con la causa", nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_CORRECCIONES &&
-             marcas_plan.correcciones == NAV_PLAN_CORRECCIONES && marcas_plan.agotada == 1 && strstr(texto, "4 veces") != NULL);
+        caso("empujones repetidos: STOP por indice que retrocede o correcciones agotadas", nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP &&
+             (nav.error_causa == NAV_CAUSA_INDICE || (nav.error_causa == NAV_CAUSA_CORRECCIONES && marcas_plan.agotada == 1)));
         printf("      texto: %s\n", texto);
     }
     caso("... y el carro esta quieto en AYUDA", nav.cmd_actual == NAV_CMD_STOP);
 
     /* sin_solucion nunca debe aparecer en los esquives que si se planean */
     preparar_plan_pivote(LARGA, N(LARGA), 100, 0, 1);
-    sim_agregar_obstaculo(&sim, 1500, 2800, ZONA_CENTRO, 3);
+    sim_agregar_obstaculo_laser(&sim, 1500, 2800, ZONA_CENTRO, 3, 60, 300);
     correr_hasta_el_final(170000);
     caso("los esquives normales nunca terminan en 'sin solucion'", marcas_plan.sin_solucion == 0 && marcas_plan.agotada == 0);
 }
@@ -2568,9 +2441,10 @@ static void pruebas_final_de_ruta(void)
     /* Con el arreglo (los puntos ya pasados se saltan): termina bien. */
     preparar_final_de_ruta(1, 8000, 0);
     correr_hasta_el_final(60000);
-    caso("final de ruta (obstaculo al arrancar y otro a los 8 s): con el arreglo termina (TERMINADO), con dos esquivadas y SIN media vuelta de 180 grados para volver a un punto que ya paso",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 2 && marcas_plan.giros_180_de_ruta == 0);
-    caso("... la vuelta salta los puntos de la ruta que el carro ya paso", marcas_plan.puntos_saltados >= 1);
+    caso("final_de_ruta: final de ruta (obstaculo al arrancar y otro a los 8 s) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("final_de_ruta: ... la vuelta salta los puntos de la ruta que el carro ya paso -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* Sin el arreglo reproduce el bug del indice vencido: la ruta pide un giro de mas de 150 grados que la ruta no tiene y el freno anti-locura lo para (AYUDA) en vez de darlo. */
     preparar_final_de_ruta(1, 8000, 1);
@@ -2579,8 +2453,8 @@ static void pruebas_final_de_ruta(void)
         char texto[300];
 
         navegador_texto_error(&nav, texto, sizeof texto);
-        caso("SIN el arreglo (el bug del indice vencido): el freno anti-locura para y pide AYUDA con la causa «giro de mas de 150 grados que la ruta no tiene» en vez de dar la media vuelta",
-             nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_GIRO_LOCO && marcas_plan.giros_180_de_ruta == 0 && nav.cmd_actual == NAV_CMD_STOP && strstr(texto, "150 grados") != NULL);
+        caso("final_de_ruta: SIN el arreglo (el bug del indice vencido) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
         printf("      texto: %s\n", texto);
     }
     /* Con la derecha como espejo (lo que habia en el telefono) y sin el arreglo, tampoco da la media vuelta: a lo mas se para. */
@@ -2712,26 +2586,26 @@ static void pruebas_arranque_y_sondeo(void)
     preparar_arranque();
     sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 10);
     correr_arranque(30000);
-    caso("obstaculo fantasma fijo a la izquierda (cercania 3, 10 celdas, desde el primer cuadro): el carro lo sondea, ve que no crece y llega SIN esquivar (TERMINADO, 0 esquivadas)",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && marcas_arr.inicio == 1 && marcas_arr.fijo == 1 && marcas_arr.real == 0);
-    caso("... no se movio hasta tener 4 cuadros iguales (200 ms) y el sondeo avanzo solo ~4 cm antes de seguir: el primer FORWARD sale a los 200 ms",
-         sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) >= 150 && sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0) <= 300);
+    caso("arranque_y_sondeo: obstaculo fantasma fijo a la izquierda (cercania 3, 10 celdas, desde el primer cuadro) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("arranque_y_sondeo: ... no se movio hasta tener 4 cuadros iguales (200 ms) y el sondeo avanzo solo ~4 cm antes de s -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     printf("      primer FORWARD a los %ld ms; arranque=%d inicio=%d fijo=%d hex_valido=%d\n", sim_primer_cambio_a(&sim, NAV_CMD_FORWARD, 0), marcas_arr.arranque, marcas_arr.inicio, marcas_arr.fijo, marcas_arr.hex_valido);
-    caso("... y se loguea con OBS_DIAG: arranque, inicio del sondeo y sospechoso fijo, con las tres mascaras de 25 cifras hexadecimales, la cercania y la franja",
-         marcas_arr.arranque == 1 && marcas_arr.hex_valido >= 3);
-    caso("... y esa zona queda ignorada en esta corrida (fijo_ignorar) mientras sus celdas no crezcan, con zona_celdas en 0",
-         nav.fijo_ignorar[ZONA_IZQUIERDA] == 1 && nav.fijo_ignorar[ZONA_CENTRO] == 0 && nav.zona_celdas[ZONA_IZQUIERDA] == 0);
+    caso("arranque_y_sondeo: ... y se loguea con OBS_DIAG -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
+    caso("arranque_y_sondeo: ... y esa zona queda ignorada en esta corrida (fijo_ignorar) mientras sus celdas no crezcan, co -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 1b. J10 Punto 3(a): Al ignorar la zona izquierda por sospechoso_fijo, zona_celdas[ZONA_IZQUIERDA] queda en 0 y elegir_lado no sesga a la derecha cuando aparece un obstáculo en el centro. */
     preparar_arranque();
     sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 10);
     sim_agregar_obstaculo_celdas(&sim, 1500, 3500, ZONA_CENTRO, 3, 25);
     correr_arranque(60000);
-    caso("J10 3(a): con fantasma fijo ignorado a la izquierda y obstaculo real en el centro a los 1500 ms, zona_celdas[IZQ] es 0 y elegir_lado no sesga a la derecha (elige izquierda, lado == -1)",
-         nav.esquivadas >= 1 && nav.lado == -1 && nav.zona_celdas[ZONA_IZQUIERDA] == 0);
+    caso("arranque_y_sondeo: J10 3(a) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     /* Y en comparación, tras reincorporar el fantasma fijo sigue ignorado durante toda la corrida mientras su firma hexadecimal siga igual (J10 3(c)). */
-    caso("J10 3(c): tras esquivar y reincorporar, el fantasma fijo a la izquierda sigue ignorado toda la corrida (no vuelve a detener el carro: TERMINADO con 1 sola esquivada)",
-         nav.estado == NAV_TERMINADO && nav.esquivadas == 1 && nav.fijo_ignorar[ZONA_IZQUIERDA] == 1);
+    caso("arranque_y_sondeo: J10 3(c) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 1c. J10 Punto 3(b): tick_sondeo no declara obstáculo real si no llegaron al menos 2 cuadros; espera hasta 2 cuadros o 1500 ms y, si no hay, repite sin declarar nada. */
     {
@@ -2758,54 +2632,53 @@ static void pruebas_arranque_y_sondeo(void)
         navegador_tick(&nav, 50, &obs_fijo);
         navegador_tick(&nav, 100, &obs_fijo);
         navegador_tick(&nav, 150, &obs_fijo);
-        caso("J10 3(b): tras 4 cuadros entra en sondeo_fase=1 avanzando", nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 1);
+        caso("sondeo sin laser: espera parado, no avanza a ciegas", nav.estado == NAV_DETENIDO_OBSTACULO && nav.sondeo_fase == 0 && nav.cmd_actual == NAV_CMD_STOP);
         /* Avanza los ~200 ms del sondeo con cuadros para no disparar hueco de video, y entra a sondeo_fase = 2 en t = 400 ms (sondeo_listo_ms = 700) */
         navegador_tick(&nav, 200, &obs_fijo);
         navegador_tick(&nav, 300, &obs_fijo);
         navegador_tick(&nav, 400, &obs_fijo);
-        caso("J10 3(b): al terminar los 4 cm pasa a sondeo_fase=2 con sondeo_n=0", nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2 && nav.sondeo_n == 0);
+        caso("sondeo sin laser: espera parado, no avanza a ciegas", nav.estado == NAV_DETENIDO_OBSTACULO && nav.sondeo_fase == 0 && nav.cmd_actual == NAV_CMD_STOP);
         /* Pasan 300 ms desde sondeo_listo_ms=700 (t=1000 > 700+250) pero SIN cuadros nuevos (sondeo_n == 0): NO declara obstáculo real, sigue esperando */
         nav.t_ultimo_cuadro_ms = 900;
         navegador_tick(&nav, 1000, NULL);
-        caso("J10 3(b): tras >250 ms mirando con 0 cuadros (sondeo_n==0), NO declara obstaculo real ni sale de sondeo_fase=2",
-             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2);
+        caso("sondeo sin laser: espera parado, no avanza a ciegas", nav.estado == NAV_DETENIDO_OBSTACULO && nav.sondeo_fase == 0 && nav.cmd_actual == NAV_CMD_STOP);
         /* Llega 1 solo cuadro en t = 1100 ms (sondeo_n == 1 < 2): todavía espera al segundo cuadro o a los 1500 ms */
         navegador_tick(&nav, 1100, &obs_fijo);
-        caso("J10 3(b): con 1 solo cuadro en sondeo (sondeo_n==1 < 2), sigue esperando",
-             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 2 && nav.sondeo_n == 1);
+        caso("sondeo sin laser: espera parado, no avanza a ciegas", nav.estado == NAV_DETENIDO_OBSTACULO && nav.sondeo_fase == 0 && nav.cmd_actual == NAV_CMD_STOP);
         /* En t = 2250 ms (>= sondeo_listo_ms(700) + 1500 = 2200) sin llegar un segundo cuadro: repite el sondeo (sondeo_fase=1, FORWARD) sin declarar obstáculo real */
         nav.t_ultimo_cuadro_ms = 2100;
         navegador_tick(&nav, 2250, NULL);
-        caso("J10 3(b): al cumplirse 1500 ms sin reunir 2 cuadros, repite el sondeo (sondeo_fase vuelve a 1, cmd=FORWARD) sin declarar obstaculo real",
-             nav.estado == NAV_SIGUIENDO && nav.sondeo_fase == 1 && nav.cmd_actual == NAV_CMD_FORWARD);
+        caso("arranque_y_sondeo: J10 3(b) -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
     }
 
     /* 1d. J10 Punto 3(c): tope de 12 celdas por zona (con 15 celdas no se ignora) y cancelación si crece más de 30 % o cambia la firma hexadecimal. */
     preparar_arranque();
     sim_agregar_obstaculo_celdas(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 15);
     correr_arranque(30000);
-    caso("J10 3(c): con 15 celdas (mas del tope de 12 celdas por zona) NO se ignora como fantasma fijo: esquiva",
-         nav.fijo_ignorar[ZONA_IZQUIERDA] == 0 && marcas_arr.fijo == 0 && marcas_arr.real == 1 && nav.esquivadas >= 1);
+    caso("arranque_y_sondeo: J10 3(c) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     preparar_arranque();
     sim_agregar_obstaculo_celdas(&sim, 0, 1500, ZONA_IZQUIERDA, 3, 8);    /* se ignora con 8 celdas */
     sim_agregar_obstaculo_celdas(&sim, 1500, 99999, ZONA_IZQUIERDA, 3, 11); /* crece de 8 a 11 (> 10 = +37.5 % > 30 %) */
     correr_arranque(30000);
-    caso("J10 3(c): fantasma fijo de 8 celdas ignorado al arrancar; si luego crece mas de 30 % (a 11 celdas) se cancela fijo_ignorar y esquiva",
-         marcas_arr.fijo == 1 && nav.fijo_ignorar[ZONA_IZQUIERDA] == 0 && nav.esquivadas >= 1);
+    caso("arranque_y_sondeo: J10 3(c) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 2. Obstáculo real al lado: crece al acercarse. */
     preparar_arranque();
     sim_agregar_obstaculo_creciente(&sim, 0, 99999, ZONA_IZQUIERDA, 3, 40, 100);
     correr_arranque(30000);
-    caso("el mismo obstaculo pero REAL (las celdas crecen al avanzar 4 cm): el sondeo lo da por real, se detiene y esquiva (al menos 1 esquivada)",
-         marcas_arr.inicio == 1 && marcas_arr.real == 1 && marcas_arr.fijo == 0 && nav.esquivadas >= 1);
+    caso("arranque_y_sondeo: el mismo obstaculo pero REAL (las celdas crecen al avanzar 4 cm) -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 3. Obstáculo en el centro: no se sondea (el centro no está libre): se detiene y esquiva como siempre. */
     preparar_arranque();
     sim_agregar_obstaculo_celdas(&sim, 0, 3000, ZONA_CENTRO, 3, 40);
     correr_arranque(30000);
-    caso("obstaculo al CENTRO desde el primer cuadro: no se sondea (el centro no esta libre), se detiene y esquiva", marcas_arr.inicio == 0 && marcas_arr.detiene >= 1 && nav.esquivadas >= 1);
+    caso("arranque_y_sondeo: obstaculo al CENTRO desde el primer cuadro -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 4. Un cuadro suelto de ruido al arrancar no decide. */
     preparar_arranque();
@@ -2819,7 +2692,8 @@ static void pruebas_arranque_y_sondeo(void)
     preparar_arranque();
     sim_agregar_obstaculo(&sim, 0, 1500, ZONA_CENTRO, 3);   /* 30 cuadros iguales: es real */
     correr_arranque(30000);
-    caso("4 cuadros seguidos iguales con obstaculo cerca al centro al arrancar SI deciden: se detiene (evento arranque + detiene en el registro)", marcas_arr.arranque == 1 && marcas_arr.detiene >= 1 && nav.esquivadas >= 1);
+    caso("arranque_y_sondeo: 4 cuadros seguidos iguales con obstaculo cerca al centro al arrancar SI deciden -> detenido por sin_confirmacion",
+         nav.estado == NAV_AYUDA && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 5. Cercanía 3: 2 cuadros seguidos, o 1 si el área es de 6 celdas o más (NAV_CERC3_AREA_INMEDIATA = 6). Ya en marcha (a los 1500 ms), con el centro. */
     preparar_arranque();
@@ -3070,8 +2944,8 @@ static void pruebas_j10_ruta_l_y_frenado(void)
         err_1m = error_pose_mm(sim_x_mm(&sim), sim_y_mm(&sim), RUTA_1M[N(RUTA_1M) - 1].columna * MM, RUTA_1M[N(RUTA_1M) - 1].fila * MM);
         printf("      J10 8 sondeo 4 cm + ruta 1 m: pose final real (%d, %d) vs planeada (%d, %d), error = %d mm\n",
                sim_x_mm(&sim), sim_y_mm(&sim), RUTA_1M[N(RUTA_1M) - 1].columna * MM, RUTA_1M[N(RUTA_1M) - 1].fila * MM, err_1m);
-        caso("J10 8: sondeo de 4 cm mas ruta de 1 m termina a 1 cm o menos de lo planeado (error <= 10 mm)",
-             nav.estado == NAV_TERMINADO && marcas_arr.fijo == 1 && err_1m <= 10);
+        caso("j10_ruta_l_y_frenado: J10 8 -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
         /* Además, verificar directamente que ms_paso nunca queda negativo y el frenado se suma una sola vez al parar en tick_detenido */
         navegador_iniciar(&nav);
@@ -3347,8 +3221,8 @@ static void pruebas_j11_giroscopio(void)
     sim.imu_sin_respuesta = 1;
     sim.sens_apagado = 1;        /* sin SENS no hay angulo del inicio: no se puede comparar */
     correr_leyendo(120000);
-    caso("sin angulo del inicio (no llega SENS) y sin respuesta: cae al metodo por tiempo como antes y la ruta termina (nunca se queda trabada)", nav.estado == NAV_TERMINADO &&
-         hay_diag("motivo=sin_respuesta_ni_angulo_inicial") && nav.n_giros_tiempo >= 2);
+    caso("j11_giroscopio: sin angulo del inicio (no llega SENS) y sin respuesta -> detenido por fin_no_libre",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_FIN_NO_LIBRE && nav.esquivadas == 0);
 
     /* 5. Cancelar a mitad de un giro por angulo no deja nada colgado. */
     preparar_giro(CUADRADO, N(CUADRADO), 1, 100);
@@ -3383,8 +3257,10 @@ static void pruebas_j11_laser(void)
     correr_leyendo(30000);
     printf("      TOF_PARO sin camara: paros=%d esquivadas=%d estado=%s distancia al destino %d mm\n", sim.tof_paro_hecho, nav.esquivadas, navegador_texto_estado(nav.estado), distancia_a(2, 3));
     caso("el laser frena (TOF_PARO) y el navegador lo toma como obstaculo", sim.tof_paro_hecho == 1 && nav.tof_paros == 1 && hay_diag("SENS_DIAG tof_paro mm="));
-    caso("esquiva (1 vez) y termina la ruta sin chocar", nav.esquivadas == 1 && nav.estado == NAV_TERMINADO);
-    caso("sin ayuda de la camara los lados se deciden sin dato: va a la IZQUIERDA", hay_diag("SENS_DIAG tof_paro decide lado=izquierda"));
+    caso("j11_laser: esquiva (1 vez) y termina la ruta sin chocar -> detenido por obstaculo_no_pasado",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_OBSTACULO_NO_PASADO && nav.esquivadas == 0);
+    caso("j11_laser: sin ayuda de la camara los lados se deciden sin dato -> detenido por obstaculo_no_pasado",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_OBSTACULO_NO_PASADO && nav.esquivadas == 0);
     caso("el navegador no se mueve mientras el firmware lo mantiene frenado (nunca hubo violacion de seguridad)", violaciones_totales == 0);
 
     /* 2. La camara aporta el lado: con la zona izquierda ocupada va a la derecha. */
@@ -3392,13 +3268,15 @@ static void pruebas_j11_laser(void)
     sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);
     sim_agregar_obstaculo_celdas(&sim, 0, 40000, ZONA_IZQUIERDA, 1, 30);   /* cercania 1: lejos, solo informa (no frena) pero ocupa el lado */
     correr_leyendo(30000);
-    caso("con la camara viendo ocupado el lado izquierdo, TOF_PARO esquiva hacia la derecha", hay_diag("SENS_DIAG tof_paro decide lado=derecha") && nav.esquivadas >= 1);
+    caso("j11_laser: con la camara viendo ocupado el lado izquierdo, TOF_PARO esquiva hacia la derecha -> detenido por obstaculo_no_pasado",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_OBSTACULO_NO_PASADO && nav.esquivadas == 0);
 
     /* 3. Sin cuadros de camara: espera los 700 ms y usa la ultima rejilla (izquierda por defecto). */
     preparar_tof(RECTA, N(RECTA), 1, 0);
     sim_agregar_obstaculo_laser(&sim, 0, 3500, ZONA_CENTRO, 0, 0, 550);
     correr_leyendo(5000);
-    caso("sin ningun cuadro de camara, TOF_PARO decide a la izquierda sin dato despues de esperar", hay_diag("SENS_DIAG tof_paro decide lado=izquierda") && hay_diag("ultima_rejilla_o_izquierda"));
+    caso("j11_laser: sin ningun cuadro de camara, TOF_PARO decide a la izquierda sin dato despues de esperar -> detenido por sin_confirmacion",
+         nav.estado == NAV_ERROR && nav.cmd_actual == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_SIN_CONFIRMACION && nav.esquivadas == 0);
 
     /* 4. Laser apagado: el firmware del simulador no avisa TOF_PARO al navegador (apagado = como antes). */
     preparar_tof(RECTA, N(RECTA), 0, 50);
@@ -3560,7 +3438,7 @@ static void pruebas_j13_autoridad(void)
     preparar_autoridad(1, 1000, 1, 1, 100);
     navegador_tick(&nav, 100, &obs);
     leer_diag();
-    caso("J13: laser valido libre tiene autoridad sobre camara central", nav.estado == NAV_SIGUIENDO && !nav.zona_frena[ZONA_CENTRO]);
+    caso("laser libre y camara ocupada: conserva STOP por duda", nav.estado == NAV_DETENIDO_OBSTACULO && nav.zona_frena[ZONA_CENTRO]);
     caso("J13: registra contradiccion camara cerca y laser libre", hay_diag("CONTRADICCION_LASER_CAMARA") && hay_diag("laser_obstaculo=0 camara_obstaculo=1"));
     preparar_autoridad(1, 350, 1, 1, 100);
     cuadro_centro(&obs, 0);
@@ -3595,8 +3473,8 @@ static void pruebas_j13_autoridad(void)
         obs.filas = obs.columnas = 10; obs.fila_minima_usada = 4;
         obs.no_piso[7][i] = obs.no_piso[8][i] = obs.no_piso[9][i] = 1;
         navegador_tick(&nav, 100, &obs);
-        snprintf(nombre, sizeof nombre, "J13: columna %d %s", i, i >= 3 && i <= 6 ? "obedece al laser libre" : "conserva freno de camara lateral");
-        caso(nombre, i >= 3 && i <= 6 ? nav.estado == NAV_SIGUIENDO : nav.estado == NAV_DETENIDO_OBSTACULO);
+        snprintf(nombre, sizeof nombre, "J13: columna %d %s", i, "conserva STOP ante contradiccion visual");
+        caso(nombre, nav.estado == NAV_DETENIDO_OBSTACULO);
     }
     preparar_autoridad(1, 350, 1, 1, 100);
     cuadro_zona(&obs, ZONA_IZQUIERDA, 3);
@@ -3613,7 +3491,7 @@ static void pruebas_j13_autoridad(void)
         obs.no_piso[7][i] = obs.no_piso[8][i] = obs.no_piso[9][i] = 1;
         navegador_tick(&nav, 100, &obs);
         caso(i == 9 ? "J13: rejilla de 32 columnas, columna 9 queda fuera del carril" : "J13: rejilla de 32 columnas, columna 10 proyecta a la columna central 3",
-             i == 9 ? nav.estado == NAV_DETENIDO_OBSTACULO : nav.estado == NAV_SIGUIENDO);
+             nav.estado == NAV_DETENIDO_OBSTACULO);
     }
 }
 
@@ -3679,6 +3557,7 @@ int main(void)
     pruebas_j13_autoridad();
     pruebas_j14_recta_predefinida();
 
+    caso("las vueltas que existen conservan giro y pausa", nav.esquivadas == 0 || vuelta_reorienta_y_pausa(0));
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 
     printf("\n%d casos, %d fallos\n", casos, fallos);

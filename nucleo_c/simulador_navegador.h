@@ -114,6 +114,7 @@ typedef struct {
     int laser_externo;        /* J15: distancia calculada contra una caja del mundo, independiente de la cámara */
     int laser_externo_mm;
     int tof_perdido;           /* 1 = el láser está caído (SENS con láser muerto) */
+    int tof_sin_eco;           /* 1 = lectura invalida; 0 = fondo medible a 1200 mm si no hay caja */
     int tof_paro_hecho;        /* cuántas paradas de emergencia hizo el láser */
     int tof_parado;            /* 1 mientras el firmware mantiene el carro frenado por TOF_PARO (hasta que el navegador cambia de comando) */
     int tof_cerca_seguidas;

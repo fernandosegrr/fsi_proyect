@@ -1,5 +1,7 @@
 # 12. Pruebas y resultados
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo presenta de manera íntegra y separada por nivel de evidencia todos los resultados de verificación del sistema hasta el cierre **J16** (10 de noviembre de 2026). De acuerdo con la convención establecida en el Capítulo 1, se distinguen en secciones independientes: (12.1) lo **`VALIDADO EN EL CARRO`** mediante corridas físicas sobre el vehículo real, (12.2) las suites deterministas de software ejecutadas en computadora personal, (12.3) los resultados **`SIMULADOS`** en el experimento Monte Carlo de 50,000 corridas y (12.4) el listado explícito de escenarios que permanecen **`NO MEDIDOS`** en el carro físico.
 
 ## 12.1 Resultados VALIDADO EN EL CARRO
@@ -89,3 +91,11 @@ Con el mismo rigor, la siguiente tabla enumera los escenarios que cuentan con im
 | **Circuito `GPIO 2` y consumo eléctrico en amperios** | Configurado en `config.h` | **`NO MEDIDO`** | Sin instrumentación de corriente ni resistor externo verificado en `GPIO 2`. |
 
 Dónde está en el código: `pruebas_fisicas_20261110.csv`, `estado_20261110.md`, `monte_carlo_1000.txt`, `calibracion_j14.txt`, `pruebas_precision_j16.c`, `pruebas_rumbo.c`.
+
+## 12.5 Revisión del 11-nov-2026: resultados solo de software
+
+En la reproducción con falso positivo, objeto a 80 cm y ruta de 60 cm, v1.1 recorta el rebase a 550 mm y declara TERMINADO a los 14,90 s, con avance del centro de 609 mm y cara frontal del objeto a 920 mm. La rama corregida pide AYUDA a los 1,30 s sin iniciar esquive. El bloque de 35×45 cm produce AYUDA al detectar el costado: no se presenta como rebase exitoso.
+
+En Monte Carlo, 1000 corridas por cada uno de los dos escenarios de esquive con RUMBO terminan sin contactos antes y después. En ambos, el p95 lateral baja de 40 a 37 mm; la media, de 17 a 16 mm. Sin RUMBO, el p95 de caja sube 1 mm (78 a 79), dentro de la tolerancia existente del banco; el de caja ancha baja de 79 a 77 mm. Estos números no son medidas físicas. El informe `docs/diagnostico_esquive_20261111.md` contiene la comparación, poses y pruebas de datos ausentes, inválidos o vencidos.
+
+**Banquito del 11-nov: NO MEDIDA. Arreglo: NO MEDIDO en el carro.** La repetición debe empezar con caja de 20×20 cm y registro de distancia/pose; no se hereda la validación B6 histórica.

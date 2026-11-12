@@ -249,6 +249,7 @@ class CamaraObstaculos(
     fun aprenderPiso() {
         errorAprender = ""
         informePiso = null
+        pisoAprendidoMs = 0L // Un intento fallido no permite reutilizar el piso anterior.
         aprendiendoPiso = true
         pedirAprender = true
     }

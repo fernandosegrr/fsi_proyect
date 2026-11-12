@@ -1,5 +1,7 @@
 # 7. Núcleo de navegación en C
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo explica la arquitectura matemática del núcleo de navegación escrito en estándar `C99` (`nucleo_c`), que se compila tanto dentro de la aplicación Android (vía `JNI`) como en computadora personal para las suites de pruebas y el simulador Monte Carlo. Describe el modelo de cuadrícula, las ecuaciones de calibración longitudinal y angular, la máquina de estados del navegador y las mejoras introducidas en los cierres **J15** y **J16**: integración de pose en décimas de grado (`rumbo_x10`), guiado continuo por punto de mira (`RUMBO`), geometría de esquive con margen longitudinal de `150 mm`, corrección de `override_largo_mm` y protección ante caída a giro por tiempo (`descartar_dt`).
 
 ## 7.1 Por qué se navega por tiempo con giroscopio y cómo funciona la cuadrícula
@@ -52,11 +54,11 @@ El módulo `navegador.c` gobierna la ejecución de la ruta mediante siete estado
 |---|---|---|
 | `NAV_ESPERANDO` | `STOP` | Estado inicial o tras cancelar; espera `navegador_comenzar`. |
 | `NAV_SIGUIENDO` | `FORWARD` / `LEFT` / `RIGHT` + `RUMBO` | Ejecuta la secuencia de pasos (`PASO_GIRAR` y `PASO_AVANZAR`) hacia el siguiente nodo de la ruta. |
-| `NAV_DETENIDO_OBSTACULO` | `STOP` | Pausa de confirmación (`300 ms`) al detectar un obstáculo dentro del corredor frontal antes de decidir esquivar. |
+| `NAV_DETENIDO_OBSTACULO` | `STOP` | STOP visual; para esquivar requiere tres medidas láser válidas ≤500 mm y cámara lateral. Sin confirmación en 1000 ms, AYUDA. |
 | `NAV_ESQUIVANDO` | Giros y avances de desvío | Ejecuta el rodeo lateral (`400 mm` a izquierda o derecha) y el avance paralelo para rebasar la caja. |
-| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Regresa desde el carril paralelo hacia un punto situado `300 mm` por delante del obstáculo sobre la línea original. |
+| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Con obstáculo pendiente vuelve casi transversalmente (objetivo 50 mm por delante de la proyección actual); comprueba rebase y láser libre. |
 | `NAV_AYUDA` | Manual del operador | Cede el mando al usuario cuando ambos lados están bloqueados o se activa un paro de supervisión; espera hasta `3 min` a que pulse `Continuar`. |
-| `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin exitoso del último paso de la ruta o aborto por fallo irrecuperable. |
+| `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin solo tras comprobar rebase y frente libre con lecturas nuevas; o aborto por fallo irrecuperable. |
 
 ### Integración de pose en décimas de grado (`rumbo_x10` — Cierres J15 y J16)
 
@@ -77,16 +79,22 @@ Incluso si el controlador `PI` del firmware mantiene un ángulo constante, un pe
 3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_MAX_CORR_X10 = 120`) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
 4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8.0°`** (`NAV_GIRO_EN_MARCHA_MAX_X10 = 80`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
 
-## 7.4 Geometría de esquive en tres tramos y margen J16 de `150 mm`
+## 7.4 Geometría del esquive y margen de 150 mm
 
-Cuando el vehículo avanza en `NAV_SIGUIENDO` y el subsistema de percepción confirma durante `300 ms` un obstáculo dentro del corredor frontal a una distancia estimada $d_{\text{obs}}$ (acotada al rango `[150, 700] mm`), el navegador construye una maniobra de rodeo y reincorporación en tres tramos:
+La detección visual ordena detenerse según cercanía y persistencia. Desde la revisión del 11-nov, tras una pausa de 500 ms, solo se planea el rodeo con distancia láser confirmada de 1 a 500 mm y un lado libre observado por cámara. Sin confirmación en 1000 ms se pide AYUDA.
 
-[FIGURA:esquive|Geometría de la maniobra de esquive en tres tramos con margen longitudinal J16 de 150 mm y estado validado físicamente en el carro (escenario B6).]
+[FIGURA:esquive|Esquema histórico de la maniobra J16 (v1.1). La revisión del 11-nov cambia confirmación, rebase y regreso como explica el texto; esos cambios NO están medidos en el carro.]
 
-1. **Tramo 1 — Desvío lateral (`NAV_TRAMO_ESQUIVAR_CM = 40 cm` = `400 mm`):** el navegador consulta qué costado tiene más espacio libre en la imagen (`lado_libre`: izquierda `+1` o derecha `-1`). Gira `90°` hacia ese lado, avanza `400 mm` para salir de la línea del obstáculo y gira `-90°` para quedar nuevamente paralelo a la ruta original.
-2. **Tramo 2 — Avance paralelo de rebase con margen J16 (`NAV_PASO_MARGEN_MM = 150 mm`):** para rebasar por completo el cuerpo del obstáculo (cuya profundidad supuesta es `NAV_PROFUNDIDAD_OBS_MM = 250 mm`), el carro avanza en paralelo una distancia:
-   $$d_{\text{paso}} = \text{clamp}_{[400, 1100]}\left(d_{\text{obs}} + 250\text{ mm} + 150\text{ mm}\right)$$
-   En el cierre **J16** se amplió este margen de seguridad de `100 mm` a **`150 mm`** (`+5 cm` adicionales) porque cuando la distancia longitudinal se estima por tiempo con baterías parcialmente descargadas, un margen corto hacía que el vehículo iniciara el regreso diagonal rozando la esquina trasera de la caja.
-3. **Tramo 3 — Reincorporación calculada desde la pose integrada (`NAV_REINC_ADELANTE_CM = 30 cm` = `300 mm`):** al concluir el rebase paralelo, en lugar de ejecutar un regreso ciego de `-90°` y `400 mm` (que ignoraba cualquier desviación sufrida durante el rodeo), `iniciar_reincorporacion` toma la pose real integrada $(x_{\text{actual}}, y_{\text{actual}}, \text{rumbo\_x10})$ y calcula el vector directo $(\Delta x, \Delta y)$ hacia un punto de reincorporación situado sobre la línea original **`300 mm` por delante** del borde trasero del obstáculo (o hacia el destino final de la ruta si está más cerca). A partir de $(\Delta x, \Delta y)$ genera un giro hacia $\text{atan2}(-\Delta x, \Delta y)$, el avance por la hipotenusa $\sqrt{\Delta x^2 + \Delta y^2}$ y la alineación final con la ruta.
+1. **Desvío lateral:** objetivo de 400 mm desde la línea, compensando los desplazamientos de pivote de los giros de 90 grados. El avance no es siempre 400 mm: se descuenta el desplazamiento que aportan los giros. Se elige un lado libre y se comprueba que el arco cabe usando distancia láser medida.
+2. **Avance paralelo:** la posición longitudinal requerida es la salida sobre la ruta más 120 mm sensor-centro, distancia frontal medida, fondo supuesto de 250 mm y margen de 150 mm. Se descuenta lo ya avanzado por los pivotes. Si ese objetivo no cabe en la recta, se pide AYUDA; nunca se recorta para cerrar la ruta.
+3. **Reincorporación:** con obstáculo pendiente, el objetivo está sobre la ruta 50 mm por delante de la proyección actual (puede adelantarse si el plan de pivotes necesita otro intento). El navegador vigila cámara y láser al volver casi transversalmente. Si observa otra superficie cercana, invalida el fondo supuesto y pide AYUDA. Al recuperar el rumbo exige avance suficiente y lecturas frontales libres nuevas antes de continuar.
 
 Dónde está en el código: `navegador.h`, `navegador.c`, `trayectoria.h`, `trayectoria.c`, `calibracion.h`, `calibracion.c`, `calgiro.h`, `calgiro.c`, `ruta_editor.c`, `simulador_navegador.c`.
+
+## 7.5 Corrección de confirmación y rebase (11-nov, solo software)
+
+La visión sola puede frenar, pero nunca dispara esquive. Aun con muchos cuadros iguales se necesita distancia láser válida de 1 a 500 mm (tres lecturas, frescura hasta 400 ms), cámara para elegir lado libre y espacio de ruta suficiente. Sin esa medida se mantiene STOP y se pide AYUDA. La autoridad láser ya no borra la ocupación visual.
+
+El fin longitudinal requerido es la posición sobre la ruta más 120 mm sensor-centro (supuestos, pendientes de medir), la distancia frontal real, 250 mm de fondo supuesto y 150 mm de margen. No se recorta al último punto: si no cabe se pide AYUDA. El desvío lateral de 400 mm conserva la compensación de pivote y los avances se ejecutan por tiempo calibrado.
+
+Durante la reincorporación se vigila el costado. Si el objeto resulta mayor que lo supuesto y sigue detectándose, se detiene en AYUDA. El cierre exige alcanzar el avance planeado y tres lecturas nuevas válidas mayores de 800 mm con el carro detenido; sin eco no es libre. Esto no garantiza detectar patas fuera del haz ni mide la profundidad del mueble. Detalle y poses: `docs/diagnostico_esquive_20261111.md`.
