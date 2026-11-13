@@ -49,7 +49,7 @@ def ejecutar(destino, corridas):
     subprocess.run(comando, cwd=destino / "nucleo_c", check=True)
     resultado = subprocess.run([str(destino / "nucleo_c/precision.exe"), str(corridas)],
                                cwd=destino / "nucleo_c", capture_output=True, check=True)
-    return resultado.stdout.decode("utf-8")
+    return resultado.stdout.decode("utf-8").replace("\r\n", "\n")
 
 
 def filas(texto):
@@ -70,7 +70,7 @@ def main():
             destino = raiz / nombre
             exportar(destino, ref)
             texto = ejecutar(destino, args.corridas)
-            (salida / f"esquive_autonomia_mc_{nombre}.txt").write_text(texto, encoding="utf-8")
+            (salida / f"esquive_autonomia_mc_{nombre}.txt").write_text(texto, encoding="utf-8", newline="\n")
     antes = filas((salida / "esquive_autonomia_mc_v11.txt").read_text(encoding="utf-8"))
     despues = filas((salida / "esquive_autonomia_mc_actual.txt").read_text(encoding="utf-8"))
     if len(antes) != 6 or antes.keys() != despues.keys():
@@ -86,7 +86,7 @@ def main():
         lineas.append(f"{'OK' if ok else 'FALLO'} {clave}: media/p95 {a[1]}/{a[2]} -> {d[1]}/{d[2]} mm; llegadas {a[3]} -> {d[3]}; contactos {a[4]} -> {d[4]}")
     lineas.append(f"6 comparaciones, {fallos} fallos")
     texto = "\n".join(lineas) + "\n"
-    (salida / "esquive_autonomia_comparacion.txt").write_text(texto, encoding="utf-8")
+    (salida / "esquive_autonomia_comparacion.txt").write_text(texto, encoding="utf-8", newline="\n")
     print(texto)
     return 1 if fallos else 0
 
