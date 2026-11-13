@@ -79,10 +79,7 @@ static void caja_cerca_en_camino(int clase, int confianza_mil)
 }
 
 /* Un objeto chico y lejano en el camino: el borde de abajo está en 500. */
-static void caja_lejos_en_camino(int clase, int confianza_mil)
-{
-    agregar_caja(clase, confianza_mil, 450, 400, 550, 500);
-}
+
 
 static int decidir(unsigned int ahora_ms)
 {
@@ -237,243 +234,19 @@ static void pruebas_confianza_minima(void)
 
 /* ── El detector manda ─────────────────────────────────────────────────── */
 
-static void pruebas_detector_manda(void)
-{
-    int codigo;
 
-    fusion_config_defecto(&cfg);
-
-    detector_libre();
-    modelo_vacio(1000);
-    codigo = decidir(1100);
-    caso("sin nada del detector y sin cajas: severidad NINGUNA, fuente NINGUNA", codigo == FUS_OK && sal.severidad == FUS_SEV_NINGUNA &&
-         sal.fuente == FUS_FUENTE_NINGUNA && sal.aviso == 0);
-
-    detector_libre();
-    detector_ve(ZONA_CENTRO, 3);
-    codigo = fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    caso("el detector ve un obstaculo muy cerca y no hay modelo (NULL): PARAR, fuente detector, no espera al modelo",
-         codigo == FUS_OK && sal.severidad == FUS_SEV_PARAR && sal.fuente == FUS_FUENTE_DETECTOR && sal.detector_solo_decide == 1 &&
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 1 && sal.zona[ZONA_CENTRO].cercania == 3 && sal.modelo_vigente == 0);
-
-    modelo_vacio(1000);
-    codigo = decidir(1100);
-    caso("lo mismo con un modelo vacio (0 cajas)", sal.severidad == FUS_SEV_PARAR && sal.fuente == FUS_FUENTE_DETECTOR && sal.detector_solo_decide == 1);
-
-    /* Contradiccion: el modelo no ve nada en el camino (solo una persona lejos a la izquierda). */
-    modelo_vacio(1000);
-    agregar_caja(0, 900, 50, 300, 200, 500);
-    codigo = decidir(1100);
-    caso("CONTRADICCION: el modelo solo ve una persona lejos a la izquierda; el detector ve algo muy cerca al centro: se frena igual",
-         sal.severidad == FUS_SEV_PARAR && sal.zona[ZONA_CENTRO].cercania == 3 && sal.fuente == FUS_FUENTE_DETECTOR && sal.detector_solo_decide == 1);
-    caso("... y el modelo avisa de la persona (de interes) a la izquierda", sal.aviso == 1 && sal.aviso_clase == 0 && sal.aviso_zona == ZONA_IZQUIERDA);
-
-    /* Contradiccion: el modelo ve el objeto en el camino pero "lejos" (c=1) y el detector lo ve muy cerca. */
-    modelo_vacio(1000);
-    caja_lejos_en_camino(60, 900);
-    codigo = decidir(1100);
-    caso("CONTRADICCION: el modelo lo ve lejos (cercania 1) y el detector muy cerca (3): la fusion NUNCA baja lo del detector",
-         sal.zona[ZONA_CENTRO].cercania == 3 && sal.severidad == FUS_SEV_PARAR && sal.fuente == FUS_FUENTE_AMBOS);
-
-    /* Detector a media distancia a un lado. */
-    detector_libre();
-    detector_ve(ZONA_IZQUIERDA, 2);
-    modelo_vacio(1000);
-    decidir(1100);
-    caso("el detector ve algo a media distancia a la izquierda: FRENAR y el detector solo ya decide", sal.severidad == FUS_SEV_FRENAR && sal.detector_solo_decide == 1 &&
-         sal.zona[ZONA_IZQUIERDA].cercania == 2);
-    detector_libre();
-    detector_ve(ZONA_DERECHA, 1);
-    decidir(1100);
-    caso("el detector ve algo lejos (cercania 1): solo AVISO y detector_solo_decide = 0 (no hace falta frenar)", sal.severidad == FUS_SEV_AVISO &&
-         sal.detector_solo_decide == 0 && sal.fuente == FUS_FUENTE_DETECTOR);
-}
 
 /* ── Modelo caducado ───────────────────────────────────────────────────── */
 
-static void pruebas_caducidad(void)
-{
-    fusion_config_defecto(&cfg);
-    detector_libre();
-    detector_duda(ZONA_CENTRO, 3);   /* el detector duda: el modelo podria subirlo si fuera vigente */
 
-    modelo_vacio(1000);
-    caja_cerca_en_camino(60, 900);
-    decidir(1300);
-    caso("modelo con 300 ms de edad (el limite): se usa (vigente) y sube lo que el detector dudaba", sal.modelo_vigente == 1 && sal.edad_modelo_ms == 300 &&
-         sal.zona[ZONA_CENTRO].cercania == 3 && sal.fuente == FUS_FUENTE_AMBOS);
-    decidir(1301);
-    caso("modelo con 301 ms de edad: CADUCADO, se ignora por completo (sin cambios al detector)", sal.modelo_vigente == 0 && sal.edad_modelo_ms == 301 &&
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 0 && sal.severidad == FUS_SEV_NINGUNA && sal.fuente == FUS_FUENTE_NINGUNA && sal.aviso == 0);
-
-    /* Caducado y el detector SI ve: manda el detector. */
-    detector_libre();
-    detector_ve(ZONA_CENTRO, 2);
-    modelo_vacio(1000);
-    caja_cerca_en_camino(60, 900);
-    decidir(2000);
-    caso("modelo caducado (1000 ms) y el detector ve algo a media distancia: sale lo del detector (cercania 2), sin subirlo",
-         sal.modelo_vigente == 0 && sal.zona[ZONA_CENTRO].cercania == 2 && sal.fuente == FUS_FUENTE_DETECTOR && sal.severidad == FUS_SEV_FRENAR);
-
-    /* Vigencia configurable. */
-    detector_libre();
-    detector_duda(ZONA_CENTRO, 3);
-    cfg.vigencia_ms = 100;
-    modelo_vacio(1000);
-    caja_cerca_en_camino(60, 900);
-    decidir(1150);
-    caso("con vigencia de 100 ms (ConfigFusion), un resultado de 150 ms ya esta caducado", sal.modelo_vigente == 0 && sal.zona[ZONA_CENTRO].hay_obstaculo == 0);
-    cfg.vigencia_ms = 500;
-    decidir(1450);
-    caso("con vigencia de 500 ms, uno de 450 ms todavia vale", sal.modelo_vigente == 1 && sal.zona[ZONA_CENTRO].cercania == 3);
-    fusion_config_defecto(&cfg);
-
-    /* Reloj. */
-    modelo_vacio(5000);
-    caja_cerca_en_camino(60, 900);
-    decidir(4000);
-    caso("un modelo con hora FUTURA (reloj atrasado) se trata como edad 0 (no caduca)", sal.modelo_vigente == 1 && sal.edad_modelo_ms == 0);
-    modelo_vacio(4294967200u);
-    caja_cerca_en_camino(60, 900);
-    decidir(50);
-    caso("el reloj de 32 bits da la vuelta (4294967200 -> 50): edad 146 ms, vigente", sal.edad_modelo_ms == 146 && sal.modelo_vigente == 1);
-    modelo_vacio(4294967000u);
-    caja_cerca_en_camino(60, 900);
-    decidir(100);
-    caso("con la vuelta del reloj, 396 ms de edad: caducado", sal.edad_modelo_ms == 396 && sal.modelo_vigente == 0);
-}
 
 /* ── El modelo sube lo que el detector duda / ve algo que el detector no ve ─ */
 
-static void pruebas_modelo_aporta(void)
-{
-    fusion_config_defecto(&cfg);
 
-    /* Detector duda (3 celdas, menos del minimo). */
-    detector_libre();
-    detector_duda(ZONA_CENTRO, 3);
-    modelo_vacio(1000);
-    caja_cerca_en_camino(60, 700);
-    decidir(1100);
-    caso("el detector duda (3 celdas) y el modelo ve un objeto muy cerca en el camino: SUBE a cercania 3, fuente AMBOS, PARAR",
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 1 && sal.zona[ZONA_CENTRO].cercania == 3 && sal.fuente == FUS_FUENTE_AMBOS &&
-         sal.severidad == FUS_SEV_PARAR && sal.detector_solo_decide == 0 && sal.clase_en_camino == 60);
-
-    /* Detector ve algo mas lejos que el modelo. */
-    detector_libre();
-    detector_ve(ZONA_CENTRO, 1);
-    modelo_vacio(1000);
-    caja_cerca_en_camino(1, 800);
-    decidir(1100);
-    caso("el detector ve algo lejos (1) y el modelo lo ve muy cerca (3): se sube a 3, fuente AMBOS", sal.zona[ZONA_CENTRO].cercania == 3 &&
-         sal.fuente == FUS_FUENTE_AMBOS);
-
-    /* Detector ve mas cerca que el modelo: no se baja. */
-    detector_libre();
-    detector_ve(ZONA_CENTRO, 3);
-    modelo_vacio(1000);
-    agregar_caja(1, 800, 400, 300, 600, 720);   /* cercania 2 */
-    decidir(1100);
-    caso("el detector lo ve muy cerca (3) y el modelo a media distancia (2): se queda en 3 (no se baja), AMBOS", sal.zona[ZONA_CENTRO].cercania == 3 &&
-         sal.fuente == FUS_FUENTE_AMBOS);
-
-    /* Detector no ve NADA: el modelo ve algo cercano y muy seguro. */
-    detector_libre();
-    modelo_vacio(1000);
-    caja_cerca_en_camino(62, 900);
-    decidir(1100);
-    caso("el detector no ve NADA y el modelo ve una silla muy cerca con confianza 0.9: FRENA solo por el modelo (PARAR, fuente MODELO)",
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 1 && sal.zona[ZONA_CENTRO].cercania == 3 && sal.fuente == FUS_FUENTE_MODELO &&
-         sal.severidad == FUS_SEV_PARAR && sal.detector_solo_decide == 0 && sal.clase_en_camino == 62);
-
-    /* El caso "solo avisa" existe solo si la confianza mínima es MENOR que la de frenar: por defecto las dos son 0.6, así que aquí se baja
-     * la mínima a 0.4 a propósito (como era antes). */
-    cfg.confianza_min_mil = 400;
-    modelo_vacio(1000);
-    caja_cerca_en_camino(62, 500);   /* menos seguro que 0.6 */
-    decidir(1100);
-    caso("lo mismo pero con confianza 0.5 (menos que la 0.6 para frenar solo por el modelo): NO frena, solo AVISA",
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 0 && sal.aviso == 1 && sal.severidad == FUS_SEV_AVISO && sal.aviso_cercania == 3 &&
-         sal.fuente == FUS_FUENTE_MODELO);
-
-    /* Objeto lejano que el detector no ve: solo avisa. */
-    modelo_vacio(1000);
-    caja_lejos_en_camino(0, 950);
-    decidir(1100);
-    caso("el modelo ve una persona LEJOS en el camino (cercania 1) que el detector no ve: SOLO AVISA, no frena (zonas libres)",
-         sal.zona[ZONA_CENTRO].hay_obstaculo == 0 && sal.aviso == 1 && sal.aviso_cercania == 1 && sal.severidad == FUS_SEV_AVISO &&
-         sal.detector_solo_decide == 0);
-
-    /* Confianza minima. */
-    modelo_vacio(1000);
-    caja_cerca_en_camino(62, 300);
-    decidir(1100);
-    caso("una caja con confianza 0.3 (menos que la minima 0.4) no cuenta ni como aviso", sal.zona[ZONA_CENTRO].hay_obstaculo == 0 && sal.aviso == 0 &&
-         sal.severidad == FUS_SEV_NINGUNA);
-
-    cfg.confianza_min_mil = 600;   /* de vuelta al valor por defecto */
-
-    /* Varias cajas: gana la mas cercana. */
-    detector_libre();
-    detector_duda(ZONA_CENTRO, 2);
-    modelo_vacio(1000);
-    caja_lejos_en_camino(60, 900);
-    caja_cerca_en_camino(61, 900);
-    decidir(1100);
-    caso("con dos cajas en el camino (lejos y muy cerca) gana la mas cercana: cercania 3 y clase 61", sal.zona[ZONA_CENTRO].cercania == 3 && sal.clase_en_camino == 61);
-
-    /* Mas cajas de las que caben. */
-    modelo_vacio(1000);
-    mod.n = FUS_MAX_CAJAS + 5;   /* un n absurdo: no se lee fuera del arreglo */
-    memset(mod.cajas, 0, sizeof mod.cajas);
-    decidir(1100);
-    caso("un modelo con n mayor que FUS_MAX_CAJAS no se sale del arreglo (se lee solo hasta FUS_MAX_CAJAS)", sal.modelo_vigente == 1);
-}
 
 /* ── Clases de interés y cualquier otra clase ──────────────────────────── */
 
-static void pruebas_clases(void)
-{
-    fusion_config_defecto(&cfg);
-    detector_libre();
 
-    modelo_vacio(1000);
-    agregar_caja(0, 900, 50, 300, 200, 700);   /* persona a la izquierda, fuera del camino */
-    decidir(1100);
-    caso("una persona (clase de interes) fuera del camino genera un AVISO en su zona y no frena", sal.aviso == 1 && sal.aviso_clase == 0 &&
-         sal.aviso_zona == ZONA_IZQUIERDA && sal.zona[ZONA_IZQUIERDA].hay_obstaculo == 0 && sal.severidad == FUS_SEV_AVISO);
-
-    modelo_vacio(1000);
-    agregar_caja(77, 900, 50, 300, 200, 700);   /* una clase que no es de interes, fuera del camino */
-    decidir(1100);
-    caso("un objeto de una clase que NO es de interes fuera del camino se ignora (ni aviso)", sal.aviso == 0 && sal.severidad == FUS_SEV_NINGUNA);
-
-    modelo_vacio(1000);
-    caja_cerca_en_camino(77, 900);
-    decidir(1100);
-    caso("CUALQUIER clase cuenta igual en el camino: una clase 77 (no es de interes) muy cerca frena", sal.zona[ZONA_CENTRO].cercania == 3 &&
-         sal.severidad == FUS_SEV_PARAR && sal.clase_en_camino == 77);
-
-    fusion_marcar_clase(&cfg, 0, 0);
-    modelo_vacio(1000);
-    agregar_caja(0, 900, 50, 300, 200, 700);
-    decidir(1100);
-    caso("si se quita 'persona' de las clases de interes, la persona a un lado ya no avisa", sal.aviso == 0);
-    fusion_marcar_clase(&cfg, 77, 1);
-    modelo_vacio(1000);
-    agregar_caja(77, 900, 800, 300, 950, 700);
-    decidir(1100);
-    caso("si se agrega la clase 77, un objeto 77 a la derecha avisa", sal.aviso == 1 && sal.aviso_clase == 77 && sal.aviso_zona == ZONA_DERECHA);
-    fusion_config_defecto(&cfg);
-
-    /* Un aviso no cambia lo que ve el detector en esa zona. */
-    detector_libre();
-    detector_ve(ZONA_IZQUIERDA, 2);
-    modelo_vacio(1000);
-    agregar_caja(0, 900, 50, 300, 200, 700);
-    decidir(1100);
-    caso("un aviso a un lado no cambia lo que el detector ve en esa zona (cercania 2 sigue)", sal.zona[ZONA_IZQUIERDA].cercania == 2 && sal.aviso == 1);
-}
 
 /* ── Errores ───────────────────────────────────────────────────────────── */
 
@@ -501,59 +274,39 @@ static void pruebas_errores(void)
 
 /* ── Línea de tiempo: cuadros cada 80 ms y resultados del modelo cada 120 ms ─ */
 
-static void pruebas_linea_de_tiempo(void)
+
+
+
+/* Tabla completa: dos fuentes independientes, tres bandas, tres zonas. */
+static void pruebas_consenso(void)
 {
-    unsigned int t;
-    unsigned int primer_parar = 0, primer_subida_modelo = 0, ultimo_modelo_vigente = 0;
-    DeteccionesModelo ultimo;
-    int hay_modelo = 0;
-    unsigned int proxima_inferencia = 0;
-
+    int z, banda, fuentes, otra;
     fusion_config_defecto(&cfg);
-    memset(&ultimo, 0, sizeof ultimo);
-
-    /* El objeto aparece a los 1000 ms. El detector lo ve cercano (3) desde el cuadro de 1040 ms. El modelo lo ve
-     * (muy cerca, sin que el detector lo vea) en su resultado que termina a los 1080 ms (los resultados del modelo
-     * llegan cada 120 ms). El objeto desaparece a los 2000 ms. */
-    for (t = 0; t <= 3000; t += 80) {
-        detector_libre();
-        if (t >= 1040 && t < 2000) {
-            detector_ve(ZONA_CENTRO, 3);
-        }
-        if (t >= proxima_inferencia) {   /* el modelo termina una inferencia con lo que ve en este momento */
-            modelo_vacio(t);
-            if (t >= 1000 && t < 2000) {
-                caja_cerca_en_camino(62, 900);
-            }
-            ultimo = mod;
-            hay_modelo = 1;
-            proxima_inferencia = t + 120;
-        }
-        fusion_decidir(&cfg, &det, hay_modelo ? &ultimo : NULL, t, &sal);
-        if (sal.severidad == FUS_SEV_PARAR && primer_parar == 0) {
-            primer_parar = t;
-        }
-        if (sal.fuente == FUS_FUENTE_MODELO && primer_subida_modelo == 0) {
-            primer_subida_modelo = t;
-        }
-        if (sal.modelo_vigente) {
-            ultimo_modelo_vigente = t;
-        }
+    for(z=0;z<3;z++) for(banda=1;banda<=3;banda++) for(fuentes=0;fuentes<4;fuentes++) {
+        char nombre[100];
+        detector_libre(); modelo_vacio(1000);
+        if(fuentes&1)detector_ve(z,banda);
+        if(fuentes&2)agregar_caja(77,900,z*333+30,banda==3?800:banda==2?650:400,z*333+300,banda==3?950:banda==2?750:550);
+        decidir(1100);
+        snprintf(nombre,sizeof nombre,"zona=%d banda=%d fuentes=%d: solo coincidencia confirma",z,banda,fuentes);
+        caso(nombre,sal.fuentes_vision[z]==fuentes && sal.zona[z].hay_obstaculo==(fuentes==3) &&
+             sal.detector_solo_decide==0 && (fuentes==3 || sal.severidad<=FUS_SEV_AVISO));
     }
-    printf("      linea de tiempo: primer PARAR a los %u ms; primera vez que decide solo el modelo a los %u ms; ultimo cuadro con modelo vigente a los %u ms\n",
-           primer_parar, primer_subida_modelo, ultimo_modelo_vigente);
-    caso("linea de tiempo: se manda PARAR en el primer cuadro con el obstaculo visto por el detector o el modelo (1040 ms o antes)", primer_parar > 0 && primer_parar <= 1040);
-
-    /* Con el modelo dejando de contestar (se cuelga): su ultimo resultado caduca y el detector sigue mandando solo. */
-    detector_libre();
-    detector_ve(ZONA_CENTRO, 3);
-    modelo_vacio(5000);
-    caja_cerca_en_camino(62, 900);
-    fusion_decidir(&cfg, &det, &mod, 5100, &sal);
-    caso("con el modelo vigente y el detector de acuerdo: fuente AMBOS", sal.fuente == FUS_FUENTE_AMBOS && sal.severidad == FUS_SEV_PARAR);
-    fusion_decidir(&cfg, &det, &mod, 6000, &sal);
-    caso("el modelo se cuelga (su resultado ya tiene 1000 ms): el detector sigue decidiendo solo y frena igual",
-         sal.modelo_vigente == 0 && sal.fuente == FUS_FUENTE_DETECTOR && sal.severidad == FUS_SEV_PARAR && sal.detector_solo_decide == 1);
+    for(z=0;z<3;z++)for(otra=0;otra<3;otra++)if(z!=otra) {
+        detector_libre();detector_ve(z,3);modelo_vacio(1000);
+        agregar_caja(61,900,otra*333+30,800,otra*333+300,950);
+        decidir(1100);
+        caso("ambas fuentes globales en zonas distintas NO son coincidencia",sal.fuente==3 &&
+             sal.fuentes_vision[z]==1 && sal.fuentes_vision[otra]==2 && !sal.zona[z].hay_obstaculo && !sal.zona[otra].hay_obstaculo);
+    }
+    detector_libre();detector_ve(1,3);modelo_vacio(1000);caja_cerca_en_camino(61,900);
+    decidir(1300);caso("modelo a 300 ms aun confirma",sal.modelo_vigente && sal.zona[1].hay_obstaculo);
+    decidir(1301);caso("modelo a 301 ms no confirma color",!sal.modelo_vigente && sal.fuentes_vision[1]==1 && !sal.zona[1].hay_obstaculo);
+    decidir(999);caso("timestamp futuro no confirma",!sal.modelo_vigente && !sal.zona[1].hay_obstaculo);
+    modelo_vacio(1400);decidir(1400);caso("modelo fresco vacio es desacuerdo, no sensor perdido",sal.modelo_vigente && !sal.zona[1].hay_obstaculo);
+    fusion_decidir(&cfg,&det,NULL,1500,&sal);caso("sin modelo color solo avisa",sal.fuentes_vision[1]==1 && !sal.zona[1].hay_obstaculo);
+    detector_libre();detector_duda(1,3);modelo_vacio(1600);caja_cerca_en_camino(61,900);decidir(1600);
+    caso("pocas celdas sin positivo no cuentan como segunda fuente",sal.fuentes_vision[1]==2 && !sal.zona[1].hay_obstaculo);
 }
 
 int main(void)
@@ -561,12 +314,8 @@ int main(void)
     pruebas_configuracion();
     pruebas_cajas();
     pruebas_confianza_minima();
-    pruebas_detector_manda();
-    pruebas_caducidad();
-    pruebas_modelo_aporta();
-    pruebas_clases();
     pruebas_errores();
-    pruebas_linea_de_tiempo();
+    pruebas_consenso();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

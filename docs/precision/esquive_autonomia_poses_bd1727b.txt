@@ -1,0 +1,11 @@
+caja20_laser t=20450 pose=(994,-7,0) estado=TERMINADO causa=0 esquivas=1 dist_mm=395 fin_inicial=1199 cola_s=1887 fin_real=1120 paso=1 toque=0 paradas=4
+banquito35x45_laser t=27950 pose=(991,-13,0) estado=TERMINADO causa=0 esquivas=2 dist_mm=395 fin_inicial=1199 cola_s=1893 fin_real=1370 paso=1 toque=0 paradas=8
+objeto_fondo90 t=17600 pose=(613,776,64) estado=AYUDA causa=1 esquivas=1 dist_mm=395 fin_inicial=1199 cola_s=1104 fin_real=1820 paso=0 toque=0 paradas=4
+falso_solo_color t=20550 pose=(992,-6,0) estado=TERMINADO causa=0 esquivas=1 dist_mm=1200 fin_inicial=1638 cola_s=1886 fin_real=920 paso=-1 toque=0 paradas=4
+falso_solo_detector t=10400 pose=(1000,-7,0) estado=TERMINADO causa=0 esquivas=0 dist_mm=-1 fin_inicial=-1 cola_s=1887 fin_real=920 paso=-1 toque=0 paradas=0
+coincidencia_laser_libre t=6450 pose=(1000,1527,0) estado=AYUDA causa=1 esquivas=0 dist_mm=-1 fin_inicial=-1 cola_s=353 fin_real=1370 paso=0 toque=0 paradas=1
+sin_eco_coincidencia t=6300 pose=(1000,1556,0) estado=AYUDA causa=1 esquivas=0 dist_mm=-1 fin_inicial=-1 cola_s=324 fin_real=1370 paso=0 toque=0 paradas=1
+sin_eco_solo_color t=20850 pose=(991,-11,0) estado=TERMINADO causa=0 esquivas=1 dist_mm=0 fin_inicial=738 cola_s=1891 fin_real=920 paso=-1 toque=0 paradas=4
+falso_tres_zonas_color t=5050 pose=(1000,1961,0) estado=AYUDA causa=1 esquivas=0 dist_mm=-1 fin_inicial=-1 cola_s=-81 fin_real=920 paso=-1 toque=0 paradas=1
+ruta_corta_objeto_final t=20700 pose=(680,921,38) estado=AYUDA causa=11 esquivas=3 dist_mm=350 fin_inicial=550 cola_s=959 fin_real=670 paso=1 toque=0 paradas=6
+falso_y_objeto80_ruta60 t=14900 pose=(996,1391,0) estado=TERMINADO causa=0 esquivas=1 dist_mm=765 fin_inicial=550 cola_s=489 fin_real=1370 paso=0 toque=0 paradas=4

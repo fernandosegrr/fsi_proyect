@@ -42,16 +42,18 @@ Un objeto visible cerca de los bordes izquierdo o derecho de la imagen no estorb
 
 Como resultado de la perspectiva cónica, el corredor proyectado forma un **trapecio** que abarca desde las columnas `2 a 7` en la parte inferior cercana (`fila 9`, junto a las ruedas) hasta estrecharse en las columnas centrales (`4 a 5`) cerca del horizonte (`filas 3 y 4`).
 
-### Reglas de decisión en `fusion.c` y autoridad del láser
+### Reglas de decisión: revisión del 12-nov, solo simulada
 
-El módulo `fusion.c` cruza las celdas anómalas del clasificador de piso y las cajas vigentes de la red neuronal contra el trapecio del corredor:
+`fusion.c` conserva las fuentes por zona: color=1, red=2, coincidencia=3. No recibe el láser; el navegador lo combina después. Solo color no basta aunque marque cercanía 3. El flujo no sustituye a la red como confirmación. Un modelo con más de 300 ms de edad no confirma.
 
-| Condición observada en las fuentes | Salida de `fusion_decidir` | Acción resultante en `navegador.c` |
-|---|---|---|
-| Sin anomalías en el corredor ni cajas vigentes | `FUSION_LIBRE` (`0`) | Continúa avanzando por la ruta con control `RUMBO`. |
-| Objeto o anomalía detectada solo fuera del trapecio del corredor | `FUSION_FUERA_CORREDOR` (`1`) | Muestra aviso visual en pantalla pero **no frena** el avance recto. |
-| Anomalía de piso o caja de red neuronal dentro del corredor en filas de riesgo (`fila >= 5`) | `FUSION_EN_CORREDOR` (`2`) + `lado_libre` (`+1` izq / `-1` der) | Pasa a `NAV_DETENIDO_OBSTACULO`, confirma durante `300 ms` y lanza el esquive hacia el costado más despejado. |
-| **Autoridad opcional del láser frontal (`usar_tof_en_ruta = 1`):** `VL53L0X` mide `< 400 mm` (`NAV_TOF_ESQUIVE_MM`) | Inyecta obstáculo en columnas centrales (`3 a 6`, `fila 7`) | Garantiza la detención y el inicio del esquive aunque la caja sea del mismo color que el piso y la red neuronal no la reconozca. |
+| Observación | Decisión |
+|---|---|
+| Láser válido fresco a 400 mm o menos | Confirma obstáculo frontal. |
+| Láser libre y solo color o solo red | Continúa sin STOP ni AYUDA. |
+| Color y red coinciden en una zona, láser libre o sin eco | Precaución, STOP según cercanía y esquive usando banda visual o medida láser disponible. |
+| Láser sin eco/vencido y una sola fuente | Continúa con precaución. |
+
+Las bandas no miden centímetros. La precaución aplica tandas de avance de 700 ms y pausa de 300 ms cuando no hay distancia frontal utilizable; no cambia PWM. La app exige Aprender piso para esta iluminación antes de la ruta. El láser puede perder patas y ambas fuentes de cámara pueden fallar juntas; este diseño no garantiza detectar todo objeto.
 
 ## 8.5 Sincronización multihilo en JNI (`candado_vision` — Cierre J16)
 

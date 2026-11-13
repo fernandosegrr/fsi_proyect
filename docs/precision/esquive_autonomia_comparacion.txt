@@ -1,0 +1,10 @@
+SIMULADO / NO MEDIDO. Referencia bd1727b; fondo pareado a 1200 mm.
+Semillas: 160000 + indice_escenario * 10007 + corrida (indices 8 y 9).
+Criterio estricto: media/p95/contactos no suben; llegadas no bajan. Sin tolerancia.
+OK ('esquive_20x20', 'DESPUES sin firmware nuevo'): media/p95 33/78 -> 32/76 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+OK ('esquive_20x20', 'DESPUES con RUMBO (firmware nuevo)'): media/p95 17/40 -> 17/37 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+OK ('esquive_20x20', 'DESPUES con RUMBO y escala calibrada (IMU_ESCALA)'): media/p95 17/40 -> 16/37 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+OK ('esquive_ancha', 'DESPUES sin firmware nuevo'): media/p95 33/79 -> 32/77 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+OK ('esquive_ancha', 'DESPUES con RUMBO (firmware nuevo)'): media/p95 17/40 -> 16/38 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+OK ('esquive_ancha', 'DESPUES con RUMBO y escala calibrada (IMU_ESCALA)'): media/p95 17/39 -> 16/38 mm; llegadas 1000 -> 1000; contactos 0 -> 0
+6 comparaciones, 0 fallos

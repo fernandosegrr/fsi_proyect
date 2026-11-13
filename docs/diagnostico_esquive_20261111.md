@@ -33,104 +33,96 @@ Al detenerse, v1.1 guarda lectura láser fresca/válida, o cero. Planea con esa 
 
 **Se descarta que todos los tramos fueran tiempos fijos independientes del láser.** Sí se confirman la sustitución visual sin medida y el defecto de `calcular_fin_obstaculo`: recorta el objetivo al final de la recta (50 mm antes si es el último tramo). Puede quedar antes del objeto. Reincorporación y cierre no exigían láser libre. El arco, además, usaba banda visual aunque existiera medida láser.
 
-## Reproducción determinista antes y después
+## Revisión de autonomía del 12-nov-2026
 
-Banco: [pruebas_esquive_confirmado.c](../nucleo_c/pruebas_esquive_confirmado.c). Pose inicial `(1000,2000,0°)`, mm, frente hacia Y decreciente; chasis 200×240 mm y sensor 120 mm delante del centro. Cámara geométrica por zonas, rayo contra rectángulos, fondo válido a 1200 mm, cuadros cada 100 ms, calibración 51,8 ms/cm, giroscopio sano y pivote nulo para aislar el defecto. Pérdida de eco inyectada como inválida; no se simula la reflectancia de patas. Recta 2000 mm salvo casos cortos de 600 mm. No reconstruye el montaje físico ni sus 13 s.
+La primera corrección (`458d5b3`) era demasiado conservadora: exigía láser para todo esquive y convertía el costado aún visible en AYUDA. **Era una regresión:** v1.1 terminaba después del banquito simulado con dos esquives; la primera corrección se detenía antes de terminar el rebase. Esa política queda reemplazada por la siguiente, a petición del usuario.
 
-| Caso | v1.1: pose final; estado; tiempo | Rama: pose final; estado; tiempo | Posición respecto al objeto |
+### Política implementada
+
+- Láser vivo, válido, positivo y fresco (hasta 400 ms) a **400 mm o menos**: confirma obstáculo frontal, aunque ambas fuentes visuales estén vacías.
+- Láser libre y solo color o solo red positivos: continúa, sin STOP ni AYUDA. Los positivos de color en las tres zonas siguen siendo **una sola fuente**.
+- Color **y** EfficientDet coincidentes en la misma zona: confirman por visión incluso con láser libre, sin eco o vencido. No se confunde el resumen global «ambos» con coincidencia espacial. El resultado de red caduca a 300 ms; un resultado fresco vacío es desacuerdo, no fallo del sensor.
+- Banda 1 permite aproximarse con precaución; bandas 2/3 frenan. Sin distancia frontal utilizable, la precaución usa tandas de avance de 700 ms y STOP de 300 ms: reduce velocidad media, no modifica PWM ni calibra una nueva velocidad de motor. Con distancia láser de aproximación entre 400 y 800 mm se conserva el avance calibrado hasta la reacción cercana. Con láser sin eco/vencido y una sola fuente también avanza con precaución.
+- Siempre hay STOP antes de planear, pausa de 500 ms y un cuadro nuevo para escoger lado. El plan registra la distancia láser disponible hasta 500 mm; de faltar, usa la banda coincidente (300/500 mm, **estimaciones**, no medidas). El cierre bloqueado puede usar una lectura hasta 800 mm para reintentar.
+- Se mantiene el freno independiente del firmware `TOF_PARO` a 120 mm. El navegador conserva su distancia y no lo libera por un cuadro vacío. No se cambió firmware.
+
+### Rebase iterativo y cierre
+
+El primer objetivo longitudinal es `s + 120 mm sensor-centro + distancia frontal + tramo exploratorio 200 mm + margen 150 mm`. **200 mm es un intervalo de exploración, no el fondo asignado al objeto. Se eliminó el supuesto de 250 mm.** Los avances siguen ejecutándose por tiempo calibrado.
+
+Durante el regreso casi transversal (50 mm hacia delante) se revisan el láser y las tres zonas visuales. Si el costado sigue presente, STOP, registro del avance observado desde la cara frontal, otro tramo de 200 mm y desvío lateral 100 mm mayor (400 inicial, hasta 700 mm). Hay hasta seis intentos por ruta. Un giro interrumpido usa el ángulo SENS disponible para cerrar su pose; no lo da por completado ni lo calcula solo por tiempo. El fondo observado es una cota aproximada ligada a la pose estimada, no una medición completa del contorno.
+
+El plan nunca se recorta. Si el obstáculo está junto al final, puede prolongar **solo la última recta**, hasta 2 m y dentro del arreglo de puntos. No inventa un giro de ruta nuevo ni un mapa libre de esos 2 m: continúa comprobando sensores. Una curva que no permite encajar el rodeo puede requerir AYUDA.
+
+Para cerrar el esquive se exige haber alcanzado el avance planeado. Para cerrar la ruta se detiene y asienta 300 ms; exige tres muestras nuevas válidas **>800 mm**, sin consenso visual pendiente, o cinco cuadros nuevos sin coincidencia si el láser reporta sin eco (o está deshabilitado). Una muestra duplicada no cuenta tres veces. Un SENS vencido no se convierte en «sin eco» para cerrar. Al no cumplirlo, reintenta; agotado el presupuesto, AYUDA. La app conserva cancelación por enlace/SENS perdido (>1,5 s), video perdido y error de análisis.
+
+Ambos lados ocupados deben persistir 4000 ms antes de abandonar. Antes intenta retroceder 150 mm si conserva al menos 180 mm del tramo recto recién recorrido. Esa evidencia se borra al girar y se consume al retroceder; **no hay sensor trasero ni garantía ante objetos que aparezcan por detrás**. El mismo retroceso permite liberar un arco de salida demasiado próximo. No se usa un retroceso desconocido para esos casos.
+
+### Nueve grupos solicitados: antes y después
+
+Banco [pruebas_esquive_confirmado.c](../nucleo_c/pruebas_esquive_confirmado.c), ahora conectado a `fusion.c` real. Pose inicial `(1000,2000,0°)`, mm, frente hacia Y decreciente; chasis 200×240 mm, sensor 120 mm delante, cámara geométrica, cuadros cada 100 ms, calibración 51,8 ms/cm y giroscopio sano. Sin pivotes en este banco para aislar geometría; Monte Carlo sí incluye pivotes y ruido. Patas se representan como pérdida del retorno del rayo con ocupación visual: **no es una simulación fotométrica del mueble real**.
+
+«Antes» es `458d5b3`, la corrección rechazada. TERMINADO tras objeto exige que la **cola completa** supere su cara posterior; también se verifica contacto con el rectángulo orientado del chasis.
+
+| Caso | Antes | Después: pose final; tiempo; esquives | Resultado físico del modelo |
 |---|---|---|---|
-| Caja 20×20, láser sano | (994,-7,0°); TERMINADO; 20,45 s | (996,-8,0°); TERMINADO; 22,40 s | Ambos después |
-| Banquito como bloque 35×45, láser sano | (991,-13,0°); TERMINADO, 2 esquives; 27,95 s | (604,664,82°); AYUDA 14, 1 esquive; 14,10 s | Rama antes de completar rebase; no declara éxito |
-| Falso lateral sin objeto | (991,-11,0°); TERMINADO, 1 esquive; 20,85 s | (1000,2000,0°); AYUDA 13, 0 esquives; 1,30 s | Sin objeto |
-| Falso lateral + objeto a 80 cm, ruta 60 cm | (996,1391,0°); TERMINADO; 14,90 s | (1000,2000,0°); AYUDA 13, 0 esquives; 1,30 s | Ambos antes; solo v1.1 declara éxito |
-| Patas: pérdida de eco, objeto 35×45 | (1000,1556,0°); AYUDA 1; 6,30 s | (1000,1556,0°); AYUDA 13; 3,30 s | Ambos antes, sin esquive |
-| Visión sin láser habilitado, objeto cercano | (992,-5,0°); TERMINADO, 1 esquive; 20,25 s | (1000,2000,0°); AYUDA 13; 1,30 s | Rama antes, sin esquive |
-| Objeto próximo al final de ruta corta | (680,921,38°); AYUDA 11, 3 esquives; 20,70 s | (1000,2000,0°); AYUDA 14, 0 esquives; 0,80 s | Rama rechaza plan insuficiente |
-| Objeto de 90 cm de fondo | (613,776,64°); AYUDA 1; 17,60 s | (604,664,26°); AYUDA 14; 13,30 s | Ambos sin completar rebase |
-| Falso en las tres zonas | (1000,2000,0°); AYUDA 1; 4,30 s | (1000,2000,0°); AYUDA 13; 1,30 s | Sin objeto ni esquive |
+| 1. Caja 20×20, láser sano | TERMINADO, 22,40 s | (996,-8,0°); 22,50 s; 1 | Después, cola +768 mm |
+| 2. Banquito 35×45, fondo 450 mm | AYUDA 14, (604,664,82°), 14,10 s | (1001,-17,0°); 32,10 s; 3 | **TERMINADO después, sin AYUDA**, cola +527 mm |
+| 3. Objeto de 90 cm de fondo | AYUDA 14, (604,664,26°), 13,30 s | (1001,-614,0°); 44,90 s; 6 | TERMINADO después, cola +674 mm |
+| 4. Falso de solo color, láser libre | AYUDA 13 | (1000,-7,0°); 11,00 s; 0 | Continúa, 0 STOP intermedios |
+| 5. Falso de solo detector, láser libre | TERMINADO | (1000,-7,0°); 11,00 s; 0 | Continúa, 0 STOP intermedios |
+| 6. Color+red, láser libre (patas) | AYUDA 13 | (997,-17,0°); 28,00 s; 2 | TERMINADO después, cola +527 mm |
+| 7a. Sin eco, visión coincidente | AYUDA 13 | (997,-17,0°); 28,40 s; 2 | TERMINADO después, cierre visual |
+| 7b. Sin eco, solo color | AYUDA 13 | (1000,-7,0°); 14,20 s; 0 | Continúa con precaución, sin AYUDA |
+| 8. Falso en tres zonas, solo color | AYUDA 13 | (1000,-7,0°); 11,00 s; 0 | Continúa, 0 STOP intermedios |
+| 9. Ruta 600 mm, caja al final | AYUDA 14 | (989,795,0°); 18,60 s; 1 | TERMINADO después, cola +415 mm |
+| Regresión adicional: falso + banquito a 800 mm, ruta 600 mm | AYUDA 13; v1.1 daba falso TERMINADO | (1001,-17,0°); 32,10 s; 3 | TERMINADO después, cola +527 mm |
 
-Cero contactos en los nueve casos. Causa 13: falta confirmación; 14: rebase/plan insuficiente; 15: frente no libre al cerrar. Se prueban además 500/501 mm, dato inválido, duplicado, vencido, zonas alternadas, cierre ocupado/sin eco y pérdida de video.
+**Cero contactos en los once mundos antes y después.** Las pausas de precaución del caso 7b no son esquives. Registros completos: [v1.1](precision/esquive_autonomia_poses_bd1727b.txt), [corrección anterior](precision/esquive_autonomia_poses_458d5b3.txt), [autonomía actual](precision/esquive_autonomia_poses_actual.txt). Los dos primeros usan los algoritmos y constantes de sus commits, con el mismo adaptador de entradas geométricas externas.
 
-**Falso Terminado confirmado:** en la ruta de 600 mm, v1.1 dispara con medida 765 mm, recorta el fin a 550 mm y planea solo 499 mm de paralelo. El centro termina con avance 609 mm, antes incluso de la cara frontal situada a 920 mm del origen. La cola queda en 489 mm y el borde posterior del objeto en 1370 mm: faltan 881 mm. Declara TERMINADO. La rama exige medida ≤500 mm y no inicia esa maniobra.
+La hipótesis inicial queda **parcialmente confirmada en software**: en v1.1 había disparos visuales sin confirmación y un recorte del rebase. Se descarta que todos los tramos fueran tiempos fijos independientes de la medida. En el caso adicional, v1.1 disparaba a 765 mm, recortaba el fin a 550 mm y terminaba con la cola en 489 mm cuando el objeto terminaba en 1370 mm: **881 mm antes de superarlo**. Eso no identifica la causa exacta de la corrida física de 13 s.
 
-Con caja de 20 cm, ambas disparan a 395 mm. El plan cambia de 1199 a 1319 mm sobre la ruta y de 799 a 919 mm de paralelo, al incluir sensor-centro. El banquito tiene 450 mm de fondo, mayor que los 250 supuestos: la rama detecta su costado al volver y pide AYUDA sin declarar éxito.
+### Monte Carlo contra v1.1, mismas semillas
 
-Conclusión: **hipótesis parcialmente confirmada en software** (visión sin confirmación y rebase truncado). No queda demostrada la causa exacta de la prueba física ni el origen fotométrico del falso positivo. No se alteró el control de los giros reportados.
+1000 corridas por cada uno de los dos escenarios y tres configuraciones J16, semillas `160000 + índice*10007 + corrida` (índices 8 y 9). Referencia real `bd1727b`; no se usa la columna histórica «ANTES: J15» como sustituto de v1.1. Fondo válido a 1200 mm en ambos mundos. El informe de la primera revisión ya comprobaba que ese ajuste no alteraba los resultados de referencia. El banco interno también ejecuta sus controles generales; esta comparación evalúa exclusivamente los dos esquives pedidos.
 
-## Cambios
-
-1. STOP visual separado del permiso de esquive: tres lecturas válidas de 1–500 mm, frescas hasta 400 ms, más cámara lateral. Persistencia visual sin distancia: STOP y AYUDA tras 1000 ms. Varios cuadros confirman ocupación, no profundidad; se adopta la política conservadora de no esquivar a ciegas.
-2. Medida al confirmar con el carro parado; plan con sensor-centro, fondo y margen, sin recorte. Arco basado en distancia medida. Si no cabe, AYUDA.
-3. Vuelta casi transversal, apuntando 50 mm por delante de la proyección actual; vigilancia del costado y verificación del avance planeado. Si no supera el objeto, AYUDA.
-4. Cierre tras STOP, 300 ms de asentamiento y tres lecturas nuevas válidas >800 mm; sin comprobarlo en un segundo, AYUDA. Sin eco no es libre. Un error de video no se convierte en éxito.
-5. Se conservan los valores de visión 40/7/44 %. La app avisa y exige Aprender piso exitoso para cada nueva ruta con cámara; elimina el segundo toque que reutilizaba el piso e invalida el aprendizaje anterior al iniciar otro intento.
-6. El simulador de la app aporta rayo láser independiente y termina también en AYUDA. Distingue fondo medido de pérdida de eco. Se adaptan pruebas que exigían esquive solo visual y se mantienen esquives válidos con compensación de pivote.
-
-## Monte Carlo contra v1.1
-
-Solo se comparan `esquive_20x20` y `esquive_ancha` (40×20 cm del banco J16; **no es el banquito 35×45**). Mil corridas por escenario/configuración, mismas semillas `160000 + escenario*10007 + corrida`, ruido y calibración. Las columnas internas «ANTES: J15» del banco no son la referencia v1.1.
-
-| Caso / configuración | Media lateral v1.1 → rama (mm) | p95 v1.1 → rama (mm) | Llegadas v1.1 → rama | Contactos v1.1 → rama |
+| Escenario / configuración | Media v1.1 → actual (mm) | p95 v1.1 → actual (mm) | Llegadas antes → después | Contactos antes → después |
 |---|---:|---:|---:|---:|
-| 20×20 / sin RUMBO | 33 → 31 | 78 → 79 | 1000 → 1000 | 0 → 0 |
-| 20×20 / RUMBO | 17 → 16 | 40 → 37 | 1000 → 1000 | 0 → 0 |
-| 20×20 / RUMBO + escala | 17 → 16 | 40 → 36 | 1000 → 1000 | 0 → 0 |
-| Ancho / sin RUMBO | 33 → 31 | 79 → 77 | 1000 → 1000 | 0 → 0 |
-| Ancho / RUMBO | 17 → 16 | 40 → 37 | 1000 → 1000 | 0 → 0 |
-| Ancho / RUMBO + escala | 17 → 16 | 39 → 37 | 1000 → 1000 | 0 → 0 |
+| 20×20 / sin RUMBO | 33 → 32 | 78 → 76 | 1000 → 1000 | 0 → 0 |
+| 20×20 / RUMBO | 17 → 17 | 40 → 37 | 1000 → 1000 | 0 → 0 |
+| 20×20 / RUMBO + escala | 17 → 16 | 40 → 37 | 1000 → 1000 | 0 → 0 |
+| Ancho / sin RUMBO | 33 → 32 | 79 → 77 | 1000 → 1000 | 0 → 0 |
+| Ancho / RUMBO | 17 → 16 | 40 → 38 | 1000 → 1000 | 0 → 0 |
+| Ancho / RUMBO + escala | 17 → 16 | 39 → 38 | 1000 → 1000 | 0 → 0 |
 
-Con RUMBO (configuración reportada) mejoran media y p95 en ambos casos, sin perder llegadas ni aumentar contactos. Sin RUMBO, p95 de caja sube **1 mm**: queda dentro del criterio existente (+5 mm media, +10 mm o +20 % p95, sin empeorar contactos/llegadas). No se afirma mejora estricta de todas las métricas ni validación física.
+La media/p95 del banco miden error lateral a la línea final en los esquives; no deben presentarse como precisión total de posición. El error longitudinal se conserva en los registros. «Ancho» son dos celdas, 400×200 mm; el banquito de fondo 450 mm y el objeto de 900 mm se prueban aparte, arriba. **Ninguna de las seis comparaciones empeora**, sin tolerancia de +1 mm ni porcentual. Reproducción: `python scripts/comparar_esquives.py --corridas 1000`; compila solo fuentes explícitas en temporal. [Comparación estricta](precision/esquive_autonomia_comparacion.txt), [referencia](precision/esquive_autonomia_mc_v11.txt), [actual](precision/esquive_autonomia_mc_actual.txt).
 
-Se ejecutó también v1.1 con el mismo fondo láser válido de 1200 mm de la rama: las seis filas resultan idénticas a v1.1 sin adaptación. La mejora no proviene de contar «sin eco» como libre. Registros: [v1.1](precision/esquive_v11.txt), [v1.1 con fondo pareado](precision/esquive_v11_fondo_pareado.txt), [rama](precision/esquive_corregido.txt), [poses antes](precision/esquive_poses_antes.txt) y [poses después](precision/esquive_poses_despues.txt) y [comparación comprobada](precision/esquive_comparacion.txt).
+### Pruebas y alcance
 
-## Verificación y reproducción
+Se sustituyeron las expectativas revocadas de «color manda», «sin láser siempre AYUDA» y maniobras atadas a horarios por matrices de fuentes/bandas/frescura y mundos con contacto geométrico. Se conservaron las pruebas de calibración, pivotes, corrección de rumbo, pausas, cancelación, pérdida de video y demás módulos. Las entradas sintéticas de obstáculo del simulador representan explícitamente coincidencia; los falsos positivos se inyectan por fuente usando la fusión real.
 
-Desde la raíz de la rama:
+Resultados de esta revisión, comprobados al cierre del 13-nov-2026: `make -C nucleo_c test`, `make -C pruebas_firmware test`, servidor falso desde `pruebas_firmware`, `scripts/probar_version.py` y `docs/verificar_enlaces.py`, todos con salida 0. Núcleo: 1834 casos en 23 ejecutables; firmware: 540 casos y 3 verificaciones de página; servidor: 54; versión: 18; enlaces: 121 comprobados, ninguno roto. El puente JNI pasa revisión de sintaxis con Clang Android. **No se compiló APK ni firmware en esta revisión**, no se instalaron ni se ejecutaron pruebas con el carro. La compilación APK registrada en el commit anterior no valida este cambio Kotlin.
 
-```powershell
-make -C nucleo_c test
-make -C pruebas_firmware test
-Push-Location pruebas_firmware
-.\.venv\Scripts\python.exe probar_servidor_falso.py
-Pop-Location
-python scripts/probar_version.py
-python docs/verificar_enlaces.py
-.\nucleo_c\pruebas_esquive_confirmado.exe --informe
-.\nucleo_c\pruebas_precision_j16.exe 1000
-```
+### Compilar e instalar conservando datos: pasos preparados, NO ejecutados
 
-La referencia se compiló desde fuentes explícitas de `git show bd1727b:ruta`, en temporal, sin cambiar main ni exportar archivos privados. Mismo GCC C99 y `-O2` para Monte Carlo. Las pruebas que exigían movimiento sin medida ahora comprueban STOP/AYUDA; las nuevas comprueban éxito con láser sano y rechazo seguro. Resultados de esta revisión, todos con salida 0:
-
-| Comprobación | Resultado |
-|---|---|
-| `make -C nucleo_c test` | 23 programas, 1681 casos, 0 fallos; incluye 43 casos nuevos |
-| `make -C pruebas_firmware test` | 540 casos, 0 fallos; página HTML idéntica (3 comprobaciones) |
-| Servidor falso (desde `pruebas_firmware`) | 54 casos, 0 fallos |
-| `probar_version.py` | 18 pruebas, OK |
-| `verificar_enlaces.py` | 135 Markdown, 121 enlaces, 0 rotos |
-| Monte Carlo de 1000 corridas | 46 comprobaciones del banco, 0 fallos; seis filas comparadas contra v1.1 dentro del criterio existente |
-| APK `assembleDebug` | BUILD SUCCESSFUL; sin instalar |
-
-No se ejecutaron sanitizadores en esta sesión. Los resultados históricos del manual conservan su fecha.
-
-## Compilar sin instalar ni grabar
-
-APK desde esta rama, en proceso hijo (JAVA_HOME solo en ese proceso):
+Desde `E:\Dev\fsi_proyecto`, en esta rama:
 
 ```powershell
+git branch --show-current
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compilar_app.ps1
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r app_android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Salida local: `app_android/app/build/outputs/apk/debug/app-debug.apk`. Compilación de depuración comprobada; sin instalación ni reemplazo del entregable de `dist/`.
+`-r` reemplaza la aplicación y conserva datos; requiere el mismo identificador y firma que la instalada. Si Android rechaza la firma, detenerse y usar la clave original: **no desinstalar ni borrar datos**. No se incluye un comando para abrir la app o iniciar rutas. El script de compilación configura JAVA_HOME solo en su proceso hijo; no cambia Python/PATH/JAVA_HOME globales.
 
-Firmware DevKit, **paso preparado, no ejecutado**:
+Firmware, solo compilación local preparada, **NO ejecutada**:
 
 ```powershell
 & 'C:\Program Files\Arduino CLI\arduino-cli.exe' compile --fqbn esp32:esp32:esp32 --build-path "$env:TEMP\fsi-esquive-fw" firmware_carro
 ```
 
-No requiere puerto ni orden de carga. Firmware sin cambios; no se publica su binario. Dependencias y configuración local deben estar preparadas. No ejecutar `cargar.ps1` en esta sesión: su preparación inspecciona archivos privados. Para regenerar manual sin alterar figuras: `python docs/manual/generar_manual.py --sin-figuras`.
+No cargar ni publicar el binario. No mover la etiqueta v1.1 ni declarar v1.2; no hacer merge. Instalación, grabación y cualquier prueba con el carro requieren autorización posterior.
 
-## Pendiente de autorización y medición
+### Qué falta medir
 
-**Banquito: NO MEDIDA; arreglo NO MEDIDO.** Primero repetir con caja 20×20 cm y registrar distancia inicial/al frenar, SENS válido/fresco, decisión de esquive, avance de rebase, pose final, contactos y estado. Después medir sensor-centro, fondo y patas del banquito, pérdida de eco y falsos positivos con iluminación actual. No atribuir éxito simulado al carro. Instalación, grabación, pruebas físicas y eventual v1.2 requieren autorización del usuario.
+**Todo el arreglo sigue SIMULADO / NO MEDIDO en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm.** Registrar distancia inicial y al frenar, SENS/estado de ambas fuentes por zona, longitud de cada rebase, reintentos, pose final, contactos y causa final. Medir sensor-centro, chasis, pivotes, distancia por tiempo y frenado con esta batería e iluminación; después repetir con banquito, patas, ausencia de eco y objeto largo. No se atribuye al carro el éxito de estos modelos ni se promete superar cualquier geometría sin espacio libre.

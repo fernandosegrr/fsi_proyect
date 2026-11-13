@@ -38,7 +38,8 @@ object FusionNativa {
     const val R_CLASE_EN_CAMINO = 19
     const val R_DESMENTIDOS = 20       // modo «cualquier objeto»: zonas con un falso positivo de color de cercanía baja que se desmintieron
     const val R_BAJADOS_FLUJO = 21     // flujo del piso: zonas con un falso positivo de color lejano que el flujo bajó a aviso
-    const val ENTEROS_RESULTADO = 22
+    const val R_FUENTES_ZONA = 22      // bits: 1 color, 2 neuronal, 3 coincidencia en ESA zona
+    const val ENTEROS_RESULTADO = 25
 
     const val FUENTE_NINGUNA = 0
     const val FUENTE_DETECTOR = 1

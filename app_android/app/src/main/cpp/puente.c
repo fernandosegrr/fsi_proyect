@@ -693,7 +693,7 @@ Java_com_fsi_carro_MovimientoVisualNativa_reiniciar(JNIEnv *env, jobject objeto)
 /* ── Fusión del detector de color con el modelo de objetos ─────────────── */
 
 #define ENTEROS_CONFIG_FUSION     10
-#define ENTEROS_RESULTADO_FUSION  22
+#define ENTEROS_RESULTADO_FUSION  25
 #define ENTEROS_POR_CAJA           6
 
 /* Configuración por defecto de la fusión (10 enteros):
@@ -813,6 +813,7 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
             }
             salida[7] = datos_detector[7];    /* el color del piso del detector, para que el formato sea el mismo */
             salida[8] = datos_detector[8];
@@ -1082,6 +1083,7 @@ Java_com_fsi_carro_FusionNativa_decidirCualquiera(JNIEnv *env, jobject objeto, j
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
             }
             salida[7] = datos_detector[7];
             salida[8] = datos_detector[8];
@@ -1127,10 +1129,10 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
         datos[i] = 0;
     }
     salida[19] = -1;
-    if (fusion == NULL || (*env)->GetArrayLength(env, fusion) < 21 || flujo == NULL || (*env)->GetArrayLength(env, flujo) < 3 * OBS_ZONAS) {
+    if (fusion == NULL || (*env)->GetArrayLength(env, fusion) < ENTEROS_RESULTADO_FUSION || flujo == NULL || (*env)->GetArrayLength(env, flujo) < 3 * OBS_ZONAS) {
         salida[0] = FUS_ERR_ARGUMENTO;
     } else {
-        (*env)->GetIntArrayRegion(env, fusion, 0, 21, datos);
+        (*env)->GetIntArrayRegion(env, fusion, 0, ENTEROS_RESULTADO_FUSION, datos);
         (*env)->GetIntArrayRegion(env, flujo, 0, 3 * OBS_ZONAS, datos_flujo);
         fusion_config_defecto(&cfg);
         memset(&resultado, 0, sizeof resultado);
@@ -1139,6 +1141,7 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
             resultado.zona[z].celdas = (int)datos[7 + z];
+            resultado.fuentes_vision[z] = (int)datos[22 + z];
             zonas[z].piso_consistente = (int)datos_flujo[3 * z];
             zonas[z].hay_cerca = (int)datos_flujo[3 * z + 1];
             zonas[z].cercania = (int)datos_flujo[3 * z + 2];
@@ -1160,6 +1163,7 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
                 salida[7 + z] = resultado.zona[z].celdas;
             }
             salida[10] = resultado.severidad;
@@ -2440,12 +2444,15 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
     jint datos[ENTEROS_RESULTADO_OBSTACULOS];
     const ResultadoObstaculos *cuadro = NULL;
     int z;
+    jint fuentes[OBS_ZONAS] = {0, 0, 0};
 
     (void)objeto;
     memset(&resultado, 0, sizeof resultado);   /* todo en cero: el navegador también lee el tamaño de la cuadrícula (filas, columnas) y estos campos no se llenan aquí */
     if (hay_cuadro && obs != NULL && (*env)->GetArrayLength(env, obs) >= ENTEROS_RESULTADO_OBSTACULOS) {
         (*env)->GetIntArrayRegion(env, obs, 0, ENTEROS_RESULTADO_OBSTACULOS, datos);
+        if ((*env)->GetArrayLength(env, obs) >= 13) (*env)->GetIntArrayRegion(env, obs, 10, 3, fuentes);
         for (z = 0; z < OBS_ZONAS; z++) {
+            resultado.fuentes_vision[z] = (int)fuentes[z];
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
             resultado.zona[z].celdas = (celdas_zona_global[z] >= 0) ? celdas_zona_global[z] : (resultado.zona[z].hay_obstaculo ? MIN_CELDAS : 0);

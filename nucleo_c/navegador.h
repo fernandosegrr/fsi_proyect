@@ -90,7 +90,7 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_RETROCESO_MAX_MS     2000    /* tope absoluto del tiempo de retroceso, pase lo que pase con la calibración */
 #define NAV_ANGULO_ESQUIVAR        90    /* grados que gira para apartarse (múltiplo de 45) */
 #define NAV_TRAMO_ESQUIVAR_CM      40    /* cuánto avanza de lado, en cm */
-#define NAV_MAX_ESQUIVADAS          3    /* máximo de esquivadas en una misma ruta */
+#define NAV_MAX_ESQUIVADAS          6    /* maniobras y extensiones del rodeo antes de pedir ayuda */
 
 /* REINCORPORACION A LA LINEA (ver docs/navegador.md, "Volver a la línea"). Al terminar de esquivar, el carro lleva su pose estimada (x, y, rumbo) y:
  *   1. busca el punto de la línea original NAV_REINC_ADELANTE_CM cm por delante del punto donde salió de ella;
@@ -119,14 +119,13 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_ESQ_CERCANIA_LADO       3
 
 /* PASAR EL OBSTACULO ANTES DE VOLVER. Después de apartarse y enderezarse (VOLVER), el carro sigue PARALELO a la línea, a la distancia lateral a la que quedó, hasta
- * haber pasado el obstáculo. Usa la distancia láser confirmada al detenerse, el desplazamiento frontal del sensor,
- * NAV_OBSTACULO_PROFUNDO_MM y NAV_PASO_MARGEN_MM. Si no cabe en el tramo recto, pide AYUDA: nunca recorta el rebase.
+ * haber pasado el obstáculo. Usa distancia laser o banda visual coincidente, sensor-centro y margen.
+ * Explora por tramos NAV_BORDEAR_TRAMO_MM y amplia la ultima recta cuando hace falta: nunca recorta el rebase.
  * La vuelta pendiente de comprobar apunta casi transversalmente a la línea (50 mm hacia delante), vigila el costado
- * y exige láser libre de nuevo al recuperar el rumbo original. Las bandas visuales de abajo no miden profundidad. */
+ * y exige evidencia frontal nueva al recuperar el rumbo. Las bandas visuales no miden profundidad. */
 #define NAV_CARA_CERCANIA_3_MM    300    /* con cercanía 3 el obstáculo estaba a menos de esto */
 #define NAV_CARA_CERCANIA_2_MM    500
 #define NAV_CARA_CERCANIA_1_MM    800
-#define NAV_OBSTACULO_PROFUNDO_MM 250    /* fondo supuesto del obstáculo (una caja de ~20 a 25 cm) */
 #define NAV_PASO_MARGEN_MM        150    /* holgura al terminar de pasarlo. J16: eran 100; en la simulación calibrada la cola del carro (24 cm de largo) barría la cara de la caja al
                                           * pivotar en el giro final de la vuelta (0.9 % de los esquives con J15, 4.9 % con J14; ver B6-2, «probablemente tocó la caja»). Con 150, 0 de 1000 */
 #define NAV_PASO_MARGEN_J15_MM    100    /* la de antes (sin_margen_paso_j16) */
@@ -185,10 +184,10 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
  * firmware como GIRAR:<grados> (la app lo manda al ver navegador_tomar_giro_fw); el firmware gira hasta el ángulo MEDIDO y contesta con el ángulo REAL (navegador_aporte_giro): la pose usa ese
  * ángulo (con el desplazamiento del pivote calculado con él). Si el giro termina mal (GIRO_TIMEOUT / GIRO_ERROR) se usa el ángulo real que informó, si lo hay, y los giros siguientes de la ruta
  * vuelven al método por tiempo (con aviso SENS_DIAG). Un giro sin respuesta en la espera máxima también cae al tiempo.
- * La visión puede ordenar STOP; un esquive exige tres lecturas láser válidas, frescas y de 1 a NAV_REACCION_MAX_MM,
- * además de cámara para elegir un lado libre. TOF_PARO tampoco permite girar sin esos datos. La persistencia visual
- * por sí sola no aporta distancia: tras NAV_CONFIRMAR_LASER_MS detenido se pide AYUDA. El cierre y la reincorporación
- * requieren tres lecturas nuevas mayores que NAV_TOF_LIBRE_MM; sin eco no significa libre. */
+ * El laser fresco cercano confirma; si esta libre descarta una fuente visual aislada.
+ * Color y red coincidentes permiten esquivar por banda visual aun sin eco; siempre STOP antes de planear.
+ * El cierre exige tres lecturas >800 mm o, sin eco, cinco cuadros nuevos sin coincidencia y rebase cumplido.
+ * Sin eco no se contabiliza nunca como una lectura laser libre. */
 #define NAV_GIRO_FW_MIN_GRADOS       5    /* un giro de menos de esto no se pide al firmware (no se hace) */
 #define NAV_GIRO_FW_MAX_GRADOS     200    /* el firmware no gira más de esto de una vez; uno mayor se hace por tiempo */
 #define NAV_GIRO_FW_BASE_MS        500    /* tiempo máximo propio del firmware: base + por grado (igual que GIRO_TIEMPO_BASE_MS y GIRO_TIEMPO_POR_GRADO_MS de config.h) */
@@ -201,11 +200,17 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_TOF_LIBRE_LECTURAS       3
 #define NAV_TOF_CONFIRMA_MM        500    /* referencia histórica; reacción actual limitada por NAV_REACCION_MAX_MM */
 #define NAV_TOF_FRESCO_MS          400    /* una lectura del láser más vieja que esto ya no sirve */
-#define OBSTACULO_LASER_MM         400    /* autoridad opcional: agrega bloqueo central; no borra visión */
+#define OBSTACULO_LASER_MM         400    /* laser fresco cercano confirma el centro */
 #define NAV_REACCION_MAX_MM       500    /* distancia frontal maxima para planear un esquive automatico */
 #define NAV_SENSOR_FRENTE_MM     120    /* centro a sensor frontal: SUPUESTO de chasis de 240 mm; pendiente medir */
-#define NAV_CONFIRMAR_LASER_MS   1000    /* espera detenido; sin confirmacion pide AYUDA */
 #define NAV_VERIFICAR_FIN_MS     1000    /* espera lecturas nuevas con el carro parado y alineado */
+#define NAV_VISION_LIBRE_CUADROS    5    /* cierre sin eco: cuadros nuevos sin coincidencia */
+#define NAV_BORDEAR_TRAMO_MM      200    /* intervalo de exploración, NO profundidad supuesta */
+#define NAV_BORDEAR_EXTRA_MM      100    /* ensanchar el rodeo en cada reintento */
+#define NAV_BORDEAR_LATERAL_MAX   700
+#define NAV_EXTENSION_RUTA_MM   2000    /* máximo añadido a la recta final al rodear su obstáculo */
+#define NAV_PRECAUCION_AVANCE_MS  700    /* avance calibrado por tandas; sin cambiar PWM del firmware */
+#define NAV_PRECAUCION_PAUSA_MS   300
 
 /* RUMBO DEL FIRMWARE (J16, ver firmware_carro/rumbo.h y navegador_poner_rumbo_fw). Con el firmware sosteniendo el rumbo al avanzar, el navegador le manda el rumbo
  * que quiere mientras avanza: sobre la línea de la ruta apunta a un punto NAV_RUMBO_MIRA_MM más adelante (si el carro quedó de lado, vuelve a ella poco a poco, sin
@@ -282,7 +287,7 @@ typedef enum {
 #define NAV_CAUSA_INDICE                10   /* freno anti-locura: el índice del siguiente punto de la ruta retrocedió */
 #define NAV_CAUSA_RECORRIDO             11   /* freno anti-locura: recorrió más de 2.5 veces la distancia de la ruta */
 #define NAV_CAUSA_LEJOS                 12   /* freno anti-locura: la pose quedó a más de 1 m de la ruta */
-#define NAV_CAUSA_SIN_CONFIRMACION      13   /* vision persistente sin distancia laser cercana y valida */
+#define NAV_CAUSA_SIN_CONFIRMACION      13   /* reservado, historico: ya no se emite por desacuerdo */
 #define NAV_CAUSA_OBSTACULO_NO_PASADO   14   /* la recta no alcanza o la vuelta sigue bloqueada */
 #define NAV_CAUSA_FIN_NO_LIBRE          15   /* no se pudo comprobar el frente libre al cerrar */
 
@@ -419,6 +424,11 @@ typedef struct {
     int cerc_detenido_max;       /* la mayor cercanía (dentro del corredor) vista desde que se detuvo por obstáculo hasta decidir: el último cuadro puede venir vacío */
     int fin_obstaculo_mm;        /* hasta dónde (distancia a lo largo de la ruta) se supone que llega el último obstáculo que lo detuvo; -1 = ninguno */
     int obstaculo_pendiente;     /* exige superar fin_obstaculo y verificar el frente antes de retomar */
+    int fuentes_vision[OBS_ZONAS], vision_sin_coincidencia, precaucion;
+    int borde_reintentos, fondo_observado_mm, cara_obstaculo_s_mm, lateral_objetivo_mm;
+    int extension_ruta_mm, cierre_reintento;
+    int atras_conocido_mm, escape_atras;
+    uint32_t precaucion_pausa_ms;
     int verificando_frente, fin_pendiente, fin_verificado;
     uint32_t verificar_frente_ms;
     int paralelo_mm;             /* cuánto debe avanzar en paralelo a la línea para pasar el obstáculo (se calcula al terminar de enderezarse) */

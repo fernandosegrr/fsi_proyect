@@ -887,6 +887,7 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
     int zona, fila, columna, g, c;
 
     for (zona = 0; zona < OBS_ZONAS; zona++) {
+        resultado->fuentes_vision[zona] = 0; /* color crudo, aun sin fusion */
         resultado->zona[zona].hay_obstaculo = 0;
         resultado->zona[zona].cercania = 0;
         resultado->zona[zona].celdas = 0;

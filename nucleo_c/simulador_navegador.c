@@ -431,6 +431,11 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
 {
     int i;
 
+    if (sim->vision_externa != NULL) {
+        *cuadro = *sim->vision_externa;
+        return;
+    }
+
     memset(cuadro, 0, sizeof *cuadro);
     for (i = 0; i < sim->n_eventos; i++) {
         EventoObstaculo *e = &sim->eventos[i];
@@ -445,6 +450,7 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
             }
             celdas += (int)((sim->recorrido_cmm - e->base_recorrido_cmm) * e->crece_por_10cm / 10000);   /* un obstáculo real crece al acercarse */
             cuadro->zona[e->zona].hay_obstaculo = 1;
+            cuadro->fuentes_vision[e->zona] = 3; /* evento sintético observado por color y red */
             if (celdas > cuadro->zona[e->zona].celdas) {
                 cuadro->zona[e->zona].celdas = celdas;
             }

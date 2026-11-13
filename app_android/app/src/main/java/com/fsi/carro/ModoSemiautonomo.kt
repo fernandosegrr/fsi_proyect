@@ -328,6 +328,7 @@ class ModoSemiautonomo(
         if (fuente != null) {
             cuadro = fuente.tomarCuadroNuevo()
             if (cuadro != null) {
+                if (cuadro[0] != 0) { cancelar("Visión sin datos válidos: ruta detenida"); return }
                 ultimoCuadroMs = ahora
                 registrarCambioDeCamara(cuadro)
                 seguirBloqueo(fuente.cuadroTomado, cuadro)
@@ -356,7 +357,7 @@ class ModoSemiautonomo(
             val c = info?.corredor
             if (c != null && info.resultado.size > ObstaculosNativa.CERCANIA_DERECHA) {
                 val det = info.resultado
-                fun igual(zona: Int) = cuadro[1 + 2 * zona] == det[1 + 2 * zona] && cuadro[2 + 2 * zona] == det[2 + 2 * zona]
+                fun igual(zona: Int) = cuadro[10 + zona] != 3 && cuadro[1 + 2 * zona] == det[1 + 2 * zona] && cuadro[2 + 2 * zona] == det[2 + 2 * zona]
                 NavegadorNativa.ponerCorredor(
                     if (igual(0)) c[CorredorNativa.FUERA] else 0, if (igual(1)) c[CorredorNativa.FUERA + 1] else 0, if (igual(2)) c[CorredorNativa.FUERA + 2] else 0,
                     if (igual(0)) c[CorredorNativa.CERCANIA] else 0, if (igual(1)) c[CorredorNativa.CERCANIA + 1] else 0, if (igual(2)) c[CorredorNativa.CERCANIA + 2] else 0)
@@ -560,13 +561,14 @@ class ModoSemiautonomo(
         }
     }
 
-    /** Arma los 10 enteros que espera el navegador con los obstáculos simulados (cercanía 3 = muy cerca). */
+    /** Zonas y fuentes del simulador: el botón representa un obstáculo confirmado (cercanía 3). */
     private fun armarCuadro(): IntArray {
-        val cuadro = IntArray(10)
+        val cuadro = IntArray(13)
         for (zona in 0..2) {
             if (obstaculoSimulado[zona]) {
                 cuadro[1 + 2 * zona] = 1   // hay obstáculo
                 cuadro[2 + 2 * zona] = 3   // muy cerca
+                cuadro[10 + zona] = 3     // boton de simulacion: obstaculo confirmado, sin sensores reales
             }
         }
         return cuadro

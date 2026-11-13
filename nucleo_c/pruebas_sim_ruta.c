@@ -176,15 +176,15 @@ int main(void)
                 caja[0].fila = fila;
                 codigo = sr_simular(larga, 8, NULL, caja, 1, 0, 0, &res);
                 casos_probados++;
-                if (codigo != SR_OK || (col == 5 && fila >= 2 ? !res.llego : res.estado_final != NAV_AYUDA)) {
+                if (codigo != SR_OK || !res.llego) {
                     todos = 0;
                     printf("      NO llegó con una caja de 20 cm en (%d,%d): estado=%d causa=%d\n", col, fila, res.estado_final, res.error_causa);
                 }
                 esquivan += (res.esquivadas >= 1);
             }
         }
-        caso("caja centrada con espacio: llega; lateral sin laser o cerca del final: AYUDA", todos && casos_probados == 15);
-        caso("las cuatro cajas centradas con espacio obligan a esquivar", esquivan == 4);
+        caso("cajas centradas y laterales: las quince posiciones llegan, incluso cerca del final", todos && casos_probados == 15);
+        caso("las quince cajas obligan a esquivar", esquivan == 15);
         todos = 1;
         for (fila = 1; fila <= 4; fila++) {   /* una caja de 40 cm de ancho (dos celdas lado a lado) sobre la línea */
             caja[0].columna = 5;
@@ -192,12 +192,12 @@ int main(void)
             caja[1].columna = 6;
             caja[1].fila = fila;
             codigo = sr_simular(larga, 8, NULL, caja, 2, 0, 0, &res);
-            if (codigo != SR_OK || (fila >= 2 ? !res.llego : res.estado_final != NAV_AYUDA)) {
+            if (codigo != SR_OK || !res.llego) {
                 todos = 0;
                 printf("      NO llegó con una caja de 40 cm de ancho en (5..6,%d): estado=%d causa=%d\n", fila, res.estado_final, res.error_causa);
             }
         }
-        caso("caja ancha: llega en filas 2 a 4; sin espacio en fila 1 pide AYUDA", todos);
+        caso("caja ancha: llega en las cuatro filas, ampliando la ruta cuando hace falta", todos);
         caso("con una caja la ruta termina cerca del final (menos de 15 cm) y sin salir de la cuadrícula", res.error_final_mm < 150 && (res.advertencias & SR_ADV_SALE_CUADRICULA) == 0);
     }
 
@@ -228,7 +228,7 @@ int main(void)
         caso("causa REINTENTOS: \"El obstáculo bloqueó el camino y se agotaron los 2 reintentos.\"", strcmp(causa, "El obstáculo bloqueó el camino y se agotaron los 2 reintentos.") == 0);
         res.error_causa = NAV_CAUSA_MAX_ESQUIVADAS;
         sr_texto_causa(&res, causa, sizeof causa);
-        caso("causa MAX_ESQUIVADAS: dice que se agotaron las 3 esquivadas", strstr(causa, "se agotaron las 3 esquivadas") != NULL);
+        caso("causa MAX_ESQUIVADAS: dice que se agotaron las 6 esquivadas", strstr(causa, "se agotaron las 6 esquivadas") != NULL);
         res.error_causa = NAV_CAUSA_NINGUNA;
         res.advertencias = SR_ADV_CORTADA;
         caso("sin error pero cortada por tiempo: dice que se cortó por tardar demasiado", sr_texto_causa(&res, causa, sizeof causa) > 10 && strstr(causa, "cortó") != NULL);

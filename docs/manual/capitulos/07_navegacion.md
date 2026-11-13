@@ -54,9 +54,9 @@ El módulo `navegador.c` gobierna la ejecución de la ruta mediante siete estado
 |---|---|---|
 | `NAV_ESPERANDO` | `STOP` | Estado inicial o tras cancelar; espera `navegador_comenzar`. |
 | `NAV_SIGUIENDO` | `FORWARD` / `LEFT` / `RIGHT` + `RUMBO` | Ejecuta la secuencia de pasos (`PASO_GIRAR` y `PASO_AVANZAR`) hacia el siguiente nodo de la ruta. |
-| `NAV_DETENIDO_OBSTACULO` | `STOP` | STOP visual; para esquivar requiere tres medidas láser válidas ≤500 mm y cámara lateral. Sin confirmación en 1000 ms, AYUDA. |
-| `NAV_ESQUIVANDO` | Giros y avances de desvío | Ejecuta el rodeo lateral (`400 mm` a izquierda o derecha) y el avance paralelo para rebasar la caja. |
-| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Con obstáculo pendiente vuelve casi transversalmente (objetivo 50 mm por delante de la proyección actual); comprueba rebase y láser libre. |
+| `NAV_DETENIDO_OBSTACULO` | `STOP` | Confirmación láser o coincidencia color/red; pausa de 500 ms y cuadro nuevo antes de planear por el lado libre. |
+| `NAV_ESQUIVANDO` | Giros y avances de desvío | Rodeo lateral de 400 mm inicial, hasta 700 mm en reintentos, y exploración paralela por tramos. |
+| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Retorno casi transversal; si sigue el objeto, amplía y reintenta. Comprueba avance y frente antes del cierre. |
 | `NAV_AYUDA` | Manual del operador | Cede el mando al usuario cuando ambos lados están bloqueados o se activa un paro de supervisión; espera hasta `3 min` a que pulse `Continuar`. |
 | `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin solo tras comprobar rebase y frente libre con lecturas nuevas; o aborto por fallo irrecuperable. |
 
@@ -79,22 +79,20 @@ Incluso si el controlador `PI` del firmware mantiene un ángulo constante, un pe
 3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_MAX_CORR_X10 = 120`) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
 4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8.0°`** (`NAV_GIRO_EN_MARCHA_MAX_X10 = 80`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
 
-## 7.4 Geometría del esquive y margen de 150 mm
+## 7.4 Esquive iterativo (revisión de autonomía del 12-nov)
 
-La detección visual ordena detenerse según cercanía y persistencia. Desde la revisión del 11-nov, tras una pausa de 500 ms, solo se planea el rodeo con distancia láser confirmada de 1 a 500 mm y un lado libre observado por cámara. Sin confirmación en 1000 ms se pide AYUDA.
+La revisión anterior exigía láser para todo esquive y pedía AYUDA al ver el costado durante el retorno. Era una regresión: v1.1 pasaba el banquito simulado con dos esquives. Se reemplaza por confirmación láser cercana o coincidencia de color y red en la misma zona. Con láser libre y una fuente visual aislada se continúa. Sin eco y una fuente sola se avanza con precaución; sin eco y coincidencia se puede esquivar.
 
-[FIGURA:esquive|Esquema histórico de la maniobra J16 (v1.1). La revisión del 11-nov cambia confirmación, rebase y regreso como explica el texto; esos cambios NO están medidos en el carro.]
+[FIGURA:esquive|Esquema histórico J16 (v1.1). La revisión actual cambia confirmación, exploración del fondo y reintentos; sigue NO MEDIDA en el carro.]
 
-1. **Desvío lateral:** objetivo de 400 mm desde la línea, compensando los desplazamientos de pivote de los giros de 90 grados. El avance no es siempre 400 mm: se descuenta el desplazamiento que aportan los giros. Se elige un lado libre y se comprueba que el arco cabe usando distancia láser medida.
-2. **Avance paralelo:** la posición longitudinal requerida es la salida sobre la ruta más 120 mm sensor-centro, distancia frontal medida, fondo supuesto de 250 mm y margen de 150 mm. Se descuenta lo ya avanzado por los pivotes. Si ese objetivo no cabe en la recta, se pide AYUDA; nunca se recorta para cerrar la ruta.
-3. **Reincorporación:** con obstáculo pendiente, el objetivo está sobre la ruta 50 mm por delante de la proyección actual (puede adelantarse si el plan de pivotes necesita otro intento). El navegador vigila cámara y láser al volver casi transversalmente. Si observa otra superficie cercana, invalida el fondo supuesto y pide AYUDA. Al recuperar el rumbo exige avance suficiente y lecturas frontales libres nuevas antes de continuar.
+Tras STOP, 500 ms y un cuadro nuevo, se elige lado libre. El plan registra la distancia láser cercana; sin ella estima la cara con la banda visual (300/500 mm). Añade 120 mm sensor-centro, un primer tramo exploratorio de 200 mm y margen de 150 mm. Se elimina la profundidad fija de 250 mm.
 
-Dónde está en el código: `navegador.h`, `navegador.c`, `trayectoria.h`, `trayectoria.c`, `calibracion.h`, `calibracion.c`, `calgiro.h`, `calgiro.c`, `ruta_editor.c`, `simulador_navegador.c`.
+Si el costado sigue presente al volver, extiende el paralelo 200 mm y aumenta el desvío lateral 100 mm (400 inicial, máximo 700). Máximo seis intentos. La última recta puede prolongarse hasta 2 m; nunca se recorta el rebase para declarar éxito. Los movimientos siguen siendo por tiempo calibrado, y el fondo observado no es una medición completa del contorno.
 
-## 7.5 Corrección de confirmación y rebase (11-nov, solo software)
+## 7.5 Cierre, ayuda y evidencia
 
-La visión sola puede frenar, pero nunca dispara esquive. Aun con muchos cuadros iguales se necesita distancia láser válida de 1 a 500 mm (tres lecturas, frescura hasta 400 ms), cámara para elegir lado libre y espacio de ruta suficiente. Sin esa medida se mantiene STOP y se pide AYUDA. La autoridad láser ya no borra la ocupación visual.
+La reincorporación exige alcanzar el avance planeado. El cierre añade STOP y 300 ms de asentamiento: tres lecturas nuevas válidas >800 mm sin consenso visual pendiente, o cinco cuadros nuevos sin coincidencia cuando hay reporte sin eco o láser deshabilitado. Un SENS vencido no es un reporte sin eco. Si falta evidencia, reintenta antes de pedir AYUDA.
 
-El fin longitudinal requerido es la posición sobre la ruta más 120 mm sensor-centro (supuestos, pendientes de medir), la distancia frontal real, 250 mm de fondo supuesto y 150 mm de margen. No se recorta al último punto: si no cabe se pide AYUDA. El desvío lateral de 400 mm conserva la compensación de pivote y los avances se ejecutan por tiempo calibrado.
+Ambos lados bloqueados requieren 4000 ms y agotar el retroceso conocido: 150 mm solo si se conservan 180 mm del tramo recto recién recorrido. No existe sensor trasero; ese supuesto no cubre objetos que aparezcan por detrás. Se conservan frenos por sensores perdidos, intentos agotados y pose incoherente. El firmware mantiene TOF_PARO a 120 mm.
 
-Durante la reincorporación se vigila el costado. Si el objeto resulta mayor que lo supuesto y sigue detectándose, se detiene en AYUDA. El cierre exige alcanzar el avance planeado y tres lecturas nuevas válidas mayores de 800 mm con el carro detenido; sin eco no es libre. Esto no garantiza detectar patas fuera del haz ni mide la profundidad del mueble. Detalle y poses: `docs/diagnostico_esquive_20261111.md`.
+SIMULADO: caja 20×20 termina con un intento; banquito 35×45 con tres; objeto de 90 cm de fondo con seis. Cero contactos en estos mundos. Banquito y arreglo **NO MEDIDOS**: primero repetir con caja de 20×20 cm, previa autorización. Poses, Monte Carlo contra v1.1 y códigos: `docs/diagnostico_esquive_20261111.md` y `docs/limites_conocidos.md`. No se declara v1.2 ni validación física.

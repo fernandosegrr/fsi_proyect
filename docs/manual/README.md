@@ -1,6 +1,6 @@
 # Construcción del Manual Técnico (base v1.1; revisión pendiente)
 
-**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](../diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
+**Revisión pendiente del 12-nov-2026:** [esquive confirmado y resultados](../diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
 
 El manual técnico del proyecto **LIDIA (*Carro FSI*)** se redacta de forma modular en `docs/manual/capitulos/` (`01_introduccion.md` a `16_anexos.md`) y se compila de manera reproducible en un solo comando mediante `docs/manual/generar_manual.py`.
 
@@ -22,7 +22,7 @@ El script ejecuta automáticamente `docs/figuras/generar_figuras.py` antes de co
 
 ## Documentos de soporte en esta carpeta
 
-- [Manual_Proyecto_Carro_FSI.pdf](Manual_Proyecto_Carro_FSI.pdf): PDF con la revisión pendiente del 11-nov sobre la base v1.1.
+- [Manual_Proyecto_Carro_FSI.pdf](Manual_Proyecto_Carro_FSI.pdf): PDF con la revisión de autonomía del 12-nov sobre la base v1.1.
 - [diagnostico_v1.md](diagnostico_v1.md): diagnóstico visual página por página del borrador previo a la reescritura.
 - [plan_final.md](plan_final.md): estructura de 16 capítulos, fuentes verificadas y catálogo de figuras y tablas de la versión 1.1.
 - [auditoria_afirmaciones.md](auditoria_afirmaciones.md): trazabilidad de las afirmaciones técnicas, cifras y etiquetas de evidencia (`VALIDADO EN EL CARRO`, `SIMULADO`, `NO MEDIDO`, `PENDIENTE`).

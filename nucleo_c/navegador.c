@@ -615,6 +615,9 @@ static void ajustar_paso_tras_parar(Navegador *nav)
 static void cambiar_comando(Navegador *nav, ComandoNav nuevo)
 {
     if (nuevo != nav->cmd_actual) {
+        if (nav->cmd_actual == NAV_CMD_LEFT || nav->cmd_actual == NAV_CMD_RIGHT) {
+            nav->atras_conocido_mm = 0; /* el espacio recorrido ya no queda detras */
+        }
         if (nav->cmd_actual == NAV_CMD_FORWARD && nuevo == NAV_CMD_STOP &&
             (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO)) {
             nav->frenado_pendiente = 1;
@@ -1125,6 +1128,9 @@ static int tof_dice_cerca(const Navegador *nav, uint32_t ahora_ms)
            nav->tof_mm <= NAV_REACCION_MAX_MM && nav->tof_cerca_lecturas >= NAV_TOF_LIBRE_LECTURAS;
 }
 
+static void extender_rebase(Navegador *nav, uint32_t ahora_ms);
+static void entrar_detenido(Navegador *nav, uint32_t ahora_ms);
+
 /* Una lectura sin eco no demuestra espacio libre. Esperar parado y con el
  * rumbo final evita reutilizar el haz que miraba al costado durante el giro. */
 static int verificar_frente(Navegador *nav, uint32_t ahora_ms, int causa)
@@ -1133,17 +1139,30 @@ static int verificar_frente(Navegador *nav, uint32_t ahora_ms, int causa)
         nav->verificando_frente = 1;
         nav->verificar_frente_ms = ahora_ms;
         nav->tof_libre_lecturas = 0;
+        nav->vision_sin_coincidencia = 0;
     }
     if (ahora_ms - nav->verificar_frente_ms < NAV_PAUSA_ASENTAR_MS) {
         nav->tof_libre_lecturas = 0;
+        nav->vision_sin_coincidencia = 0;
         return 0;
     }
-    if (tof_dice_libre(nav, ahora_ms)) {
+    if ((tof_dice_libre(nav, ahora_ms) && (!nav->usa_camara || nav->vision_sin_coincidencia > 0)) ||
+        ((!nav->usa_tof || (tof_fresco(nav, ahora_ms) && (!nav->tof_valida || nav->tof_mm <= 0))) &&
+         nav->usa_camara && ahora_ms - nav->t_ultimo_cuadro_ms <= NAV_MAX_HUECO_VIDEO_MS &&
+         nav->vision_sin_coincidencia >= NAV_VISION_LIBRE_CUADROS)) {
         nav->verificando_frente = 0;
         return 1;
     }
     if (ahora_ms - nav->verificar_frente_ms >= NAV_VERIFICAR_FIN_MS) {
-        ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, causa);
+        nav->verificando_frente = nav->fin_pendiente = 0;
+        if (nav->esquivadas >= NAV_MAX_ESQUIVADAS) {
+            ir_a_error_causa(nav, NAV_MOTIVO_MAX_ESQUIVADAS, NAV_CAUSA_MAX_ESQUIVADAS);
+        } else if (nav->obstaculo_pendiente && causa == NAV_CAUSA_OBSTACULO_NO_PASADO) {
+            extender_rebase(nav, ahora_ms);
+        } else {
+            nav->cierre_reintento = 1;
+            entrar_detenido(nav, ahora_ms);
+        }
     }
     return 0;
 }
@@ -1742,6 +1761,13 @@ void navegador_iniciar(Navegador *nav)
     nav->cerc_detenido_max = 0;
     nav->fin_obstaculo_mm = -1;
     nav->obstaculo_pendiente = nav->verificando_frente = nav->fin_pendiente = nav->fin_verificado = 0;
+    memset(nav->fuentes_vision, 0, sizeof nav->fuentes_vision);
+    nav->vision_sin_coincidencia = nav->precaucion = 0;
+    nav->borde_reintentos = nav->fondo_observado_mm = nav->cara_obstaculo_s_mm = 0;
+    nav->lateral_objetivo_mm = NAV_ESQ_MARGEN_LATERAL_MM;
+    nav->extension_ruta_mm = nav->cierre_reintento = 0;
+    nav->atras_conocido_mm = nav->escape_atras = 0;
+    nav->precaucion_pausa_ms = 0;
     nav->verificar_frente_ms = 0;
     nav->requiere_camara = 0;
     nav->paralelo_mm = 0;
@@ -1923,6 +1949,13 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->cerc_detenido_max = 0;
     nav->fin_obstaculo_mm = -1;
     nav->obstaculo_pendiente = nav->verificando_frente = nav->fin_pendiente = nav->fin_verificado = 0;
+    memset(nav->fuentes_vision, 0, sizeof nav->fuentes_vision);
+    nav->vision_sin_coincidencia = nav->precaucion = 0;
+    nav->borde_reintentos = nav->fondo_observado_mm = nav->cara_obstaculo_s_mm = 0;
+    nav->lateral_objetivo_mm = NAV_ESQ_MARGEN_LATERAL_MM;
+    nav->extension_ruta_mm = nav->cierre_reintento = 0;
+    nav->atras_conocido_mm = nav->escape_atras = 0;
+    nav->precaucion_pausa_ms = 0;
     nav->tof_libre_lecturas = nav->tof_cerca_lecturas = 0;
     nav->reinc_pasar_primero = 0;
     {   /* Por ruta: el arranque espera cuadros iguales, el sondeo se puede hacer una vez y los frenos anti-locura parten de cero. */
@@ -2035,9 +2068,11 @@ static int solo_carril_central(const ResultadoObstaculos *obs, int zona)
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
     int z, bloqueado = 0, inmediato = 0, cerc3_chico = 0, causa_normal = 0, firma = 0, otra_causa = 0;
-    int autoridad = nav->autoridad_laser && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0;
-    int laser_cerca = autoridad && nav->tof_mm <= OBSTACULO_LASER_MM;
+    int autoridad = tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0;
+    int laser_cerca = (autoridad && nav->tof_mm <= OBSTACULO_LASER_MM) || nav->tof_paro_activo;
     int solo_central[OBS_ZONAS] = { 0, 0, 0 };
+    int coincidencia = 0;
+    nav->precaucion = 0;
 
     if (autoridad) {
         int camara_centro = obs->zona[ZONA_CENTRO].hay_obstaculo;
@@ -2066,8 +2101,15 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
     nav->obs_franja_pct = obs->franja_tapada_pct;
 
     for (z = 0; z < OBS_ZONAS; z++) {
-        int hay = obs->zona[z].hay_obstaculo;
+        int fuentes = obs->fuentes_vision[z] & 3;
+        int hay;
+        if (!fuentes && obs->zona[z].hay_obstaculo) fuentes = 1; /* entrada de color sin fusión */
+        nav->fuentes_vision[z] = fuentes;
+        hay = fuentes == 3;
+        coincidencia |= hay;
+        if (fuentes && (!autoridad || (fuentes == 3 && nav->tof_mm > NAV_TOF_LIBRE_MM))) nav->precaucion = 1;
         int celdas = obs->zona[z].celdas;
+        if (fuentes == 3 && obs->zona[z].cercania >= 2) inmediato = 1;
 
         if (autoridad && z == ZONA_CENTRO) {
             hay = hay || laser_cerca; /* el laser puede confirmar, nunca borrar una sospecha visual */
@@ -2102,6 +2144,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             nav->zona_cerc_frena[z] = laser_cerca ? 3 : 0;
             if (laser_cerca) inmediato = 1;
         }
+        if (nav->zona_cerc_frena[z] == 1 && !laser_cerca) nav->zona_frena[z] = nav->zona_en_corredor[z] = 0;
         if (nav->zona_frena[z] && nav->frenar_lejos_centro && z == ZONA_CENTRO && nav->zona_cerc_frena[z] >= 1 &&
             nav->zona_cerc_frena[z] < NAV_CERCANIA_MIN_DETENER) {
             bloqueado = 1;                       /* frenar desde lejos: cercanía 1 en el centro también bloquea (se confirma con menos tiempo) */
@@ -2226,7 +2269,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
         /* Las columnas 0 y 9 en las filas 7 a 9 se evalúan solo durante esquive y reincorporación (si esa zona no está ignorada como fantasma fijo). */
-        if (!nav->fijo_ignorar[ZONA_IZQUIERDA] && (borde_izq[0] + borde_izq[1] + borde_izq[2] >= 2)) {
+        if (nav->fuentes_vision[ZONA_IZQUIERDA] == 3 && !nav->fijo_ignorar[ZONA_IZQUIERDA] && (borde_izq[0] + borde_izq[1] + borde_izq[2] >= 2)) {
             nav->zona_borde_cerca[ZONA_IZQUIERDA] = 1;
             nav->zona_hay[ZONA_IZQUIERDA] = 1;
             nav->zona_frena[ZONA_IZQUIERDA] = 1;
@@ -2237,7 +2280,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                 nav->zona_cerc_frena[ZONA_IZQUIERDA] = 3;
             }
         }
-        if (!nav->fijo_ignorar[ZONA_DERECHA] && (borde_der[0] + borde_der[1] + borde_der[2] >= 2)) {
+        if (nav->fuentes_vision[ZONA_DERECHA] == 3 && !nav->fijo_ignorar[ZONA_DERECHA] && (borde_der[0] + borde_der[1] + borde_der[2] >= 2)) {
             nav->zona_borde_cerca[ZONA_DERECHA] = 1;
             nav->zona_hay[ZONA_DERECHA] = 1;
             nav->zona_frena[ZONA_DERECHA] = 1;
@@ -2256,6 +2299,8 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
     }
+    nav->vision_sin_coincidencia = coincidencia ? 0 : nav->vision_sin_coincidencia + 1;
+    limitar_contador(&nav->vision_sin_coincidencia);
     nav->frames_recibidos++;
     limitar_contador(&nav->frames_bloqueado);
     limitar_contador(&nav->frames_libre);
@@ -2955,7 +3000,7 @@ static int hay_pivote(const Navegador *nav)
  * a lo largo de la línea) es el tramo de siempre, NAV_TRAMO_ESQUIVAR_CM. */
 static int esq_calcular_tramo(Navegador *nav)
 {
-    int normal = NAV_TRAMO_ESQUIVAR_CM * 10;
+    int normal = nav->lateral_objetivo_mm;
     long sx, sy, lat_giro, lat_vuelta, por_mm, tramo;
     PoseCarro c, v;
 
@@ -2972,7 +3017,7 @@ static int esq_calcular_tramo(Navegador *nav)
     }
     cal_pose_tras_giro(&nav->cal, &c, lado_de_vuelta(nav), grados_de_vuelta(nav), &v);
     lat_vuelta = ((long)(v.x_mm - c.x_mm) * sx + (long)(v.y_mm - c.y_mm) * sy) / 1000;
-    tramo = ((long)NAV_ESQ_MARGEN_LATERAL_MM - lat_giro - lat_vuelta) * 1000 / por_mm;
+    tramo = ((long)nav->lateral_objetivo_mm - lat_giro - lat_vuelta) * 1000 / por_mm;
     if (tramo < NAV_ESQ_TRAMO_MIN_MM) {
         tramo = NAV_ESQ_TRAMO_MIN_MM;
     }
@@ -2986,7 +3031,8 @@ static int esq_calcular_tramo(Navegador *nav)
 /* Cuánto cabe hacia adelante antes del obstáculo (mm): la cara según la cercanía con la que frenó, menos un colchón. */
 static int libre_hasta_obstaculo_mm(const Navegador *nav)
 {
-    return nav->tof_dist_mm - NAV_ARCO_MARGEN_MM;
+    int cara = nav->tof_dist_mm > 0 ? nav->tof_dist_mm : (nav->salida_cercania >= 3 ? NAV_CARA_CERCANIA_3_MM : NAV_CARA_CERCANIA_2_MM);
+    return cara - NAV_ARCO_MARGEN_MM;
 }
 
 /* ¿Cabe el giro de salida hacia `lado`? El centro se mueve hacia adelante lo que dice el modelo para NAV_ANGULO_ESQUIVAR grados (si se mueve hacia atrás, siempre cabe). */
@@ -3048,6 +3094,20 @@ static int reinc_calcular(Navegador *nav)
         nav->reinc_plan_y_mm[0] = p1.y_mm;
         nav->reinc_plan_x_mm[1] = nav->reinc_obj_x_mm;
         nav->reinc_plan_y_mm[1] = nav->reinc_obj_y_mm;
+        if (nav->borde_reintentos && desvio_pos < nav->lateral_objetivo_mm) {
+            long lateral = nav->lateral_objetivo_mm - desvio_pos;
+            long ex = nav->reinc_obj_x_mm + dir_x_mil(nav->reinc_rumbo_final + nav->lado * 90) * lateral / 1000;
+            long ey = nav->reinc_obj_y_mm + dir_y_mil(nav->reinc_rumbo_final + nav->lado * 90) * lateral / 1000;
+            if (planear_vuelta(nav, &p0, ex, ey, nav->reinc_rumbo_final, &plan)) {
+                nav->reinc_giro1 = plan.giro1;
+                nav->reinc_giro2 = plan.giro2;
+                nav->reinc_dist_mm = plan.dist_mm;
+                nav->reinc_obj_x_mm = (int)ex; nav->reinc_obj_y_mm = (int)ey;
+                nav->reinc_plan_x_mm[0] = plan.p1.x_mm; nav->reinc_plan_y_mm[0] = plan.p1.y_mm;
+                nav->reinc_plan_x_mm[1] = plan.q.x_mm; nav->reinc_plan_y_mm[1] = plan.q.y_mm;
+                nav->reinc_plan_x_mm[2] = plan.e.x_mm; nav->reinc_plan_y_mm[2] = plan.e.y_mm;
+            }
+        }
     } else {
         if (desvio_pos < NAV_REINC_DESVIO_MIN_MM && giro_solo != 0) {
             /* Cerca de la línea: solo se endereza, pero ese giro desplaza el centro; si lo saca de la línea, la vuelta se planea completa. */
@@ -3068,9 +3128,8 @@ static int reinc_calcular(Navegador *nav)
 
                 s_obj = s_pos + (long)NAV_REINC_ADELANTE_CM * 10 + (long)intento * NAV_PLAN_MAS_MM;   /* 30 cm por delante de donde el carro ya pasó el obstáculo (y, si no sirve, más adelante) */
                 if (nav->obstaculo_pendiente) {
-                    /* Cruzar a la altura que se verifico, mirando el costado.
-                     * Una diagonal hacia delante puede dejar el haz por delante
-                     * de una caja larga mientras la cola del chasis la barre. */
+                    /* El cruce casi transversal conserva el costado en el
+                     * cono de observacion; una diagonal puede cortar la cola. */
                     s_obj = s_pos + NAV_PARALELO_MIN_MM + (long)intento * NAV_PLAN_MAS_MM;
                 } else {
                     s_obj = vertice_mas_cercano(nav, s_obj, s_pos + NAV_REINC_VERTICE_MIN_MM);
@@ -3236,11 +3295,11 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
     if (nav->obstaculo_pendiente) {
         ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
         if (s < nav->fin_obstaculo_mm) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
+            extender_rebase(nav, ahora_ms);
             return NAV_CMD_STOP;
         }
         if (!verificar_frente(nav, ahora_ms, NAV_CAUSA_OBSTACULO_NO_PASADO)) {
-            if (nav->estado == NAV_REINCORPORANDO) nav->reinc_fase = NAV_RF_VERIFICAR;
+            if (nav->estado == NAV_REINCORPORANDO && nav->verificando_frente) nav->reinc_fase = NAV_RF_VERIFICAR;
             return NAV_CMD_STOP;
         }
         nav->obstaculo_pendiente = 0;
@@ -3291,16 +3350,36 @@ static int cercania_que_freno(const Navegador *nav)
     return mayor;
 }
 
-/* Extremo requerido del rebase: pose + sensor frontal + medida láser + fondo supuesto + margen.
+/* Amplia solo la ultima recta: nunca recorta el rebase para encajarlo en una
+ * ruta corta. El limite de extension y el de intentos acotan la exploracion. */
+static int extender_recta_final(Navegador *nav, long hasta)
+{
+    int n = nav->n_puntos, dc, df;
+    if (n < 2 || nav->override_largo_mm) return 0;
+    dc = nav->ruta[n - 1].columna - nav->ruta[n - 2].columna;
+    df = nav->ruta[n - 1].fila - nav->ruta[n - 2].fila;
+    while (hasta + NAV_REINC_ADELANTE_CM * 10 > distancia_hasta_tramo(nav, nav->n_puntos - 1) &&
+           nav->n_puntos < MAX_PUNTOS && nav->extension_ruta_mm < NAV_EXTENSION_RUTA_MM) {
+        n = nav->n_puntos;
+        nav->ruta[n].columna = nav->ruta[n - 1].columna + dc;
+        nav->ruta[n].fila = nav->ruta[n - 1].fila + df;
+        nav->n_puntos++;
+        nav->extension_ruta_mm += MM_POR_CELDA;
+    }
+    nav->ruta_largo_mm = distancia_hasta_tramo(nav, nav->n_puntos - 1);
+    return hasta <= nav->ruta_largo_mm - NAV_PARALELO_FIN_MM;
+}
+
+/* Extremo inicial: pose + sensor + distancia medida + primer tramo + margen.
  * Devuelve -1 si no cabe en la recta disponible; nunca reduce esa distancia para terminar la ruta. */
-static long calcular_fin_obstaculo(const Navegador *nav, int cercania)
+static long calcular_fin_obstaculo(Navegador *nav, int cercania)
 {
     int tramo, k, rumbo;
     long s_pos, desvio, hasta, limite;
-    int cara = nav->tof_dist_mm;
-    (void)cercania;
+    int cara = nav->tof_dist_mm > 0 ? nav->tof_dist_mm : (cercania >= 3 ? NAV_CARA_CERCANIA_3_MM : NAV_CARA_CERCANIA_2_MM);
     ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s_pos, &desvio);
-    hasta = s_pos + NAV_SENSOR_FRENTE_MM + cara + NAV_OBSTACULO_PROFUNDO_MM + (nav->sin_margen_paso_j16 ? NAV_PASO_MARGEN_J15_MM : NAV_PASO_MARGEN_MM);
+    nav->cara_obstaculo_s_mm = (int)s_pos + NAV_SENSOR_FRENTE_MM + cara;
+    hasta = nav->cara_obstaculo_s_mm + NAV_BORDEAR_TRAMO_MM + (nav->sin_margen_paso_j16 ? NAV_PASO_MARGEN_J15_MM : NAV_PASO_MARGEN_MM);
     if (nav->n_puntos < 2) {
         return s_pos;
     }
@@ -3313,7 +3392,11 @@ static long calcular_fin_obstaculo(const Navegador *nav, int cercania)
     if (k + 1 >= nav->n_puntos - 1) {
         limite -= NAV_PARALELO_FIN_MM;
     }
-    return (hasta > limite) ? -1 : hasta; /* nunca acortar la maniobra para fabricar un fin de ruta */
+    if (hasta > limite && k + 1 == nav->n_puntos - 1 && nav->override_largo_mm == 0) {
+        extender_recta_final(nav, hasta);
+        limite = distancia_hasta_tramo(nav, nav->n_puntos - 1) - NAV_PARALELO_FIN_MM;
+    }
+    return hasta > limite ? -1 : hasta; /* nunca truncar el rebase */
 }
 
 /* Cuánto debe avanzar en paralelo para pasar el obstáculo: hasta fin_obstaculo_mm (ver calcular_fin_obstaculo) menos lo que ya avanzó. 0 si no hace falta. */
@@ -3346,21 +3429,43 @@ static int elegir_lado(const Navegador *nav)
     return derecha_libre ? 1 : 0;
 }
 
-/* DETENIDO_OBSTACULO: STOP hasta confirmar distancia frontal cercana y lado libre.
- * Sin medida no se inventa profundidad aunque persistan muchos cuadros: AYUDA (o ERROR si está deshabilitada). */
+/* Retrocede solamente por el tramo recto que acaba de recorrer. No hay sensor
+ * trasero: esta evidencia solo vale en un entorno estatico y se borra al girar. */
+static int intentar_escape_atras(Navegador *nav)
+{
+    if (nav->atras_conocido_mm < NAV_RETROCESO_CM * 10 + 30) return 0;
+    nav->escape_atras = 1;
+    diag_escribir(nav, "BORDE_DIAG retroceso_conocido=%d mm", NAV_RETROCESO_CM * 10);
+    return 1;
+}
+
+/* STOP antes de planear. Distancia laser cuando existe; si no, banda visual
+ * coincidente. Ambos lados ocupados: esperar y agotar el retroceso conocido. */
 static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
 {
     uint32_t espera = ahora_ms - nav->t_detenido_ms;
 
     ajustar_paso_tras_parar(nav);
-    /* La persistencia visual justifica STOP, no una distancia inventada. */
-    if (!tof_dice_cerca(nav, ahora_ms)) {
-        if (espera >= NAV_CONFIRMAR_LASER_MS) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_SIN_CONFIRMACION);
+    if (nav->escape_atras) {
+        if (nav->cmd_actual != NAV_CMD_REVERSE || nav->seg_ms < ms_de_retroceso(nav)) return NAV_CMD_REVERSE;
+        cambiar_comando(nav, NAV_CMD_STOP);
+        nav->escape_atras = 0;
+        nav->t_detenido_ms = ahora_ms;
+        nav->frames_recibidos = 0;
+        planificar(nav);
+        return NAV_CMD_STOP;
+    }
+    /* Una medición cercana O consenso visual fresco autoriza; el desacuerdo no bloquea. */
+    if (!nav->tof_paro_activo && !tof_dice_cerca(nav, ahora_ms) && !nav->zona_frena[ZONA_CENTRO] &&
+        !nav->zona_frena[ZONA_IZQUIERDA] && !nav->zona_frena[ZONA_DERECHA] && !nav->cierre_reintento) {
+        if (libre_confirmado(nav, ahora_ms)) {
+            nav->estado = NAV_SIGUIENDO;
+            nav->tof_paro_activo = 0;
+            return tick_siguiendo(nav, ahora_ms);
         }
         return NAV_CMD_STOP;
     }
-    if (libre_confirmado(nav, ahora_ms) && nav->volver_a_reinc && !nav->tof_paro_activo) {
+    if (libre_confirmado(nav, ahora_ms) && nav->volver_a_reinc && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {
         /* Se detuvo mientras volvía a la línea y el frente ya está libre: vuelve a calcular la vuelta desde donde quedó. */
         nav->volver_a_reinc = 0;
         nav->frames_bloqueado = 0;
@@ -3369,7 +3474,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         entrar_reincorporando(nav, ahora_ms);
         return NAV_CMD_STOP;
     }
-    if (libre_confirmado(nav, ahora_ms) && !nav->tof_paro_activo) {   /* tras TOF_PARO la cámara no puede «liberar» el frente: el láser vio algo a menos de 12 cm */
+    if (libre_confirmado(nav, ahora_ms) && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {   /* tras TOF_PARO la cámara no puede «liberar» el frente: el láser vio algo a menos de 12 cm */
         nav->estado = NAV_SIGUIENDO;   /* el obstáculo se fue: continuar donde iba */
         ajustar_paso_tras_parar(nav);
         nav->frames_bloqueado = 0;
@@ -3380,15 +3485,13 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
     /* Tras TOF_PARO también hace falta cámara para elegir el lado; nunca se usa un lado por defecto a ciegas. */
     if (espera >= NAV_PAUSA_MS && (nav->frames_recibidos >= 1 || (nav->tof_paro_activo && espera >= NAV_TOF_ESPERA_LADO_MS))) {
         if (nav->frames_recibidos < 1) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_SIN_CONFIRMACION);
+            ir_a_error_causa(nav, NAV_MOTIVO_SIN_VIDEO, NAV_CAUSA_SIN_VIDEO);
             return NAV_CMD_STOP;
         }
-        nav->tof_dist_mm = nav->tof_mm; /* medida fresca con el carro ya detenido */
         nav->salida_cercania = cercania_que_freno(nav);
-        nav->fin_obstaculo_mm = (int)calcular_fin_obstaculo(nav, nav->salida_cercania);   /* lo usan el paralelo y la vuelta tras «toma el control» */
-        if (nav->fin_obstaculo_mm < 0) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
-            return NAV_CMD_STOP;
+        if (!nav->tof_paro_activo) {
+            nav->tof_dist_mm = (tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 &&
+                               nav->tof_mm <= (nav->cierre_reintento ? NAV_TOF_LIBRE_MM : NAV_REACCION_MAX_MM)) ? nav->tof_mm : 0;
         }
         nav->lado = elegir_lado(nav);
         if (nav->lado != 0) {
@@ -3407,12 +3510,18 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
                 } else {
                     nav->arco_adelante_mm = adelante_mm;
                     nav->arco_libre_mm = libre_mm;
+                    if (intentar_escape_atras(nav)) return NAV_CMD_REVERSE;
                     ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_ARCO);
                     return NAV_CMD_STOP;
                 }
             }
             if (nav->esquivadas >= NAV_MAX_ESQUIVADAS) {
                 ir_a_error(nav, NAV_MOTIVO_MAX_ESQUIVADAS);
+                return NAV_CMD_STOP;
+            }
+            nav->fin_obstaculo_mm = (int)calcular_fin_obstaculo(nav, nav->salida_cercania);
+            if (nav->fin_obstaculo_mm < 0) {
+                ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
                 return NAV_CMD_STOP;
             }
             if (nav->tof_paro_activo) {
@@ -3422,6 +3531,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             }
             diag_obs(nav, "esquiva");
             nav->esquivadas++;
+            nav->cierre_reintento = 0;
             nav->obstaculo_pendiente = 1;
             nav->volver_a_reinc = 0;
             nav->salida_x_mm = nav->x_mm;          /* de aquí sale de la línea: a este punto se mide después el regreso */
@@ -3437,6 +3547,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             return comando_de_fase(nav);
         }
         if (espera >= NAV_TIMEOUT_ESQUIVAR_MS) {
+            if (intentar_escape_atras(nav)) return NAV_CMD_REVERSE;
             ir_a_error(nav, NAV_MOTIVO_LADOS_BLOQUEADOS);
         }
     }
@@ -3612,20 +3723,69 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
     return comando_de_fase(nav);
 }
 
+/* Un costado aún presente mide un límite inferior del fondo. Avanzar otro intervalo
+ * antes de volver a inspeccionar, conservando el rumbo de la recta y STOP al replantear. */
+static void extender_rebase(Navegador *nav, uint32_t ahora_ms)
+{
+    int tramo;
+    long avance, desvio;
+    /* Un STOP interrumpe GIRAR antes de GIRO_OK. Cerrar la pose con SENS,
+     * sin inventar el giro parcial a partir de la velocidad calibrada. */
+    if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && nav->sens_angulo_ok &&
+        ahora_ms - nav->sens_angulo_t_ms <= NAV_TOF_FRESCO_MS) {
+        int medido = nav->cmd_actual == NAV_CMD_LEFT ? nav->sens_angulo_x10 - nav->giro_fw_ang_ini_x10 :
+                                                               nav->giro_fw_ang_ini_x10 - nav->sens_angulo_x10;
+        while (medido < -1800) medido += 3600;
+        while (medido > 1800) medido -= 3600;
+        if (medido >= 0) {
+            nav->giro_fw_real_x10 = medido;
+            nav->giro_fw_estado = 1;
+            calcular_pose(nav);
+        }
+    }
+    cambiar_comando(nav, NAV_CMD_STOP);
+    if (nav->esquivadas >= NAV_MAX_ESQUIVADAS) {
+        ir_a_error_causa(nav, NAV_MOTIVO_MAX_ESQUIVADAS, NAV_CAUSA_MAX_ESQUIVADAS);
+        return;
+    }
+    ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &avance, &desvio);
+    nav->fondo_observado_mm = (int)avance - nav->cara_obstaculo_s_mm;
+    if (nav->fondo_observado_mm < 0) nav->fondo_observado_mm = 0;
+    nav->esquivadas++;
+    nav->borde_reintentos++;
+    nav->lateral_objetivo_mm += NAV_BORDEAR_EXTRA_MM;
+    if (nav->lateral_objetivo_mm > NAV_BORDEAR_LATERAL_MAX) nav->lateral_objetivo_mm = NAV_BORDEAR_LATERAL_MAX;
+    nav->fin_obstaculo_mm = (int)avance + NAV_BORDEAR_TRAMO_MM;
+    if (nav->fin_obstaculo_mm + NAV_REINC_ADELANTE_CM * 10 > nav->ruta_largo_mm &&
+        !extender_recta_final(nav, nav->fin_obstaculo_mm)) {
+        ir_a_error_causa(nav, NAV_MOTIVO_MAX_ESQUIVADAS, NAV_CAUSA_MAX_ESQUIVADAS);
+        return;
+    }
+    nav->verificando_frente = nav->fin_pendiente = 0;
+    nav->tof_pendiente = 0;
+    diag_escribir(nav, "BORDE_DIAG intento=%d fondo_observado=%d siguiente_s=%d lateral=%d", nav->borde_reintentos, nav->fondo_observado_mm, nav->fin_obstaculo_mm, nav->lateral_objetivo_mm);
+    entrar_reincorporando(nav, ahora_ms);
+}
+
 /* REINCORPORANDO: vuelve a la línea de la ruta con la pose estimada (ver reinc_calcular): PLAN → GIRO1 → pausa → AVANZAR → pausa → GIRO2 → pausa → SIGUIENDO.
  * Entre cada movimiento hay la pausa de siempre. Mientras avanza hacia la línea vigila el frente con la misma regla de la esquivada: si el centro se bloquea,
  * se detiene y (si el obstáculo sigue) esquiva otra vez; si se libera, vuelve a calcular la vuelta. */
 static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
 {
     int fase = nav->reinc_fase, siguiente, giro;
+    int z, borde_visible = 0;
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (nav->fuentes_vision[z] == 3 && nav->zona_cercania[z] >= 2 &&
+            ahora_ms - nav->t_ultimo_cuadro_ms <= NAV_MAX_HUECO_VIDEO_MS) borde_visible = 1;
+    }
 
-    /* Ya se planeo pasar el fondo supuesto. Ver otra superficie cercana al
-     * barrer hacia la linea invalida esa suposicion, incluso DURANTE el giro:
+    /* Ya se avanzo el tramo exploratorio. Ver otra superficie cercana al
+     * barrer hacia la linea exige extender el rebase, incluso DURANTE el giro:
      * esperar al avance puede perder la pata/costado del haz y tocarlo. */
     if (nav->obstaculo_pendiente && !nav->reinc_pasar_primero &&
-        fase != NAV_RF_PLAN && tof_fresco(nav, ahora_ms) && nav->tof_valida &&
-        nav->tof_mm > 0 && nav->tof_mm <= NAV_REACCION_MAX_MM) {
-        ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
+        fase != NAV_RF_PLAN && ((tof_fresco(nav, ahora_ms) && nav->tof_valida &&
+        nav->tof_mm > 0 && nav->tof_mm <= NAV_REACCION_MAX_MM) || borde_visible)) {
+        extender_rebase(nav, ahora_ms);
         return NAV_CMD_STOP;
     }
 
@@ -3682,8 +3842,8 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
         }
         return comando_de_reinc(nav);
     case NAV_RF_AVANZAR:
-        if (nav->obstaculo_pendiente && (esquive_centro_confirmado(nav, ahora_ms) || tof_dice_cerca(nav, ahora_ms))) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
+        if (nav->obstaculo_pendiente && !nav->reinc_pasar_primero && (esquive_centro_confirmado(nav, ahora_ms) || tof_dice_cerca(nav, ahora_ms))) {
+            extender_rebase(nav, ahora_ms);
             return NAV_CMD_STOP;
         }
         if (nav->ms_fase + NAV_TICK_MS / 2 >= cal_cm_a_ms(&nav->cal, (nav->reinc_dist_mm + 5) / 10)) {
@@ -4152,7 +4312,11 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         long ddx = (long)nav->x_mm - nav->prev_x_mm, ddy = (long)nav->y_mm - nav->prev_y_mm;
 
         if (nav->cmd_actual == NAV_CMD_FORWARD || nav->cmd_actual == NAV_CMD_REVERSE) {   /* solo lo que avanza o retrocede: el centro que se mueve al pivotar no es «recorrer de más» (con pivotes grandes sumaba 40 cm por giro y frenaba rutas buenas) */
-            nav->recorrido_mm += raiz_entera(ddx * ddx + ddy * ddy);
+            int distancia = (int)raiz_entera(ddx * ddx + ddy * ddy);
+            nav->recorrido_mm += distancia;
+            nav->atras_conocido_mm += nav->cmd_actual == NAV_CMD_FORWARD ? distancia : -distancia;
+            if (nav->atras_conocido_mm > 300) nav->atras_conocido_mm = 300;
+            if (nav->atras_conocido_mm < 0) nav->atras_conocido_mm = 0;
         }
         nav->prev_x_mm = nav->x_mm;
         nav->prev_y_mm = nav->y_mm;
@@ -4182,8 +4346,18 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
             nav->estado = NAV_TERMINADO;
         }
         if (nav->estado == NAV_AYUDA || nav->estado == NAV_ERROR) nav->fin_pendiente = 0;
+    } else if (nav->estado == NAV_SIGUIENDO && nav->precaucion_pausa_ms &&
+               ahora_ms - nav->precaucion_pausa_ms < NAV_PRECAUCION_PAUSA_MS) {
+        comando = NAV_CMD_STOP;
     } else switch (nav->estado) {
-    case NAV_SIGUIENDO:        comando = tick_siguiendo(nav, ahora_ms); break;
+    case NAV_SIGUIENDO:
+        if (nav->precaucion_pausa_ms) { ajustar_paso_tras_parar(nav); nav->precaucion_pausa_ms = 0; }
+        comando = tick_siguiendo(nav, ahora_ms);
+        if (nav->precaucion && comando == NAV_CMD_FORWARD && nav->cmd_actual == NAV_CMD_FORWARD && nav->seg_ms >= NAV_PRECAUCION_AVANCE_MS) {
+            nav->precaucion_pausa_ms = ahora_ms;
+            comando = NAV_CMD_STOP;
+        }
+        break;
     case NAV_DETENIDO_OBSTACULO: comando = tick_detenido(nav, ahora_ms); break;
     case NAV_ESQUIVANDO:       comando = tick_esquivando(nav, ahora_ms); break;
     case NAV_REINCORPORANDO:   comando = tick_reincorporando(nav, ahora_ms); break;
@@ -4197,7 +4371,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         long s, desvio;
         ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
         if (nav->obstaculo_pendiente && s < nav->fin_obstaculo_mm) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
+            extender_rebase(nav, ahora_ms);
         } else {
             nav->estado = NAV_SIGUIENDO;
             nav->fin_pendiente = 1;
@@ -4254,10 +4428,10 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
     texto[0] = '\0';
     switch (nav->error_causa) {
     case NAV_CAUSA_SIN_CONFIRMACION:
-        n = snprintf(texto, (size_t)capacidad, "vision sin confirmacion laser valida a no mas de %d cm: detenido; revisa el piso, la luz y el laser", NAV_REACCION_MAX_MM / 10);
+        n = snprintf(texto, (size_t)capacidad, "codigo historico: falta confirmacion (ya no se emite por desacuerdo visual)");
         break;
     case NAV_CAUSA_OBSTACULO_NO_PASADO:
-        n = snprintf(texto, (size_t)capacidad, "no se comprobo haber pasado el obstaculo: falta espacio en la ruta, el objeto supera el fondo supuesto o el frente sigue ocupado");
+        n = snprintf(texto, (size_t)capacidad, "el rebase no cabe en la recta y su extension disponible: no se recorto el plan");
         break;
     case NAV_CAUSA_FIN_NO_LIBRE:
         n = snprintf(texto, (size_t)capacidad, "ruta sin cerrar: el laser no confirma el frente libre con el carro detenido");

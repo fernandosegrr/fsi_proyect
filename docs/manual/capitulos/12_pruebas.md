@@ -92,10 +92,12 @@ Con el mismo rigor, la siguiente tabla enumera los escenarios que cuentan con im
 
 Dónde está en el código: `pruebas_fisicas_20261110.csv`, `estado_20261110.md`, `monte_carlo_1000.txt`, `calibracion_j14.txt`, `pruebas_precision_j16.c`, `pruebas_rumbo.c`.
 
-## 12.5 Revisión del 11-nov-2026: resultados solo de software
+## 12.5 Autonomía del 12-nov-2026: resultados solo de software
 
-En la reproducción con falso positivo, objeto a 80 cm y ruta de 60 cm, v1.1 recorta el rebase a 550 mm y declara TERMINADO a los 14,90 s, con avance del centro de 609 mm y cara frontal del objeto a 920 mm. La rama corregida pide AYUDA a los 1,30 s sin iniciar esquive. El bloque de 35×45 cm produce AYUDA al detectar el costado: no se presenta como rebase exitoso.
+La primera corrección (458d5b3) mandaba a AYUDA el banquito que v1.1 superaba en el simulador. Se reemplazó por consenso por zona y rebase iterativo. Ahora la caja 20×20, el banquito 35×45 y el objeto de 90 cm de fondo terminan después del objeto, con 1, 3 y 6 intentos respectivamente y cero contactos. El banquito termina en (1001,-17,0°), a los 32,10 s; su cola supera el objeto por 527 mm.
 
-En Monte Carlo, 1000 corridas por cada uno de los dos escenarios de esquive con RUMBO terminan sin contactos antes y después. En ambos, el p95 lateral baja de 40 a 37 mm; la media, de 17 a 16 mm. Sin RUMBO, el p95 de caja sube 1 mm (78 a 79), dentro de la tolerancia existente del banco; el de caja ancha baja de 79 a 77 mm. Estos números no son medidas físicas. El informe `docs/diagnostico_esquive_20261111.md` contiene la comparación, poses y pruebas de datos ausentes, inválidos o vencidos.
+Los falsos de solo color, solo red y las tres zonas de solo color continúan sin STOP intermedio con láser libre. La coincidencia color/red permite esquive con láser libre o sin eco; una fuente sin eco continúa con precaución. La ruta corta se prolonga para completar el rebase, sin falso Terminado.
 
-**Banquito del 11-nov: NO MEDIDA. Arreglo: NO MEDIDO en el carro.** La repetición debe empezar con caja de 20×20 cm y registro de distancia/pose; no se hereda la validación B6 histórica.
+Monte Carlo pareado contra bd1727b: 1000 corridas por escenario y configuración. Sin RUMBO, media/p95 lateral de caja pasan de 33/78 a 32/76 mm; ancho, de 33/79 a 32/77 mm. Con RUMBO, caja pasa de 17/40 a 17/37; ancho, de 17/40 a 16/38. Con escala calibrada, caja pasa de 17/40 a 16/37; ancho, de 17/39 a 16/38. Las seis comparaciones conservan 1000 llegadas y cero contactos, sin tolerancia a empeorar. No son medidas físicas ni precisión longitudinal.
+
+Pruebas y registros reproducibles: `docs/diagnostico_esquive_20261111.md` y `scripts/comparar_esquives.py`. **Banquito: NO MEDIDA. Arreglo: NO MEDIDO en el carro.** Primero repetir con caja de 20×20 cm y telemetría, previa autorización; la validación B6 histórica no se transfiere a esta rama. APK y firmware no compilados ni instalados en esta revisión.

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include "simulador_navegador.h"
+#include "fusion.h"
 
 static Navegador nav;
 static Simulador sim;
@@ -12,17 +13,19 @@ static void caso(const char *nombre, int ok) {
     casos++; if(!ok)fallos++;
     printf("%s %s\n",ok ? "OK    " : "FALLO ",nombre);
 }
-typedef struct { const char *nombre; int ancho, fondo, distancia, ruta, falso, perdida, sin_laser; } Mundo;
+typedef struct { const char *nombre; int ancho, fondo, distancia, ruta, falso, perdida, sin_laser, fuente_falsa, laser_libre; } Mundo;
 static const Mundo mundos[] = {
-    {"caja20_laser",200,200,800,2000,0,0,0},
-    {"banquito35x45_laser",350,450,800,2000,0,0,0},
-    {"falso_sin_objeto",0,0,800,2000,1,0,0},
-    {"falso_objeto80_ruta60",350,450,800,600,1,0,0},
-    {"patas_sin_eco",350,450,800,2000,0,1,0},
-    {"vision_sin_laser",200,200,350,2000,0,0,1},
-    {"objeto_cerca_final",200,200,350,600,0,0,0},
-    {"objeto_mayor_90cm",350,900,800,2000,0,0,0},
-    {"falso_tres_zonas",0,0,800,2000,2,0,0}
+    {"caja20_laser",200,200,800,2000,0,0,0,0,0},
+    {"banquito35x45_laser",350,450,800,2000,0,0,0,0,0},
+    {"objeto_fondo90",350,900,800,2000,0,0,0,0,0},
+    {"falso_solo_color",0,0,800,2000,1,0,0,1,0},
+    {"falso_solo_detector",0,0,800,2000,1,0,0,2,0},
+    {"coincidencia_laser_libre",350,450,800,2000,0,0,0,0,1},
+    {"sin_eco_coincidencia",350,450,800,2000,0,1,0,0,0},
+    {"sin_eco_solo_color",0,0,800,2000,1,1,0,1,0},
+    {"falso_tres_zonas_color",0,0,800,2000,2,0,0,1,0},
+    {"ruta_corta_objeto_final",200,200,350,600,0,0,0,0,0},
+    {"falso_y_objeto80_ruta60",350,450,800,600,1,0,0,1,0}
 };
 static double sn, cs;
 static void direccion(void) {
@@ -65,128 +68,177 @@ static void vision(const Mundo *m, int hay[3], int cerc[3], int celdas[3]) {
         for(z=0;z<3;z++) if(m->falso==2 || z==2) {hay[z]=1;cerc[z]=3;celdas[z]=65;}
     }
 }
-static void correr(int e, int verificar) {
-    const Mundo *m=&mundos[e];
-    Punto ruta[11]; CalibracionCarro cal;
-    int t,i,n=m->ruta/200+1, disparo=-1, dist=-1, fin=-1, paralelo=0, choque=0;
-    cal_defecto(&cal); cal.ms_por_cm_x10=518;
-    navegador_iniciar(&nav); navegador_poner_calibracion(&nav,&cal);
-    navegador_poner_giroscopio(&nav,1); navegador_poner_sensor_distancia(&nav,!m->sin_laser);
-    navegador_poner_autoridad_laser(&nav,1); navegador_poner_requiere_camara(&nav,1);
-    navegador_poner_pedir_ayuda(&nav,1);
-    for(i=0;i<n;i++){ruta[i].columna=5;ruta[i].fila=10-i;}
-    navegador_cargar_ruta(&nav,ruta,n); navegador_comenzar(&nav,0);
-    sim_iniciar(&sim,5,10,0); sim.real=cal; sim.fw_giroscopio=1;
-    sim.tof_activo=!m->sin_laser; sim.laser_externo=1; sim.periodo_cuadro_ms=100;
-    for(t=0;t<90000;t+=NAV_TICK_MS) {
-        int hay[3],cerc[3],celdas[3],z,mm;
-        direccion(); vision(m,hay,cerc,celdas); mm=laser(m);
-        sim.laser_externo_mm=m->perdida ? 1200 : mm; sim.tof_sin_eco=m->perdida;
-        sim.n_eventos=0;
-        for(z=0;z<3;z++) if(hay[z]) sim_agregar_obstaculo_celdas(&sim,(uint32_t)t,(uint32_t)t+50,z,cerc[z],celdas[z]);
-        sim_correr(&sim,&nav,NAV_TICK_MS);
-        if(nav.estado==NAV_ESQUIVANDO && disparo<0) {disparo=t;dist=nav.tof_dist_mm;fin=nav.fin_obstaculo_mm;}
-        if(nav.paralelo_mm>paralelo) paralelo=nav.paralelo_mm;
-        /* Rectangulos orientados: SAT, chasis de 200 x 240 mm. */
-        if(m->ancho) {
-            double dx=sim_x_mm(&sim)-1000,dy=sim_y_mm(&sim)-(2000-120-m->distancia-m->fondo/2.0);
-            double hx=m->ancho/2.0,hy=m->fondo/2.0;
-            if(fabs(dx)<hx+120*fabs(sn)+100*fabs(cs) && fabs(dy)<hy+120*fabs(cs)+100*fabs(sn) &&
-               fabs(dx*sn-dy*cs)<120+hx*fabs(sn)+hy*fabs(cs) && fabs(dx*cs+dy*sn)<100+hx*fabs(cs)+hy*fabs(sn)) choque=1;
+/* Ejercita fusion.c real: los falsos se inyectan en una sola fuente. */
+static void percibir(const Mundo *m, int t, ResultadoObstaculos *cuadro) {
+    ResultadoObstaculos color;
+    DeteccionesModelo red;
+    ResultadoFusion fusion;
+    ConfigFusion cfg;
+    Mundo real = *m;
+    int hay[3], cerc[3], celdas[3], z;
+    real.falso = 0;
+    vision(&real,hay,cerc,celdas);
+    memset(&color,0,sizeof color); memset(&red,0,sizeof red);
+    red.marca_ms = (unsigned int)t;
+    for(z=0;z<3;z++) {
+        int fuentes = hay[z] ? 3 : 0;
+        if(m->falso && fabs(sn)<0.1 && cs>0 && nav.esquivadas==0 && (m->falso==2 || z==2)) {
+            fuentes |= m->fuente_falsa; cerc[z]=3; celdas[z]=65;
         }
-        if(getenv("REPRO_DIAG")) {char s[NAV_DIAG_LARGO];while(navegador_diag_siguiente(&nav,s,sizeof s)>0) printf("%d %s\n",t,s);}
-        if(nav.estado==NAV_TERMINADO||nav.estado==NAV_AYUDA||nav.estado==NAV_ERROR) break;
+        if(fuentes&1) {color.zona[z].hay_obstaculo=1;color.zona[z].cercania=cerc[z];color.zona[z].celdas=celdas[z];}
+        if(fuentes&2) {
+            CajaModelo *c=&red.cajas[red.n++];
+            c->clase=61;c->confianza_mil=900;c->xmin_mil=z*333+20;c->xmax_mil=z*333+310;
+            c->ymax_mil=cerc[z]==3 ? 900 : cerc[z]==2 ? 750 : 550;c->ymin_mil=c->ymax_mil-100;
+        }
     }
-    sim_correr(&sim,&nav,600);
-    printf("%s t=%d pose=(%d,%d,%d) estado=%s causa=%d esquivas=%d disparo_ms=%d dist_mm=%d fin_plan=%d paralelo=%d cola_s=%d fin_real=%d paso=%d toque=%d\n",
-        m->nombre,t,sim_x_mm(&sim),sim_y_mm(&sim),sim_rumbo_grados(&sim),navegador_texto_estado(nav.estado),nav.error_causa,nav.esquivadas,disparo,dist,fin,paralelo,
-        2000-sim_y_mm(&sim)-120,120+m->distancia+m->fondo,m->ancho ? 2000-sim_y_mm(&sim)-120>120+m->distancia+m->fondo : -1,choque);
-    if(!verificar)return;
-    caso(m->nombre, e==0 ? nav.estado==NAV_TERMINADO && nav.esquivadas==1 && nav.fin_verificado &&
-         2000-sim_y_mm(&sim)-120>120+m->distancia+m->fondo : nav.estado==NAV_AYUDA);
-    caso("ningun contacto ni movimiento al cerrar o pedir ayuda", !choque && nav.cmd_actual==NAV_CMD_STOP && sim.violaciones_seguridad==0);
-    if(e==0 || e==1 || e==7) {
-        caso("plan anclado a distancia frontal valida y dentro del maximo", dist>0 && dist<=NAV_REACCION_MAX_MM &&
-             fin==2000-nav.salida_y_mm+NAV_SENSOR_FRENTE_MM+dist+NAV_OBSTACULO_PROFUNDO_MM+NAV_PASO_MARGEN_MM);
-    } else {
-        caso("sin distancia cercana no hay giro de esquive", nav.esquivadas==0 && nav.n_giros_angulo==0);
+    fusion_config_defecto(&cfg);
+    fusion_decidir(&cfg,&color,&red,(unsigned int)t,&fusion);
+    *cuadro=color;
+    for(z=0;z<3;z++) {
+        cuadro->zona[z]=fusion.zona[z];
+#ifndef REPRO_BASE
+        cuadro->fuentes_vision[z]=fusion.fuentes_vision[z];
+#endif
     }
 }
 
-static ResultadoObstaculos libre, ocupado;
-static void preparar(void) {
+static void correr(int e, int verificar) {
+    const Mundo *m=&mundos[e];
+    Punto ruta[11]; CalibracionCarro cal; ResultadoObstaculos cuadro;
+    int t,i,n=m->ruta/200+1,disparo=-1,dist=-1,fin=-1,choque=0,paradas=0,antes=0;
+    cal_defecto(&cal);cal.ms_por_cm_x10=518;
+    navegador_iniciar(&nav);navegador_poner_calibracion(&nav,&cal);
+    navegador_poner_giroscopio(&nav,1);navegador_poner_sensor_distancia(&nav,!m->sin_laser);
+    navegador_poner_autoridad_laser(&nav,1);navegador_poner_requiere_camara(&nav,1);navegador_poner_pedir_ayuda(&nav,1);
+    for(i=0;i<n;i++){ruta[i].columna=5;ruta[i].fila=10-i;}
+    navegador_cargar_ruta(&nav,ruta,n);navegador_comenzar(&nav,0);
+    sim_iniciar(&sim,5,10,0);sim.real=cal;sim.fw_giroscopio=1;
+    sim.tof_activo=!m->sin_laser;sim.laser_externo=1;sim.periodo_cuadro_ms=100;sim.vision_externa=&cuadro;
+    for(t=0;t<120000;t+=NAV_TICK_MS) {
+        int mm;
+        direccion();percibir(m,t,&cuadro);mm=laser(m);
+        sim.laser_externo_mm=(m->perdida || m->laser_libre) ? 1200 : mm;sim.tof_sin_eco=m->perdida;
+        sim_correr(&sim,&nav,NAV_TICK_MS);
+        if(antes==NAV_CMD_FORWARD && nav.cmd_actual==NAV_CMD_STOP && nav.estado!=NAV_TERMINADO
+#ifndef REPRO_BASE
+           && !nav.fin_pendiente
+#endif
+          )paradas++;
+        antes=nav.cmd_actual;
+        if(nav.estado==NAV_ESQUIVANDO && disparo<0){disparo=t;dist=nav.tof_dist_mm;fin=nav.fin_obstaculo_mm;}
+        if(m->ancho) {
+            double dx=sim_x_mm(&sim)-1000,dy=sim_y_mm(&sim)-(2000-120-m->distancia-m->fondo/2.0);
+            double hx=m->ancho/2.0,hy=m->fondo/2.0;
+            direccion();
+            if(fabs(dx)<hx+120*fabs(sn)+100*fabs(cs) && fabs(dy)<hy+120*fabs(cs)+100*fabs(sn) &&
+               fabs(dx*sn-dy*cs)<120+hx*fabs(sn)+hy*fabs(cs) && fabs(dx*cs+dy*sn)<100+hx*fabs(cs)+hy*fabs(sn)) {
+                if(!choque && getenv("REPRO_DIAG"))printf("CONTACTO t=%d pose=%d,%d,%d estado=%d fase=%d\n",t,sim_x_mm(&sim),sim_y_mm(&sim),sim_rumbo_grados(&sim),nav.estado,nav.reinc_fase);
+                choque=1;
+            }
+        }
+        if(getenv("REPRO_DIAG")){char s[NAV_DIAG_LARGO];while(navegador_diag_siguiente(&nav,s,sizeof s)>0)printf("%d %s\n",t,s);}
+        if(nav.estado==NAV_TERMINADO||nav.estado==NAV_AYUDA||nav.estado==NAV_ERROR)break;
+    }
+    sim_correr(&sim,&nav,600);
+    printf("%s t=%d pose=(%d,%d,%d) estado=%s causa=%d esquivas=%d dist_mm=%d fin_inicial=%d cola_s=%d fin_real=%d paso=%d toque=%d paradas=%d\n",
+        m->nombre,t,sim_x_mm(&sim),sim_y_mm(&sim),sim_rumbo_grados(&sim),navegador_texto_estado(nav.estado),nav.error_causa,nav.esquivadas,dist,fin,
+        2000-sim_y_mm(&sim)-120,120+m->distancia+m->fondo,m->ancho ? 2000-sim_y_mm(&sim)-120>120+m->distancia+m->fondo : -1,choque,paradas);
+    if(!verificar)return;
+    caso(m->nombre,nav.estado==NAV_TERMINADO && (!m->ancho || 2000-sim_y_mm(&sim)-120>120+m->distancia+m->fondo));
+#ifndef REPRO_BASE
+    caso("cierre confirmado",nav.fin_verificado);
+#endif
+    caso("sin contactos y STOP al finalizar",!choque && nav.cmd_actual==NAV_CMD_STOP && sim.violaciones_seguridad==0);
+    if(!m->ancho)caso("fuente unica no provoca esquives ni ayuda",nav.esquivadas==0 && nav.ayudas==0);
+    if(!m->ancho && !m->perdida)caso("laser libre y fuente unica: ninguna parada intermedia",paradas==0);
+#ifndef REPRO_BASE
+    if(e==1 || e==2)caso("fondo explorado, sin profundidad fija",nav.borde_reintentos>0 && nav.fondo_observado_mm>0);
+    if(e==5 || e==6)caso("coincidencia permite plan visual sin laser",disparo>=0 && dist==0);
+#endif
+}
+
+#ifndef REPRO_BASE
+static void preparar_politica(void) {
     Punto ruta[11]; int i;
     navegador_iniciar(&nav);
     navegador_poner_sensor_distancia(&nav,1);
     navegador_poner_pedir_ayuda(&nav,1);
     for(i=0;i<11;i++){ruta[i].columna=5;ruta[i].fila=10-i;}
-    navegador_cargar_ruta(&nav,ruta,11); navegador_comenzar(&nav,0);
-    memset(&libre,0,sizeof libre); memset(&ocupado,0,sizeof ocupado);
-    ocupado.zona[ZONA_CENTRO].hay_obstaculo=1;
-    ocupado.zona[ZONA_CENTRO].cercania=3;
-    ocupado.zona[ZONA_CENTRO].celdas=65;
+    navegador_cargar_ruta(&nav,ruta,11);navegador_comenzar(&nav,0);
 }
-static void limites(void) {
-    int t, mm, z;
-    /* La misma zona durante muchos cuadros no inventa profundidad. */
-    for(mm=500;mm<=501;mm++) {
-        preparar();
-        for(t=0;t<=1400;t+=100) {
-            navegador_aporte_sens(&nav,mm,1,1,0,(uint32_t)t);
-            navegador_tick(&nav,(uint32_t)t,&ocupado);
-        }
-        caso(mm==500 ? "500 mm confirmado: autoriza un esquive" : "501 mm persistente: AYUDA sin esquive",
-             mm==500 ? nav.esquivadas==1 : nav.estado==NAV_AYUDA && nav.esquivadas==0);
-    }
-    preparar();
-    for(t=0;t<=1400;t+=100) {
-        navegador_aporte_sens(&nav,200,1,0,0,(uint32_t)t);
-        navegador_tick(&nav,(uint32_t)t,&ocupado);
-    }
-    caso("mm cercano con flag invalido no confirma ni da libre",nav.estado==NAV_AYUDA && nav.esquivadas==0 && nav.tof_libre_lecturas==0);
-    preparar();
-    for(t=0;t<3;t++)navegador_aporte_sens(&nav,300,1,1,0,100);
-    caso("SENS duplicado no cuenta como tres medidas",nav.tof_cerca_lecturas==1);
-    navegador_aporte_sens(&nav,301,1,1,0,100);
-    caso("mismo instante con otro mm tampoco suma confirmaciones",nav.tof_cerca_lecturas==1);
-    for(t=500;t<=2100;t+=100)navegador_tick(&nav,(uint32_t)t,&ocupado);
-    caso("medida vencida no confirma cuadros persistentes",nav.estado==NAV_AYUDA && nav.esquivadas==0);
-    preparar();
-    for(t=0;t<=1500;t+=100) {
-        memset(&ocupado,0,sizeof ocupado);z=(t/100)%3;
-        ocupado.zona[z].hay_obstaculo=1;ocupado.zona[z].cercania=3;ocupado.zona[z].celdas=65;
-        navegador_tick(&nav,(uint32_t)t,&ocupado);
-    }
-    caso("zonas alternadas sin laser no autorizan maniobra",nav.esquivadas==0 && nav.cmd_actual==NAV_CMD_STOP);
 
-    /* Todos los cierres pasan por la comprobacion, incluso al agotar los pasos. */
-    for(mm=0;mm<4;mm++) {
-        preparar();
-        nav.indice_objetivo=nav.n_puntos-1; nav.indice_paso=nav.n_pasos;
-        nav.x_mm=nav.base_x_mm=nav.prev_x_mm=1000;
-        nav.y_mm=nav.base_y_mm=nav.prev_y_mm=0;
-        for(t=0;t<=1500;t+=50) {
-            navegador_aporte_sens(&nav,mm==0 || (mm==3 && t<1000) ? 300 : 1200,1,mm!=1,0,(uint32_t)t);
-            navegador_tick(&nav,(uint32_t)t,mm==3 && t>100 ? NULL : &libre);
+static void probar_politica(void) {
+    ResultadoObstaculos cuadro;
+    int fuente,banda,z,t,modo;
+    for(modo=0;modo<4;modo++)for(fuente=0;fuente<4;fuente++)for(banda=1;banda<=3;banda++)for(z=0;z<3;z++) {
+        int confirmado=modo==1 || (fuente==3 && banda>=2);
+        char nombre[100];
+        preparar_politica();memset(&cuadro,0,sizeof cuadro);
+        cuadro.fuentes_vision[z]=fuente;cuadro.zona[z].hay_obstaculo=fuente==3;
+        cuadro.zona[z].cercania=fuente?banda:0;cuadro.zona[z].celdas=30;
+        if(modo==3)navegador_aporte_sens(&nav,300,1,1,0,0);
+        for(t=500;t<=950;t+=50) {
+            /* modo 3: lectura vieja nunca confirma; los demas aportan muestras nuevas. */
+            if(modo!=3)navegador_aporte_sens(&nav,modo==1?300:1200,1,modo!=2,0,(uint32_t)t);
+            navegador_tick(&nav,(uint32_t)t,&cuadro);
         }
-        if(mm==0)caso("obstaculo en el ultimo tick: nunca TERMINADO",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FIN_NO_LIBRE);
-        if(mm==1)caso("sin eco al cerrar: AYUDA, no libre",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FIN_NO_LIBRE);
-        if(mm==2)caso("laser libre nuevo con carro parado permite cerrar",nav.estado==NAV_TERMINADO && nav.fin_verificado);
-        if(mm==3)caso("perdida de video durante cierre no se convierte en exito",nav.estado==NAV_ERROR && nav.error_causa==NAV_CAUSA_SIN_VIDEO);
-        caso("verificacion final siempre mantiene STOP",nav.cmd_actual==NAV_CMD_STOP);
+        snprintf(nombre,sizeof nombre,"fusion en navegador laser=%d fuente=%d zona=%d banda=%d",modo,fuente,z,banda);
+        caso(nombre,confirmado ? nav.estado==NAV_DETENIDO_OBSTACULO && nav.cmd_actual==NAV_CMD_STOP :
+             nav.estado==NAV_SIGUIENDO && nav.esquivadas==0 && nav.ayudas==0);
+        if(modo==0 && fuente!=3)caso("laser libre y fuente aislada nunca pausa",nav.cmd_actual==NAV_CMD_FORWARD && !nav.precaucion);
     }
-    preparar();
-    nav.indice_objetivo=nav.n_puntos-1;nav.indice_paso=nav.n_pasos;
-    nav.x_mm=nav.base_x_mm=nav.prev_x_mm=1000;
-    nav.y_mm=nav.base_y_mm=nav.prev_y_mm=0;
-    nav.obstaculo_pendiente=1;nav.fin_obstaculo_mm=2400;
-    navegador_aporte_sens(&nav,1200,1,1,0,0);navegador_tick(&nav,0,&libre);
-    caso("laser libre no tapa un plan que aun no paso el objeto",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_OBSTACULO_NO_PASADO);
+    preparar_politica();memset(&cuadro,0,sizeof cuadro);
+    nav.fin_pendiente=1;
+    for(t=50;t<=800;t+=50){navegador_aporte_sens(&nav,1200,1,1,0,50);navegador_tick(&nav,t,&cuadro);}
+    caso("cierre no reutiliza muestras laser duplicadas",nav.estado!=NAV_TERMINADO && !nav.fin_verificado);
+    for(t=850;t<=950;t+=50){navegador_aporte_sens(&nav,1200,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("cierre acepta tres lecturas nuevas de frente libre",nav.estado==NAV_TERMINADO && nav.fin_verificado);
+    preparar_politica();nav.fin_pendiente=1;
+    cuadro.fuentes_vision[1]=3;cuadro.zona[1].hay_obstaculo=1;cuadro.zona[1].cercania=3;
+    for(t=50;t<=900;t+=50){navegador_aporte_sens(&nav,1200,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("cierre no ignora consenso visual por haz laser libre",nav.estado!=NAV_TERMINADO && !nav.fin_verificado);
+    memset(&cuadro,0,sizeof cuadro);
+    preparar_politica();nav.fin_pendiente=1;navegador_poner_sensor_distancia(&nav,0);
+    navegador_tick(&nav,50,&cuadro);
+    for(t=100;t<650;t+=50)navegador_tick(&nav,t,NULL);
+    caso("sin eco tampoco reutiliza el mismo cuadro",nav.estado!=NAV_TERMINADO);
+    for(t=650;t<=850;t+=50)navegador_tick(&nav,t,&cuadro);
+    caso("sin eco cierra con cinco cuadros nuevos sin coincidencia",nav.estado==NAV_TERMINADO && nav.fin_verificado);
+    preparar_politica();nav.fin_pendiente=1;nav.esquivadas=NAV_MAX_ESQUIVADAS;
+    for(t=50;t<=1300;t+=50){navegador_aporte_sens(&nav,600,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("frente sin liberar tras seis intentos: AYUDA, nunca Terminado",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_MAX_ESQUIVADAS && !nav.fin_verificado);
+    preparar_politica();navegador_poner_requiere_camara(&nav,1);navegador_tick(&nav,50,&cuadro);
+    navegador_tick(&nav,50+NAV_MAX_HUECO_VIDEO_MS+1,NULL);
+    caso("perdida de vision detiene aunque el laser este libre",nav.estado==NAV_ERROR && nav.cmd_actual==NAV_CMD_STOP);
+    preparar_politica();navegador_tick(&nav,0,&cuadro);
+    navegador_aporte_tof_paro(&nav,120,50);navegador_tick(&nav,100,&cuadro);
+    caso("TOF_PARO queda retenido aunque la camara este vacia",nav.estado==NAV_DETENIDO_OBSTACULO && nav.cmd_actual==NAV_CMD_STOP && nav.tof_dist_mm==120);
+    for(t=150;t<=800;t+=50){navegador_aporte_sens(&nav,120,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("TOF_PARO planea desde la distancia real despues del STOP",nav.estado==NAV_ESQUIVANDO && nav.tof_dist_mm==120 && nav.esquivadas==1);
+    /* Bloqueo persistente: esperar cuatro segundos; solo retroceder por espacio recorrido. */
+    for(modo=0;modo<2;modo++) {
+        preparar_politica();memset(&cuadro,0,sizeof cuadro);
+        for(t=0;t<2000;t+=50)navegador_tick(&nav,t,&cuadro);
+        for(z=0;z<3;z++){cuadro.fuentes_vision[z]=3;cuadro.zona[z].hay_obstaculo=1;cuadro.zona[z].cercania=3;}
+        for(t=2000;t<6000;t+=50){navegador_tick(&nav,t,&cuadro);if(!modo)nav.atras_conocido_mm=0;}
+        caso("ambos lados bloqueados: no AYUDA antes de cuatro segundos",nav.estado==NAV_DETENIDO_OBSTACULO);
+        navegador_tick(&nav,6000,&cuadro);
+        caso("ultimo recurso: retroceso conocido antes de ayuda",modo ? nav.cmd_actual==NAV_CMD_REVERSE : nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_LADOS);
+        for(t=6050;t<12000;t+=50)navegador_tick(&nav,t,&cuadro);
+        caso("pared persistente sin espacio de retroceso termina quieto en AYUDA",nav.estado==NAV_AYUDA && nav.cmd_actual==NAV_CMD_STOP);
+    }
 }
+
+#endif
+
 int main(int argc,char **argv) {
-    int i, informe=argc>1 && strcmp(argv[1],"--informe")==0;
-    if(argc>1 && !informe) {i=atoi(argv[1]); if(i<0 || i>=9)return 2; correr(i,0);return 0;}
-    for(i=0;i<(int)(sizeof mundos/sizeof mundos[0]);i++)correr(i,!informe);
-    if(!informe){limites();printf("%d casos, %d fallos\n",casos,fallos);}
+    int i,informe=argc>1 && strcmp(argv[1],"--informe")==0;
+    if(argc>1 && !informe){i=atoi(argv[1]);if(i<0||i>=11)return 2;correr(i,0);return 0;}
+    for(i=0;i<11;i++)correr(i,!informe);
+#ifndef REPRO_BASE
+    if(!informe)probar_politica();
+#endif
+    if(!informe)printf("%d casos, %d fallos\n",casos,fallos);
     return fallos ? EXIT_FAILURE : EXIT_SUCCESS;
 }

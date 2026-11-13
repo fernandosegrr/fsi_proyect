@@ -1,53 +1,60 @@
-# Límites conocidos del modo automático
+# Límites conocidos de la navegación
 
-Revisión de software del 11-nov-2026 en `fix/navegacion-esquive-confirmado`, basada en v1.1 (`bd1727b`). **NO MEDIDA en el carro.** La observación con un banquito de aproximadamente 35×45 cm y patas no valida este arreglo. Hay que repetir primero con caja de 20×20 cm, previa autorización. La etiqueta v1.1 no cambia; una eventual v1.2 requiere aprobación.
+Rama `fix/navegacion-esquive-confirmado`, revisión de autonomía del 12-nov-2026 sobre v1.1. **SIMULADO / NO MEDIDO en el carro.** No es v1.2. [Diagnóstico, poses y comparación](diagnostico_esquive_20261111.md).
 
-## 1. Confirmación frontal y pérdida del láser
+## Fusión y cobertura
 
-La cámara puede detener el carro, pero no autoriza por sí sola un esquive. Se requieren tres lecturas láser válidas consecutivas, frescas (hasta 400 ms), de 1 a 500 mm, y cámara para elegir el lado libre. Si la visión persiste sin esa distancia, se mantiene STOP y en 1000 ms se pide AYUDA. Varios cuadros no convierten una banda visual en milímetros. Sin cámara lateral tampoco se gira a ciegas tras `TOF_PARO`.
+El láser fresco cercano (≤400 mm) confirma. Con láser libre, un positivo aislado de color o EfficientDet no detiene; con ambos coincidentes en la misma zona se frena según la banda y se puede esquivar por visión. Sin eco o con láser vencido decide la visión: coincidencia confirma, una fuente sola permite avance con precaución. El flujo óptico no se cuenta como una segunda fuente neuronal.
 
-El VL53L0X mide un haz frontal: una pata estrecha, un objeto fuera del haz o una superficie oscura/transparente pueden escapar a la medición. Una lectura inválida, sin eco, vieja o con sensor apagado **no significa libre**. Una sala sin retorno válido también puede acabar en AYUDA. La persistencia temporal no demuestra que el haz cubra todo el chasis.
+El haz es estrecho y las dos fuentes de cámara comparten la misma vista: pueden fallar juntas. Un objeto que no detecten ni el láser ni ambas fuentes visuales puede pasar inadvertido. Las bandas 1/2/3 son proximidad de imagen, no centímetros medidos. Los 300/500 mm usados sin láser son estimaciones, pendientes de calibración física. Reducir velocidad media con tandas 700/300 ms no reduce la velocidad instantánea durante cada impulso.
 
-## 2. Profundidad y dimensiones todavía supuestas
+## Rebase y límites de espacio
 
-El rebase se ancla en la distancia láser tomada con el carro parado:
+No hay fondo fijo de 250 mm. El plan parte de distancia medida o banda visual, añade sensor-centro supuesto de 120 mm, primer tramo de 200 mm y margen de 150 mm. Si se sigue viendo el costado al volver, extiende 200 mm y aumenta el desvío lateral de 400 hacia 700 mm. Máximo seis intentos. La profundidad observada es una cota basada en pose por tiempo; no es un mapa del objeto.
 
-`fin requerido = avance sobre la ruta + 120 mm + distancia frontal + 250 mm + 150 mm`.
+La última recta puede prolongarse hasta 2 m para no recortar el rebase al punto final. Por ello el destino efectivo puede quedar más allá del que se dibujó. Cada movimiento sigue comprobando sensores, pero no existe un mapa previo de esa extensión. Una curva, un pasillo estrecho, el límite del arreglo o un objeto fuera de estos presupuestos pueden impedir un plan.
 
-Los 120 mm (`NAV_SENSOR_FRENTE_MM`) representan el sensor delante del centro de un chasis supuesto de 240 mm; **falta medir ese desplazamiento en el carro**. Los 250 mm (`NAV_OBSTACULO_PROFUNDO_MM`) son un fondo supuesto, no medido por el láser. Los 150 mm son `NAV_PASO_MARGEN_MM`. El objetivo lateral sigue siendo 400 mm, compensado por pivotes. Si el rebase no cabe en la recta disponible, se pide AYUDA en vez de recortarlo al final de la ruta.
+Antes de abandonar por ambos lados bloqueados se esperan 4000 ms y se intenta un retroceso de 150 mm solo si quedan 180 mm de tramo recto conocido detrás. Ese espacio se invalida al girar y se consume al retroceder. **No hay sensor trasero:** el supuesto solo cubre un entorno estático, no personas u objetos que entren por detrás. Los reintentos locales históricos de salida siguen acotados; tampoco prueban espacio trasero físico.
 
-La reincorporación apunta casi transversalmente a la ruta, 50 mm por delante de la proyección actual, y vigila cámara/láser durante el regreso. Si sigue apareciendo el costado, se detiene en AYUDA. En el modelo de 35×45 cm y en el de 90 cm de fondo se detecta esa insuficiencia sin contacto. Esto **no garantiza** detectar todo mueble real: no se estima la profundidad, no hay mapa de contorno y unas patas pueden quedar fuera de ambos sensores.
+## Cierre y sensores
 
-## 3. Terminado requiere comprobación adicional
+Terminado exige avance planeado cumplido y, después de STOP y 300 ms, tres lecturas nuevas válidas >800 mm sin coincidencia visual pendiente. Sin eco o láser deshabilitado, se permiten cinco cuadros nuevos sin coincidencia. Sin eco no suma lecturas láser libres; un SENS vencido tampoco habilita ese cierre. Si falta evidencia, reintenta y finalmente solicita ayuda al agotar el presupuesto. El cono libre no certifica todo el volumen del chasis.
 
-Antes de cerrar una ruta con sensores, y al completar un esquive, se detiene el carro, se comprueba que alcanzó el rebase planeado y se solicitan tres lecturas nuevas válidas mayores de 800 mm, después de 300 ms de asentamiento. Sin frente libre dentro de 1000 ms, se pide AYUDA. Un error de video sigue siendo ERROR y no se convierte en éxito por una lectura libre posterior.
+Permanecen pérdida de video a 700 ms, cancelación de enlace/SENS en la app a 1,5 s, watchdog del firmware a 1000 ms y freno local `TOF_PARO` a 120 mm. STOP no elimina la latencia ni la inercia. Firmware sin cambios.
 
-Esta comprobación cubre el haz frontal; no mide separación lateral ni sustituye encoders. TERMINADO no certifica todo el volumen alrededor del vehículo.
+## Códigos de detención y AYUDA
 
-## 4. Distancia por tiempo; rumbo por giroscopio
+Los códigos se conservan para compatibilidad de registros. Con AYUDA desactivada se comunica ERROR; pérdida de video siempre es ERROR. No se emite 13 por visión aislada.
 
-Los motores no tienen encoders. La distancia se ejecuta por tiempo calibrado y se integra con el rumbo SENS cuando el giroscopio está activo. RUMBO corrige orientación, pero no mide patinaje lateral, longitud recorrida ni pivote real. Batería, agarre y calibración conservan error longitudinal. El pivote por sentido y perfil es una aproximación.
+| Código | Significado y condición |
+|---:|---|
+| 0 | Sin causa de error. |
+| 1 | Ambos lados ocupados al menos 4000 ms y sin retroceso conocido disponible. |
+| 2 | Agotados seis intentos de rebase, o presupuesto de extensión de la ruta. |
+| 3 | Agotados los dos reintentos locales de salida, con frente aún bloqueado. |
+| 4 | Planificador sin ruta válida tras sus candidatos; no se ejecuta un plan inválido. |
+| 5 | Pérdida de video/sin cuadro para elegir lado tras un paro. ERROR y STOP. |
+| 6 | No cabe el arco de ninguno de los lados libres y no queda retroceso conocido. |
+| 7 | Agotadas cuatro correcciones de reincorporación por error de pose. |
+| 8 | Agotadas las soluciones de retorno por pivotes; no hay retorno geométrico viable. |
+| 9 | Giro fuera de ruta >150°: pose/plan incoherente; freno de cordura existente. |
+| 10 | Índice de ruta retrocede: pose/plan incoherente; freno de cordura existente. |
+| 11 | Recorrido >2,5 veces la ruta efectiva: presupuesto de recuperación agotado. |
+| 12 | Pose a más de 1 m de la ruta: se perdió la localización fiable. |
+| 13 | Histórico, reservado; ya no se usa para desacuerdo color/láser. |
+| 14 | Rebase no cabe en la recta ni en su extensión permitida; no se trunca el plan. |
+| 15 | Histórico de cierre no libre; ahora el cierre reintenta y agota 2 en vez de abandonarlo de inmediato. |
 
-Permanecen los frenos de cordura por desviación, índice y recorrido. Los giros pequeños que no admite el firmware se resuelven por tiempo. Los resultados físicos históricos se conservan en [el reporte J16](reporte_J16.md).
+Desconexión, SENS perdido, error de visión y avisos de hardware se comunican además por los mensajes existentes de la app, no como un nuevo código 13. Los frenos de cordura no diagnostican por sí solos una batería o pieza defectuosa: requieren revisar pose/calibración/enlace. No se añadió un sensor de batería ni se inventa ese diagnóstico.
 
-## 5. Piso, iluminación y falsos positivos
+## Piso y precisión
 
-`OBSTACULO 3` significa banda de cercanía 3 por fila de imagen; no son tres objetos ni una distancia. `fusion.c` no recibe el láser. El color conserva prioridad para detecciones cercanas; modelo y flujo no eliminan por sí solos un positivo cercano de color. El corredor filtra celdas por geometría de imagen, no profundidad real.
+La app mantiene Aprender piso exitoso para cada ruta; un aprendizaje fallido invalida el anterior. No detecta automáticamente toda variación de iluminación. Valores de color: 40, 7 celdas, fila mínima 44 %. Los valores reportados 240/23/44 % no permiten atribuir la causa óptica sin imágenes y máscara.
 
-Se conservan los valores por defecto de color 40, mínimo 7 celdas y fila mínima 44 %. Los valores reportados 240/23/44 % no demuestran la causa óptica: hacen falta cuadros, máscara y modelo de piso de esa iluminación. Un umbral de color mayor tolera más diferencia respecto al piso; aumentarlo a ciegas puede ocultar obstáculos.
+No hay encoders: la distancia se estima por tiempo; RUMBO mide orientación, no patinaje ni desplazamiento lateral. Los 120 mm sensor-centro, el modelo de chasis y el pivote requieren medición. Los resultados Monte Carlo cubren dos geometrías y sus distribuciones de ruido, no todos los objetos razonables.
 
-La app exige aprendizaje de piso exitoso antes de cada ruta con cámara y avisa si falta. Un intento fallido invalida el permiso anterior. No detecta automáticamente todos los cambios de luz. Objetos del color del piso pueden seguir siendo falsos negativos; columnas extremas y patas de pocas celdas tienen cobertura limitada por el filtro espacial.
+## Pendiente de medición física
 
-## 6. Latencia y freno físico
+El banquito 35×45 del 11-nov es una observación reportada, **NO MEDIDA** con telemetría suficiente; el arreglo tampoco está medido. Primero repetir con caja de 20×20 cm, previa autorización; después banquito, patas, objeto largo y cambios de luz. Guardar ambas fuentes por zona, láser, distancia al frenar, rebase, reintentos, pose, contactos y estado final.
 
-Video, WiFi, decodificación y tick añaden latencia; STOP no implica frenado instantáneo. Se conservan el corte de video a 700 ms y el watchdog del firmware a 1000 ms. El freno local a 120 mm reduce el riesgo pero no garantiza evitar contacto si el obstáculo aparece de repente. No se modificó firmware.
-
-## 7. Evidencia y mediciones pendientes
-
-- [Diagnóstico del 11-nov-2026](diagnostico_esquive_20261111.md): simulación de cada caso, pruebas y Monte Carlo pareado; ningún resultado es una medición física del arreglo.
-- [Estado del 10-nov-2026](estado_20261110.md) y [CSV físico](pruebas_fisicas_20261110.csv): evidencia histórica con otra APK/FW y caja de 20×20 cm, seis corridas sin contacto, cinco completas y una AYUDA. No se transfiere esa validación a esta rama.
-- Banquito 35×45 cm del 11-nov: observación reportada, **NO MEDIDA** con telemetría suficiente para atribuir el evento exacto. Duración de 13 s y giros 90→91, 90→92 y 84→85 no reconstruyen distancias.
-- Pendiente, previa autorización: caja 20×20 cm, distancia al frenar, avance hasta la cara posterior, pose final y causa de AYUDA; después tamaño mayor, patas sin retorno e iluminación. Medir sensor-centro, calibración longitudinal y pivotes.
-- Siguen pendientes las pruebas físicas de rectas con/sin RUMBO, L, cuadrado, IMU_ESCALA, WiFi en marcha, freno láser aislado, comparación pareada de autoridad láser, GPIO 2 y consumo. Los registros históricos citados conservan el detalle.
-
-En esta sesión no se movió el carro, instaló APK, grabó firmware ni publicó binario.
+Los datos del [10-nov](estado_20261110.md), [CSV físico](pruebas_fisicas_20261110.csv) y [J16](reporte_J16.md) son históricos y no validan esta rama. No se movió el carro ni se instaló APK o grabó firmware. Compilación/instalación sin desinstalar: pasos preparados en el diagnóstico, no ejecutados.

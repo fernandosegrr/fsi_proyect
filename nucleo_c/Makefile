@@ -6,8 +6,8 @@ CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror
 
 all: pruebas_esquive_confirmado
 
-pruebas_esquive_confirmado: pruebas_esquive_confirmado.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c calibracion.c
-	$(CC) $(CFLAGS) -O2 -o $@ pruebas_esquive_confirmado.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c -lm
+pruebas_esquive_confirmado: pruebas_esquive_confirmado.c fusion.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c calibracion.c
+	$(CC) $(CFLAGS) -O2 -o $@ pruebas_esquive_confirmado.c fusion.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c -lm
 
 all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara pruebas_reincorporacion_j15 pruebas_precision_j16
 
