@@ -38,7 +38,8 @@ enum { T_FALSO, T_OBSTACULO, T_IMPOSIBLE, T_LIMITE };
 enum {
     E_LIBRE, E_FP_JUNTAS, E_FP_SOL, E_FP_SOMBRA, E_FP_REFLEJO, E_FP_EXPOSICION, E_FP_DETECTOR,
     E_CAJA20, E_CAJA20_LADO, E_BANQUITO, E_LARGO90, E_SILLA, E_PARED_FINAL, E_DOS, E_PASILLO, E_APARECE, E_BAJO,
-    E_CAJA20_SOL, E_BATERIA, E_PARED_FRENTE, E_BAJO_SOLO_COLOR, N_ESC
+    E_CAJA20_SOL, E_BATERIA, E_PARED_FRENTE, E_BAJO_SOLO_COLOR,
+    E_CAJA_PARED, E_ESQUINA, N_ESC   /* añadidos tras la revisión independiente: van al final para no mover las semillas de los anteriores */
 };
 static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "libre_limpio", T_FALSO }, { "falso_juntas", T_FALSO }, { "falso_sol", T_FALSO }, { "falso_sombra", T_FALSO },
@@ -46,7 +47,8 @@ static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "caja20", T_OBSTACULO }, { "caja20_lateral", T_OBSTACULO }, { "banquito35x45", T_OBSTACULO }, { "objeto_largo90", T_OBSTACULO },
     { "silla_patas", T_OBSTACULO }, { "pared_tras_el_final", T_OBSTACULO }, { "dos_obstaculos", T_OBSTACULO }, { "pasillo", T_OBSTACULO },
     { "aparece_de_repente", T_OBSTACULO }, { "objeto_bajo", T_OBSTACULO }, { "caja20_con_sol", T_OBSTACULO }, { "bateria_baja", T_OBSTACULO },
-    { "pared_al_frente", T_IMPOSIBLE }, { "bajo_solo_color", T_LIMITE }
+    { "pared_al_frente", T_IMPOSIBLE }, { "bajo_solo_color", T_LIMITE },
+    { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO }
 };
 
 static Navegador nav;
@@ -87,6 +89,7 @@ typedef struct {
     int tipo;
     double x0, y0;            /* salida (mm) */
     double fin_x, fin_y;      /* final de la ruta */
+    double ux, uy;            /* hacia dónde va el último tramo */
     int sag_pct;              /* cuánto cae la velocidad a lo largo de la corrida (batería) */
     int aparece_obj;          /* objeto que aparece de repente (-1 = ninguno) y a qué distancia del frente del carro */
     double aparece_mm;
@@ -101,6 +104,20 @@ static void ruta_recta(Escena *s, int celdas)
     for (i = 0; i <= celdas; i++) { s->ruta[i].columna = 5; s->ruta[i].fila = celdas - i; }
     s->x0 = 1000.0; s->y0 = celdas * 200.0;
     s->fin_x = 1000.0; s->fin_y = 0.0;
+    s->ux = 0.0; s->uy = -1.0;
+}
+
+/* Ruta en L: `celdas` hacia -y y luego `despues` hacia +x (signo > 0) o -x. */
+static void ruta_ele(Escena *s, int celdas, int despues, int signo)
+{
+    int i;
+
+    s->n = celdas + 1 + despues;
+    for (i = 0; i <= celdas; i++) { s->ruta[i].columna = 5; s->ruta[i].fila = celdas - i; }
+    for (i = 1; i <= despues; i++) { s->ruta[celdas + i].columna = 5 + signo * i; s->ruta[celdas + i].fila = 0; }
+    s->x0 = 1000.0; s->y0 = celdas * 200.0;
+    s->fin_x = 1000.0 + signo * despues * 200.0; s->fin_y = 0.0;
+    s->ux = (double)signo; s->uy = 0.0;
 }
 
 /* Luz y piso "de todos los días": juntas normales y, a veces, una sombra suave o algo de brillo. */
@@ -233,9 +250,30 @@ static void armar_escena(int e, Escena *s)
             mv_prisma(&mundo, o, -1500.0, s->y0 - d - 100.0, 3500.0, s->y0 - d, 0.0, 1500.0, 215, 210, 200, 0.6);
         }
         break;
-    default:                 /* E_BAJO_SOLO_COLOR: el mismo objeto plano pero de una clase que la red NO conoce: límite conocido de la percepción */
+    case E_BAJO_SOLO_COLOR:  /* el mismo objeto plano pero de una clase que la red NO conoce: límite conocido de la percepción */
         d = unif(900.0, 1200.0);
         mv_caja(&mundo, "plano_desconocido", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 125.0, 300.0, 250.0, 15.0, 40, 45, 95, 0.3, 0.0, 0, 0);
+        break;
+    case E_CAJA_PARED:       /* (revisión) la caja de siempre con una pared larga pegada a UN lado (25 a 44 cm de la línea): por ese lado no cabe el rodeo ni la vuelta */
+        d = unif(900.0, 1200.0);
+        mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
+        {
+            int o = mv_objeto(&mundo, "pared_lateral", 0.0, 0, 0, 0);
+            double w = unif(250.0, 440.0);
+
+            if (entre(0, 1)) mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    default:                 /* E_ESQUINA (revisión): ruta en L con la caja 40 a 60 cm antes de la esquina: el paso en paralelo no puede seguir de frente más allá */
+        {
+            int o;
+
+            ruta_ele(s, 8, 6, entre(0, 1) ? 1 : -1);
+            d = unif(400.0, 600.0);              /* de la cara de la caja a la esquina (que está en y = 0) */
+            o = mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), d + 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
+            mundo.objetos[o].en_ruta = 0;        /* «haberla dejado atrás» aquí es llegar al final, que está después de la esquina */
+        }
         break;
     }
     s->fondo_medible = 0;
@@ -299,6 +337,7 @@ static Resultado correr(int e, uint32_t semilla)
     DeteccionesModelo det_listo, det_en_curso;
     ResultadoObstaculos cuadro;
     uint32_t prox_captura = 0, det_fin_ms = 0;
+    int estado_fin = 0, causa_fin = 0;
     int det_ocupado = 0, hay_det = 0;
     int i, t, a, d, zm, delta_ppm, tope_ms, base_avance, cmd_antes = NAV_CMD_STOP;
     double ux, uy;
@@ -344,6 +383,12 @@ static Resultado correr(int e, uint32_t semilla)
     if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
     if (getenv("AV2_VISTAZO")) navegador_poner_vistazo(&nav, atoi(getenv("AV2_VISTAZO")));           /* 0 no, 1 lejos, 2 lejos y medio, 3 todos */
 #endif
+    if (depurar) {   /* dónde quedó cada cosa en esta corrida: sin esto una traza no se puede leer */
+        for (i = 0; i < mundo.n_objetos; i++) {
+            printf("MUNDO %s planta=(x %.0f..%.0f, y %.0f..%.0f) en_ruta=%d aparece_ms=%lu\n", mundo.objetos[i].nombre, mundo.objetos[i].bx0, mundo.objetos[i].bx1,
+                   mundo.objetos[i].by0, mundo.objetos[i].by1, mundo.objetos[i].en_ruta, (unsigned long)mundo.objetos[i].aparece_ms);
+        }
+    }
     sim_j16_activar(&sim);
     sim.real = cal;
     base_avance = entre(96, 104);
@@ -411,7 +456,7 @@ static Resultado correr(int e, uint32_t semilla)
 
     navegador_comenzar(&nav, 0);
     tope_ms = 150000;
-    ux = 0.0; uy = -1.0;   /* todas las rutas del banco van hacia -y */
+    ux = s.ux; uy = s.uy;  /* hacia dónde va el último tramo (casi todas las rutas del banco van hacia -y) */
     for (t = 0; t < tope_ms; t += NAV_TICK_MS) {
         MvPose p = pose_real();
         const CuadroEnViaje *llega = NULL;
@@ -537,6 +582,10 @@ static Resultado correr(int e, uint32_t semilla)
     }
     r.tiempo_ms = t;
     r.sin_terminar = (t >= tope_ms);
+    /* Cómo terminó, ANTES de dejar que el carro acabe de frenar: en esos 600 ms el banco ya no manda cuadros y el navegador, con razón, acaba dando «sin video»
+     * (ERROR, causa 5). Eso es del banco, no de la corrida: se anotaban como ERROR unas pocas corridas que habían terminado pidiendo ayuda. */
+    estado_fin = nav.estado;
+    causa_fin = nav.error_causa;
     sim_correr(&sim, &nav, 600);   /* que termine de frenar */
     volcar_diag();
     {
@@ -566,10 +615,10 @@ static Resultado correr(int e, uint32_t semilla)
                 if (margen <= 0) pasados = 0;
             }
         }
-        r.llego = (nav.estado == NAV_TERMINADO);
-        r.ayuda = (nav.estado == NAV_AYUDA || nav.ayudas > 0);
-        r.error = (nav.estado == NAV_ERROR);
-        r.causa = nav.error_causa;
+        r.llego = (estado_fin == NAV_TERMINADO);
+        r.ayuda = (estado_fin == NAV_AYUDA || nav.ayudas > 0);
+        r.error = (estado_fin == NAV_ERROR);
+        r.causa = causa_fin;
         r.esquivas = nav.esquivadas;
         r.lateral = (int)fabs((p.x - s.fin_x) * (-uy) + (p.y - s.fin_y) * ux);
         r.longitudinal = (int)fabs((p.x - s.fin_x) * ux + (p.y - s.fin_y) * uy);
@@ -577,12 +626,12 @@ static Resultado correr(int e, uint32_t semilla)
         switch (s.tipo) {
         /* Pasar por debajo de un mueble sin tocarlo NO cuenta como éxito (el carro debía rodearlo), pero se lleva aparte: no es un contacto. */
         case T_FALSO:     r.exito = r.llego && !r.contacto && nav.esquivadas == 0 && nav.ayudas == 0; break;
-        case T_IMPOSIBLE: r.exito = !r.contacto && nav.estado == NAV_AYUDA; break;
+        case T_IMPOSIBLE: r.exito = !r.contacto && estado_fin == NAV_AYUDA; break;
         default:          r.exito = r.llego && !r.contacto && !r.bajo_mueble && pasados; break;
         }
         if (depurar) {
             printf("FIN %s semilla=%u estado=%s causa=%d exito=%d contacto=%d esquivas=%d ayudas=%d paradas=%d t=%d ms real=(%.0f,%.0f,%.1f) nav=(%d,%d,%d) lateral=%d long=%d cola=%d piso_aprendido=%d\n",
-                   ESC[e].nombre, (unsigned)semilla, navegador_texto_estado(nav.estado), nav.error_causa, r.exito, r.contacto, nav.esquivadas, nav.ayudas, r.paradas, t,
+                   ESC[e].nombre, (unsigned)semilla, navegador_texto_estado((EstadoNav)estado_fin), causa_fin, r.exito, r.contacto, nav.esquivadas, nav.ayudas, r.paradas, t,
                    p.x, p.y, p.rumbo_rad * 57.29578, nav.x_mm, nav.y_mm, nav.rumbo_grados, r.lateral, r.longitudinal, r.cola_mm, r.piso_aprendido);
         }
     }

@@ -277,12 +277,103 @@ static void probar_politica(void) {
 
 #endif
 
+#ifndef REPRO_BASE
+/* Revisión independiente del diff de seguridad (14-nov-2026): una prueba por hallazgo corregido. Son de caja blanca: ponen al navegador en el estado que hace falta. */
+static int revision_cal_ok;
+static void preparar_revision(void) {
+    CalibracionCarro cal; Punto ruta[11]; int i,a,d;
+    navegador_iniciar(&nav);
+    navegador_poner_sensor_distancia(&nav,1);
+    navegador_poner_pedir_ayuda(&nav,1);
+    cal_defecto(&cal);
+    cal_desplazamiento_de_medida(-1,90,-90,90,&a,&d);cal_poner_desplazamiento(&cal,-1,a,d);   /* los pivotes del carro: 90 mm a la izquierda, ~157 a la derecha */
+    cal_desplazamiento_de_medida(1,150,165,90,&a,&d);cal_poner_desplazamiento(&cal,1,a,d);
+    revision_cal_ok=(navegador_poner_calibracion(&nav,&cal)==NAV_OK);   /* antes de comenzar: con la ruta en marcha no se acepta */
+    for(i=0;i<11;i++){ruta[i].columna=5;ruta[i].fila=10-i;}
+    navegador_cargar_ruta(&nav,ruta,11);navegador_comenzar(&nav,0);
+}
+
+/* Deja al navegador terminando el primer giro de un rodeo hacia `lado`, con la cara del obstáculo a 300 mm del sensor y un eco del barrido en (s, lado_mm). */
+static void mirar_con_eco(int lado,int s,int lado_mm,int otro_libre,int atras) {
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_MIRAR;nav.lado=lado;nav.reintentos=0;nav.borde_reintentos=0;nav.cambio_lado=0;nav.lados_probados=0;
+    nav.tof_dist_mm=300;nav.t_mirar_ms=1000;nav.otro_lado_libre=otro_libre;nav.atras_al_salir_mm=atras;nav.rodeo_por_vistazo=0;
+    nav.scan_n=1;nav.scan_eco[0]=1;nav.scan_s[0]=s;nav.scan_lado[0]=lado_mm;nav.scan_grados[0]=80;nav.scan_sensor_s[0]=150;nav.scan_muestras=1;
+    navegador_tick(&nav,1000+NAV_PAUSA_ASENTAR_MS+NAV_MIRAR_MAX_ESPERA_MS+100,NULL);
+}
+
+static void probar_revision(void) {
+    Navegador otro;
+    uint32_t t;
+
+    /* ALTO 1 a: el lado medido está cerrado por una pared a 30 cm, junto al carro: no se da la vuelta completa (la barrería); ayuda con la causa 16. */
+    mirar_con_eco(1,200,300,1,300);
+    caso("revision: la calibracion con los pivotes medidos se acepta antes de comenzar",revision_cal_ok);
+    caso("revision: pared a 30 cm junto al carro: no da la vuelta para medir el otro lado, pide ayuda (causa 16)",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO && nav.cambio_lado==0);
+    /* ...con la pared lejos (60 cm) el lado sigue cerrado para rodear (hacen falta 66), pero la vuelta sí cabe. */
+    mirar_con_eco(1,200,600,1,300);
+    caso("revision: pared a 60 cm: la vuelta cabe y se mide el otro lado",nav.estado==NAV_ESQUIVANDO && nav.cambio_lado==1 && nav.angulo_giro==180);
+    mirar_con_eco(1,200,600,0,300);
+    caso("revision: si la camara veia ocupado el otro lado no se da la vuelta: ayuda",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO);
+    mirar_con_eco(1,200,600,1,40);
+    caso("revision: sin camino recien pisado detras (acaba de arrancar o de retroceder) no se da la vuelta: ayuda",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO);
+    mirar_con_eco(1,200,450,1,300);
+    caso("revision: pared a 45 cm a la derecha (el disco llega a 44): tampoco se da la vuelta",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO);
+    mirar_con_eco(-1,200,450,1,300);
+    caso("revision: a la izquierda el disco es menor: con la pared a 45 cm la vuelta cabe",nav.estado==NAV_ESQUIVANDO && nav.cambio_lado==1);
+    /* MEDIO 5: una pared a 23 cm (a la izquierda el giro no la toca) contaba como lado abierto. */
+    mirar_con_eco(-1,150,230,1,300);
+    caso("revision: pared a 23 cm: el lado NO se toma por abierto (antes avanzaba hacia ella)",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO && nav.scan_pared_mm==230);
+    /* ...y la pata de un mueble más adelante (fuera de la banda por la que sale el carro) no cierra el lado. */
+    mirar_con_eco(-1,430,180,1,300);
+    caso("revision: algo a 18 cm de lado pero 43 cm adelante no cierra el lado",nav.estado==NAV_ESQUIVANDO && nav.cmd_actual==NAV_CMD_FORWARD && nav.scan_pared_mm==0);
+
+    /* ALTO 1 b: guardia del giro. Girando a la derecha el láser ve algo a 10 cm: está dentro del arco que barre el chasis. */
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_RIGHT;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("revision: guardia del giro: algo a 10 cm durante el primer giro detiene el giro y pide ayuda (causa 18)",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO && nav.cmd_actual==NAV_CMD_STOP);
+    {
+        char frase[160];
+        caso("revision: la causa 18 tiene su frase",navegador_texto_error(&nav,frase,(int)sizeof frase)>0 && strstr(frase,"arco del giro")!=NULL);
+    }
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_RIGHT;
+    navegador_aporte_sens(&nav,300,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("revision: guardia del giro: la cara del obstaculo a 30 cm no la dispara",nav.estado==NAV_ESQUIVANDO);
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=-1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,130,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("revision: guardia del giro: a la izquierda el arco es menor (13 cm no la dispara, 10 si)",nav.estado==NAV_ESQUIVANDO);
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=-1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("revision: guardia del giro a la izquierda con 10 cm",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO);
+
+    /* BAJO 6: continuar tras la ayuda no arrastra lo que el láser confirmó antes. */
+    preparar_politica();
+    nav.estado=NAV_AYUDA;nav.tof_paro_activo=1;nav.vistazo_confirmado=1;nav.vistazo_retrocedio=1;nav.cambio_lado=1;nav.esquive_decidido=1;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("revision: continuar tras la ayuda olvida el TOF_PARO y el vistazo confirmados antes",
+         !nav.tof_paro_activo && nav.vistazo_confirmado==0 && nav.vistazo_retrocedio==0 && nav.cambio_lado==0 && !nav.esquive_decidido);
+    for(t=3050;t<=6000 && nav.estado!=NAV_ESQUIVANDO;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,t);navegador_tick(&nav,t,NULL);}
+    caso("revision: ...y con todo libre no rodea un obstaculo que ya no esta",nav.estado!=NAV_ESQUIVANDO && nav.esquivadas==0);
+
+    /* BAJO 7: navegador_iniciar deja las banderas en su valor por defecto aunque la estructura no llegue en ceros. */
+    memset(&otro,0x5A,sizeof otro);
+    navegador_iniciar(&otro);
+    caso("revision: navegador_iniciar fija precaucion y vistazo aunque la memoria traiga basura",otro.precaucion_modo==NAV_PRECAUCION_NUNCA && otro.vistazo_modo_mas1==0);
+}
+#endif
+
 int main(int argc,char **argv) {
     int i,informe=argc>1 && strcmp(argv[1],"--informe")==0;
     if(argc>1 && !informe){i=atoi(argv[1]);if(i<0||i>=11)return 2;correr(i,0);return 0;}
     for(i=0;i<11;i++)correr(i,!informe);
 #ifndef REPRO_BASE
-    if(!informe)probar_politica();
+    if(!informe){probar_politica();probar_revision();}
 #endif
     if(!informe)printf("%d casos, %d fallos\n",casos,fallos);
     return fallos ? EXIT_FAILURE : EXIT_SUCCESS;

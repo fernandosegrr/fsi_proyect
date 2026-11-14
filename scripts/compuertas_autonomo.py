@@ -35,7 +35,7 @@ NUCLEO = ["navegador.c", "navegador.h", "trayectoria.c", "trayectoria.h", "obsta
           "corredor.c", "corredor.h", "movimiento_piso.h"]
 BANCO = ["pruebas_autonomo_v2.c", "mundo_v2.c", "mundo_v2.h", "simulador_navegador.c", "simulador_navegador.h"]
 OPCIONALES = ["vision_tele.c", "vision_tele.h", "odometria.c", "odometria.h"]   # módulos nuevos: solo existen en la versión actual
-N_ESCENARIOS = 21
+N_ESCENARIOS = 23
 
 
 def exportar(destino, referencia):

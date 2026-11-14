@@ -318,15 +318,25 @@ static void pruebas_textos(void)
         preparar(RECTA, N(RECTA));
         memset(&obs, 0, sizeof obs);
         obs.zona[ZONA_CENTRO].hay_obstaculo = 1;
-        obs.zona[ZONA_CENTRO].cercania = 3;
+        obs.zona[ZONA_CENTRO].cercania = 2;
         obs.fuentes_vision[ZONA_CENTRO] = 3;
         navegador_tick(&nav, 50, &obs);
-        navegador_tick(&nav, 100, &obs);   /* V2: la coincidencia de las dos fuentes cuenta desde el segundo cuadro seguido */
+        navegador_tick(&nav, 100, &obs);   /* V2: con cercanía 2 la coincidencia de las dos fuentes cuenta desde el segundo cuadro seguido */
         antes = nav.frames_bloqueado;
         navegador_tick(&nav, 150, NULL);
         navegador_tick(&nav, 200, NULL);
         caso("tick sin cuadro nuevo (NULL) no cambia los contadores de cuadros",
              antes == 1 && nav.frames_bloqueado == 1);
+        /* Revisión independiente: en la banda más cercana (cercanía 3) la coincidencia cuenta desde el PRIMER cuadro (son hasta 6 cm menos de frenado con algo que el
+         * láser no ve); con cercanía 2 siguen haciendo falta dos seguidos. */
+        preparar(RECTA, N(RECTA));
+        obs.zona[ZONA_CENTRO].cercania = 2;
+        navegador_tick(&nav, 50, &obs);
+        caso("coincidencia con cercania 2: el primer cuadro todavia no cuenta", nav.frames_bloqueado == 0 && nav.estado == NAV_SIGUIENDO);
+        preparar(RECTA, N(RECTA));
+        obs.zona[ZONA_CENTRO].cercania = 3;
+        navegador_tick(&nav, 50, &obs);
+        caso("coincidencia con cercania 3: cuenta desde el primer cuadro", nav.frames_bloqueado == 1 || nav.estado == NAV_DETENIDO_OBSTACULO);
     }
 }
 

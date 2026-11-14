@@ -27,6 +27,9 @@ static int      cerca_seguidas  = 0;
 static int      ultimas[TOF_PARO_LECTURAS];   /* las últimas lecturas válidas cercanas (para informar la mayor) */
 static int      bloqueo_seguidas = 0;         /* SEG=2: lecturas válidas seguidas por debajo de TOF_BLOQUEO_MM */
 static int      ultimas_bloqueo[TOF_PARO_LECTURAS];
+/* Dónde se guarda la próxima lectura de cada lista. Van aparte de las cuentas de «seguidas»: esas se detienen en 1000 y, usadas como índice, dejaban de recorrer la
+ * lista (tras ~33 s frente a algo, TOF_PARO:<mm> podía llevar una distancia vieja en una de las casillas). */
+static int      indice_cerca = 0, indice_bloqueo = 0;
 static int      ventana[3];                   /* para la mediana */
 static int      ventana_n       = 0;
 static int      filtrado        = TOF_LIBRE_MM;
@@ -144,7 +147,8 @@ static void procesar(int crudo, uint32_t ahora_ms)
         valida = 1;
         valor = crudo;
         if (crudo < TOF_BLOQUEO_MM) {
-            ultimas_bloqueo[bloqueo_seguidas % TOF_PARO_LECTURAS] = crudo;
+            ultimas_bloqueo[indice_bloqueo] = crudo;
+            indice_bloqueo = (indice_bloqueo + 1) % TOF_PARO_LECTURAS;
             if (bloqueo_seguidas < 1000) {
                 bloqueo_seguidas++;
             }
@@ -152,7 +156,8 @@ static void procesar(int crudo, uint32_t ahora_ms)
             bloqueo_seguidas = 0;
         }
         if (crudo < TOF_PARO_MM) {
-            ultimas[cerca_seguidas % TOF_PARO_LECTURAS] = crudo;
+            ultimas[indice_cerca] = crudo;
+            indice_cerca = (indice_cerca + 1) % TOF_PARO_LECTURAS;
             if (cerca_seguidas < 1000) {
                 cerca_seguidas++;
             }

@@ -85,7 +85,13 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_MIRAR_MAX_ESPERA_MS   500    /* si tras la espera de arriba no llega ningún cuadro nuevo, se decide sin él (libre) */
 /* RETROCESO CIEGO: el carro NO tiene cámara ni sensor atrás. Para ir hacia atrás solo sabe cuánto tiempo mandó REVERSE; si hay algo detrás
  * (una persona, una pared, un escalón) lo golpea o se cae sin enterarse. Por eso la distancia está LIMITADA a NAV_RETROCESO_CM (contando lo que
- * el carro sigue de frenado) y además a NAV_RETROCESO_MAX_MS aunque la calibración pida más. Úsalo solo con el espacio de atrás libre. */
+ * el carro sigue de frenado) y además a NAV_RETROCESO_MAX_MS aunque la calibración pida más. Úsalo solo con el espacio de atrás libre.
+ *
+ * V2, las tres reversas que hay y su tope (ninguna tiene sensor que la cuide; todas suponen que nadie entró detrás del carro en esos segundos):
+ *  - reintento del esquive (la de siempre): NAV_RETROCESO_CM, a ciegas;
+ *  - escape (intentar_escape_atras): de NAV_RETROCESO_CM a NAV_RETROCESO_MAX_MM, y nunca más que `atras_conocido_mm` menos 50: lo que el carro ACABA de avanzar en
+ *    línea recta con ese mismo rumbo (se pone en 0 con cualquier giro). No se le suma espacio «deducido» que el chasis no haya pisado;
+ *  - deshacer la diagonal de entrada (reinc_abortar_entrada): lo avanzado en esa diagonal, hasta NAV_DESHACER_MAX_MM. */
 #define NAV_RETROCESO_CM           15    /* cm que retrocede en cada reintento: NO subir sin tener sensor o cámara trasera */
 #define NAV_RETROCESO_MAX_MS     2000    /* tope absoluto del tiempo de retroceso, pase lo que pase con la calibración */
 #define NAV_ANGULO_ESQUIVAR        90    /* grados que gira para apartarse (múltiplo de 45) */
@@ -236,13 +242,29 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_ESCANEO_ALCANCE_UTIL_MM 700    /* si para seguir viendo la cara habría que medir más que esto, el final de la cara no se puede comprobar */
 #define NAV_ESCANEO_HOLGURA_GRADOS    8    /* esa cuenta se hace con el ángulo de la lectura más esto (error del ángulo y poca señal de un plano visto de lado) */
 #define NAV_ESCANEO_PARED_HOLGURA_MM 260   /* de una pared lateral medida al centro del carro: 130 que barre el giro + medio carro + 30 */
+#define NAV_ESCANEO_PARED_MIN_MM    100    /* (revisión) un eco antes de la cara, AL LADO del carro y a más de medio carro de la línea es algo junto al carril (una pared pegada), no el obstáculo */
+#define NAV_ESCANEO_AL_LADO_S_MM    300    /* (revisión) «al lado del carro»: a menos de esto a lo largo de la ruta desde donde se detuvo (la banda por la que saldría de lado) */
+/* CAMBIO DE LADO y GUARDIA DEL GIRO (V2, tras la revisión independiente). Medir el otro lado es dar la vuelta completa sobre la misma rueda, y eso barre un disco
+ * alrededor de ella: el brazo del pivote más NAV_BARRIDO_DER_MM o NAV_BARRIDO_IZQ_MM (unos 44 cm de la línea a la derecha, 32 a la izquierda, y otro tanto hacia
+ * atrás). Por eso solo se da la vuelta si (1) lo que el láser midió de ese lado queda fuera del disco, (2) la cámara veía libre el otro lado cuando el carro se detuvo
+ * y (3) el carro venía de avanzar en recta al menos el radio del disco (lo de atrás, sobre la línea, lo acaba de pisar). Si no, pide ayuda sin girar más.
+ * Además, durante el primer giro del rodeo y durante esa vuelta, una lectura válida del láser más corta que la «guardia» dice que hay algo DENTRO del disco (el haz va
+ * unos 30 grados por delante de la esquina que barre): el carro deja de girar y pide ayuda (NAV_CAUSA_GIRO_BLOQUEADO). No lo evita todo: con ~0.3 s de ventaja el
+ * chasis puede alcanzar a tocar, pero deja de empujar. Lo que queda más bajo que el haz no se ve. */
+#define NAV_PARED_PEGADA_TOL_MM       50    /* dos lecturas seguidas del barrido «a la misma distancia lateral»: a menos de esto una de otra */
+#define NAV_PARED_PEGADA_TRAMO_MM     60    /* ...y separadas al menos esto a lo largo de la ruta: una pared paralela a la ruta, no un objeto suelto */
+#define NAV_PARED_PATAS_MM           250    /* una «pared» a menos de esto de la línea también pueden ser dos patas de un mueble: se exige que llegue hasta el costado del carro */
+#define NAV_DESHACER_GIRO_MAX          0    /* APAGADO (0): deshacer el giro y rodear por el otro lado empeoro «caja y pared al lado» en el banco (534 ok, 7 contactos; sin ello 615 y 2). Con 50 se activa. */
+#define NAV_GUARDIA_BRAZO_MIN_MM      30    /* con un brazo de pivote menor que esto en la calibración (sin medir) la guardia del giro no se aplica */
+#define NAV_PASAR_SIN_AVANCE_MAX      3    /* (revisión) planes seguidos de «pasar primero» sin que avance la cuenta a lo largo de la ruta: se pide ayuda en vez de repetir */
 #define NAV_CAMARA_FOV_GRADOS        56    /* campo horizontal de la cámara (SUPUESTO del manual; pendiente de medir) */
 #define NAV_CAMARA_ADELANTE_MM      100    /* del centro del carro a la lente (SUPUESTO) */
 #define NAV_PASO_VISTA_MARGEN_MM    230    /* 10 a 50 que necesita el giro de regreso + ~100 porque las ultimas celdas del costado dejan de contarse antes de salir del cuadro + 80 de error de distancia por tiempo */
 #define NAV_PASO_PARALELO_MAX_MM   2500
 #define NAV_FLANCO_CELDAS_MIN         2    /* celdas en el borde lejano del lado del objeto para decir que el costado sigue a la vista */
+#define NAV_FLANCO_OTRO_MM          250    /* si el paso llevaba esto sin ver nada de ese lado, lo que asoma es OTRO objeto (el que se rodea ya quedó al lado o atrás) */
+#define NAV_PASO_FONDO_OTRO_MM      200    /* fondo SUPUESTO de ese otro objeto (una caja de 20 cm): de él se deja de ver la cara de adelante, no la de atrás */
 #define NAV_PASO_INICIO_MM          220    /* el paso en paralelo empieza unos 22 cm antes de la cara del objeto (lo que deja el frenado más los dos giros) */
-#define NAV_ATRAS_TRAS_RODEO_MM     300    /* al entrar a la línea tras un rodeo quedan libres al menos 30 cm justo detrás (lo que acaba de cruzar) */
 #define NAV_RETROCESO_MAX_MM        250    /* el retroceso de escape nunca pasa de esto (NAV_RETROCESO_CM, 15 cm, es el de siempre) */
 #define NAV_ENTRADA_CELDAS_MIN        6    /* MIRADA ANTES DE ENTRAR: celdas de color, cerca (cercanía 2 o 3), en una zona para decir que la entrada a la línea está ocupada */
 #define NAV_MIRADA_MAX_MS           600    /* tras la latencia del video, lo más que se espera por los cuadros de la mirada */
@@ -369,7 +391,8 @@ typedef enum {
 #define NAV_CAUSA_FIN_NO_LIBRE          15   /* no se pudo comprobar el frente libre al cerrar */
 #define NAV_CAUSA_FRENTE_ANCHO          16   /* V2: pared u objeto más ancho que el rodeo máximo (medido con el láser al girar): no hay por dónde */
 #define NAV_CAUSA_SIN_PERCEPCION        17   /* V2: la red neuronal dejó de dar resultados vigentes: no se puede confirmar nada por visión */
-#define NAV_CAUSAS                      18   /* cuántos códigos hay (para tablas) */
+#define NAV_CAUSA_GIRO_BLOQUEADO        18   /* V2 (revisión): el láser vio algo DENTRO del arco que barre el chasis al girar para rodear: el carro dejó de girar */
+#define NAV_CAUSAS                      19   /* cuántos códigos hay (para tablas) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -580,6 +603,8 @@ typedef struct {
     uint32_t modelo_t_ok_ms;         /* última vez que estuvo vigente (o el comienzo del plazo) */
     int      vistazo_modo_mas1;      /* V2: NAV_VISTAZO_* + 1 (0 = sin fijar: vale el valor por defecto NAV_VISTAZO_POR_DEFECTO); ver navegador_poner_vistazo */
     int      coinc_detenido;         /* V2: cuadros con coincidencia de las dos fuentes desde que el carro se detuvo (para esquivar sin láser hacen falta varios) */
+    int      esquive_decidido;       /* (revisión) 1 = el rodeo ya estaba decidido y solo se retrocedió para que cupiera el giro: al terminar de retroceder se rodea */
+    int      coinc_esquivar_min;     /* (revisión) cuántos hacen falta en esta parada: NAV_COINCIDENCIA_CUADROS_ESQUIVAR, o uno más si la frenó un solo cuadro */
     int      coinc_seguidas[OBS_ZONAS];   /* V2: cuadros seguidos con las dos fuentes en cada zona */
     int      vistazo_lado;           /* V2, VISTAZO: -1 izquierda, +1 derecha, 0 = no hay vistazo en curso */
     uint32_t vistazo_t_ms;           /* cuándo empezó */
@@ -675,12 +700,18 @@ typedef struct {
     int      color_cercania[OBS_ZONAS];   /* la cercanía (1 a 3) que traía cada zona en el último cuadro, aunque la marcara una sola fuente */
     long     flanco_s_mm;            /* dónde iba el carro (a lo largo de la ruta) la última vez que el costado del objeto estaba a la vista */
     int      flanco_vistas;          /* cuántos cuadros lo vieron durante el paso en paralelo */
+    int      flanco_otro;            /* 1 = lo que asoma de ese lado es OTRO objeto más adelante (hubo NAV_FLANCO_OTRO_MM de paso sin ver nada): pista más larga */
     /* V2, CAMBIO DE LADO: si el láser mide que el lado elegido está cerrado (pared u objeto muy ancho, o sin espacio), el carro sigue girando EN EL MISMO SENTIDO
      * (media vuelta y un cuarto más: una vuelta completa sobre la misma rueda, que no lo acerca al obstáculo) y en el último cuarto mide el otro lado. Si está libre
      * rodea por ahí; con los dos cerrados pide ayuda (NAV_CAUSA_FRENTE_ANCHO) mirando otra vez al frente. Volver de frente giraría sobre la rueda del lado del
      * obstáculo y acercaría el chasis 16 a 28 cm. */
     int      lados_probados;         /* 0 = solo el primer lado; 1 = ya se midió (o se está midiendo) el otro */
     int      cambio_lado;            /* 0 = no; 1 = dando la media vuelta; 2 = dando el último cuarto (midiendo el otro lado) */
+    int      deshacer_giro;          /* (revisión) 1 = la guardia detuvo el primer giro y se está deshaciendo para rodear por el otro lado */
+    int      otro_lado_libre;        /* (revisión) 1 si, al detenerse, la cámara veía libre el lado contrario al del rodeo: sin eso no se da la vuelta para medirlo */
+    int      atras_al_salir_mm;      /* (revisión) lo que el carro acababa de avanzar en recta cuando empezó el rodeo (atras_conocido_mm antes del primer giro) */
+    long     pasar_s_mm;             /* (revisión) la cuenta a lo largo de la ruta en el último plan de «pasar primero» */
+    int      pasar_sin_avance;       /* (revisión) planes seguidos de «pasar primero» en los que esa cuenta no avanzó */
     int      scan_signo;             /* +1 = el escaneo mide hacia `lado`; -1 = hacia el lado contrario (durante el cambio de lado) */
     int      tof_cerca_lecturas;     /* lecturas válidas seguidas de 1 a NAV_REACCION_MAX_MM */
     uint32_t tof_t_ms;               /* hora de la última lectura */
@@ -815,10 +846,16 @@ int navegador_poner_vistazo(Navegador *nav, int modo);
 #define NAV_PRECAUCION_COLOR_CERCA 1
 #define NAV_PRECAUCION_SIEMPRE     2
 /* COINCIDENCIA DE LAS DOS FUENTES (V2). Color y red en la misma zona confirman un obstáculo. Para que una caja inventada por la red que cae sobre una mancha de
- * color durante UN cuadro no frene ni haga esquivar: con cercanía 2 hacen falta 2 cuadros seguidos para frenar (con cercanía 3 sigue bastando uno), y para
- * ESQUIVAR sin láser que lo confirme hacen falta NAV_COINCIDENCIA_CUADROS_ESQUIVAR cuadros con coincidencia desde que el carro se detuvo. */
+ * color durante UN cuadro no haga esquivar:
+ *  - FRENAR: hacen falta NAV_COINCIDENCIA_CUADROS_FRENAR cuadros seguidos, salvo en la zona CENTRAL con cercanía 3 (la banda más cercana), donde basta UNO: ahí
+ *    cada cuadro de espera son hasta 6 cm de avance hacia algo que el láser, que mira justo ahí, no ve. (La revisión independiente encontró que el código pedía
+ *    dos también en ese caso.) A los lados siguen siendo dos: lo de los lados lo confirma el vistazo con el láser, y una parada de un cuadro lo interrumpía.
+ *  - ESQUIVAR sin láser que lo confirme: NAV_COINCIDENCIA_CUADROS_ESQUIVAR cuadros con coincidencia desde que el carro se detuvo; si la parada la provocó un solo
+ *    cuadro, uno más y además NAV_COINCIDENCIA_ESQUIVAR_MS detenido (una caja inventada dura unas pocas inferencias; un objeto de verdad sigue ahí).
+ *  - Mientras el carro rodea, vuelve a la línea o está detenido, la coincidencia vale desde el primer cuadro. */
 #define NAV_COINCIDENCIA_CUADROS_ESQUIVAR 3
-#define NAV_COINCIDENCIA_CUADROS_FRENAR   2   /* cuadros SEGUIDOS con las dos fuentes en la misma zona para que cuente como obstáculo (el primero todavía no) */
+#define NAV_COINCIDENCIA_ESQUIVAR_MS    800   /* (revisión) si la parada la provocó un solo cuadro, además debe seguir habiendo coincidencia pasado este tiempo detenido */
+#define NAV_COINCIDENCIA_CUADROS_FRENAR   2   /* cuadros SEGUIDOS con las dos fuentes en la misma zona para que cuente como obstáculo (en el centro con cercanía 3, uno) */
 int navegador_poner_precaucion(Navegador *nav, int modo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);

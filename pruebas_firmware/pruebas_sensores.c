@@ -1195,6 +1195,26 @@ static void prueba_laser_lecturas(void)
     tof_probar_lectura(300, 9u);
     tof_probar_lectura(3, 10u);
     caso("una lectura de 3 mm es basura y se ignora (la distancia sigue en 300)", tof_mm() == 300);
+
+    /* Revisión independiente: tras más de 1000 lecturas cercanas seguidas (unos 33 s frente a algo) la cuenta se detiene en 1000 y, usada como índice, dejaba una
+     * casilla de «las últimas» sin renovar: la distancia confirmada podía ser una vieja. Ahora las últimas son de verdad las últimas. */
+    {
+        uint32_t t;
+
+        for (t = 0; t < 1200u; t++) {
+            tof_probar_lectura(110, 100u + t);
+        }
+        caso("1200 lecturas a 110 mm: cerca confirmada a 110", tof_cerca_confirmada() == 110);
+        caso("1200 lecturas a 110 mm: bloqueo confirmado a 110", tof_bloqueo_confirmado() == 110);
+        tof_probar_lectura(60, 2000u);
+        tof_probar_lectura(60, 2001u);
+        caso("y dos lecturas nuevas a 60 mm: la distancia confirmada es la nueva (antes quedaba una de 110)", tof_cerca_confirmada() == 60);
+        caso("lo mismo para el bloqueo de arranque", tof_bloqueo_confirmado() == 60);
+        tof_probar_lectura(500, 2002u);
+        tof_probar_lectura(500, 2003u);
+        tof_probar_lectura(500, 2004u);
+        caso("al alejarse deja de estar confirmada", tof_cerca_confirmada() == 0 && tof_bloqueo_confirmado() == 0);
+    }
 }
 
 /* Prepara el carro avanzando en AUTO con el láser libre. */

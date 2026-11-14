@@ -1261,7 +1261,11 @@ static void escaneo_analizar(Navegador *nav, int desde_el_costado)
                 nav->scan_corte = 1;
             }
         }
-        if (nav->scan_eco[k] && nav->scan_lado[k] > 250 && (nav->scan_pared_mm == 0 || nav->scan_lado[k] < nav->scan_pared_mm)) {
+        /* Otra cosa de ese lado (una pared): un eco bien de lado (más de 250 mm), o (revisión) uno antes de la zona de la cara, a más de medio carro de lado y AL LADO
+         * del carro (en la banda por la que saldría): eso no es el obstáculo, es algo junto al carril (una pared a 23 cm se tomaba por lado «abierto» y el carro
+         * avanzaba hacia ella). La pata de un mueble más adelante no cuenta aquí: el rodeo pasa a su lado. */
+        if (nav->scan_eco[k] && (nav->scan_lado[k] > 250 || (nav->scan_lado[k] > NAV_ESCANEO_PARED_MIN_MM && nav->scan_s[k] < cara - 150 && nav->scan_s[k] < NAV_ESCANEO_AL_LADO_S_MM)) &&
+            (nav->scan_pared_mm == 0 || nav->scan_lado[k] < nav->scan_pared_mm)) {
             nav->scan_pared_mm = nav->scan_lado[k];
         }
     }
@@ -1997,12 +2001,21 @@ void navegador_iniciar(Navegador *nav)
     nav->giro_fw_fallos = 0;
     nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = nav->ancho_rodeo_mm = 0;
     nav->lados_probados = nav->cambio_lado = 0;
+    nav->deshacer_giro = 0;
+    nav->otro_lado_libre = nav->atras_al_salir_mm = 0;
+    nav->pasar_s_mm = -1;
+    nav->pasar_sin_avance = 0;
+    nav->precaucion_modo = NAV_PRECAUCION_NUNCA;   /* (revisión) explícitos: antes dependían de que la estructura llegara en ceros */
+    nav->vistazo_modo_mas1 = 0;                    /* 0 = sin fijar: vale NAV_VISTAZO_POR_DEFECTO */
     nav->scan_signo = 1;
     nav->tramo_base = 0;
     nav->retroceso_mm = NAV_RETROCESO_CM * 10;
     nav->borde_lejos[0] = nav->borde_lejos[1] = 0;
     nav->flanco_s_mm = 0;
     nav->flanco_vistas = 0;
+    nav->flanco_otro = 0;
+    nav->esquive_decidido = 0;
+    nav->coinc_esquivar_min = 0;
     nav->esquivadas_obstaculo = 0;
     nav->tof_despejado_lecturas = 0;
     nav->fin_delante_mm = 0;
@@ -2197,6 +2210,14 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->precaucion_pausa_ms = 0;
     nav->tof_libre_lecturas = nav->tof_cerca_lecturas = 0;
     nav->reinc_pasar_primero = 0;
+    nav->tramo_base = 0;               /* (revisión) por ruta: una ruta que empieza no hereda el tramo adelantado de la anterior */
+    nav->pasar_s_mm = -1;
+    nav->pasar_sin_avance = 0;
+    nav->otro_lado_libre = nav->atras_al_salir_mm = 0;
+    nav->esquive_decidido = 0;
+    nav->coinc_esquivar_min = 0;
+    nav->flanco_otro = 0;
+    nav->deshacer_giro = 0;
     {   /* Por ruta: el arranque espera cuadros iguales, el sondeo se puede hacer una vez y los frenos anti-locura parten de cero. */
         int k, previo = nav->rumbo_grados, z;
 
@@ -2382,9 +2403,10 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->color_cercania[z] = fuentes ? obs->zona[z].cercania : 0;
         nav->coinc_seguidas[z] = (fuentes == 3) ? nav->coinc_seguidas[z] + 1 : 0;
         limitar_contador(&nav->coinc_seguidas[z]);
-        /* V2: la coincidencia cuenta desde el segundo cuadro seguido (una caja inventada por la red sobre una mancha de color suele durar un solo cuadro). Mientras
-         * el carro rodea o vuelve a la línea vale desde el primero: ahí lo prudente es reaccionar antes. */
-        hay = fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
+        /* V2: la coincidencia cuenta desde el segundo cuadro seguido (una caja inventada por la red sobre una mancha de color suele durar un solo cuadro), salvo
+         * en el CENTRO con cercanía 3, donde cuenta desde el primero (revisión: ver NAV_COINCIDENCIA_CUADROS_FRENAR). A los lados no: ahí lo resuelve el vistazo
+         * con el láser, y frenar por un cuadro lo interrumpía. Mientras el carro rodea o vuelve a la línea vale siempre desde el primero. */
+        hay = fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || (z == ZONA_CENTRO && obs->zona[z].cercania >= 3) || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
                                nav->estado == NAV_DETENIDO_OBSTACULO);
         coincidencia |= hay;
         /* PRECAUCIÓN (avanzar a ratos). V2: una sola fuente a un LADO ya no la pide si hay vistazo (lo resuelve el láser sin frenar), y en el CENTRO solo cuando lo
@@ -2399,7 +2421,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
         int celdas = obs->zona[z].celdas;
-        if (fuentes == 3 && obs->zona[z].cercania >= 3) inmediato = 1;   /* V2: con cercanía 2 hacen falta dos cuadros seguidos (ver NAV_COINCIDENCIA_CUADROS_ESQUIVAR) */
+        if (fuentes == 3 && obs->zona[z].cercania >= 3) inmediato = 1;   /* con cercanía 3 frena con este mismo cuadro; con cercanía 2 hacen falta dos seguidos */
 
         if (autoridad && z == ZONA_CENTRO) {
             hay = hay || laser_cerca; /* el laser puede confirmar, nunca borrar una sospecha visual */
@@ -2907,6 +2929,18 @@ static void entrar_detenido(Navegador *nav, uint32_t ahora_ms)
     int z;
 
     nav->coinc_detenido = 0;   /* V2: los cuadros con coincidencia se cuentan desde que se detiene */
+    nav->esquive_decidido = 0;
+    {   /* (revisión) Si lo que frena es una coincidencia de UN solo cuadro (banda más cercana: se frena al primero), esquivar sin láser pide un cuadro más: el total
+         * de cuadros con las dos fuentes antes de rodear queda igual que cuando hacían falta dos para frenar. */
+        int seguidas = 0;
+
+        for (z = 0; z < OBS_ZONAS; z++) {
+            if (nav->fuentes_vision[z] == 3 && nav->coinc_seguidas[z] > seguidas) {
+                seguidas = nav->coinc_seguidas[z];
+            }
+        }
+        nav->coinc_esquivar_min = NAV_COINCIDENCIA_CUADROS_ESQUIVAR + ((seguidas > 0 && seguidas < NAV_COINCIDENCIA_CUADROS_FRENAR) ? 1 : 0);
+    }
 
     nav->estado = NAV_DETENIDO_OBSTACULO;
     nav->t_detenido_ms = ahora_ms;
@@ -3490,6 +3524,18 @@ static int reinc_calcular(Navegador *nav)
          * obstáculo (en la prueba real pidió ayuda 5 veces seguidas por eso). Primero se endereza al rumbo de la línea y avanza en paralelo hasta pasarlo. */
         long avance = nav->fin_obstaculo_mm - s_pos;
 
+        /* (revisión) Si la cuenta a lo largo de la ruta no avanzó desde el plan anterior de «pasar primero», repetirlo no lleva a ninguna parte: el carro quedó por
+         * fuera de una esquina (ahí la proyección sobre la ruta se queda en el vértice) o algo lo detiene cada vez. A la tercera se pide ayuda. */
+        if (nav->pasar_s_mm >= 0 && s_pos < nav->pasar_s_mm + NAV_PARALELO_MIN_MM / 2) {
+            nav->pasar_sin_avance++;
+        } else {
+            nav->pasar_sin_avance = 0;
+        }
+        nav->pasar_s_mm = s_pos;
+        if (nav->pasar_sin_avance >= NAV_PASAR_SIN_AVANCE_MAX) {
+            diag_escribir(nav, "REINC_DIAG pasar_sin_avance s=%ld fin_obstaculo=%d: la cuenta no avanza, se pide ayuda", s_pos, nav->fin_obstaculo_mm);
+            return 0;
+        }
         nav->reinc_pasar_primero = 1;
         nav->reinc_dist_mm = (int)avance;
         nav->reinc_giro1 = giro_minimo(nav->rumbo_grados, nav->reinc_rumbo_final);
@@ -3558,8 +3604,11 @@ static int reinc_calcular(Navegador *nav)
                 }
                 hay_plan = planear_vuelta(nav, &p0, tx, ty, rumbo_del_tramo(nav, tramo_obj), &plan);
                 if (hay_plan && nav->obstaculo_pendiente && intento + 1 < NAV_PLAN_INTENTOS && s_obj < distancia_hasta_tramo(nav, nav->n_puntos - 1) &&
-                    valor_absoluto_int(plan.giro1) > NAV_VUELTA_GIRO_MAX) {
-                    hay_plan = 0;   /* V2: girar más de un cuarto de vuelta junto a lo que se rodea barre el chasis hacia atrás: mejor un punto más adelante */
+                    valor_absoluto_int(plan.giro1) > NAV_VUELTA_GIRO_MAX + valor_absoluto_int(giro_minimo(rumbo_del_tramo(nav, tramo_pos), rumbo_del_tramo(nav, tramo_obj)))) {
+                    /* V2: girar más de un cuarto de vuelta junto a lo que se rodea barre el chasis hacia atrás: mejor un punto más adelante. (revisión) El tope se
+                     * cuenta desde lo que DOBLA LA RUTA entre el tramo del carro y el del punto de regreso: por fuera de una esquina, entrar al tramo siguiente pide
+                     * por fuerza unos 95-100 grados, y descartarlo mandaba el regreso a más de un metro, casi al final de la ruta, donde ya no tenía solución. */
+                    hay_plan = 0;
                     continue;
                 }
                 if (!hay_plan && s_obj >= distancia_hasta_tramo(nav, nav->n_puntos - 1)) {
@@ -3729,11 +3778,8 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
         }
         nav->obstaculo_pendiente = 0;
         nav->esquivadas_obstaculo = 0;   /* V2: este obstáculo quedó atrás y verificado: el siguiente tiene su propio presupuesto */
-        if (s - nav->fin_obstaculo_mm >= 250 && nav->atras_conocido_mm < NAV_ATRAS_TRAS_RODEO_MM) {
-            /* El carro entró a la línea al menos 25 cm más allá de donde terminó de pasar el objeto (que ya llevaba su margen): ese tramo de línea, justo detrás,
-             * está libre. Sirve si hay que retroceder porque lo siguiente quedó demasiado cerca para girar. */
-            nav->atras_conocido_mm = NAV_ATRAS_TRAS_RODEO_MM;
-        }
+        /* (revisión) Aquí se daban por libres 30 cm «justo detrás» al entrar a la línea, sin que el chasis los hubiera pisado: si la cuenta del paso salía corta, una
+         * reversa podía dar contra lo que se acababa de rodear. Se quitó: atras_conocido_mm solo cuenta lo avanzado en recta (en el banco no cambió ningún resultado). */
         if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM >= nav->ruta_largo_original_mm) {
             /* El rodeo obligó a prolongar la última recta y el carro ya entró a la línea más allá del destino dibujado: la ruta termina aquí. */
             diag_escribir(nav, "REINC_DIAG fin tras_el_destino s=%ld destino=%ld: el rodeo termino mas alla del final dibujado", s, nav->ruta_largo_original_mm);
@@ -3857,6 +3903,38 @@ static long calcular_fin_obstaculo(Navegador *nav, int cercania)
     return hasta > limite ? -1 : hasta; /* nunca truncar el rebase */
 }
 
+/* V2 (revisión independiente): hasta dónde llega (mm desde el inicio de la ruta) la recta en la que está `tramo`; los tramos siguientes con el mismo rumbo son la misma
+ * recta. En la ÚLTIMA recta es el final de la ruta menos NAV_PARALELO_FIN_MM, prolongándola antes si `hasta` lo pide (como siempre). El paso en paralelo y sus
+ * alargamientos no pasan de aquí: más allá de una esquina no hay carril, el carro queda fuera de la ruta y la cuenta de avance se queda clavada en el vértice.
+ * `*ultima` dice si es la última recta. */
+static long limite_de_la_recta(Navegador *nav, int tramo, long hasta, int *ultima)
+{
+    int k = tramo, rumbo;
+
+    *ultima = 1;
+    if (nav->n_puntos < 2) {
+        return hasta;
+    }
+    if (k < 0) {
+        k = 0;
+    }
+    if (k > nav->n_puntos - 2) {
+        k = nav->n_puntos - 2;
+    }
+    rumbo = rumbo_del_tramo(nav, k);
+    while (k + 1 <= nav->n_puntos - 2 && rumbo_del_tramo(nav, k + 1) == rumbo) {
+        k++;
+    }
+    if (k + 1 >= nav->n_puntos - 1) {
+        if (hasta + NAV_REINC_ADELANTE_CM * 10 > nav->ruta_largo_mm) {
+            extender_recta_final(nav, hasta);
+        }
+        return nav->ruta_largo_mm - NAV_PARALELO_FIN_MM;
+    }
+    *ultima = 0;
+    return distancia_hasta_tramo(nav, k + 1);
+}
+
 /* Cuánto debe avanzar en paralelo para pasar el obstáculo: hasta fin_obstaculo_mm (ver calcular_fin_obstaculo) menos lo que ya avanzó. 0 si no hace falta. */
 static int calcular_paralelo_mm(const Navegador *nav)
 {
@@ -3870,6 +3948,23 @@ static int calcular_paralelo_mm(const Navegador *nav)
     return (nav->fin_obstaculo_mm - s_pos >= NAV_PARALELO_MIN_MM) ? (int)(nav->fin_obstaculo_mm - s_pos) : 0;
 }
 
+/* (revisión) ¿El tramo de la ruta sobre el que se proyecta el carro va en la dirección en que el carro avanza? Rodeando por DENTRO de una esquina, el carro queda más
+ * cerca del tramo siguiente (perpendicular) que del que traía: ubicar_en_linea salta a ese tramo y su cuenta ya no mide el avance del paso en paralelo. Con esa cuenta
+ * no se alarga nada. */
+static int tramo_paralelo_al_carro(const Navegador *nav, int tramo)
+{
+    if (nav->n_puntos < 2) {
+        return 1;
+    }
+    if (tramo < 0) {
+        tramo = 0;
+    }
+    if (tramo > nav->n_puntos - 2) {
+        tramo = nav->n_puntos - 2;
+    }
+    return valor_absoluto_int(giro_minimo(rumbo_del_tramo(nav, tramo), nav->rumbo_grados)) <= NAV_RUMBO_FW_SALTO_MAX;
+}
+
 /* V2: ¿sigue a la vista el costado del objeto (del lado de la línea)? Celdas en el borde lejano de ese lado, o la red en esa zona. Si se ve, la pista del paso en
  * paralelo vuelve a empezar desde aquí: deja el nuevo final en fin_obstaculo_mm y devuelve cuánto falta avanzar desde ahora (mm); -1 si no hay que alargar nada.
  * `hecho_mm` es lo que ya lleva avanzado este paso (para el tope NAV_PASO_PARALELO_MAX_MM). */
@@ -3877,32 +3972,161 @@ static long costado_a_la_vista(Navegador *nav, uint32_t ahora_ms, long hecho_mm)
 {
     int lado_linea = (nav->lado < 0) ? 1 : 0;   /* se rodea por la izquierda: el objeto queda a la derecha */
     int zona_linea = (nav->lado < 0) ? ZONA_DERECHA : ZONA_IZQUIERDA;
-    int tramo;
-    long s, desvio, objetivo;
+    int tramo, ultima;
+    long s, desvio, objetivo, limite;
 
     if (!(nav->borde_lejos[lado_linea] >= NAV_FLANCO_CELDAS_MIN || (nav->fuentes_vision[zona_linea] & 2)) ||
         (uint32_t)(ahora_ms - nav->t_ultimo_cuadro_ms) > (uint32_t)NAV_MAX_HUECO_VIDEO_MS) {
         return -1;
     }
     ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
+    if (!tramo_paralelo_al_carro(nav, tramo)) {
+        return -1;   /* (revisión) por dentro de una esquina: esa cuenta es de otro tramo */
+    }
+    if (s - nav->flanco_s_mm >= NAV_FLANCO_OTRO_MM) {
+        /* Hubo un trecho largo del paso sin ver nada de ese lado: lo que asoma ahora no es el objeto que se rodea, es OTRO más adelante. De ese no se midió el ancho
+         * (puede empezar en la misma línea: a `c` = todo el desvío lateral) ni se sabe el fondo, y lo último que se ve de él es su cara de adelante, no la de atrás. */
+        nav->flanco_otro = 1;
+    }
     objetivo = s + pista_tras_la_vista_mm(nav);
+    if (nav->flanco_otro) {
+        long tangente = (long)seno_mil(NAV_CAMARA_FOV_GRADOS / 2) * 1000 / seno_mil(NAV_CAMARA_FOV_GRADOS / 2 + 90);
+
+        objetivo += (long)nav->ancho_rodeo_mm * 1000 / tangente + NAV_PASO_FONDO_OTRO_MM;
+    }
     if (objetivo <= nav->fin_obstaculo_mm || hecho_mm + (objetivo - s) > NAV_PASO_PARALELO_MAX_MM) {
         return -1;
     }
-    if (objetivo + NAV_REINC_ADELANTE_CM * 10 > nav->ruta_largo_mm) {
-        extender_recta_final(nav, objetivo);
-    }
-    if (objetivo > nav->ruta_largo_mm - NAV_PARALELO_FIN_MM) {
-        return -1;
+    limite = limite_de_la_recta(nav, tramo, objetivo, &ultima);   /* prolonga la última recta si hace falta */
+    if (objetivo > limite) {
+        if (ultima) {
+            return -1;           /* como siempre: al final de la ruta, si no cabe entero no se alarga */
+        }
+        objetivo = limite;       /* (revisión) junto a una esquina: hasta el vértice y no más */
+        if (objetivo <= nav->fin_obstaculo_mm) {
+            return -1;
+        }
     }
     if (nav->flanco_vistas == 0) {
-        diag_escribir(nav, "BORDE_DIAG costado_a_la_vista s=%ld celdas_borde=%d red=%d: el paso en paralelo se alarga", s, nav->borde_lejos[lado_linea],
-                      (nav->fuentes_vision[zona_linea] & 2) ? 1 : 0);
+        diag_escribir(nav, "BORDE_DIAG costado_a_la_vista s=%ld celdas_borde=%d red=%d otro_objeto=%d: el paso en paralelo se alarga", s, nav->borde_lejos[lado_linea],
+                      (nav->fuentes_vision[zona_linea] & 2) ? 1 : 0, nav->flanco_otro);
     }
     nav->flanco_vistas++;
     nav->flanco_s_mm = s;
     nav->fin_obstaculo_mm = (int)objetivo;
     return objetivo - s;
+}
+
+/* (revisión) Lo que alcanza, de lado desde la línea, el chasis al dar la vuelta completa sobre la rueda de `lado` (mm): el brazo del pivote (lo que el centro se
+ * desplaza en un cuarto de vuelta, según la calibración) más el radio de la esquina lejana y la holgura. */
+static int alcance_vuelta_mm(const Navegador *nav, int lado)
+{
+    int adelante = 0, derecha = 0, brazo;
+
+    cal_desplazamiento_giro(&nav->cal, lado, 90, 0, NULL, NULL, &adelante, &derecha);
+    brazo = (valor_absoluto_int(adelante) > valor_absoluto_int(derecha)) ? valor_absoluto_int(adelante) : valor_absoluto_int(derecha);
+    return brazo + ((lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
+}
+
+/* (revisión) ¿Cabe la vuelta completa sobre la rueda de `lado` con lo que midió el barrido de ese lado? No, si algún eco cae DENTRO del disco que barre el chasis
+ * (centro en la rueda: a `brazo` mm de la línea, a la altura de donde se detuvo el carro), ni si hay algo AL LADO del carro (a menos de NAV_ESCANEO_AL_LADO_S_MM a lo
+ * largo) más cerca de la línea que el alcance del disco: eso suele ser una pared, que sigue hacia atrás, donde el láser no miró. La pata de un mueble más adelante,
+ * fuera del disco, no lo impide. Deja en *estorbo_mm la distancia lateral del eco que lo impide (0 si cabe). */
+static int vuelta_cabe_con_lo_medido(const Navegador *nav, int lado, int *estorbo_mm)
+{
+    int adelante = 0, derecha = 0, i;
+    long brazo, r;
+    int alcance = alcance_vuelta_mm(nav, lado);
+
+    cal_desplazamiento_giro(&nav->cal, lado, 90, 0, NULL, NULL, &adelante, &derecha);
+    brazo = (valor_absoluto_int(adelante) + valor_absoluto_int(derecha)) / 2;
+    r = ((lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
+    *estorbo_mm = 0;
+    for (i = 0; i < nav->scan_n; i++) {
+        long ds, dl;
+
+        if (!nav->scan_eco[i]) {
+            continue;
+        }
+        ds = nav->scan_s[i];
+        dl = nav->scan_lado[i] - brazo;
+        if (ds * ds + dl * dl <= r * r ||
+            (nav->scan_s[i] < NAV_ESCANEO_AL_LADO_S_MM && nav->scan_lado[i] > NAV_ESCANEO_PARED_MIN_MM && nav->scan_lado[i] < alcance)) {
+            *estorbo_mm = nav->scan_lado[i];
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* (revisión) GUARDIA DEL GIRO: la lectura del láser por debajo de la cual hay algo DENTRO del disco que barre el chasis al girar sobre la rueda de `lado`. El haz sale
+ * del frente paralelo al eje del carro, a `brazo` mm del pivote: un punto a `r` mm del pivote lo cruza a raíz(r² - brazo²) del pie de esa perpendicular, y el sensor
+ * está NAV_SENSOR_FRENTE_MM por delante de ese pie. Con el pivote derecho medido (157 mm) son ~150 mm; con el izquierdo (90 mm), ~120. */
+static int guardia_giro_mm(const Navegador *nav, int lado)
+{
+    int adelante = 0, derecha = 0;
+    long brazo, r;
+
+    cal_desplazamiento_giro(&nav->cal, lado, 90, 0, NULL, NULL, &adelante, &derecha);
+    brazo = (valor_absoluto_int(adelante) + valor_absoluto_int(derecha)) / 2;
+    r = ((lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
+    if (r <= brazo || brazo < NAV_GUARDIA_BRAZO_MIN_MM) {
+        return 0;   /* sin el pivote medido (calibración sin desplazamiento al girar) no se conoce el disco: no hay guardia */
+    }
+    return (int)raiz_entera(r * r - brazo * brazo) - NAV_SENSOR_FRENTE_MM;
+}
+
+/* (revisión) PARED A LA VISTA: dos lecturas seguidas del barrido del primer giro a la misma distancia lateral de la línea y cada vez más cerca a lo largo son una
+ * pared paralela a la ruta. Devuelve su distancia lateral (mm) si queda tan cerca que ese lado va a salir cerrado de todos modos (menos que el desvío lateral del
+ * rodeo más NAV_ESCANEO_PARED_HOLGURA_MM), o 0. Lo que quede a menos de NAV_PARED_PATAS_MM de la línea también pueden ser las dos patas de un mismo lado de un
+ * mueble: eso solo cuenta como pared si la última lectura ya cae ANTES de la cara que midió el láser (algo junto al carro, no el mueble de enfrente). */
+static int pared_a_la_vista_mm(const Navegador *nav)
+{
+    int a = nav->scan_n - 1, b = nav->scan_n - 2, cerca;
+
+    if (nav->cambio_lado != 0 || nav->deshacer_giro || nav->scan_n < 2 || !nav->scan_eco[a] || !nav->scan_eco[b]) {
+        return 0;
+    }
+    cerca = (nav->scan_lado[a] < nav->scan_lado[b]) ? nav->scan_lado[a] : nav->scan_lado[b];
+    if (cerca <= NAV_ESCANEO_PARED_MIN_MM || cerca >= NAV_ESQ_MARGEN_LATERAL_MM + NAV_ESCANEO_PARED_HOLGURA_MM ||
+        valor_absoluto_int(nav->scan_lado[a] - nav->scan_lado[b]) > NAV_PARED_PEGADA_TOL_MM || nav->scan_s[b] - nav->scan_s[a] < NAV_PARED_PEGADA_TRAMO_MM) {
+        return 0;
+    }
+    if (cerca < NAV_PARED_PATAS_MM &&
+        (nav->rodeo_por_vistazo || nav->tof_dist_mm <= 0 || nav->scan_s[a] >= cara_desde_salida_mm(nav) - NAV_PARED_PEGADA_TRAMO_MM)) {
+        return 0;
+    }
+    return cerca;
+}
+
+/* (revisión) Lo que alcanza de lado, desde la línea, el frente del chasis en el PRIMER cuarto de vuelta hacia `lado`: brazo del pivote + medio largo + holgura. Una
+ * pared más cerca que esto se toca antes de terminar el giro. 0 si el pivote no está medido. */
+static int alcance_primer_giro_mm(const Navegador *nav, int lado)
+{
+    int adelante = 0, derecha = 0;
+
+    cal_desplazamiento_giro(&nav->cal, lado, 90, 0, NULL, NULL, &adelante, &derecha);
+    if (valor_absoluto_int(derecha) < NAV_GUARDIA_BRAZO_MIN_MM) {
+        return 0;
+    }
+    return valor_absoluto_int(derecha) + NAV_SENSOR_FRENTE_MM + NAV_BARRIDO_HOLGURA_MM;
+}
+
+/* Un STOP interrumpe GIRAR antes de GIRO_OK: cierra la pose con el ángulo de SENS, sin inventar el giro parcial a partir de la velocidad calibrada. */
+static void cerrar_giro_interrumpido(Navegador *nav, uint32_t ahora_ms)
+{
+    if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && nav->sens_angulo_ok &&
+        ahora_ms - nav->sens_angulo_t_ms <= NAV_TOF_FRESCO_MS) {
+        int medido = nav->cmd_actual == NAV_CMD_LEFT ? nav->sens_angulo_x10 - nav->giro_fw_ang_ini_x10 :
+                                                               nav->giro_fw_ang_ini_x10 - nav->sens_angulo_x10;
+        while (medido < -1800) medido += 3600;
+        while (medido > 1800) medido -= 3600;
+        if (medido >= 0) {
+            nav->giro_fw_real_x10 = medido;
+            nav->giro_fw_estado = 1;
+            calcular_pose(nav);
+        }
+    }
 }
 
 /* Elige hacia dónde apartarse: -1 izquierda, +1 derecha, 0 ninguno. Solo cuentan los lados SIN obstáculo (zona libre). Si los dos
@@ -3949,6 +4173,24 @@ static int intentar_escape_atras(Navegador *nav)
     return 1;
 }
 
+/* (revisión) El rodeo ya estaba decidido (obstáculo confirmado, lado elegido) y el carro solo retrocedió para que cupiera el giro. Sigue decidido mientras ALGUNA
+ * fuente de visión siga viendo algo: a 30 cm un objeto bajo ya no da eco y la red lo da a ratos, pero el color lo sigue viendo. Si ya nadie ve nada (se lo llevaron),
+ * deja de estarlo y la ruta se reanuda como siempre. */
+static int esquive_sigue_decidido(const Navegador *nav)
+{
+    int z;
+
+    if (!nav->esquive_decidido) {
+        return 0;
+    }
+    for (z = 0; z < OBS_ZONAS; z++) {
+        if (nav->fuentes_vision[z] != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* STOP antes de planear. Distancia laser cuando existe; si no, banda visual
  * coincidente. Ambos lados ocupados: esperar y agotar el retroceso conocido. */
 static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
@@ -3972,7 +4214,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         return NAV_CMD_STOP;
     }
     /* Una medición cercana O consenso visual fresco autoriza; el desacuerdo no bloquea. */
-    if (!nav->tof_paro_activo && !tof_dice_cerca(nav, ahora_ms) && !nav->zona_frena[ZONA_CENTRO] &&
+    if (!esquive_sigue_decidido(nav) && !nav->tof_paro_activo && !tof_dice_cerca(nav, ahora_ms) && !nav->zona_frena[ZONA_CENTRO] &&
         !nav->zona_frena[ZONA_IZQUIERDA] && !nav->zona_frena[ZONA_DERECHA] && !nav->cierre_reintento) {
         if (libre_confirmado(nav, ahora_ms)) {
             nav->estado = NAV_SIGUIENDO;
@@ -3981,7 +4223,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         }
         return NAV_CMD_STOP;
     }
-    if (libre_confirmado(nav, ahora_ms) && nav->volver_a_reinc && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {
+    if (!esquive_sigue_decidido(nav) && libre_confirmado(nav, ahora_ms) && nav->volver_a_reinc && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {
         /* Se detuvo mientras volvía a la línea y el frente ya está libre: vuelve a calcular la vuelta desde donde quedó. */
         nav->volver_a_reinc = 0;
         nav->frames_bloqueado = 0;
@@ -3990,7 +4232,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         entrar_reincorporando(nav, ahora_ms);
         return NAV_CMD_STOP;
     }
-    if (libre_confirmado(nav, ahora_ms) && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {   /* tras TOF_PARO la cámara no puede «liberar» el frente: el láser vio algo a menos de 12 cm */
+    if (!esquive_sigue_decidido(nav) && libre_confirmado(nav, ahora_ms) && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms)) {   /* tras TOF_PARO la cámara no puede «liberar» el frente: el láser vio algo a menos de 12 cm */
         nav->estado = NAV_SIGUIENDO;   /* el obstáculo se fue: continuar donde iba */
         ajustar_paso_tras_parar(nav);
         nav->frames_bloqueado = 0;
@@ -3999,9 +4241,10 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         return tick_siguiendo(nav, ahora_ms);
     }
     /* Tras TOF_PARO también hace falta cámara para elegir el lado; nunca se usa un lado por defecto a ciegas. */
-    if (espera >= NAV_PAUSA_MS && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms) &&
+    if (espera >= NAV_PAUSA_MS && !nav->esquive_decidido && !nav->tof_paro_activo && !nav->cierre_reintento && !tof_dice_cerca(nav, ahora_ms) &&
         !(tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm <= OBSTACULO_LASER_MM) &&
-        nav->coinc_detenido < NAV_COINCIDENCIA_CUADROS_ESQUIVAR && espera < (uint32_t)NAV_TIMEOUT_ESQUIVAR_MS) {
+        (nav->coinc_detenido < ((nav->coinc_esquivar_min > 0) ? nav->coinc_esquivar_min : NAV_COINCIDENCIA_CUADROS_ESQUIVAR) ||
+         (nav->coinc_esquivar_min > NAV_COINCIDENCIA_CUADROS_ESQUIVAR && espera < (uint32_t)NAV_COINCIDENCIA_ESQUIVAR_MS)) && espera < (uint32_t)NAV_TIMEOUT_ESQUIVAR_MS) {
         /* V2: lo único que sostiene el bloqueo es la coincidencia de color y red, sin láser: todavía no se han juntado los cuadros que hacen falta para esquivar.
          * Se sigue esperando (si deja de verse, arriba se reanuda la ruta). */
         return NAV_CMD_STOP;
@@ -4013,8 +4256,12 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         }
         nav->salida_cercania = cercania_que_freno(nav);
         if (!nav->tof_paro_activo) {
-            nav->tof_dist_mm = (tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 &&
-                               nav->tof_mm <= (nav->cierre_reintento ? NAV_TOF_LIBRE_MM : NAV_REACCION_MAX_MM)) ? nav->tof_mm : 0;
+            int medida = (tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 &&
+                          nav->tof_mm <= (nav->cierre_reintento ? NAV_TOF_LIBRE_MM : NAV_REACCION_MAX_MM)) ? nav->tof_mm : 0;
+
+            if (medida > 0 || !nav->esquive_decidido) {
+                nav->tof_dist_mm = medida;   /* (revisión) con el esquive ya decidido y sin eco ahora, vale la medida de antes de retroceder (más lo retrocedido) */
+            }
         }
         nav->lado = elegir_lado(nav);
         if (nav->lado != 0) {
@@ -4033,14 +4280,21 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
                 } else {
                     nav->arco_adelante_mm = adelante_mm;
                     nav->arco_libre_mm = libre_mm;
-                    if (intentar_escape_atras(nav)) return NAV_CMD_REVERSE;
+                    if (intentar_escape_atras(nav)) {
+                        /* (revisión) El obstáculo ya estaba confirmado y el lado elegido: solo faltaba sitio para girar. Tras retroceder se rodea, sin volver a
+                         * pedir la confirmación (con algo bajo, a 30 cm el láser ya no lo ve y la red lo da a ratos: el carro volvía a avanzar hacia él). */
+                        nav->esquive_decidido = 1;
+                        return NAV_CMD_REVERSE;
+                    }
                     ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_ARCO);
                     return NAV_CMD_STOP;
                 }
             }
             {
-                /* V2, BARRIDO DEL GIRO DE SALIDA (ver navegador.h): con lo confirmado más cerca que el arco de la esquina y camino conocido detrás, primero retrocede.
-                 * Solo para lo que confirmó un VISTAZO (algo a un lado: una pata, una caja corrida); un obstáculo de frente sigue con la cuenta de siempre. */
+                /* V2, BARRIDO DEL GIRO DE SALIDA (ver navegador.h). Lo que confirmó un VISTAZO está a un lado (una pata, una caja corrida) y su eco no dice dónde empieza:
+                 * puede ser la pata de atrás de un mueble cuyas patas de adelante ya están junto al carro. Por eso, SIEMPRE que haya camino recién pisado detrás, primero
+                 * retrocede (una sola vez, hasta NAV_RETROCESO_MAX_MM y nunca más de lo avanzado en recta: intentar_escape_atras). `barrido` y `cara` solo van al
+                 * registro. Un obstáculo de frente sigue con la cuenta de siempre (arco_cabe). (revisión: el comentario decía que dependía del arco; nunca dependió.) */
                 int barrido = ((nav->lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
                 int cara = libre_hasta_obstaculo_mm(nav) + NAV_ARCO_MARGEN_MM;
 
@@ -4110,9 +4364,18 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             nav->vistazo_confirmado = 0;
             nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = 0;   /* V2: el primer giro mide el ancho con el láser */
             nav->lados_probados = nav->cambio_lado = 0;
+            nav->deshacer_giro = 0;
+            /* (revisión) ¿veía libre la cámara el lado CONTRARIO al del rodeo? Solo entonces se podrá dar la vuelta para medirlo si este sale cerrado: el láser no ve
+             * lo bajo, y si la cámara ya lo daba por ocupado no se va a rodear por ahí. */
+            nav->otro_lado_libre = (nav->lado > 0) ? !nav->zona_hay[ZONA_IZQUIERDA] : !nav->zona_hay[ZONA_DERECHA];
+            nav->atras_al_salir_mm = nav->atras_conocido_mm;   /* el primer giro lo pone en 0 */
+            nav->pasar_s_mm = -1;
+            nav->pasar_sin_avance = 0;
             nav->scan_signo = 1;
             nav->ancho_rodeo_mm = 0;
             nav->flanco_vistas = 0;
+            nav->flanco_otro = 0;
+            nav->esquive_decidido = 0;
             nav->estado = NAV_ESQUIVANDO;
             esq_iniciar_giro(nav, ahora_ms);
             return comando_de_fase(nav);
@@ -4224,12 +4487,24 @@ static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
             /* Pared u objeto más ancho que el rodeo máximo, o sin espacio de ese lado: no se avanza hacia allí. Si todavía no se midió el otro lado, se mide:
              * media vuelta y un cuarto más en el MISMO sentido (sobre la misma rueda, sin acercarse); el último cuarto barre el otro lado con el láser. */
             if (nav->lados_probados == 0) {
+                /* (revisión) La vuelta completa barre un disco alrededor de la rueda sobre la que gira (ver «CAMBIO DE LADO y GUARDIA DEL GIRO» en navegador.h): solo
+                 * se da si lo medido de este lado queda fuera del disco, si la cámara veía libre el otro lado y si lo de atrás, sobre la línea, se acaba de pisar. */
+                int radio = (nav->lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM;
+                int alcance = alcance_vuelta_mm(nav, nav->lado);
+                int estorbo_mm = 0;
+                int pared_fuera = vuelta_cabe_con_lo_medido(nav, nav->lado, &estorbo_mm);
+                int atras_pisado = (nav->atras_al_salir_mm + NAV_SENSOR_FRENTE_MM >= radio + NAV_BARRIDO_HOLGURA_MM);   /* del centro a la cola hay lo mismo que al sensor */
+
                 nav->lados_probados = 1;
-                nav->cambio_lado = 1;
-                nav->angulo_giro = 180;
-                diag_escribir(nav, "ESQUIVE_DIAG lado_cerrado lado=%d: se mide el otro lado (vuelta completa en el mismo sentido)", nav->lado);
-                nav->fase = NAV_FASE_ASENTAR;
-                return NAV_CMD_STOP;
+                if (pared_fuera && nav->otro_lado_libre && atras_pisado) {
+                    nav->cambio_lado = 1;
+                    nav->angulo_giro = 180;
+                    diag_escribir(nav, "ESQUIVE_DIAG lado_cerrado lado=%d: se mide el otro lado (vuelta completa en el mismo sentido)", nav->lado);
+                    nav->fase = NAV_FASE_ASENTAR;
+                    return NAV_CMD_STOP;
+                }
+                diag_escribir(nav, "ESQUIVE_DIAG lado_cerrado lado=%d sin_vuelta estorbo_lado_mm=%d alcance_mm=%d otro_lado_libre=%d atras_mm=%d: no se da la vuelta, se pide ayuda",
+                              nav->lado, estorbo_mm, alcance, nav->otro_lado_libre, nav->atras_al_salir_mm);
             }
             ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_FRENTE_ANCHO);
             return NAV_CMD_STOP;
@@ -4270,6 +4545,55 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             return NAV_CMD_STOP;
         }
     }
+    if (nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->usa_tof && nav->cmd_actual == comando_de_fase(nav) &&
+        (nav->cmd_actual == NAV_CMD_LEFT || nav->cmd_actual == NAV_CMD_RIGHT) && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0) {
+        /* (revisión) GUARDIA DEL GIRO (ver navegador.h): en el primer giro del rodeo y en la vuelta del cambio de lado, una lectura así de corta es algo dentro del
+         * arco que va a barrer el chasis (una pared pegada, un objeto junto al carril). Deja de girar y pide ayuda; seguir sería empujarlo con la esquina. */
+        int lado_giro = (nav->cmd_actual == NAV_CMD_RIGHT) ? 1 : -1;
+        int guardia = guardia_giro_mm(nav, lado_giro);
+        int pared = pared_a_la_vista_mm(nav);
+        int peligro = (nav->tof_mm <= guardia) || (pared > 0 && pared < alcance_primer_giro_mm(nav, lado_giro));
+        int girado = -1;   /* grados que lleva este giro según el giroscopio (-1 = no se sabe) */
+
+        if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && nav->sens_angulo_ok && ahora_ms - nav->sens_angulo_t_ms <= NAV_TOF_FRESCO_MS) {
+            int medido = (nav->cmd_actual == NAV_CMD_LEFT) ? nav->sens_angulo_x10 - nav->giro_fw_ang_ini_x10 : nav->giro_fw_ang_ini_x10 - nav->sens_angulo_x10;
+
+            while (medido < -1800) medido += 3600;
+            while (medido > 1800) medido -= 3600;
+            girado = medido / 10;
+        }
+        /* (revisión) DESHACER EL GIRO: si el giro apenas empezaba, todavía no se probó el otro lado, la cámara lo veía libre y la cara del obstáculo la midió el láser,
+         * en vez de pedir ayuda se deshace (los mismos grados hacia el otro lado, sobre la otra rueda: ese arco se aparta de lo que vio el láser) y se rodea por
+         * allá. Vale tanto para un peligro como para una pared que solo dice que este lado va a salir cerrado: mejor saberlo a los 40 grados, cuando todavía
+         * se puede volver, que a los 90. El carro queda unos centímetros más cerca del obstáculo; si entonces el giro de salida no cabe, pide ayuda. */
+        if ((peligro || pared > 0) && nav->cambio_lado == 0 && nav->lados_probados == 0 && nav->otro_lado_libre && !nav->rodeo_por_vistazo && nav->tof_dist_mm > 0 &&
+            nav->angulo_total == 0 && girado >= nav->giro_fw_min && girado <= NAV_DESHACER_GIRO_MAX) {
+            diag_escribir(nav, "ESQUIVE_DIAG guardia_giro lado=%d laser_mm=%d guardia_mm=%d pared_mm=%d girado=%d: deshace el giro y prueba el otro lado", lado_giro, nav->tof_mm,
+                          guardia, pared, girado);
+            cerrar_giro_interrumpido(nav, ahora_ms);
+            cambiar_comando(nav, NAV_CMD_STOP);
+            girado = valor_absoluto_int(giro_minimo(nav->salida_rumbo, nav->rumbo_grados));   /* lo que de verdad quedó girado respecto de la salida */
+            if (girado >= nav->giro_fw_min) {
+                nav->lados_probados = 1;
+                nav->deshacer_giro = 1;
+                nav->lado = -nav->lado;
+                nav->angulo_giro = girado;
+                nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = 0;   /* las lecturas eran del otro lado */
+                nav->fase = NAV_FASE_ASENTAR;
+                nav->ms_fase = 0;
+                return NAV_CMD_STOP;
+            }
+            peligro = 1;   /* no hay giro que deshacer y algo estorba: ayuda */
+        }
+        if (peligro) {
+            diag_escribir(nav, "ESQUIVE_DIAG guardia_giro lado=%d laser_mm=%d guardia_mm=%d pared_mm=%d cambio_lado=%d: algo dentro del arco del giro, deja de girar", lado_giro,
+                          nav->tof_mm, guardia, pared, nav->cambio_lado);
+            cerrar_giro_interrumpido(nav, ahora_ms);
+            cambiar_comando(nav, NAV_CMD_STOP);
+            ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
+            return NAV_CMD_STOP;
+        }
+    }
     if (nav->fase == NAV_FASE_MIRAR) {
         return tick_mirar(nav, ahora_ms);
     }
@@ -4285,12 +4609,18 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 
             ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo_v2, &s_v2, &desvio_v2);
             nav->flanco_s_mm = s_v2;
-            if (nav->paralelo_mm < pista && s_v2 + pista + NAV_REINC_ADELANTE_CM * 10 > nav->ruta_largo_mm) {
-                extender_recta_final(nav, s_v2 + pista);
-            }
-            if (nav->paralelo_mm < pista && s_v2 + pista <= nav->ruta_largo_mm - NAV_PARALELO_FIN_MM) {
-                nav->paralelo_mm = pista;
-                nav->fin_obstaculo_mm = (int)(s_v2 + pista);
+            if (nav->paralelo_mm < pista && tramo_paralelo_al_carro(nav, tramo_v2)) {
+                int ultima;
+                long hasta_v2 = s_v2 + pista;
+                long limite_v2 = limite_de_la_recta(nav, tramo_v2, hasta_v2, &ultima);   /* prolonga la última recta si hace falta */
+
+                if (hasta_v2 > limite_v2 && !ultima) {
+                    hasta_v2 = limite_v2;   /* (revisión) junto a una esquina la pista llega hasta el vértice: seguir recto más allá saca al carro de la ruta */
+                }
+                if (hasta_v2 <= limite_v2 && hasta_v2 - s_v2 > nav->paralelo_mm) {
+                    nav->paralelo_mm = (int)(hasta_v2 - s_v2);
+                    nav->fin_obstaculo_mm = (int)hasta_v2;
+                }
             }
         }
         nav->ms_fase = 0;
@@ -4340,6 +4670,38 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
         case NAV_FASE_GIRAR:        /* terminó de girar: queda quieto a mirar si el frente está libre */
             nav->angulo_total += nav->angulo_giro;
             esq_terminar_giro(nav, ahora_ms);
+            if (nav->deshacer_giro) {
+                /* (revisión) Giro deshecho: el carro mira otra vez a lo largo de la ruta, un poco más adelante. El rodeo empieza de nuevo por este lado, desde aquí. */
+                int adelante_mm, libre_mm;
+                long avance = ((long)(nav->x_mm - nav->salida_x_mm) * dir_x_mil(nav->salida_linea_rumbo) +
+                               (long)(nav->y_mm - nav->salida_y_mm) * dir_y_mil(nav->salida_linea_rumbo)) / 1000;
+
+                nav->deshacer_giro = 0;
+                if (avance > 0) {
+                    nav->tof_dist_mm -= (int)avance;   /* la cara quedó más cerca: lo que el centro avanzó con los dos giros */
+                    if (nav->tof_dist_mm < 1) {
+                        nav->tof_dist_mm = 1;
+                    }
+                }
+                if (!arco_cabe(nav, nav->lado, &adelante_mm, &libre_mm)) {
+                    diag_escribir(nav, "ESQUIVE_DIAG otro_lado lado=%d giro_adelante_mm=%d libre_mm=%d cabe=0: se pide ayuda", nav->lado, adelante_mm, libre_mm);
+                    ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
+                    return NAV_CMD_STOP;
+                }
+                nav->giro_extra_grados = 0;
+                nav->angulo_total = 0;
+                nav->angulo_giro = NAV_ANGULO_ESQUIVAR;
+                nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = 0;
+                nav->scan_signo = 1;
+                nav->salida_x_mm = nav->x_mm;
+                nav->salida_y_mm = nav->y_mm;
+                nav->salida_rumbo = nav->rumbo_grados;
+                nav->otro_lado_libre = 0;      /* ya no queda otro lado que probar */
+                nav->atras_al_salir_mm = 0;
+                diag_escribir(nav, "ESQUIVE_DIAG otro_lado lado=%d laser_mm=%d: rodeo nuevo desde aqui", nav->lado, nav->tof_dist_mm);
+                nav->fase = NAV_FASE_ASENTAR;
+                return NAV_CMD_STOP;
+            }
             if (nav->cambio_lado == 1) {   /* V2: media vuelta hecha; falta el último cuarto, que mide el otro lado con el láser */
                 nav->cambio_lado = 2;
                 nav->angulo_giro = 90;
@@ -4400,20 +4762,8 @@ static void extender_rebase(Navegador *nav, uint32_t ahora_ms)
 {
     int tramo;
     long avance, desvio;
-    /* Un STOP interrumpe GIRAR antes de GIRO_OK. Cerrar la pose con SENS,
-     * sin inventar el giro parcial a partir de la velocidad calibrada. */
-    if (nav->giro_fw && nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && nav->sens_angulo_ok &&
-        ahora_ms - nav->sens_angulo_t_ms <= NAV_TOF_FRESCO_MS) {
-        int medido = nav->cmd_actual == NAV_CMD_LEFT ? nav->sens_angulo_x10 - nav->giro_fw_ang_ini_x10 :
-                                                               nav->giro_fw_ang_ini_x10 - nav->sens_angulo_x10;
-        while (medido < -1800) medido += 3600;
-        while (medido > 1800) medido -= 3600;
-        if (medido >= 0) {
-            nav->giro_fw_real_x10 = medido;
-            nav->giro_fw_estado = 1;
-            calcular_pose(nav);
-        }
-    }
+
+    cerrar_giro_interrumpido(nav, ahora_ms);
     cambiar_comando(nav, NAV_CMD_STOP);
     if (nav->esquivadas_obstaculo >= NAV_MAX_ESQUIVADAS || nav->esquivadas >= NAV_MAX_ESQUIVADAS_RUTA) {
         ir_a_error_causa(nav, NAV_MOTIVO_MAX_ESQUIVADAS, NAV_CAUSA_MAX_ESQUIVADAS);
@@ -4465,6 +4815,20 @@ static void extender_rebase(Navegador *nav, uint32_t ahora_ms)
         if (nav->fin_obstaculo_mm < avance + NAV_BORDEAR_TRAMO_MM) {
             nav->fin_obstaculo_mm = (int)avance + NAV_BORDEAR_TRAMO_MM;
         }
+        }
+    }
+    {   /* (revisión) El carril se alarga dentro de la recta en la que va el carro. Junto a una esquina llega hasta el vértice; si ya no queda recta, se pide ayuda:
+         * antes seguía de frente más allá de la esquina repitiendo el mismo plan hasta que lo paraba el freno de «a más de 1 m de la ruta». */
+        int ultima;
+        long limite = limite_de_la_recta(nav, tramo, nav->fin_obstaculo_mm, &ultima);
+
+        if (!ultima && nav->fin_obstaculo_mm > limite) {
+            if (limite - avance < NAV_PARALELO_MIN_MM) {
+                diag_escribir(nav, "BORDE_DIAG sin_recta s=%ld limite=%ld: el rodeo no cabe antes de la esquina", avance, limite);
+                ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_OBSTACULO_NO_PASADO);
+                return;
+            }
+            nav->fin_obstaculo_mm = (int)limite;
         }
     }
     if (nav->fin_obstaculo_mm + NAV_REINC_ADELANTE_CM * 10 > nav->ruta_largo_mm &&
@@ -4600,7 +4964,8 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
             return NAV_CMD_STOP;
         }
         if (!reinc_calcular(nav)) {
-            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_VUELTA);   /* sin solución: pide ayuda (o ERROR si no se pidió) en vez de ejecutar un plan inválido */
+            /* sin solución: pide ayuda (o ERROR si no se pidió) en vez de ejecutar un plan inválido */
+            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, (nav->pasar_sin_avance >= NAV_PASAR_SIN_AVANCE_MAX) ? NAV_CAUSA_OBSTACULO_NO_PASADO : NAV_CAUSA_VUELTA);
             return NAV_CMD_STOP;
         }
         if (valor_absoluto_int(nav->reinc_giro1) > NAV_LOCURA_GIRO_MAX || valor_absoluto_int(nav->reinc_giro2) > NAV_LOCURA_GIRO_MAX) {
@@ -5277,7 +5642,7 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
         nav->tof_libre_lecturas = 0;
         nav->tof_cerca_lecturas = 0;
         nav->tof_despejado_lecturas = 0;
-        if (nav->usa_tof && nav->tof_vivo && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && nav->giro_fw &&
+        if (nav->usa_tof && nav->tof_vivo && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && !nav->deshacer_giro && nav->giro_fw &&
             nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista) {
             escaneo_muestra(nav, ahora_ms, 0, 0);   /* V2: una lectura sin eco del barrido también cuenta: ahí no hay nada al alcance */
         }
@@ -5292,7 +5657,7 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
             nav->vistazo_mm = mm;
         }
     }
-    if (nav->usa_tof && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && nav->giro_fw &&
+    if (nav->usa_tof && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && !nav->deshacer_giro && nav->giro_fw &&
         nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista) {
         escaneo_muestra(nav, ahora_ms, mm, mm < TOF_ALCANCE_ESCANEO_MM);   /* V2: el primer giro del rodeo mide el ancho del obstáculo */
     }
@@ -5389,6 +5754,19 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
     nav->esquivadas = 0;          /* tras la ayuda se vuelve a poder esquivar */
     nav->esquivadas_obstaculo = 0;
     nav->reintentos = 0;
+    /* (revisión) Lo que confirmó el láser antes de la ayuda ya no vale: el usuario movió el carro. Sin esto, tras «continuar» con todo libre el navegador rodeaba un
+     * obstáculo que ya no tenía delante (TOF_PARO o un vistazo confirmados antes de pedir ayuda). Lo que haya ahora lo vuelven a decir el láser y la cámara. */
+    nav->tof_paro_activo = 0;
+    nav->tof_pendiente = 0;
+    nav->vistazo_confirmado = 0;
+    nav->vistazo_retrocedio = 0;
+    nav->lados_probados = nav->cambio_lado = 0;
+    nav->deshacer_giro = 0;
+    nav->scan_signo = 1;
+    nav->pasar_s_mm = -1;
+    nav->pasar_sin_avance = 0;
+    nav->esquive_decidido = 0;
+    vistazo_terminar(nav, ahora_ms);
     nav->error_causa = NAV_CAUSA_NINGUNA;
     nav->desde_ayuda = 1;
     nav->indice_max = nav->indice_objetivo;   /* tras tomar el control el carro pudo quedar en otro lugar: el índice parte de aquí */
@@ -5597,6 +5975,9 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         break;
     case NAV_CAUSA_SIN_PERCEPCION:
         n = snprintf(texto, (size_t)capacidad, "el detector de objetos dejó de dar resultados: no se puede confirmar el frente por visión");
+        break;
+    case NAV_CAUSA_GIRO_BLOQUEADO:
+        n = snprintf(texto, (size_t)capacidad, "el láser vio algo dentro del arco del giro (una pared o un objeto pegado al costado): el carro dejó de girar");
         break;
     case NAV_CAUSA_LADOS:
         n = snprintf(texto, (size_t)capacidad, "los dos lados estuvieron ocupados %d segundos y no había por dónde esquivar", NAV_TIMEOUT_ESQUIVAR_MS / 1000);
