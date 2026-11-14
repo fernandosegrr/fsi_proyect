@@ -243,7 +243,11 @@ class VideoCarro(
             try {
                 val cuerpo = c.inputStream.bufferedReader().readText()
                 fun numero(clave: String): String = Regex("\"" + clave + "\":(-?[0-9.]+)").find(cuerpo)?.groupValues?.get(1) ?: "?"
-                textoCamara = "reconexiones=" + numero("reconexiones") + " rssi_min_10s=" + numero("rssi_min_10s") + " fps_envio=" + numero("fps_envio") + " edad_max_ms=" + numero("edad_max_ms")
+                // Autónomo v2: una cámara cam-v2 trae además "fw" y la telemetría fotométrica "foto" (medias de color, quemados, oscuros): solo números, para la caja negra.
+                val foto = Regex("\"foto\":\\{([^}]*)\\}").find(cuerpo)?.groupValues?.get(1)?.replace("\"", "") ?: "sin_datos"
+                val fw = Regex("\"fw\":\"([^\"]*)\"").find(cuerpo)?.groupValues?.get(1) ?: "anterior"
+                textoCamara = "reconexiones=" + numero("reconexiones") + " rssi_min_10s=" + numero("rssi_min_10s") + " fps_envio=" + numero("fps_envio") + " edad_max_ms=" + numero("edad_max_ms") +
+                    " fw=" + fw + " foto=" + foto
                 Log.i("VIDEO_STATS", "camara: $textoCamara")
             } finally {
                 c.disconnect()

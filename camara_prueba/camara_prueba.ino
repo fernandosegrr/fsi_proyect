@@ -82,7 +82,11 @@
 /* ── Opciones de compilación ───────────────────────────────────────────── */
 
 #define MODO_BARRIDO 0   /* 1 = probar todas las combinaciones al arrancar (tarda varios minutos) */
-#define AUTOPRUEBA   1   /* 1 = al arrancar, la placa se pide a sí misma /stats, /capture y /stream */
+/* Autónomo v2: la autoprueba queda APAGADA por defecto. Encendida, un minuto después de cada arranque pedía size=qvga, cambiaba el compresor global para compararlos y
+ * no restauraba nada: reiniciaba el sensor (exposición y balance de blancos desde cero) y podía dejar a la cámara en otro tamaño justo al empezar una ruta. Sirve en el
+ * banco de pruebas: ponerla en 1 solo para eso. */
+#define AUTOPRUEBA   0   /* 1 = al arrancar, la placa se pide a sí misma /stats, /capture y /stream */
+#define FW_CAMARA    "cam-v2"   /* versión del protocolo de esta cámara: se anuncia en /stats ("fw") junto con sus capacidades ("caps") */
 
 /* ── Configuración ─────────────────────────────────────────────────────── */
 
@@ -677,6 +681,45 @@ static void tarea_udp(void *)
 }
 #endif
 
+/* ── Telemetría fotométrica (autónomo v2): solo números, ninguna imagen ── */
+
+/* Cada FOTO_PERIODO_MS se mide un cuadro RGB565 saltando de 8 en 8 píxeles (unas 660 muestras de un HQVGA: menos de 0.1 ms): la media de rojo, verde y azul de todo
+ * el cuadro y de su mitad de abajo (el piso), y cuántas muestras están quemadas u oscuras. Se publica en /stats ("foto"). Sirve para saber, sin ver la imagen, si la
+ * cámara cambió su exposición o su balance de blancos entre «Aprender piso» y la ruta: la media sube o baja de golpe, o cambia la proporción entre canales. */
+#define FOTO_PERIODO_MS 500
+static volatile uint32_t fotoMs = 0;            /* millis() de la última medida (0 = todavía ninguna) */
+static volatile uint32_t fotoMedidas = 0;
+static volatile uint16_t fotoR = 0, fotoG = 0, fotoB = 0;                    /* medias de 0 a 255, todo el cuadro */
+static volatile uint16_t fotoRAbajo = 0, fotoGAbajo = 0, fotoBAbajo = 0;     /* mitad de abajo */
+static volatile uint16_t fotoQuemadosMil = 0, fotoOscurosMil = 0;            /* milésimas de las muestras */
+
+static void medir_foto(const camera_fb_t *fb)
+{
+  if (fb == NULL || fb->format != PIXFORMAT_RGB565 || fb->width < 16 || fb->height < 16 || fb->len < (size_t)fb->width * fb->height * 2) return;
+  const uint32_t ahora = millis();
+  if (fotoMs != 0 && ahora - fotoMs < FOTO_PERIODO_MS) return;
+  uint32_t sr = 0, sg = 0, sb = 0, sra = 0, sga = 0, sba = 0, n = 0, na = 0, quemados = 0, oscuros = 0;
+  for (int y = 4; y < (int)fb->height; y += 8) {
+    const uint8_t *fila = fb->buf + (size_t)y * fb->width * 2;
+    const bool abajo = y >= (int)fb->height / 2;
+    for (int x = 4; x < (int)fb->width; x += 8) {
+      const uint16_t p = (uint16_t)(((uint16_t)fila[2 * x] << 8) | fila[2 * x + 1]);   /* la cámara entrega el byte alto primero */
+      const uint32_t r = ((p >> 11) & 0x1F) * 255u / 31u, g = ((p >> 5) & 0x3F) * 255u / 63u, b = (p & 0x1F) * 255u / 31u;
+      sr += r; sg += g; sb += b; n++;
+      if (abajo) { sra += r; sga += g; sba += b; na++; }
+      if (r >= 250 || g >= 250 || b >= 250) quemados++;
+      if (r <= 8 && g <= 8 && b <= 8) oscuros++;
+    }
+  }
+  if (n == 0) return;
+  fotoR = (uint16_t)(sr / n); fotoG = (uint16_t)(sg / n); fotoB = (uint16_t)(sb / n);
+  if (na > 0) { fotoRAbajo = (uint16_t)(sra / na); fotoGAbajo = (uint16_t)(sga / na); fotoBAbajo = (uint16_t)(sba / na); }
+  fotoQuemadosMil = (uint16_t)(quemados * 1000u / n);
+  fotoOscurosMil = (uint16_t)(oscuros * 1000u / n);
+  fotoMedidas++;
+  fotoMs = ahora ? ahora : 1;
+}
+
 /* ── Tubería: captura (núcleo 0) ───────────────────────────────────────── */
 
 static void tarea_captura(void *)
@@ -715,6 +758,7 @@ static void tarea_captura(void *)
     }
     sumar_captura(ultimoT ? t - ultimoT : 0);
     ultimoT = t;
+    medir_foto(fb);                          /* autónomo v2: los números de la luz de este cuadro (antes de que el compresor le cambie los bytes) */
 #if MODO_CELDAS_DISPONIBLE
     if (paraCeldas) {
       enviar_celdas(fb, t);                /* primero las celdas (lo urgente); el JPEG para ver sigue en paralelo, con menos prioridad */
@@ -1316,7 +1360,7 @@ static esp_err_t manejar_stats(httpd_req_t *req)
 {
   log_peticion(req);
   Resumen r = resumir(3);   /* últimos 3 segundos */
-  char json[1800];
+  char json[2300];
   int n = snprintf(json, sizeof(json),
     "{\"fps_captura\":%.1f,\"fps_envio\":%.1f,\"ms_captura\":%.1f,\"ms_compresion\":%.1f,\"ms_envio\":%.1f,"
     "\"edad_ms\":%.0f,\"edad_max_ms\":%.0f,\"envio_max_ms\":%.0f,\"descartados\":%u,\"descartados_total\":%u,\"jpeg_medio_bytes\":%.0f,\"stream\":%s,"
@@ -1324,7 +1368,11 @@ static esp_err_t manejar_stats(httpd_req_t *req)
     "\"config\":{\"xclk_mhz\":%d,\"formato\":\"%s\",\"tam\":\"%s\",\"calidad\":%d,\"sensor\":\"%s\",\"compresor\":\"%s\"},"
     "\"modo\":\"%s\",\"bytes_s\":%.0f,\"celdas_enviadas\":%u,\"celdas_ms\":%.2f,\"celdas_max_ms\":%.2f,\"cliente_celdas\":%s,\"pings\":%u,"
     "\"ultima_desconexion\":{\"razon\":%d,\"texto\":\"%s\",\"hace_s\":%d},\"reintentos_wifi\":%u,"
-    "\"ultimo_reinicio\":{\"causa\":\"%s\",\"motivo\":\"%s\",\"propios_seguidos\":%u}}",
+    "\"ultimo_reinicio\":{\"causa\":\"%s\",\"motivo\":\"%s\",\"propios_seguidos\":%u},"
+    /* Autónomo v2: claves NUEVAS, siempre al final (un cliente anterior las ignora): versión, capacidades y la telemetría fotométrica. */
+    "\"fw\":\"%s\",\"caps\":[\"foto\"],"
+    "\"foto\":{\"medidas\":%u,\"hace_ms\":%d,\"r\":%u,\"g\":%u,\"b\":%u,\"r_abajo\":%u,\"g_abajo\":%u,\"b_abajo\":%u,"
+    "\"quemados_mil\":%u,\"oscuros_mil\":%u}}",
     r.fpsCaptura, r.fpsEnvio, r.msCaptura, r.msCompresion, r.msEnvio, r.edadMs, r.edadMaxMs, r.envioMaxMs,
     (unsigned)r.descartados, (unsigned)totalDescartados, r.jpegMedio, streamActivo ? "true" : "false",
     WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, rssi_minimo_10s(), (unsigned)reconexiones, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram(),
@@ -1333,7 +1381,9 @@ static esp_err_t manejar_stats(httpd_req_t *req)
     celdasMaxUs / 1000.0, cliente_celdas_vigente() ? "true" : "false", (unsigned)pingsContestados,
     (int)razonDesconexion, razonDesconexion ? WiFi.disconnectReasonName((wifi_err_reason_t)razonDesconexion) : "ninguna",
     razonDesconexion ? (int)((millis() - desconexionMs) / 1000) : -1, (unsigned)reintentosWifi,
-    causaReinicio, motivoReinicio, (unsigned)reiniciosPropios);
+    causaReinicio, motivoReinicio, (unsigned)reiniciosPropios,
+    FW_CAMARA, (unsigned)fotoMedidas, fotoMs ? (int)(millis() - fotoMs) : -1, (unsigned)fotoR, (unsigned)fotoG, (unsigned)fotoB,
+    (unsigned)fotoRAbajo, (unsigned)fotoGAbajo, (unsigned)fotoBAbajo, (unsigned)fotoQuemadosMil, (unsigned)fotoOscurosMil);
   if (n <= 0 || n >= (int)sizeof(json)) return httpd_resp_send_500(req);
   httpd_resp_set_type(req, "application/json");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");

@@ -250,6 +250,7 @@ class ModoSemiautonomo(
             "camara=${if (fuente == null) "ninguna" else if (fuente.esVideoCarro) "video_carro" else "telefono"} latencia_visual_ms=${fuente?.latenciaVisualMs ?: 0} " +
                 "detector_objetos=${fuente?.modelo != null}",
             "config_vision=${fuente?.cuadroTomado?.config?.joinToString(",") ?: ""}",
+            "camara_stats=${fuente?.textoCamaraCarro ?: ""}",
             "telefono=${android.os.Build.MODEL} android=${android.os.Build.VERSION.RELEASE}"))
         ObstaculosNativa.telemetriaActiva(fuente != null)
         mensaje = ""

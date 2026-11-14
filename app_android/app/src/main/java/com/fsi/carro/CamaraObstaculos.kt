@@ -359,6 +359,9 @@ class CamaraObstaculos(
     /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
     val esVideoCarro: Boolean get() = enSesionVideo
 
+    /** Autónomo v2: lo último que dijo la cámara del carro en /stats (reconexiones, señal, versión y telemetría fotométrica), o "" sin video del carro. Solo números. */
+    val textoCamaraCarro: String get() = videoCarro?.textoCamara ?: ""
+
     /** Empieza a leer el video de la cámara del carro (no necesita el permiso de cámara). Devuelve false si la dirección no es válida. */
     private fun abrirVideoCarro(url: String): Boolean {
         error = ""
