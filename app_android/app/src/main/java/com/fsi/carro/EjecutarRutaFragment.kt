@@ -487,7 +487,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         val enAyuda = semi.activo && e[NavegadorNativa.E_ESTADO] == NavegadorNativa.AYUDA
         tarjetaAyuda.visibility = if (enAyuda) View.VISIBLE else View.GONE
         if (enAyuda) {
-            textoAyudaCausa.text = NavegadorNativa.textoError().replaceFirstChar { it.uppercase() }
+            // Autónomo v2: siempre con el código de la causa delante («Causa 16: ...») para poder anotarlo y buscarlo en el manual.
+            textoAyudaCausa.text = "Causa ${NavegadorNativa.causa()}: " + NavegadorNativa.textoError().replaceFirstChar { it.uppercase() }
             if (!ayudaAvisada) {
                 ayudaAvisada = true
                 Haptica.obstaculo(requireContext())
@@ -631,7 +632,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
     /** La causa concreta que dice el navegador (con los números), con la primera letra en mayúscula; si no hay, el texto general. */
     private fun conCausa(general: String): String {
         val causa = NavegadorNativa.textoError()
-        return if (causa.isEmpty()) general else causa.replaceFirstChar { it.uppercase() }
+        return if (causa.isEmpty()) general else "Causa ${NavegadorNativa.causa()}: " + causa.replaceFirstChar { it.uppercase() }
     }
 
     private fun textoDetalles(e: IntArray): String {
@@ -641,6 +642,8 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             "Posición estimada: x=${e[NavegadorNativa.E_X_MM] / 10} cm  y=${e[NavegadorNativa.E_Y_MM] / 10} cm  rumbo=${e[NavegadorNativa.E_RUMBO]}°\n" +
             "Cámara: ${if (camara.abierta) "abierta" else "cerrada"}  ${String.format(Locale.US, "%.1f", camara.fps)} fps\n" +
             (if (camara.esVideoCarro) camara.textoVideo() + "\n" else "") +
-            (if (semi.textoPrueba.isNotEmpty()) semi.textoPrueba else "")
+            (if (semi.textoPrueba.isNotEmpty()) semi.textoPrueba + "\n" else "") +
+            "Caja negra: ${CajaNegra.cuantas()} corridas guardadas" + (if (CajaNegra.ultimoArchivo.isNotEmpty()) " (última: ${CajaNegra.ultimoArchivo})" else "") +
+            "\nCarpeta: ${CajaNegra.carpeta()}"
     }
 }

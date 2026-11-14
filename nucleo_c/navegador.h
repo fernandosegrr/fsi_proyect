@@ -574,6 +574,10 @@ typedef struct {
                                       * 4 = paso de confirmación (mirada despejada justo después de una ocupada); 5 = paso corto, lo visto queda solo del lado de atrás */
     int      reinc_deshacer_mm;      /* V2: cuánto de la diagonal de entrada hay que deshacer en reversa */
     int      precaucion_modo;        /* V2: cuándo «avanza a ratos» por una sola fuente de visión sin eco del láser (NAV_PRECAUCION_*); ver navegador_poner_precaucion */
+    int      modelo_requerido;       /* V2: 1 si la ruta cuenta con el detector de objetos (navegador_aporte_modelo) */
+    int      modelo_vigente;         /* su último resultado sigue vigente */
+    int      modelo_visto;           /* 1 desde la primera llamada de esta ruta (ahí empieza a contar el plazo) */
+    uint32_t modelo_t_ok_ms;         /* última vez que estuvo vigente (o el comienzo del plazo) */
     int      vistazo_modo_mas1;      /* V2: NAV_VISTAZO_* + 1 (0 = sin fijar: vale el valor por defecto NAV_VISTAZO_POR_DEFECTO); ver navegador_poner_vistazo */
     int      coinc_detenido;         /* V2: cuadros con coincidencia de las dos fuentes desde que el carro se detuvo (para esquivar sin láser hacen falta varios) */
     int      coinc_seguidas[OBS_ZONAS];   /* V2: cuadros seguidos con las dos fuentes en cada zona */
@@ -834,6 +838,19 @@ void navegador_aporte_tof_paro(Navegador *nav, int mm, uint32_t ahora_ms);
  * línea nueva y 0 si no. Las líneas empiezan con REINC_DIAG, ESQUIVE_DIAG, AYUDA_DIAG, TURN_DIAG o RUTA_DIAG (solo números y palabras; nada de imágenes). La app las llama después de cada tick
  * y las manda al log; si no se leen, las más viejas se pierden. */
 int navegador_diag_siguiente(Navegador *nav, char *texto, int capacidad);
+
+/* V2, CAJA NEGRA. Una línea compacta «CN ...» con el estado del navegador en este instante (solo números): estado, fases, comando, pose, láser, lo que ve cada
+ * zona y con qué fuentes, vistazo, esquivadas, causa... La app la escribe en el archivo de la corrida después de cada tick. No cambia nada del navegador.
+ * Devuelve el largo escrito (0 si no cupo nada). NAV_CAJA_NEGRA_MAX es la capacidad recomendada. */
+#define NAV_CAJA_NEGRA_MAX 320
+int navegador_caja_negra(const Navegador *nav, uint32_t ahora_ms, char *texto, int capacidad);
+
+/* V2, SALUD DEL DETECTOR DE OBJETOS. La app dice en cada tick si la ruta CUENTA con la red (`requerido`: su interruptor está encendido) y si su último resultado
+ * sigue vigente. Si se cuenta con ella y pasa NAV_MODELO_CAIDO_MS sin un resultado vigente, el carro se detiene y pide ayuda con la causa
+ * NAV_CAUSA_SIN_PERCEPCION: antes la ruta seguía (y hasta cerraba «Terminado») con media percepción apagada y sin avisar. Mientras la red no está vigente,
+ * los cuadros tampoco cuentan como «sin coincidencia» para dar un rodeo por terminado. Si nunca se llama, nada cambia. */
+#define NAV_MODELO_CAIDO_MS 2500
+void navegador_aporte_modelo(Navegador *nav, int requerido, int vigente, uint32_t ahora_ms);
 
 /* Cuántos giros recuerda de la ruta en curso (de 0 a NAV_MAX_GIROS) y los datos del giro `indice` (0 = el primero). Devuelve NAV_OK o NAV_ERR_ARGUMENTO. */
 int navegador_cuantos_giros(const Navegador *nav);

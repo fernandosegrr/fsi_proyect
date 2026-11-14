@@ -165,4 +165,14 @@ object NavegadorNativa {
 
     /** Texto del estado ("SIGUIENDO", "ESQUIVANDO"...). */
     external fun textoEstado(estado: Int): String
+
+    /** Autónomo v2: en cada tick, si la ruta cuenta con el detector de objetos (su interruptor está encendido) y si su último resultado sigue vigente. Si se cuenta con
+     *  él y pasa más de 2.5 s sin resultado vigente, el navegador se detiene y pide ayuda con la causa 17. */
+    external fun aporteModelo(requerido: Boolean, vigente: Boolean, ahoraMs: Long)
+
+    /** Autónomo v2: la línea «CN ...» de la caja negra con el estado del navegador en este tick (solo números). */
+    external fun cajaNegra(ahoraMs: Long): String
+
+    /** Autónomo v2: el código de la causa (0 = ninguna) por la que el navegador pidió ayuda o se detuvo; el texto lo da textoError(). */
+    external fun causa(): Int
 }

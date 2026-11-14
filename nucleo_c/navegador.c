@@ -1956,6 +1956,8 @@ void navegador_iniciar(Navegador *nav)
     nav->lateral_tope_mm = NAV_BORDEAR_LATERAL_MAX;
     nav->mirada_fallida = nav->mirada_previa_fallida = 0;
     nav->cmd_previo = (int)NAV_CMD_STOP;
+    nav->modelo_visto = nav->modelo_vigente = 0;
+    nav->modelo_t_ok_ms = 0;
     nav->reinc_deshacer_mm = 0;
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
@@ -2174,6 +2176,8 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->lateral_tope_mm = NAV_BORDEAR_LATERAL_MAX;
     nav->mirada_fallida = nav->mirada_previa_fallida = 0;
     nav->cmd_previo = (int)NAV_CMD_STOP;
+    nav->modelo_visto = nav->modelo_vigente = 0;
+    nav->modelo_t_ok_ms = 0;
     nav->reinc_deshacer_mm = 0;
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
@@ -2676,7 +2680,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->coinc_detenido++;
         limitar_contador(&nav->coinc_detenido);
     }
-    nav->vision_sin_coincidencia = coincidencia ? 0 : nav->vision_sin_coincidencia + 1;
+    if (coincidencia) {
+        nav->vision_sin_coincidencia = 0;
+    } else if (!(nav->modelo_requerido && nav->modelo_visto && !nav->modelo_vigente)) {
+        nav->vision_sin_coincidencia++;   /* V2: con la red caída un cuadro «sin coincidencia» no demuestra nada: no cuenta */
+    }
     limitar_contador(&nav->vision_sin_coincidencia);
     nav->frames_recibidos++;
     limitar_contador(&nav->frames_bloqueado);
@@ -4822,6 +4830,55 @@ int navegador_poner_autoridad_laser(Navegador *nav, int activo)
     return NAV_OK;
 }
 
+void navegador_aporte_modelo(Navegador *nav, int requerido, int vigente, uint32_t ahora_ms)
+{
+    if (nav == NULL) {
+        return;
+    }
+    nav->modelo_requerido = requerido ? 1 : 0;
+    nav->modelo_vigente = vigente ? 1 : 0;
+    if (vigente || !nav->modelo_visto) {
+        nav->modelo_t_ok_ms = ahora_ms;
+        nav->modelo_visto = 1;
+    }
+}
+
+int navegador_caja_negra(const Navegador *nav, uint32_t ahora_ms, char *texto, int capacidad)
+{
+    int n;
+    long edad_tof, edad_cuadro;
+
+    if (nav == NULL || texto == NULL || capacidad < 8) {
+        return 0;
+    }
+    edad_tof = (long)(uint32_t)(ahora_ms - nav->tof_t_ms);
+    edad_cuadro = (long)(uint32_t)(ahora_ms - nav->t_ultimo_cuadro_ms);
+    if (edad_tof > 99999) {
+        edad_tof = 99999;
+    }
+    if (edad_cuadro > 99999) {
+        edad_cuadro = 99999;
+    }
+    n = snprintf(texto, (size_t)capacidad,
+                 "CN t=%lu e=%d f=%d,%d c=%d p=%d,%d,%d ip=%d/%d tof=%d,%d,%ld cu=%ld fv=%d%d%d hay=%d%d%d cz=%d%d%d nz=%d,%d,%d pr=%d vz=%d,%d,%d,%d esq=%d,%d ay=%d ca=%d ob=%d lat=%d,%d fin=%d mod=%d%d rf=%d",
+                 (unsigned long)ahora_ms, (int)nav->estado, nav->fase, nav->reinc_fase, (int)nav->cmd_actual, nav->x_mm, nav->y_mm, nav->rumbo_x10, nav->indice_paso, nav->n_pasos,
+                 nav->tof_mm, nav->tof_valida, edad_tof, edad_cuadro,
+                 nav->fuentes_vision[0], nav->fuentes_vision[1], nav->fuentes_vision[2], nav->zona_hay[0], nav->zona_hay[1], nav->zona_hay[2],
+                 nav->color_cercania[0], nav->color_cercania[1], nav->color_cercania[2], nav->zona_celdas[0], nav->zona_celdas[1], nav->zona_celdas[2],
+                 nav->precaucion, nav->vistazo_lado, nav->vistazo_fase, nav->vistazo_ecos, nav->vistazos,
+                 nav->esquivadas, nav->esquivadas_obstaculo, nav->ayudas, nav->error_causa, nav->obstaculo_pendiente, nav->lateral_objetivo_mm, nav->fin_obstaculo_mm,
+                 nav->fin_verificado, nav->modelo_requerido, nav->modelo_vigente, nav->rumbo_fw_objetivo_x10);
+    if (n < 0) {
+        texto[0] = '\0';
+        return 0;
+    }
+    if (n >= capacidad) {
+        texto[capacidad - 1] = '\0';
+        return capacidad - 1;
+    }
+    return n;
+}
+
 int navegador_poner_vistazo(Navegador *nav, int modo)
 {
     if (nav == NULL || modo < NAV_VISTAZO_NO || modo > NAV_VISTAZO_TODOS) {
@@ -5413,6 +5470,17 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     }
 
     giro_fw_vigilar(nav, ahora_ms);   /* un giro por ángulo sin respuesta cae al método por tiempo */
+
+    /* V2: la ruta cuenta con el detector de objetos y lleva NAV_MODELO_CAIDO_MS sin un resultado vigente: se detiene y pide ayuda (causa 17). */
+    if (nav->modelo_requerido && nav->modelo_visto && !nav->modelo_vigente &&
+        (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) &&
+        (uint32_t)(ahora_ms - nav->modelo_t_ok_ms) > (uint32_t)NAV_MODELO_CAIDO_MS && (uint32_t)(ahora_ms - nav->modelo_t_ok_ms) < 0x80000000u) {
+        diag_escribir(nav, "AYUDA_DIAG detector_de_objetos_caido ms=%lu: se detiene", (unsigned long)(uint32_t)(ahora_ms - nav->modelo_t_ok_ms));
+        cambiar_comando(nav, NAV_CMD_STOP);
+        ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_SIN_PERCEPCION);   /* con «pedir ayuda»: AYUDA con su causa; sin ella, ERROR */
+        nav->modelo_t_ok_ms = ahora_ms;   /* si el usuario continúa desde la ayuda, el plazo vuelve a empezar */
+        return NAV_CMD_STOP;
+    }
 
     if (nav->estado == NAV_ERROR || nav->estado == NAV_AYUDA || nav->estado == NAV_ESPERANDO) {
         nav->fin_pendiente = nav->verificando_frente = 0;

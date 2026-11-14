@@ -9,7 +9,7 @@ all: pruebas_esquive_confirmado
 pruebas_esquive_confirmado: pruebas_esquive_confirmado.c fusion.c simulador_navegador.c simulador_navegador.h navegador.c navegador.h trayectoria.c obstaculos.c mascara_vision.c calibracion.c
 	$(CC) $(CFLAGS) -O2 -o $@ pruebas_esquive_confirmado.c fusion.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c -lm
 
-all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara pruebas_reincorporacion_j15 pruebas_precision_j16
+all: pruebas_calgiro pruebas_calibracion pruebas_trayectoria pruebas_obstaculos pruebas_piso pruebas_fusion pruebas_movimiento pruebas_navegador pruebas_video_stats pruebas_prueba_obstaculo pruebas_corredor pruebas_pisos_dificiles pruebas_cualquiera pruebas_movimiento_piso pruebas_celdas pruebas_sesion_compartida pruebas_latencia_video pruebas_ruta_editor pruebas_sim_ruta pruebas_mascara pruebas_reincorporacion_j15 pruebas_precision_j16 pruebas_vision_tele
 
 pruebas_reincorporacion_j15: pruebas_reincorporacion_j15.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
 	$(CC) $(CFLAGS) -O2 -o $@ pruebas_reincorporacion_j15.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
@@ -44,6 +44,9 @@ pruebas_piso: pruebas_piso.c obstaculos.c obstaculos.h
 
 pruebas_fusion: pruebas_fusion.c fusion.c fusion.h obstaculos.c obstaculos.h
 	$(CC) $(CFLAGS) -o $@ pruebas_fusion.c fusion.c obstaculos.c
+
+pruebas_vision_tele: pruebas_vision_tele.c vision_tele.c vision_tele.h obstaculos.c obstaculos.h
+	$(CC) $(CFLAGS) -o $@ pruebas_vision_tele.c vision_tele.c obstaculos.c
 
 pruebas_movimiento: pruebas_movimiento.c movimiento_visual.c movimiento_visual.h
 	$(CC) $(CFLAGS) -o $@ pruebas_movimiento.c movimiento_visual.c
@@ -98,6 +101,7 @@ test: all
 	./pruebas_obstaculos
 	./pruebas_piso
 	./pruebas_fusion
+	./pruebas_vision_tele
 	./pruebas_movimiento
 	./pruebas_navegador
 	./pruebas_video_stats
@@ -118,6 +122,6 @@ test: all
 clean:
 	rm -f pruebas_esquive_confirmado pruebas_esquive_confirmado.exe pruebas_autonomo_v2 pruebas_autonomo_v2.exe
 	rm -f pruebas_reincorporacion_j15 pruebas_reincorporacion_j15.exe pruebas_precision_j16 pruebas_precision_j16.exe
-	rm -f pruebas_calgiro pruebas_calgiro.exe pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe pruebas_sesion_compartida pruebas_sesion_compartida.exe pruebas_latencia_video pruebas_latencia_video.exe pruebas_ruta_editor pruebas_ruta_editor.exe pruebas_sim_ruta pruebas_sim_ruta.exe
+	rm -f pruebas_calgiro pruebas_calgiro.exe pruebas_calibracion pruebas_calibracion.exe pruebas_trayectoria pruebas_trayectoria.exe pruebas_obstaculos pruebas_obstaculos.exe pruebas_piso pruebas_piso.exe pruebas_fusion pruebas_fusion.exe pruebas_vision_tele pruebas_vision_tele.exe pruebas_movimiento pruebas_movimiento.exe pruebas_navegador pruebas_navegador.exe pruebas_video_stats pruebas_video_stats.exe pruebas_prueba_obstaculo pruebas_prueba_obstaculo.exe pruebas_corredor pruebas_corredor.exe pruebas_pisos_dificiles pruebas_pisos_dificiles.exe pruebas_cualquiera pruebas_cualquiera.exe pruebas_movimiento_piso pruebas_movimiento_piso.exe pruebas_celdas pruebas_celdas.exe pruebas_sesion_compartida pruebas_sesion_compartida.exe pruebas_latencia_video pruebas_latencia_video.exe pruebas_ruta_editor pruebas_ruta_editor.exe pruebas_sim_ruta pruebas_sim_ruta.exe
 
 .PHONY: all test clean precision autonomo

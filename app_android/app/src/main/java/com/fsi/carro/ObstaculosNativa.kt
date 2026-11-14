@@ -170,5 +170,12 @@ object ObstaculosNativa {
     /** Calcula la máscara con los tres lugares: la primera línea es «OK <hex> <enmascaradas> <sospechosa>» (o «ERROR <código>») y el resto el informe en español (números, sin imagen). */
     external fun mascaraCalcular(lugar1: IntArray, lugar2: IntArray, lugar3: IntArray): String
 
+    /** Autónomo v2: enciende o apaga la telemetría NUMÉRICA de la visión (la pide la ruta en curso para su caja negra). */
+    external fun telemetriaActiva(activa: Boolean)
+
+    /** Autónomo v2: la línea «VTEL ...» del último cuadro analizado (histograma de distancias al piso, brillo, celdas por zona y fila; solo números), o "" si no hay
+     *  una nueva desde la última vez que se pidió. */
+    external fun telemetria(): String
+
     const val ENTEROS_LUGAR = 101
 }

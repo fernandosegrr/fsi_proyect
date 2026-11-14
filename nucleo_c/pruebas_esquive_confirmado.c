@@ -237,6 +237,42 @@ static void probar_politica(void) {
         for(t=6100;t<12000;t+=50)navegador_tick(&nav,t,&cuadro);
         caso("pared persistente sin espacio de retroceso termina quieto en AYUDA",nav.estado==NAV_AYUDA && nav.cmd_actual==NAV_CMD_STOP);
     }
+    /* V2: salud del detector de objetos. La ruta cuenta con el y deja de dar resultados vigentes: a los NAV_MODELO_CAIDO_MS el carro se detiene con la causa 17. */
+    preparar_politica();memset(&cuadro,0,sizeof cuadro);
+    for(t=0;t<=1000;t+=50){navegador_aporte_modelo(&nav,1,1,t);navegador_tick(&nav,t,&cuadro);}
+    caso("V2 detector vigente: la ruta avanza",nav.estado==NAV_SIGUIENDO && nav.cmd_actual==NAV_CMD_FORWARD);
+    for(t=1050;t<=1000+NAV_MODELO_CAIDO_MS;t+=50){navegador_aporte_modelo(&nav,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("V2 detector caido menos del plazo: todavia avanza",nav.estado==NAV_SIGUIENDO);
+    for(;t<=1200+NAV_MODELO_CAIDO_MS;t+=50){navegador_aporte_modelo(&nav,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("V2 detector caido mas del plazo: STOP y AYUDA con la causa 17",nav.estado==NAV_AYUDA && nav.cmd_actual==NAV_CMD_STOP && nav.error_causa==NAV_CAUSA_SIN_PERCEPCION);
+    {
+        char frase[200];
+        caso("V2 la causa 17 tiene su frase",navegador_texto_error(&nav,frase,(int)sizeof frase)>0 && strstr(frase,"detector")!=NULL);
+    }
+    preparar_politica();memset(&cuadro,0,sizeof cuadro);
+    for(t=0;t<=6000;t+=50){navegador_aporte_modelo(&nav,0,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("V2 si la ruta NO cuenta con el detector (interruptor apagado) no se detiene por eso",nav.estado!=NAV_AYUDA && nav.error_causa!=NAV_CAUSA_SIN_PERCEPCION);
+    preparar_politica();memset(&cuadro,0,sizeof cuadro);
+    for(t=0;t<=6000;t+=50)navegador_tick(&nav,t,&cuadro);
+    caso("V2 si la app nunca informa del detector, nada cambia",nav.estado!=NAV_AYUDA);
+    /* Con la red caida, los cuadros no cuentan como «sin coincidencia» para cerrar un rodeo. */
+    preparar_politica();memset(&cuadro,0,sizeof cuadro);
+    navegador_aporte_modelo(&nav,1,1,0);navegador_tick(&nav,0,&cuadro);navegador_tick(&nav,50,&cuadro);
+    z=nav.vision_sin_coincidencia;
+    navegador_aporte_modelo(&nav,1,0,100);navegador_tick(&nav,100,&cuadro);navegador_tick(&nav,150,&cuadro);
+    caso("V2 con el detector caido los cuadros no suman a «sin coincidencia»",z>=2 && nav.vision_sin_coincidencia==z);
+    /* V2: la linea de la caja negra. */
+    {
+        char linea[NAV_CAJA_NEGRA_MAX];
+        int largo;
+        preparar_politica();memset(&cuadro,0,sizeof cuadro);
+        navegador_aporte_sens(&nav,345,1,1,0,50);navegador_tick(&nav,50,&cuadro);navegador_tick(&nav,100,&cuadro);
+        largo=navegador_caja_negra(&nav,100,linea,(int)sizeof linea);
+        caso("V2 caja negra: una linea CN con la hora, el estado y el laser, sin saltos y dentro de la capacidad",largo>40 && largo<NAV_CAJA_NEGRA_MAX &&
+             strncmp(linea,"CN t=100 e=",11)==0 && strstr(linea," tof=345,1,")!=NULL && strchr(linea,'\n')==NULL);
+        caso("V2 caja negra: con poca capacidad corta y termina en cero",navegador_caja_negra(&nav,100,linea,20)==19 && strlen(linea)==19);
+        caso("V2 caja negra: argumentos nulos devuelven 0",navegador_caja_negra(NULL,0,linea,100)==0 && navegador_caja_negra(&nav,0,NULL,100)==0);
+    }
 }
 
 #endif
