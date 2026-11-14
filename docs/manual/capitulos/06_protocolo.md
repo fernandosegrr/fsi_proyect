@@ -75,7 +75,7 @@ Dónde está en el código: `carro.c`, `sensores.c`, `firmware_carro.ino`, `Enla
 
 ## 6.5 Autónomo v2: `SEG=2`, `TUSO` y `cam-v2` (`COMPILADO`, no grabado)
 
-Rama `feat/autonomo-v2`. El firmware del carro con estos cambios **solo se compiló** (1 034 502 bytes, 78 %) y pasó 559 pruebas en computadora; no se grabó.
+Rama `feat/autonomo-v2`. El firmware del carro con estos cambios **solo se compiló** (1 034 526 bytes, 78 %) y pasó 564 pruebas en computadora; no se grabó.
 
 | Cambio | Antes (v1.1) | Con `SEG=2` |
 |---|---|---|

@@ -169,7 +169,7 @@ La tabla de arriba es el plan con el que se cerró la auditoría. Esto es lo que
 | Cierre de ruta, obstáculo más allá del destino | Hecho. SIMULADO: 1000 de 1000 |
 | Geometría del rodeo, ancho con el láser | Hecho. El fondo no se mide: se cubre con la pista del paso en paralelo y la mirada antes de entrar |
 | Cono del láser frente al chasis | Hecho con el vistazo: 998 de 1000 (la partida, 663) |
-| Patas de muebles | **Parcial**: 774 y 318 de 1000. Sigue siendo un límite |
+| Patas de muebles | **Parcial**: 765 y 316 de 1000. Sigue siendo un límite |
 | Vigencia del modelo | Hecho (causa 17 y aviso al iniciar) |
 | Presupuesto por obstáculo, giros por tiempo, `giro_fw_caido` | Hecho |
 | Robustez fotométrica del clasificador | **No se tocó el clasificador.** Los falsos positivos se resolvieron en la decisión (consenso temporal). Queda la telemetría para medir la causa real |
@@ -181,3 +181,20 @@ La tabla de arriba es el plan con el que se cerró la auditoría. Esto es lo que
 | Mapa local, hilo de control aparte, corte de PWM por temporizador | Diseño y trabajo futuro |
 
 Hipótesis más probable de los falsos positivos de visión, sin cambio: mancha de sol o reflejo sobre piso brillante, seguida de un cambio de exposición o de balance de blancos de la cámara con el piso fijo. **NO MEDIDO**: la caja negra y `/stats` de la cámara ya guardan los números para confirmarlo o descartarlo en la primera sesión física.
+
+## 7. Revisión independiente del diff de seguridad (14-nov-2026)
+
+Antes de publicar la rama, un revisor independiente (otro agente, solo lectura) leyó completos los cambios del navegador y del firmware del carro y reprodujo lo dudoso en un banco propio, fuera del repositorio. **Sin hallazgos críticos**: ningún avance ni reversa sin límite, STOP forzado intacto, watchdog y cola con prioridad sin tocar, `SENS` y `CAPS` compatibles.
+
+| Sev. | Hallazgo | Estado |
+|---|---|---|
+| ALTO | El cambio de lado da la vuelta completa sin comprobar que cabe (pared a 30–44 cm: contacto y empuje de hasta 3 s) | Corregido: compuerta de la vuelta, guardia del giro, causa 18 |
+| ALTO | Junto a una esquina el paso en paralelo sigue ~1 m de frente hasta el freno anti-locura | Corregido: límite al final de la recta y tope a los planes que no avanzan. Banco: 1000 de 1000 con la caja 40–60 cm antes de la esquina |
+| MEDIO | La coincidencia frena un cuadro más tarde de lo que dice el comentario | Corregido en el centro con cercanía 3 |
+| MEDIO | Reversas mayores que la regla escrita y espacio «deducido» detrás | Corregido: se quitó el espacio deducido; topes documentados |
+| MEDIO | Una pared a ≤ 25 cm no cuenta como pared | Corregido |
+| BAJO | `navegador_ayuda_continuar` no limpia lo confirmado por el láser | Corregido |
+| BAJO | Banderas sin inicializar en `navegador_iniciar`; `tramo_base` por ruta | Corregido |
+| BAJO | `tof.c`: índice de las últimas lecturas al saturar | Corregido (solo compilado) |
+
+Quedan como dudas para la pista: vistazo con lo visto ya a cercanía 2, reacción al láser en la diagonal de regreso y rodeos que terminan más allá del destino junto a paredes. Detalle en [el diseño](autonomo_v2_diseno.md), sección 2.9.

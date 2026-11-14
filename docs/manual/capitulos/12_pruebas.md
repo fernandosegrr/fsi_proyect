@@ -112,13 +112,18 @@ Rama `feat/autonomo-v2`. El banco `nucleo_c/pruebas_autonomo_v2.c` corre el nave
 |---|---|---|---|
 | Caja 20 × 20 | 629 ok, 2 contactos | 1000 ok | 1000 ok |
 | Caja corrida de lado | 991 ok, 3 contactos | 663 ok, 337 contactos | 998 ok, 2 contactos |
-| Banquito 35 × 45 | 245 ok, 596 contactos | 17 ok, 133 contactos | 774 ok, 81 contactos |
+| Banquito 35 × 45 | 245 ok, 596 contactos | 17 ok, 133 contactos | 765 ok, 79 contactos |
 | Objeto de 90 cm | 4 ok, 535 contactos | 85 ok, 898 contactos | 1000 ok |
-| Silla con patas | 161 ok, 524 contactos | 39 ok, 12 contactos | 318 ok, 40 contactos |
-| Dos obstáculos | 359 ok, 67 contactos | 19 ok, 110 contactos | 994 ok, 6 contactos |
+| Silla con patas | 161 ok, 524 contactos | 39 ok, 12 contactos | 316 ok, 34 contactos |
+| Dos obstáculos | 359 ok, 67 contactos | 19 ok, 110 contactos | 1000 ok |
+| Objeto bajo | 960 ok, 25 contactos | 990 ok, 4 contactos | 997 ok, 1 contacto |
+| Caja antes de una esquina | 586 ok, 2 contactos | 999 ok | 1000 ok |
+| Caja con pared pegada a un lado | 470 ok, 79 contactos | 632 ok, 216 contactos | 615 ok, 2 contactos, 385 ayudas |
 | Pared al frente | 1000 contactos | 480 contactos | 0 contactos, ayuda con causa 16 |
 | Mancha de sol | 179 ok, 792 ayudas | 996 ok, 4 esquives | 1000 ok, 0 esquives |
 
-Las compuertas del encargo **no se cumplen todas**: muebles con patas, 6 contactos de 1000 con dos obstáculos, 5 con el objeto bajo, paradas momentáneas en 7–12 % de las corridas con manchas de color, y 1 mm más de error lateral medio en el Monte Carlo heredado. El detalle y las razones están en `docs/autonomo_v2_diseno.md` y `docs/limites_conocidos.md`.
+Dieciséis de los 23 escenarios quedan en 1000 de 1000 sin contactos. Las compuertas del encargo **no se cumplen todas** (19 en rojo): muebles con patas, 2 contactos de 1000 con la caja corrida y 1 con el objeto bajo, la caja con una pared pegada (el carro pide ayuda en vez de tocarla), paradas momentáneas en 8–13 % de las corridas con manchas de color, y 1 mm más de error lateral medio en el Monte Carlo heredado. El detalle y las razones están en `docs/autonomo_v2_diseno.md` y `docs/limites_conocidos.md`.
 
-Pruebas de software de la rama: `make -C nucleo_c test` 1865 casos; `make -C pruebas_firmware test` 559 casos; servidor falso 60 casos; todos sin fallos.
+Los dos últimos escenarios de la tabla y varias correcciones salieron de una revisión independiente del código hecha el 14-nov (sin hallazgos críticos, dos altos, tres medios y tres bajos, todos corregidos).
+
+Pruebas de software de la rama: `make -C nucleo_c test` 1884 casos; `make -C pruebas_firmware test` 564 casos; servidor falso 60 casos; todos sin fallos.

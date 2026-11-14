@@ -104,9 +104,12 @@ Rama `feat/autonomo-v2`. Todo lo de esta sección salió del banco `nucleo_c/pru
 El carro gira sobre un costado: el pivote derecho queda a 157 mm del centro y la esquina más lejana del chasis barre hasta 285 mm. Casi todos los contactos del banco con la rama anterior salían de un giro hecho junto a algo que no se había visto. El rodeo nuevo no gira hacia nada que no haya medido o mirado antes:
 
 1. **Barrido.** Durante el primer giro, cada `SENS` da el ángulo y la distancia del láser: con eso se mide el ancho del obstáculo hacia ese lado y si hay una pared. El desvío lateral es el ancho más 240 mm (entre 400 y 800).
-2. **Cambio de lado.** Si ese lado está cerrado, el carro sigue girando en el mismo sentido y barre el otro. Con los dos cerrados pide ayuda con la causa 16, sin haberse acercado.
-3. **Paso en paralelo.** Avanza una pista calculada con el campo de la cámara después del último punto en que el costado pudo verse, sosteniendo el carril con el control de rumbo.
+2. **Cambio de lado.** Si ese lado está cerrado, el carro sigue girando en el mismo sentido y barre el otro. Esa vuelta completa barre hasta ~44 cm de la línea, así que solo se da si lo que midió el láser queda fuera, si la cámara veía libre el otro lado y si el carro venía de avanzar en recta. Con los dos lados cerrados, o si la vuelta no es segura, pide ayuda con la causa 16, sin haberse acercado.
+3. **Paso en paralelo.** Avanza una pista calculada con el campo de la cámara después del último punto en que el costado pudo verse, sosteniendo el carril con el control de rumbo. Si asoma otro objeto, la pista se alarga. No sigue más allá de una esquina.
 4. **Mirada.** Tras el primer giro del regreso el carro se queda mirando hacia donde va a entrar. Si ve algo, avanza un paso más y vuelve a mirar. Si la entrada se ocupa a medio camino, deshace la diagonal en reversa.
 5. **Vistazo.** Lo que solo ve el color a un lado (una caja corrida, una pata) se mira con el láser torciendo el rumbo 10–16° en marcha. Dos ecos válidos confirman: el carro se detiene, retrocede por donde vino y rodea por el otro lado.
+6. **Guardia del giro.** Si durante el primer giro del rodeo (o la vuelta del cambio de lado) el láser ve algo dentro del arco que barre el chasis, el carro deja de girar y pide ayuda con la causa 18.
+
+La guardia y las condiciones de la vuelta salieron de una revisión independiente del código (14-nov), que también encontró que el paso en paralelo podía seguir de frente más allá de una esquina; todo quedó corregido y con pruebas.
 
 Además: los giros menores que el mínimo del firmware ya no se hacen por tiempo; parado tras un avance, el rumbo sigue al giroscopio; y «Terminado» sin rodeo abierto se acepta al llegar aunque el láser vea una pared más allá del destino.

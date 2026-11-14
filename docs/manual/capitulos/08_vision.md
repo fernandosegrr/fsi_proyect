@@ -67,7 +67,7 @@ Dónde está en el código: `obstaculos.h`, `obstaculos.c`, `corredor.h`, `corre
 
 Rama `feat/autonomo-v2`. Las reglas de fusión aprobadas no cambian; cambia cuándo se aplican.
 
-- **Coincidencia de color y red:** cuenta desde el segundo cuadro seguido, y para esquivar sin láser hacen falta tres cuadros con el carro detenido. Una caja inventada por la red sobre una mancha de color suele durar un cuadro.
+- **Coincidencia de color y red:** cuenta desde el segundo cuadro seguido (en el centro y en la banda más cercana, desde el primero), y para esquivar sin láser hacen falta tres cuadros con el carro detenido (cuatro y 0.8 s si lo detuvo un solo cuadro). Una caja inventada por la red sobre una mancha de color suele durar un cuadro.
 - **Una sola fuente de visión** con el láser libre o sin eco no detiene ni hace avanzar a ratos. Lo que ve a un lado se resuelve con el vistazo del láser (7.6).
 - **Salud del detector de objetos:** si la ruta cuenta con él y pasan 2.5 s sin un resultado vigente, el carro se detiene y pide ayuda con la causa 17. Al iniciar, la app avisa si la ruta sale sin láser, sin detector o sin cámara.
 - **Telemetría numérica** (`nucleo_c/vision_tele.c`): cada cuadro se resume en una línea `VTEL` con el histograma de distancias de color al piso aprendido, brillo, celdas quemadas y negras, y celdas «no piso» por zona, banda y fila. Nunca se guarda la imagen.

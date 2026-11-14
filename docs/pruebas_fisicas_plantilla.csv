@@ -19,3 +19,5 @@ corrida,fecha,hora,prueba,ruta,obstaculo,posicion_obstaculo_cm,luz,firmware_carr
 18,2026-11-,,D5,cuadrado_100,ninguno,,,,,40,7,44,si,si,si,,,,,,,,,,,,,,,,
 19,2026-11-,,D6,recta_300,dos_cajas,90 y 170,,,,40,7,44,si,si,si,,,,,,,,,,,,,,,,
 20,2026-11-,,D7,ninguna,pared_a_10_cm,10,,,,40,7,44,si,si,si,,,,,,,,,,,,,,,,
+21,2026-11-,,B6,recta_150,caja_20x20_y_pared_a_un_lado,90 centrada; pared a 30-40 de la linea,,,,40,7,44,si,si,si,,,,,,,,,,,,,,,,lado del primer giro:
+22,2026-11-,,D8,ruta_L,caja_20x20,50 antes de la esquina,,,,40,7,44,si,si,si,,,,,,,,,,,,,,,,

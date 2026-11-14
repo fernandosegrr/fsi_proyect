@@ -40,7 +40,10 @@ Obstáculo centrado en la línea, a 80–100 cm de la salida, con 1 m libre a ca
 | B2 | La misma caja corrida 15 cm a un lado | 3 | 3 de 3 sin tocar. Anotar si hizo el vistazo (tuerce ~12° y vuelve) | Toca la caja 2 veces |
 | B3 | Banquito 35 × 45 cm con patas | 3 | Sin tocar una pata. Anotar: rodeó, pasó por debajo o pidió ayuda | Toca una pata 2 veces |
 | B4 | Objeto largo (90 cm a lo largo de la ruta), recta de 250 cm | 3 | Sin tocar; no vuelve a la línea junto al objeto | Gira hacia el objeto estando a su lado |
-| B5 | Pared o mueble que cierra el paso | 2 | Mide un lado, mide el otro y pide ayuda con «Causa 16» sin acercarse | Avanza de lado hacia la pared |
+| B5 | Pared o mueble que cierra el paso | 2 | Mide un lado y, si la vuelta cabe, el otro; pide ayuda con «Causa 16» sin acercarse | Avanza de lado hacia la pared |
+| B6 | Caja de 20 × 20 cm con una pared a 30–40 cm de la línea de UN lado; del otro, 1 m libre. **Mano en STOP** | 3 | Rodea por el lado libre, o deja de girar y pide ayuda con «Causa 18» o «Causa 16». Anotar hacia qué lado giró primero | Toca la pared, o sigue girando contra ella |
+
+En B6, lo que se quiere saber es si la cámara real ve la pared (y entonces el carro elige el otro lado) y, si no la ve, con cuánta anticipación lo detiene el láser: anota a qué distancia de la pared quedó la esquina del carro.
 
 En B1, mirar tres cosas nuevas: (a) el carro se aparta, pasa y **avanza bastante más allá de la caja** (unos 60 cm) antes de volver; (b) antes de entrar a la línea **se queda mirando medio segundo**; (c) si retrocede, es solo por donde vino.
 
@@ -68,6 +71,7 @@ Después de cada corrida de este bloque, **guarda la caja negra** (sección 8): 
 | D5 | Cuadrado de 100 cm, sin obstáculos | Llega; error ≤ 15 cm | — |
 | D6 | Dos cajas seguidas a 80 cm una de otra, recta de 300 cm | Sin tocar ninguna | Toca una caja 2 veces |
 | D7 **[SEG=2]** | Con el carro frente a una pared a 10 cm, mandar adelante desde la cruceta en AUTO | Los motores no dan ni un pulso | Avanza |
+| D8 | Ruta en L (150 + 100 cm) con una caja de 20 × 20 cm a 50 cm de la esquina | Rodea la caja y toma el tramo siguiente; no sigue de frente más allá de la esquina | Sigue recto más de 50 cm pasada la esquina |
 
 ## 6. Compilar e instalar la APK conservando datos
 
@@ -87,7 +91,7 @@ Si `install -r` falla por firma distinta (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`):
 
 No ejecutado por el asistente. Ninguno es obligatorio para probar la rama.
 
-- **Carro `SEG=2`**: cierra el fallo de los comandos desconocidos y bloquea `FORWARD` contra un obstáculo. Riesgo: bajo (559 pruebas en PC); es el recomendado.
+- **Carro `SEG=2`**: cierra el fallo de los comandos desconocidos y bloquea `FORWARD` contra un obstáculo. Riesgo: bajo (564 pruebas en PC); es el recomendado.
 - **Cámara `cam-v2`**: añade números de luz a `/stats` y apaga la autoprueba. Riesgo: bajo, pero no se pudo probar con el sensor real.
 
 Procedimiento propuesto, una placa por USB a la vez, sin `erase_flash`:
@@ -127,5 +131,6 @@ El nombre y la carpeta también aparecen en Ejecutar ruta → Avanzado.
 ## 9. Criterio global
 
 - **Se puede seguir hacia v1.2** si: bloque A y B1 completos sin contacto, C1–C3 sin esquives ni ayudas, D1 y D2 detienen.
-- **Vuelve al escritorio** si: algún contacto en B1; el carro gira hacia un objeto que tiene al lado; un falso positivo hace esquivar; la caja negra queda vacía.
-- Banquito, silla y objeto bajo son los casos donde el simulador ya dice que no se llega al 99 %: lo que pase ahí es información, no un fracaso de la sesión.
+- **Vuelve al escritorio** si: algún contacto en B1; el carro gira hacia un objeto que tiene al lado; en B6 toca la pared; un falso positivo hace esquivar; la caja negra queda vacía.
+- Banquito, silla, objeto bajo y la caja con pared a un lado son los casos donde el simulador ya dice que no se llega al 99 %: lo que pase ahí es información, no un fracaso de la sesión.
+- **Tres cosas a vigilar que señaló la revisión independiente**: (a) si el carro hace un vistazo con el objeto ya a menos de ~40 cm y se le acerca al torcer; (b) cuánto retrocede cada vez (nunca más de 25 cm tras un paro, ni más de lo que avanzó en la diagonal) y que detrás no haya nada; (c) si junto a una pared termina más allá del destino dibujado.

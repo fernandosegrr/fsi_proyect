@@ -62,5 +62,6 @@ Rama `feat/autonomo-v2`. La lista completa y vigente está en `docs/limites_cono
 - **Objeto bajo que solo ve una fuente:** con el láser sin eco no se distingue de una mancha. Se eligió no detener al carro por una sola fuente.
 - **Punto ciego junto al carro** al girar hacia la línea: lo cubre una segunda mirada, no un sensor.
 - **Sin sensor trasero:** las reversas recorren solo camino recién pisado.
+- **Pared pegada a un lado:** si la cámara no la distingue del piso, el carro puede elegir ese lado; el láser la descubre al girar y el carro se detiene y pide ayuda (causa 18 o 16). Muy cerca (menos de ~27 cm) puede alcanzar a tocarla.
 - **Rodeo más largo:** el carro vuelve a la línea unos 60 cm después de una caja de 20 cm.
 - **Supuestos sin medir:** pivote izquierdo, campo y altura de la cámara, alcance del láser contra una pared de lado, respuesta del control de rumbo en el vistazo.

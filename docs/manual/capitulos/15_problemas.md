@@ -43,8 +43,9 @@ Rama `feat/autonomo-v2` (`SIMULADO`; la app solo se compiló).
 
 | Síntoma | Qué significa | Qué hacer |
 |---|---|---|
-| «Causa 16: pared u objeto muy ancho…» | El láser midió los dos lados al girar y no encontró por dónde rodear | Quitar el objeto o dibujar otra ruta. El carro no se acercó |
+| «Causa 16: pared u objeto muy ancho…» | El láser midió los lados al girar y no encontró por dónde rodear, o medir el otro lado no era seguro | Quitar el objeto o dibujar otra ruta. El carro no se acercó |
 | «Causa 17: el detector de objetos dejó de dar resultados…» | La red neuronal lleva 2.5 s sin un resultado vigente | Revisar en Visión que el modelo esté cargado; reiniciar la app |
+| «Causa 18: el láser vio algo dentro del arco del giro…» | Al girar para rodear había una pared o un objeto pegado al costado; el carro dejó de girar para no barrerlo | Tomar el control, alejar el carro de eso y continuar, o dibujar la ruta más lejos de la pared |
 | «Aviso: Percepción incompleta: …» al iniciar | La ruta sale sin láser, sin detector de objetos o sin cámara | Decidir si conviene salir así; sin láser nada frena por distancia |
 | El carro tuerce unos grados y vuelve sin frenar | Es el vistazo: el láser mira algo que solo vio el color | Nada. Si confirma, se detiene y rodea |
 | El carro se queda medio segundo quieto antes de volver a la línea | Es la mirada antes de entrar | Nada |
