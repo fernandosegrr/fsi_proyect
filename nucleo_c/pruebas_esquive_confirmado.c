@@ -153,7 +153,9 @@ static void correr(int e, int verificar) {
     if(!m->ancho)caso("fuente unica no provoca esquives ni ayuda",nav.esquivadas==0 && nav.ayudas==0);
     if(!m->ancho && !m->perdida)caso("laser libre y fuente unica: ninguna parada intermedia",paradas==0);
 #ifndef REPRO_BASE
-    if(e==1 || e==2)caso("fondo explorado, sin profundidad fija",nav.borde_reintentos>0 && nav.fondo_observado_mm>0);
+    /* V2: el fondo no se supone (ni los 250 mm de v1.1 ni tramos de 200): el paso en paralelo llega hasta donde el costado ya no puede estar a la vista de la camara,
+     * o se alarga porque lo sigue viendo, o por un reintento de borde. */
+    if(e==1 || e==2)caso("fondo explorado, sin profundidad fija",nav.borde_reintentos>0 || nav.flanco_vistas>0 || nav.fin_obstaculo_mm>nav.cara_obstaculo_s_mm+450);
     if(e==5 || e==6)caso("coincidencia permite plan visual sin laser",disparo>=0 && dist==0);
 #endif
 }
@@ -205,9 +207,13 @@ static void probar_politica(void) {
     caso("sin eco tampoco reutiliza el mismo cuadro",nav.estado!=NAV_TERMINADO);
     for(t=650;t<=850;t+=50)navegador_tick(&nav,t,&cuadro);
     caso("sin eco cierra con cinco cuadros nuevos sin coincidencia",nav.estado==NAV_TERMINADO && nav.fin_verificado);
-    preparar_politica();nav.fin_pendiente=1;nav.esquivadas=NAV_MAX_ESQUIVADAS;
-    for(t=50;t<=1300;t+=50){navegador_aporte_sens(&nav,600,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    preparar_politica();nav.fin_pendiente=1;nav.esquivadas=nav.esquivadas_obstaculo=NAV_MAX_ESQUIVADAS;
+    /* V2: «sin liberar» es algo a NAV_FIN_HOLGURA_MM o menos (antes bastaba cualquier lectura de 800 mm o menos, y una pared a 60 cm impedía cerrar). */
+    for(t=50;t<=1300;t+=50){navegador_aporte_sens(&nav,300,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
     caso("frente sin liberar tras seis intentos: AYUDA, nunca Terminado",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_MAX_ESQUIVADAS && !nav.fin_verificado);
+    preparar_politica();nav.fin_pendiente=1;nav.obstaculo_pendiente=1;
+    for(t=50;t<=900;t+=50){navegador_aporte_sens(&nav,600,1,1,0,t);navegador_tick(&nav,t,&cuadro);}
+    caso("V2: algo a 60 cm (una pared, otro mueble) no impide cerrar el rodeo",nav.estado==NAV_TERMINADO && nav.fin_verificado);
     preparar_politica();navegador_poner_requiere_camara(&nav,1);navegador_tick(&nav,50,&cuadro);
     navegador_tick(&nav,50+NAV_MAX_HUECO_VIDEO_MS+1,NULL);
     caso("perdida de vision detiene aunque el laser este libre",nav.estado==NAV_ERROR && nav.cmd_actual==NAV_CMD_STOP);
@@ -223,9 +229,12 @@ static void probar_politica(void) {
         for(z=0;z<3;z++){cuadro.fuentes_vision[z]=3;cuadro.zona[z].hay_obstaculo=1;cuadro.zona[z].cercania=3;}
         for(t=2000;t<6000;t+=50){navegador_tick(&nav,t,&cuadro);if(!modo)nav.atras_conocido_mm=0;}
         caso("ambos lados bloqueados: no AYUDA antes de cuatro segundos",nav.estado==NAV_DETENIDO_OBSTACULO);
+        /* V2: la coincidencia de las dos fuentes cuenta desde el segundo cuadro seguido, asi que el carro se detiene un cuadro (50 ms) mas tarde y los cuatro
+         * segundos de espera se cumplen en 6050. */
         navegador_tick(&nav,6000,&cuadro);
+        navegador_tick(&nav,6050,&cuadro);
         caso("ultimo recurso: retroceso conocido antes de ayuda",modo ? nav.cmd_actual==NAV_CMD_REVERSE : nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_LADOS);
-        for(t=6050;t<12000;t+=50)navegador_tick(&nav,t,&cuadro);
+        for(t=6100;t<12000;t+=50)navegador_tick(&nav,t,&cuadro);
         caso("pared persistente sin espacio de retroceso termina quieto en AYUDA",nav.estado==NAV_AYUDA && nav.cmd_actual==NAV_CMD_STOP);
     }
 }

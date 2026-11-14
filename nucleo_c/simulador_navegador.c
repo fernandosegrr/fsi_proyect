@@ -535,6 +535,14 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
 /* ── Firmware simulado: giro por ángulo y láser (J11) ─────────────────────────────────────────────── */
 
 static unsigned azar_fw = 12345u;
+
+/* V2: el ruido del giroscopio simulado sale de un generador que NO se reinicia entre corridas (así lo usan los Monte Carlo heredados, y cambiarlo movería sus
+ * números). El banco nuevo lo siembra en cada corrida para que una corrida suelta («depurar») repita exactamente la de la tanda. */
+void sim_sembrar_azar_fw(uint32_t semilla)
+{
+    azar_fw = (unsigned)semilla * 2654435761u + 12345u;
+}
+
 static int azar_fw_entre(int minimo, int maximo)
 {
     azar_fw = azar_fw * 1664525u + 1013904223u;
@@ -746,11 +754,16 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         if (sim->j16_activo) {   /* J16: el sesgo del giroscopio se acumula y se guarda el ángulo medido de este tick (SENS llega atrasado) */
             sim->j16_sesgo_acum_udeg += (long)sim->j16_sesgo_mdps * NAV_TICK_MS;
             sim->j16_hist_angulo[sim->j16_n_ticks & 15] = angulo_medido_x10(sim);
+            if (sim->v2_sens_coherente) {   /* V2: también la distancia del láser de este tick */
+                sim->v2_hist_laser[sim->j16_n_ticks & 15] = sim->tof_activo ? laser_ve(sim) : 1200;
+                sim->v2_hist_laser_ok[sim->j16_n_ticks & 15] = !sim->tof_sin_eco;
+            }
             sim->j16_n_ticks++;
         }
         if ((sim->tof_activo || sim->fw_giroscopio) && !sim->sens_apagado && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms (ángulo del giroscopio y láser); el láser mira lo que había en el cuadro anterior */
             int mm = sim->tof_activo ? laser_ve(sim) : 1200;
             int angulo = angulo_fw_x10(sim);
+            int laser_ok = !sim->tof_sin_eco;
 
             if (sim->j16_activo) {
                 int atraso = (sim->j16_latencia_sens_ms + NAV_TICK_MS / 2) / NAV_TICK_MS;
@@ -762,10 +775,22 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
                     atraso = sim->j16_n_ticks - 1;
                 }
                 angulo = sim->j16_hist_angulo[(sim->j16_n_ticks - 1 - atraso) & 15];
+                if (sim->v2_sens_coherente && sim->tof_activo) {
+                    int viejo = atraso + 1;   /* la mediana de 3 lecturas del firmware es ~50 ms más vieja que el ángulo */
+
+                    if (viejo > sim->j16_n_ticks - 1) {
+                        viejo = sim->j16_n_ticks - 1;
+                    }
+                    if (viejo > 15) {
+                        viejo = 15;
+                    }
+                    mm = sim->v2_hist_laser[(sim->j16_n_ticks - 1 - viejo) & 15];
+                    laser_ok = sim->v2_hist_laser_ok[(sim->j16_n_ticks - 1 - viejo) & 15];
+                }
             }
             sim->proximo_sens_ms = sim->t_ms + 100;
             navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0,
-                                 sim->tof_activo && !sim->tof_sin_eco && mm > 0, angulo, sim->t_ms);
+                                 sim->tof_activo && laser_ok && mm > 0, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
                 sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */

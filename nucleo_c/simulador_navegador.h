@@ -164,6 +164,8 @@ typedef struct {
      *  - v2_azar: semilla propia de estos dos (la pone el banco en cada corrida para que una corrida suelta se repita igual). */
     int  v2_jitter_cmd_pct;
     int  v2_giro_tiempo_real;
+    int  v2_sens_coherente;          /* 1 = el láser de SENS viaja con el mismo atraso que el ángulo (j16_latencia_sens_ms) más un tick: en el firmware la distancia es la mediana de las 3 últimas lecturas (~50 ms) */
+    int  v2_hist_laser[16], v2_hist_laser_ok[16];
     uint32_t v2_azar;
     ComandoNav v2_hist_cmd[16];
     int  v2_n_cmd, v2_retraso;
@@ -187,6 +189,7 @@ typedef struct {
 
 /* Coloca el carro en el centro de la celda (columna, fila) mirando hacia `rumbo_grados`. */
 void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados);
+void sim_sembrar_azar_fw(uint32_t semilla);   /* V2: siembra el ruido del giro del firmware simulado (ver simulador_navegador.c) */
 
 /* Agrega un obstáculo programado. Devuelve 0 si cupo, -1 si no. */
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania);

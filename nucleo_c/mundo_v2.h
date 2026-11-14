@@ -133,6 +133,9 @@ int  mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm);
 void mv_detector(Mundo *m, MvPose p, uint32_t t_ms, uint32_t marca_ms, DeteccionesModelo *salida);
 /* 1 si el chasis toca algún prisma bajo presente a la hora t_ms; deja en *objeto cuál. */
 int  mv_contacto(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto);
+/* Lo mismo, pero dice de qué tipo: 0 = nada; 1 = toca algo FÍSICO (una caja, una pared, una pata); 2 = solo entra en la planta de un mueble (pasa por debajo,
+ * entre sus patas, sin tocar nada). */
+int  mv_contacto_tipo(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto);
 /* Distancia libre (mm) desde el frente del chasis hasta el primer prisma bajo en línea recta (ancho del chasis); 9999 si no hay. */
 double mv_libre_adelante(const Mundo *m, MvPose p, uint32_t t_ms);
 

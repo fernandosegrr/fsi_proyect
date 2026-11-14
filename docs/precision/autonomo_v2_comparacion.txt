@@ -1,0 +1,107 @@
+SIMULADO / NO MEDIDO en el carro. Banco nucleo_c/pruebas_autonomo_v2.c; 1000 corridas por escenario; semillas 170000 + indice * 10007 + corrida.
+Por escenario y versión: éxito / contactos FÍSICOS / pasa bajo un mueble sin tocar / AYUDA / Terminado falso | esquives | paradas (corridas con parada) | tiempo medio (s) | lateral p95 (mm) | vistazos (con eco)
+
+libre_limpio  [falso]
+   v11        948/1000 ok  contactos    0  bajo_mueble    0  ayuda    4  falso_fin   0 | esquives    52 | paradas   150 ( 138) | t  10.9 s | lat p95   35 | vistazos     0 (   0) | causas 9:4
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas   215 ( 192) | t  11.4 s | lat p95   34 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   34 | vistazos   163 (   0) | causas 
+falso_juntas  [falso]
+   v11        967/1000 ok  contactos    0  bajo_mueble    0  ayuda    1  falso_fin   0 | esquives    33 | paradas   133 ( 123) | t  10.8 s | lat p95   34 | vistazos     0 (   0) | causas 9:1
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas   223 ( 196) | t  11.4 s | lat p95   33 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   33 | vistazos   137 (   0) | causas 
+falso_sol  [falso]
+   v11        179/1000 ok  contactos    0  bajo_mueble    0  ayuda  792  falso_fin   0 | esquives   255 | paradas   782 ( 658) | t  11.7 s | lat p95   42 | vistazos     0 (   0) | causas 1:772 5:11 8:3 9:6
+   partida    996/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     4 | paradas  4619 ( 852) | t  12.5 s | lat p95   53 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas    88 (  85) | t  10.6 s | lat p95   35 | vistazos  1655 (   0) | causas 
+falso_sombra  [falso]
+   v11        298/1000 ok  contactos    0  bajo_mueble    0  ayuda  552  falso_fin   0 | esquives   418 | paradas   822 ( 583) | t  13.8 s | lat p95   51 | vistazos     0 (   0) | causas 1:525 3:3 5:2 8:6 9:9 12:7
+   partida    989/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives    12 | paradas  4440 ( 746) | t  12.6 s | lat p95   49 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas    83 (  73) | t  10.6 s | lat p95   36 | vistazos  1733 (   0) | causas 
+falso_reflejo  [falso]
+   v11        520/1000 ok  contactos    0  bajo_mueble    0  ayuda  466  falso_fin   0 | esquives  1409 | paradas   995 ( 511) | t  10.8 s | lat p95   33 | vistazos     0 (   0) | causas 1:2 2:5 5:2 9:1 12:456
+   partida    987/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives    14 | paradas  4775 ( 569) | t  12.7 s | lat p95   54 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas   139 ( 116) | t  10.6 s | lat p95   37 | vistazos   733 (   0) | causas 
+falso_exposicion  [falso]
+   v11        956/1000 ok  contactos    0  bajo_mueble    0  ayuda    5  falso_fin   0 | esquives    41 | paradas   156 ( 144) | t  10.8 s | lat p95   35 | vistazos     0 (   0) | causas 1:4 9:1
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas   237 ( 204) | t  11.4 s | lat p95   33 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   34 | vistazos   149 (   0) | causas 
+falso_detector  [falso]
+   v11        142/1000 ok  contactos    0  bajo_mueble    0  ayuda  289  falso_fin   0 | esquives  1516 | paradas  3486 ( 984) | t  20.3 s | lat p95  168 | vistazos     0 (   0) | causas 2:25 3:86 5:3 8:29 9:58 12:88
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas  5482 (1000) | t  12.7 s | lat p95   40 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas     0 (   0) | t  10.6 s | lat p95   42 | vistazos  2927 (   0) | causas 
+caja20  [obstaculo]
+   v11        629/1000 ok  contactos    2  bajo_mueble    0  ayuda  370  falso_fin   0 | esquives   658 | paradas  1094 (1000) | t  16.7 s | lat p95   58 | vistazos     0 (   0) | causas 1:361 5:3 8:1 9:4 12:1
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1142 (1000) | t  18.1 s | lat p95   54 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1006 (1000) | t  17.6 s | lat p95   51 | vistazos    59 (   7) | causas 
+caja20_lateral  [obstaculo]
+   v11        991/1000 ok  contactos    3  bajo_mueble    0  ayuda    7  falso_fin   0 | esquives  1029 | paradas  1165 (1000) | t  16.7 s | lat p95   57 | vistazos     0 (   0) | causas 1:1 8:2 9:3 12:1
+   partida    663/1000 ok  contactos  337  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives   648 | paradas  2485 (1000) | t  16.2 s | lat p95   44 | vistazos     0 (   0) | causas 
+   actual     998/1000 ok  contactos    2  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives   999 | paradas  1024 (1000) | t  19.4 s | lat p95   46 | vistazos   671 ( 536) | causas 
+banquito35x45  [obstaculo]
+   v11        245/1000 ok  contactos  596  bajo_mueble  470  ayuda  267  falso_fin   0 | esquives  1300 | paradas  1891 (1000) | t  18.6 s | lat p95   95 | vistazos     0 (   0) | causas 1:134 2:6 5:1 8:54 9:31 12:41
+   partida     17/1000 ok  contactos  133  bajo_mueble  939  ayuda    0  falso_fin   0 | esquives    72 | paradas  5068 (1000) | t  13.4 s | lat p95   52 | vistazos     0 (   0) | causas 
+   actual     774/1000 ok  contactos   81  bajo_mueble  162  ayuda   36  falso_fin   0 | esquives   863 | paradas  1173 ( 981) | t  18.6 s | lat p95   53 | vistazos  1651 ( 426) | causas 16:36
+objeto_largo90  [obstaculo]
+   v11          4/1000 ok  contactos  535  bajo_mueble    0  ayuda  724  falso_fin   0 | esquives  1348 | paradas  1945 (1000) | t  29.1 s | lat p95  145 | vistazos     0 (   0) | causas 1:462 2:44 3:15 5:8 9:9 12:186
+   partida     85/1000 ok  contactos  898  bajo_mueble    0  ayuda   71  falso_fin   0 | esquives  3078 | paradas  1348 (1000) | t  25.4 s | lat p95  595 | vistazos     0 (   0) | causas 2:2 6:50 9:19
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1036 | paradas  1046 (1000) | t  21.7 s | lat p95   61 | vistazos   181 (  58) | causas 
+silla_patas  [obstaculo]
+   v11        161/1000 ok  contactos  524  bajo_mueble  708  ayuda  139  falso_fin   0 | esquives  1053 | paradas  1868 ( 984) | t  16.4 s | lat p95   72 | vistazos     0 (   0) | causas 1:42 2:4 3:4 5:2 8:22 9:27 12:38
+   partida     39/1000 ok  contactos   12  bajo_mueble  950  ayuda    0  falso_fin   0 | esquives    55 | paradas  4008 (1000) | t  12.8 s | lat p95   43 | vistazos     0 (   0) | causas 
+   actual     318/1000 ok  contactos   40  bajo_mueble  644  ayuda   39  falso_fin   0 | esquives   408 | paradas   796 ( 694) | t  14.6 s | lat p95   60 | vistazos  2109 ( 178) | causas 16:39
+pared_tras_el_final  [obstaculo]
+   v11       1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives    19 | paradas    75 (  73) | t   7.6 s | lat p95   26 | vistazos     0 (   0) | causas 
+   partida     68/1000 ok  contactos  449  bajo_mueble    0  ayuda  923  falso_fin   0 | esquives  1464 | paradas  1560 ( 936) | t  10.9 s | lat p95   23 | vistazos     0 (   0) | causas 5:11 6:912
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives     0 | paradas     0 (   0) | t   7.4 s | lat p95   26 | vistazos   102 (   0) | causas 
+dos_obstaculos  [obstaculo]
+   v11        359/1000 ok  contactos   67  bajo_mueble    0  ayuda  579  falso_fin   0 | esquives  1062 | paradas  1274 (1000) | t  28.9 s | lat p95  329 | vistazos     0 (   0) | causas 1:552 2:3 5:6 9:11 12:7
+   partida     19/1000 ok  contactos  110  bajo_mueble    0  ayuda  905  falso_fin   0 | esquives  5615 | paradas  1166 (1000) | t  29.1 s | lat p95  886 | vistazos     0 (   0) | causas 2:833 5:10 6:42 9:20
+   actual     994/1000 ok  contactos    6  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1402 | paradas  1004 (1000) | t  23.5 s | lat p95   65 | vistazos    63 (   6) | causas 
+pasillo  [obstaculo]
+   v11        559/1000 ok  contactos    5  bajo_mueble    0  ayuda  438  falso_fin   0 | esquives   605 | paradas  1088 (1000) | t  16.7 s | lat p95   72 | vistazos     0 (   0) | causas 1:422 2:2 3:3 5:3 9:8
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1117 (1000) | t  18.1 s | lat p95   49 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1007 (1000) | t  17.5 s | lat p95   53 | vistazos    70 (   5) | causas 
+aparece_de_repente  [obstaculo]
+   v11        521/1000 ok  contactos    7  bajo_mueble    0  ayuda  473  falso_fin   0 | esquives   560 | paradas  1089 (1000) | t  16.7 s | lat p95   53 | vistazos     0 (   0) | causas 1:456 5:6 8:1 9:8 12:2
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1188 (1000) | t  18.1 s | lat p95   49 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1000 (1000) | t  17.9 s | lat p95   52 | vistazos    76 (   9) | causas 
+objeto_bajo  [obstaculo]
+   v11        960/1000 ok  contactos   25  bajo_mueble    0  ayuda   28  falso_fin   0 | esquives  1049 | paradas  1132 (1000) | t  16.8 s | lat p95   56 | vistazos     0 (   0) | causas 1:10 8:3 9:12 12:3
+   partida    990/1000 ok  contactos    4  bajo_mueble    0  ayuda    6  falso_fin   0 | esquives  1000 | paradas  4411 (1000) | t  21.8 s | lat p95   67 | vistazos     0 (   0) | causas 1:5 6:1
+   actual     989/1000 ok  contactos    5  bajo_mueble    0  ayuda    6  falso_fin   0 | esquives   993 | paradas  2964 (1000) | t  20.8 s | lat p95   50 | vistazos  1546 (   6) | causas 1:3 6:3
+caja20_con_sol  [obstaculo]
+   v11        447/1000 ok  contactos    3  bajo_mueble    0  ayuda  550  falso_fin   0 | esquives   500 | paradas  1001 ( 892) | t  17.1 s | lat p95   79 | vistazos     0 (   0) | causas 1:525 3:6 5:10 8:3 9:6
+   partida    997/1000 ok  contactos    3  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1003 | paradas  1277 (1000) | t  18.2 s | lat p95   52 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1043 (1000) | t  17.8 s | lat p95   53 | vistazos   285 (  41) | causas 
+bateria_baja  [obstaculo]
+   v11        569/1000 ok  contactos    4  bajo_mueble    0  ayuda  427  falso_fin   0 | esquives   605 | paradas  1078 (1000) | t  16.6 s | lat p95   63 | vistazos     0 (   0) | causas 1:414 5:2 9:11
+   partida   1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1001 | paradas  1160 (1000) | t  18.1 s | lat p95   54 | vistazos     0 (   0) | causas 
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda    0  falso_fin   0 | esquives  1000 | paradas  1007 (1000) | t  17.7 s | lat p95   55 | vistazos    66 (  10) | causas 
+pared_al_frente  [imposible]
+   v11          0/1000 ok  contactos 1000  bajo_mueble    0  ayuda  677  falso_fin   0 | esquives  2680 | paradas  2735 (1000) | t  23.6 s | lat p95   84 | vistazos     0 (   0) | causas 2:32 3:7 5:8 8:2 9:1 12:627
+   partida    513/1000 ok  contactos  480  bajo_mueble    0  ayuda 1000  falso_fin   0 | esquives  1000 | paradas  2003 (1000) | t   0.0 s | lat p95    0 | vistazos     0 (   0) | causas 5:12 6:988
+   actual    1000/1000 ok  contactos    0  bajo_mueble    0  ayuda 1000  falso_fin   0 | esquives  1009 | paradas  1011 (1000) | t   0.0 s | lat p95    0 | vistazos    22 (  10) | causas 6:1 16:999
+bajo_solo_color  [limite]
+   v11        967/1000 ok  contactos   22  bajo_mueble    0  ayuda   16  falso_fin   0 | esquives  1042 | paradas  1129 (1000) | t  16.7 s | lat p95   61 | vistazos     0 (   0) | causas 1:3 8:2 9:11
+   partida    975/1000 ok  contactos   18  bajo_mueble    0  ayuda    7  falso_fin   0 | esquives   993 | paradas  5238 (1000) | t  22.4 s | lat p95   93 | vistazos     0 (   0) | causas 6:7
+   actual     914/1000 ok  contactos   56  bajo_mueble    0  ayuda   30  falso_fin   0 | esquives   955 | paradas  4182 (1000) | t  23.5 s | lat p95   53 | vistazos  2128 (  20) | causas 6:27 11:3
+
+COMPUERTAS de la versión actual: 18 fallos
+   FALLO falso_sol: el carro se detuvo en 85/1000 corridas, 88 paradas (meta: sin detenerse)
+   FALLO falso_sombra: el carro se detuvo en 73/1000 corridas, 83 paradas (meta: sin detenerse)
+   FALLO falso_reflejo: el carro se detuvo en 116/1000 corridas, 139 paradas (meta: sin detenerse)
+   FALLO caja20_lateral: 2 contactos (meta 0)
+   FALLO banquito35x45: 81 contactos (meta 0)
+   FALLO banquito35x45: éxito 774/1000 (meta >= 99 %)
+   FALLO banquito35x45: AYUDA 36/1000 (meta < 1 %)
+   FALLO banquito35x45: AYUDA 36 peor que la rama de partida (0)
+   FALLO silla_patas: 40 contactos (meta 0)
+   FALLO silla_patas: éxito 318/1000 (meta >= 99 %)
+   FALLO silla_patas: AYUDA 39/1000 (meta < 1 %)
+   FALLO silla_patas: contactos 40 peor que la rama de partida (12)
+   FALLO silla_patas: AYUDA 39 peor que la rama de partida (0)
+   FALLO dos_obstaculos: 6 contactos (meta 0)
+   FALLO objeto_bajo: 5 contactos (meta 0)
+   FALLO objeto_bajo: éxito 989/1000 (meta >= 99 %)
+   FALLO objeto_bajo: éxito 989 peor que la rama de partida (990)
+   FALLO objeto_bajo: contactos 5 peor que la rama de partida (4)

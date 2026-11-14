@@ -246,6 +246,8 @@ static void armar_escena(int e, Escena *s)
 typedef struct {
     int exito, llego, contacto, ayuda, error, causa, terminado_falso, esquivas, paradas, sin_terminar;
     int tiempo_ms, lateral, longitudinal, desvio_max, cola_mm, piso_aprendido, cuadros_color, cuadros_coinc;
+    int bajo_mueble;   /* entró en la planta de un mueble (pasó por debajo, entre las patas) sin tocar nada físico */
+    int vistazos, vistazos_con_eco;
 } Resultado;
 
 #define COLA_CUADROS 16
@@ -337,6 +339,11 @@ static Resultado correr(int e, uint32_t semilla)
 
     /* El carro real: el modelo físico J16 con sus dispersiones (pruebas_precision_j16.c). */
     sim_iniciar(&sim, s.ruta[0].columna, s.ruta[0].fila, 0);
+    sim_sembrar_azar_fw(semilla);   /* cada corrida con su propio ruido de giro: «depurar» repite la corrida de la tanda */
+#ifdef NAV_PRECAUCION_NUNCA
+    if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
+    if (getenv("AV2_VISTAZO")) navegador_poner_vistazo(&nav, atoi(getenv("AV2_VISTAZO")));           /* 0 no, 1 lejos, 2 lejos y medio, 3 todos */
+#endif
     sim_j16_activar(&sim);
     sim.real = cal;
     base_avance = entre(96, 104);
@@ -374,6 +381,7 @@ static Resultado correr(int e, uint32_t semilla)
     sim.v2_frenado_giro_pct = 100;
     sim.v2_jitter_cmd_pct = 30;        /* 30 % de los comandos llegan un tick antes o después */
     sim.v2_giro_tiempo_real = 1;       /* un giro por tiempo arranca antes de lo calibrado y sigue girando más al frenar */
+    sim.v2_sens_coherente = 1;         /* el ángulo y la distancia de SENS son del mismo instante (la distancia, ~50 ms más vieja) */
 #endif
 
     /* «Aprender piso»: la cámara se asienta y se suman 12 cuadros con el carro quieto. */
@@ -508,10 +516,16 @@ static Resultado correr(int e, uint32_t semilla)
         {
             int objeto = -1;
 
-            if (!r.contacto && mv_contacto(&mundo, p, (uint32_t)t, &objeto)) {
+            int tipo = r.contacto ? 0 : mv_contacto_tipo(&mundo, p, (uint32_t)t, &objeto);
+
+            if (tipo == 1) {
                 r.contacto = 1;
                 if (depurar) printf("   [%6d ms] CONTACTO con %s real=(%.0f,%.0f,%.1f) estado=%s fase=%d reinc=%d cmd=%s\n", t, mundo.objetos[objeto].nombre, p.x, p.y,
                                     p.rumbo_rad * 57.29578, navegador_texto_estado(nav.estado), nav.fase, nav.reinc_fase, navegador_texto_comando(nav.cmd_actual));
+            } else if (tipo == 2 && !r.bajo_mueble) {
+                r.bajo_mueble = 1;
+                if (depurar) printf("   [%6d ms] BAJO EL MUEBLE %s (entra en su planta sin tocar nada) real=(%.0f,%.0f,%.1f) estado=%s cmd=%s\n", t,
+                                    mundo.objetos[objeto].nombre, p.x, p.y, p.rumbo_rad * 57.29578, navegador_texto_estado(nav.estado), navegador_texto_comando(nav.cmd_actual));
             }
         }
         {
@@ -531,7 +545,16 @@ static Resultado correr(int e, uint32_t semilla)
         double cola_s = (p.x - fx * 120.0 - s.fin_x) * ux + (p.y - fy * 120.0 - s.fin_y) * uy;
         int o, pasados = 1;
 
-        if (!r.contacto && mv_contacto(&mundo, p, (uint32_t)t, NULL)) r.contacto = 1;
+        if (!r.contacto) {
+            int tipo = mv_contacto_tipo(&mundo, p, (uint32_t)t, NULL);
+
+            if (tipo == 1) r.contacto = 1;
+            else if (tipo == 2) r.bajo_mueble = 1;
+        }
+#ifdef NAV_V2
+        r.vistazos = nav.vistazos;
+        r.vistazos_con_eco = nav.vistazos_con_eco;
+#endif
         r.cola_mm = 99999;
         for (o = 0; o < mundo.n_objetos; o++) {
             if (mundo.objetos[o].en_ruta && mundo.objetos[o].aparece_ms != 0xFFFFFFFFu) {
@@ -552,9 +575,10 @@ static Resultado correr(int e, uint32_t semilla)
         r.longitudinal = (int)fabs((p.x - s.fin_x) * ux + (p.y - s.fin_y) * uy);
         r.terminado_falso = r.llego && !pasados;
         switch (s.tipo) {
+        /* Pasar por debajo de un mueble sin tocarlo NO cuenta como éxito (el carro debía rodearlo), pero se lleva aparte: no es un contacto. */
         case T_FALSO:     r.exito = r.llego && !r.contacto && nav.esquivadas == 0 && nav.ayudas == 0; break;
         case T_IMPOSIBLE: r.exito = !r.contacto && nav.estado == NAV_AYUDA; break;
-        default:          r.exito = r.llego && !r.contacto && pasados; break;
+        default:          r.exito = r.llego && !r.contacto && !r.bajo_mueble && pasados; break;
         }
         if (depurar) {
             printf("FIN %s semilla=%u estado=%s causa=%d exito=%d contacto=%d esquivas=%d ayudas=%d paradas=%d t=%d ms real=(%.0f,%.0f,%.1f) nav=(%d,%d,%d) lateral=%d long=%d cola=%d piso_aprendido=%d\n",
@@ -569,6 +593,7 @@ static Resultado correr(int e, uint32_t semilla)
 
 typedef struct {
     int n, exito, llegan, contactos, ayudas, errores, falsos_terminado, sin_terminar, esquivas, paradas, corridas_con_parada, sin_piso;
+    int bajo_mueble, vistazos, vistazos_con_eco;
     int causas[20];
     int t_media, t_p95, lat_media, lat_p95, lon_media, lon_p95, desvio_p95, color_cuadros, coinc_cuadros;
 } Resumen;
@@ -602,10 +627,11 @@ static Resumen monte_carlo(int e, int n)
         s.falsos_terminado += r.terminado_falso; s.sin_terminar += r.sin_terminar; s.esquivas += r.esquivas; s.paradas += r.paradas;
         s.corridas_con_parada += (r.paradas > 0); s.sin_piso += !r.piso_aprendido;
         s.color_cuadros += r.cuadros_color; s.coinc_cuadros += r.cuadros_coinc;
+        s.bajo_mueble += r.bajo_mueble; s.vistazos += r.vistazos; s.vistazos_con_eco += r.vistazos_con_eco;
         if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 20) s.causas[r.causa]++;
         vdes[i] = r.desvio_max;
         if (r.llego) { vt[k] = r.tiempo_ms; vlat[k] = r.lateral; vlon[k] = r.longitudinal; k++; }
-        if (getenv("AV2_LISTAR") && !r.exito) printf("   corrida %d: llego=%d contacto=%d ayuda=%d causa=%d error=%d falso_fin=%d esquivas=%d\n", i, r.llego, r.contacto, r.ayuda, r.causa, r.error, r.terminado_falso, r.esquivas);
+        if (getenv("AV2_LISTAR") && !r.exito) printf("   corrida %d: llego=%d contacto=%d bajo_mueble=%d ayuda=%d causa=%d error=%d falso_fin=%d esquivas=%d\n", i, r.llego, r.contacto, r.bajo_mueble, r.ayuda, r.causa, r.error, r.terminado_falso, r.esquivas);
     }
     percentiles(vt, k, &s.t_media, &s.t_p95);
     percentiles(vlat, k, &s.lat_media, &s.lat_p95);
@@ -624,9 +650,10 @@ static void imprimir(int e, const Resumen *s)
     static const char *TIPO[4] = { "falso", "obstaculo", "imposible", "limite" };
     int c;
 
-    printf("AV2 escenario=%s tipo=%s n=%d exito=%d contactos=%d ayuda=%d error=%d terminado_falso=%d sin_terminar=%d llegan=%d | tiempo_ms media=%d p95=%d | lateral media=%d p95=%d | longitudinal media=%d p95=%d | desvio_max p95=%d | esquivas=%d paradas=%d corridas_con_parada=%d | cuadros color=%d coincidencia=%d | sin_piso=%d | causas",
+    printf("AV2 escenario=%s tipo=%s n=%d exito=%d contactos=%d ayuda=%d error=%d terminado_falso=%d sin_terminar=%d llegan=%d | tiempo_ms media=%d p95=%d | lateral media=%d p95=%d | longitudinal media=%d p95=%d | desvio_max p95=%d | esquivas=%d paradas=%d corridas_con_parada=%d | cuadros color=%d coincidencia=%d | sin_piso=%d | bajo_mueble=%d vistazos=%d vistazos_con_eco=%d | causas",
            ESC[e].nombre, TIPO[ESC[e].tipo], s->n, s->exito, s->contactos, s->ayudas, s->errores, s->falsos_terminado, s->sin_terminar, s->llegan, s->t_media, s->t_p95,
-           s->lat_media, s->lat_p95, s->lon_media, s->lon_p95, s->desvio_p95, s->esquivas, s->paradas, s->corridas_con_parada, s->color_cuadros, s->coinc_cuadros, s->sin_piso);
+           s->lat_media, s->lat_p95, s->lon_media, s->lon_p95, s->desvio_p95, s->esquivas, s->paradas, s->corridas_con_parada, s->color_cuadros, s->coinc_cuadros, s->sin_piso,
+           s->bajo_mueble, s->vistazos, s->vistazos_con_eco);
     for (c = 0; c < 20; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
     printf("\n");
 }

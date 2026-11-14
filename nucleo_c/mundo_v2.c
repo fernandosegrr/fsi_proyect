@@ -556,6 +556,26 @@ int mv_contacto(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto)
     return 0;
 }
 
+int mv_contacto_tipo(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto)
+{
+    int i, bajo = 0;
+
+    for (i = 0; i < m->n_prismas; i++) {
+        const MvPrisma *q = &m->prismas[i];
+
+        if (q->z0 >= MV_CARRO_ALTO_MM || !presente(m, q, t_ms)) continue;
+        if (toca_prisma(q, p, MV_CARRO_LARGO_MM / 2.0, MV_CARRO_ANCHO_MM / 2.0)) {
+            if (!q->fantasma) {
+                if (objeto != NULL) *objeto = q->objeto;
+                return 1;
+            }
+            if (!bajo && objeto != NULL) *objeto = q->objeto;
+            bajo = 1;
+        }
+    }
+    return bajo ? 2 : 0;
+}
+
 double mv_libre_adelante(const Mundo *m, MvPose p, uint32_t t_ms)
 {
     double fx = sin(p.rumbo_rad), fy = -cos(p.rumbo_rad);

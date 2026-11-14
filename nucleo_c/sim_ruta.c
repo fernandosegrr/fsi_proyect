@@ -116,6 +116,10 @@ void sr_vista(int x_mm, int y_mm, int rumbo_grados, const Punto *obstaculos, int
             continue;   /* fuera del campo de visión: ni una parte entra en el cono */
         }
         cerc = (cara <= CERC3_MM) ? 3 : (cara <= CERC2_MM) ? 2 : 1;
+        /* V2: solo cuenta el pedazo de la celda que cae DENTRO del campo de visión (antes, una celda que rozaba el borde del campo por unos milímetros se veía
+         * entera: al mirar de lado, el carro virtual «veía» junto a él un obstáculo que la cámara real no alcanza). */
+        izq = maximo(izq, -mitad_campo);
+        der = minimo(der, mitad_campo);
         /* cuánto de la celda cae en cada zona: izquierda (hasta -borde), centro y derecha (desde +borde) */
         solape[0] = maximo(0, minimo(der, -borde) - izq);
         solape[1] = maximo(0, minimo(der, borde) - maximo(izq, -borde));

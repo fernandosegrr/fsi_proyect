@@ -321,9 +321,10 @@ static void pruebas_textos(void)
         obs.zona[ZONA_CENTRO].cercania = 3;
         obs.fuentes_vision[ZONA_CENTRO] = 3;
         navegador_tick(&nav, 50, &obs);
+        navegador_tick(&nav, 100, &obs);   /* V2: la coincidencia de las dos fuentes cuenta desde el segundo cuadro seguido */
         antes = nav.frames_bloqueado;
-        navegador_tick(&nav, 100, NULL);
         navegador_tick(&nav, 150, NULL);
+        navegador_tick(&nav, 200, NULL);
         caso("tick sin cuadro nuevo (NULL) no cambia los contadores de cuadros",
              antes == 1 && nav.frames_bloqueado == 1);
     }
@@ -1108,8 +1109,14 @@ static void pruebas_desplazamiento_al_girar(void)
     dist_sin = distancia_a_la_ruta(nav.ruta, nav.n_puntos);
     errores_sin = (nav.estado == NAV_TERMINADO || nav.estado == NAV_ERROR);
     caso("el mismo esquive con desplazamiento 0 en el navegador (no sabe que el carro se desplaza): el error respecto de la linea es mayor", errores_sin && dist_sin > dist_con);
-    lleno = dist_sin > 100;
-    caso("... y pasa de 10 cm (el modelo es lo que lo deja dentro)", lleno);
+    /* V2: el regreso a la linea es ahora en diagonal (dos giros de ~50 grados en vez de dos de ~85): sin el modelo el carro real ya no queda a mas de 10 cm DE LADO,
+     * pero la posicion que el navegador cree se aleja de la real mas de 10 cm (casi todo a lo largo). El modelo sigue siendo lo que mantiene la pose dentro. */
+    {
+        int estimada_sin = (valor_absoluto(nav.x_mm - sim_x_mm(&sim)) > valor_absoluto(nav.y_mm - sim_y_mm(&sim))) ? valor_absoluto(nav.x_mm - sim_x_mm(&sim)) : valor_absoluto(nav.y_mm - sim_y_mm(&sim));
+
+        lleno = dist_sin > 100 || estimada_sin > 100;
+    }
+    caso("... y pasa de 10 cm, de lado o en la pose estimada (el modelo es lo que lo deja dentro)", lleno);
     printf("      esquive con modelo: %d mm de la linea (estimada vs real %d mm); sin modelo: %d mm\n", dist_con, estimada_con, dist_sin);
 
     /* ── (c) El pivote REAL medido: 15 cm adelante y 16.5 cm a la derecha en un giro de 90 a la derecha (AUTO 210) ── */
@@ -1477,7 +1484,12 @@ static void pruebas_plan_pivote(void)
         char texto[300];
 
         navegador_texto_error(&nav, texto, sizeof texto);
-        caso("empujones repetidos invalidan el indice de ruta: detiene por incoherencia de pose antes de corregir otra vez", nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_INDICE && marcas_plan.correcciones > 0 && strstr(texto, "retrocedi") != NULL);
+        printf("      empujones repetidos: estado=%s causa=%d correcciones=%d texto=%s\n", navegador_texto_estado(nav.estado), nav.error_causa, marcas_plan.correcciones, texto);
+        /* V2: durante el rodeo el navegador ya no deja que la busqueda del tramo retroceda (tramo_base), asi que los empujones repetidos ya no se detectan como
+         * «indice que retrocede» sino por otro de los frenos de incoherencia de pose: correcciones agotadas o pose a mas de 1 m de la ruta. Lo que importa es que pare. */
+        caso("empujones repetidos: detiene por incoherencia de pose (indice, correcciones o lejos de la ruta) antes de corregir otra vez",
+             nav.estado == NAV_AYUDA && (nav.error_causa == NAV_CAUSA_INDICE || nav.error_causa == NAV_CAUSA_CORRECCIONES || nav.error_causa == NAV_CAUSA_LEJOS) &&
+             marcas_plan.correcciones > 0 && texto[0] != '\0');
         printf("      texto: %s\n", texto);
     }
     caso("... y el carro esta quieto en AYUDA", nav.cmd_actual == NAV_CMD_STOP);
@@ -1966,7 +1978,12 @@ static void pruebas_j11_giroscopio(void)
     sim.fw_falla_desde = 3;
     sim.fw_falla_codigo = NAV_GIRO_ERROR_CON_DATOS;
     correr_leyendo(60000);
-    caso("GIRO_ERROR con angulo parcial: lo usa, avisa y sigue por tiempo", nav.estado == NAV_TERMINADO && hay_diag("SENS_DIAG giro aviso=GIRO_ERROR") && nav.n_giros_tiempo >= 1);
+    printf("      GIRO_ERROR con datos desde el 3.er giro: estado=%s, por angulo %d, por tiempo %d, fallos %d, caido %d\n", navegador_texto_estado(nav.estado), nav.n_giros_angulo,
+           nav.n_giros_tiempo, nav.giro_fw_fallos, nav.giro_fw_caido);
+    /* V2: tras un giro fallido el siguiente se REINTENTA por angulo si SENS dice que el giroscopio esta listo (un giro por tiempo es mucho peor que uno medido);
+     * solo tras NAV_GIRO_FW_FALLOS_MAX fallos en la ruta se deja de pedir. Antes un solo fallo mandaba todo el resto de la ruta por tiempo. */
+    caso("GIRO_ERROR con angulo parcial: lo usa, avisa, reintenta por angulo y no pasa del tope de fallos", nav.estado == NAV_TERMINADO && hay_diag("SENS_DIAG giro aviso=GIRO_ERROR") &&
+         nav.giro_fw_fallos >= 1 && nav.giro_fw_fallos <= NAV_GIRO_FW_FALLOS_MAX);
 
     /* J12, mensaje de giro perdido: antes de repetir por tiempo se pregunta IMU? y se compara el angulo con el del inicio del giro. */
     preparar_giro(CUADRADO, N(CUADRADO), 1, 100);

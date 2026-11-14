@@ -80,6 +80,9 @@ def campos(linea):
         m = re.search(patron, linea)
         d[clave + "_media"], d[clave + "_p95"] = int(m.group(1)), int(m.group(2))
     d["desvio_p95"] = int(re.search(r"desvio_max p95=(\d+)", linea).group(1))
+    for clave in ["bajo_mueble", "vistazos", "vistazos_con_eco"]:   # campos nuevos: si la línea no los trae valen 0
+        m = re.search(rf"\b{clave}=(\d+)", linea)
+        d[clave] = int(m.group(1)) if m else 0
     return d
 
 
@@ -88,8 +91,11 @@ def escribir(ruta, texto):
         archivo.write(texto)
 
 
-def compuertas(actual, partida):
-    """Las metas medibles del encargo. Devuelve la lista de fallos (vacía = pasa)."""
+def compuertas(actual, partida, v11=None):
+    """Las metas medibles del encargo. Devuelve la lista de fallos (vacía = pasa).
+
+    «contactos» son contactos FÍSICOS (una caja, una pared, una pata). Pasar por debajo de un mueble entre sus patas sin tocar nada se cuenta aparte
+    (bajo_mueble): no es un contacto, pero tampoco es éxito (el carro debía rodearlo)."""
     fallos = []
     for nombre, a in actual.items():
         n = a["n"]
@@ -107,18 +113,24 @@ def compuertas(actual, partida):
         if a["tipo"] == "falso":
             if a["esquivas"] != 0 or a["ayuda"] != 0:
                 fallos.append(f"{nombre}: falso positivo con {a['esquivas']} esquives y {a['ayuda']} ayudas (meta 0)")
+            if a["corridas_con_parada"] * 100 >= n:
+                fallos.append(f"{nombre}: el carro se detuvo en {a['corridas_con_parada']}/{n} corridas, {a['paradas']} paradas (meta: sin detenerse)")
             if a["exito"] * 100 < n * 99:
                 fallos.append(f"{nombre}: éxito {a['exito']}/{n} (meta >= 99 %)")
         if a["tipo"] == "imposible" and a["exito"] * 100 < n * 99:
             fallos.append(f"{nombre}: paró sin tocar y pidió ayuda {a['exito']}/{n} (meta >= 99 %)")
-        if partida and nombre in partida:
-            p = partida[nombre]
+        for etiqueta, base in (("la rama de partida", partida), ("v1.1", v11)):
+            if not base or nombre not in base:
+                continue
+            p = base[nombre]
             if a["exito"] < p["exito"]:
-                fallos.append(f"{nombre}: éxito {a['exito']} peor que la rama de partida ({p['exito']})")
+                fallos.append(f"{nombre}: éxito {a['exito']} peor que {etiqueta} ({p['exito']})")
             if a["contactos"] > p["contactos"]:
-                fallos.append(f"{nombre}: contactos {a['contactos']} peor que la rama de partida ({p['contactos']})")
+                fallos.append(f"{nombre}: contactos {a['contactos']} peor que {etiqueta} ({p['contactos']})")
             if a["tipo"] != "imposible" and a["ayuda"] > p["ayuda"]:
-                fallos.append(f"{nombre}: AYUDA {a['ayuda']} peor que la rama de partida ({p['ayuda']})")
+                fallos.append(f"{nombre}: AYUDA {a['ayuda']} peor que {etiqueta} ({p['ayuda']})")
+            if a["tipo"] == "falso" and a["paradas"] > p["paradas"]:
+                fallos.append(f"{nombre}: paradas {a['paradas']} peor que {etiqueta} ({p['paradas']})")
     return fallos
 
 
@@ -128,14 +140,28 @@ def main():
     parser.add_argument("--solo", choices=[v[0] for v in VERSIONES])
     parser.add_argument("--procesos", type=int, default=max(2, (os.cpu_count() or 4) - 2))
     parser.add_argument("--sin-guardar", action="store_true", help="no escribe en docs/precision (para iterar)")
+    parser.add_argument("--desde-guardado", action="store_true",
+                        help="no simula: vuelve a armar la comparación y las compuertas con los docs/precision/autonomo_v2_mc_<versión>.txt ya guardados")
     args = parser.parse_args()
     salida = ROOT / "docs/precision"
     resultados = {}
+    if args.desde_guardado:
+        for nombre, _ref, _banderas in VERSIONES:
+            ruta = salida / f"autonomo_v2_mc_{nombre}.txt"
+            if not ruta.exists():
+                continue
+            resultados[nombre] = {}
+            with open(ruta, encoding="utf-8") as archivo:
+                for l in archivo.read().split("\n"):
+                    if l.startswith("AV2 "):
+                        d = campos(l)
+                        resultados[nombre][d["escenario"]] = d
+                        args.corridas = d["n"]
     with tempfile.TemporaryDirectory(prefix="fsi-autonomo-v2-") as temporal:
         raiz = Path(temporal)
         trabajos = []
         for nombre, ref, banderas in VERSIONES:
-            if args.solo and nombre != args.solo:
+            if args.desde_guardado or (args.solo and nombre != args.solo):
                 continue
             destino = raiz / nombre
             exportar(destino, ref)
@@ -162,19 +188,21 @@ def main():
     orden = [v[0] for v in VERSIONES if v[0] in resultados]
     informe = ["SIMULADO / NO MEDIDO en el carro. Banco nucleo_c/pruebas_autonomo_v2.c; "
                f"{args.corridas} corridas por escenario; semillas 170000 + indice * 10007 + corrida.",
-               "Por escenario y versión: éxito / contactos / AYUDA / Terminado falso | esquives | paradas | tiempo medio (s) | lateral p95 (mm)", ""]
+               "Por escenario y versión: éxito / contactos FÍSICOS / pasa bajo un mueble sin tocar / AYUDA / Terminado falso | esquives | paradas (corridas con parada) |"
+               " tiempo medio (s) | lateral p95 (mm) | vistazos (con eco)", ""]
     nombres = list(resultados[orden[-1]].keys())
     for esc in nombres:
         informe.append(f"{esc}  [{resultados[orden[-1]][esc]['tipo']}]")
         for v in orden:
             d = resultados[v].get(esc)
             if d:
-                informe.append(f"   {v:8s} {d['exito']:5d}/{d['n']} ok  contactos {d['contactos']:4d}  ayuda {d['ayuda']:4d}  falso_fin {d['terminado_falso']:3d}"
-                               f" | esquives {d['esquivas']:5d} | paradas {d['paradas']:5d} | t {d['t_media'] / 1000:5.1f} s | lat p95 {d['lat_p95']:4d}"
+                informe.append(f"   {v:8s} {d['exito']:5d}/{d['n']} ok  contactos {d['contactos']:4d}  bajo_mueble {d['bajo_mueble']:4d}  ayuda {d['ayuda']:4d}"
+                               f"  falso_fin {d['terminado_falso']:3d} | esquives {d['esquivas']:5d} | paradas {d['paradas']:5d} ({d['corridas_con_parada']:4d})"
+                               f" | t {d['t_media'] / 1000:5.1f} s | lat p95 {d['lat_p95']:4d} | vistazos {d['vistazos']:5d} ({d['vistazos_con_eco']:4d})"
                                f" | causas {d['causas']}")
     fallos = []
     if "actual" in resultados:
-        fallos = compuertas(resultados["actual"], resultados.get("partida"))
+        fallos = compuertas(resultados["actual"], resultados.get("partida"), resultados.get("v11"))
         informe += ["", f"COMPUERTAS de la versión actual: {'PASAN' if not fallos else str(len(fallos)) + ' fallos'}"] + ["   FALLO " + f for f in fallos]
     texto = "\n".join(informe) + "\n"
     if not args.sin_guardar:

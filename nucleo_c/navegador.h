@@ -207,10 +207,87 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_VISION_LIBRE_CUADROS    5    /* cierre sin eco: cuadros nuevos sin coincidencia */
 #define NAV_BORDEAR_TRAMO_MM      200    /* intervalo de exploración, NO profundidad supuesta */
 #define NAV_BORDEAR_EXTRA_MM      100    /* ensanchar el rodeo en cada reintento */
-#define NAV_BORDEAR_LATERAL_MAX   700
+#define NAV_BORDEAR_LATERAL_MAX   800
 #define NAV_EXTENSION_RUTA_MM   2000    /* máximo añadido a la recta final al rodear su obstáculo */
 #define NAV_PRECAUCION_AVANCE_MS  700    /* avance calibrado por tandas; sin cambiar PWM del firmware */
 #define NAV_PRECAUCION_PAUSA_MS   300
+
+/* AUTÓNOMO V2 (ver docs/autonomo_v2_diseno.md). Todo SIMULADO / NO MEDIDO en el carro.
+ *  - NAV_FIN_HOLGURA_MM: un obstáculo que el láser confirma pero que, al llegar al final de la recta final, quedaría a esto o más del frente del carro NO estorba
+ *    el destino: la ruta termina delante de él (una pared 45 cm más allá del final no se «esquiva»). Es también lo que debe medir el láser para cerrar un rodeo.
+ *  - NAV_MAX_ESQUIVADAS vale ahora POR OBSTÁCULO (se repone al dejarlo atrás); NAV_MAX_ESQUIVADAS_RUTA es el tope de toda la ruta. */
+#define NAV_V2                      1
+#define NAV_FIN_HOLGURA_MM        400
+#define NAV_MAX_ESQUIVADAS_RUTA    18
+#define NAV_GIRO_FW_FALLOS_MAX      3    /* giros por ángulo fallidos en una ruta antes de dejar de pedirlos (antes: uno solo) */
+/* RODEO MEDIDO (V2). El carro pivota sobre un costado (el pivote derecho medido, 150 mm adelante y 165 a la derecha en 90 grados, es girar sobre un punto 157 mm a la
+ * derecha del centro): al girar barre el chasis hacia un lado. Por eso:
+ *  - ESCANEO: mientras hace el primer giro del rodeo, cada SENS trae ángulo y distancia del láser a la vez: con ellos se mide hasta dónde llega el obstáculo hacia el
+ *    lado del rodeo (su ancho) y si hay una pared de ese lado. El desvío lateral es el ancho medido más NAV_ESQ_HOLGURA_VOLVER_MM (lo que barre el giro de
+ *    enderezarse), nunca menos que el de siempre ni más que NAV_BORDEAR_LATERAL_MAX; si no cabe, no se avanza hacia allí (causa NAV_CAUSA_FRENTE_ANCHO).
+ *  - PASO EN PARALELO: el costado del objeto queda fuera del láser y casi fuera de la cámara (a `c` mm de lado solo se ve el piso desde 1.88 c mm adelante, con 56 grados
+ *    de campo). Se avanza hasta NAV_PASO_VISTA_MARGEN_MM más allá del punto donde el costado ya no puede estar a la vista; mientras la cámara lo siga viendo (celdas
+ *    en el borde lejano de ese lado, o la red) esa cuenta vuelve a empezar. Tope NAV_PASO_PARALELO_MAX_MM.
+ *  - REGRESO: un eco del láser al girar hacia la línea solo cuenta como «costado todavía presente» si el punto medido NO queda delante del carro; algo delante es un
+ *    obstáculo nuevo y lo atiende la ruta al retomarla. */
+#define NAV_ESQ_HOLGURA_VOLVER_MM   200
+#define NAV_ESCANEO_RELLENO_MM       40    /* el ancho medido se redondea hacia arriba: entre dos SENS el carro gira ~13 grados */
+#define NAV_ESCANEO_MAX              32    /* lecturas que se guardan de un barrido (un giro de 90 grados da de 7 a 12) */
+#define NAV_ESCANEO_ALCANCE_UTIL_MM 700    /* si para seguir viendo la cara habría que medir más que esto, el final de la cara no se puede comprobar */
+#define NAV_ESCANEO_HOLGURA_GRADOS    8    /* esa cuenta se hace con el ángulo de la lectura más esto (error del ángulo y poca señal de un plano visto de lado) */
+#define NAV_ESCANEO_PARED_HOLGURA_MM 260   /* de una pared lateral medida al centro del carro: 130 que barre el giro + medio carro + 30 */
+#define NAV_CAMARA_FOV_GRADOS        56    /* campo horizontal de la cámara (SUPUESTO del manual; pendiente de medir) */
+#define NAV_CAMARA_ADELANTE_MM      100    /* del centro del carro a la lente (SUPUESTO) */
+#define NAV_PASO_VISTA_MARGEN_MM    230    /* 10 a 50 que necesita el giro de regreso + ~100 porque las ultimas celdas del costado dejan de contarse antes de salir del cuadro + 80 de error de distancia por tiempo */
+#define NAV_PASO_PARALELO_MAX_MM   2500
+#define NAV_FLANCO_CELDAS_MIN         2    /* celdas en el borde lejano del lado del objeto para decir que el costado sigue a la vista */
+#define NAV_PASO_INICIO_MM          220    /* el paso en paralelo empieza unos 22 cm antes de la cara del objeto (lo que deja el frenado más los dos giros) */
+#define NAV_ATRAS_TRAS_RODEO_MM     300    /* al entrar a la línea tras un rodeo quedan libres al menos 30 cm justo detrás (lo que acaba de cruzar) */
+#define NAV_RETROCESO_MAX_MM        250    /* el retroceso de escape nunca pasa de esto (NAV_RETROCESO_CM, 15 cm, es el de siempre) */
+#define NAV_ENTRADA_CELDAS_MIN        6    /* MIRADA ANTES DE ENTRAR: celdas de color, cerca (cercanía 2 o 3), en una zona para decir que la entrada a la línea está ocupada */
+#define NAV_MIRADA_MAX_MS           600    /* tras la latencia del video, lo más que se espera por los cuadros de la mirada */
+#define NAV_MIRADA_PASO_MM          400    /* si la mirada ve ocupada la entrada: avanza esto más por el carril y vuelve a mirar */
+#define NAV_MIRADA_PASO_LEJOS_MM    750    /* lo mismo cuando lo visto está más adelante sobre la línea (cercanía 1 del lado hacia donde sigue la ruta): hay que pasarlo entero */
+#define NAV_MIRADA_PASO_CONFIRMA_MM 200    /* PUNTO CIEGO: girado hacia la línea, la cámara no ve lo que queda pegado al costado del carro (a menos de ~19 cm de la lente y a
+                                            * más de 28 grados del eje). Si la mirada anterior vio algo y esta ya no, el final de ese algo puede estar justo ahí, donde va a
+                                            * pasar la cola: se avanza este paso mínimo y se mira otra vez; solo la segunda mirada despejada seguida deja entrar. */
+#define NAV_VUELTA_GIRO_MAX          95    /* un regreso a la línea que pida un primer giro mayor que esto se descarta si hay otro punto más adelante */
+/* VISTAZO CON EL LÁSER (V2). El láser mira al frente con un cono de unos 25 grados: una caja corrida de lado que todavía estorba al chasis, o las patas de un
+ * mueble, quedan en la orilla del cono y no dan eco; el color sí las ve, pero una sola fuente de visión no detiene al carro. Cuando el color (o la red) ve algo
+ * a un LADO durante varios cuadros seguidos y el láser no dice nada, el carro —sin frenar— tuerce el rumbo NAV_VISTAZO_GRADOS hacia ese lado con el control de
+ * rumbo del firmware, deja que el láser mire ahí y vuelve. Si el láser da eco válido y cercano, eso SÍ confirma (láser cercano y válido confirma): se detiene
+ * y lo rodea por el lado contrario. Si no hay eco, sigue su ruta: no se detuvo ni esquivó. Hace falta el rumbo del firmware (RUMBO=1); sin él no hay vistazo. */
+#define NAV_VISTAZO_GRADOS           10    /* cuánto tuerce como mínimo; si lo visto está más de lado, hasta NAV_VISTAZO_GRADOS_MAX (apunta el láser a su orilla de adentro) */
+#define NAV_VISTAZO_GRADOS_MAX       16    /* el firmware admite hasta 20 grados del rumbo con que empezó el avance, y al llegar se pasa unos 3 */
+#define NAV_RUMBO_FW_SALTO_MAX       20    /* el objetivo de rumbo que se manda nunca se aleja más de esto del rumbo ACTUAL: con más de 30 grados de error el
+                                            * firmware deja de corregir (lo toma por un choque) y el carro seguiría torcido hasta el final del avance */
+#define NAV_VISTAZO_RACHA             3    /* una raya vertical de tantas celdas seguidas (una pata) basta aunque sean pocas celdas */
+#define NAV_VISTAZO_CELDAS_RACHA      3
+#define NAV_VISTAZO_MS             1000    /* lo más que dura la ida de un vistazo (termina antes, en cuanto el carro llega al ángulo) */
+#define NAV_VISTAZO_ESCUCHA_MS      350    /* ya de vuelta, el láser sigue contando ecos este rato (todavía mira hacia ese lado) */
+#define NAV_VISTAZO_LATERAL_MAX_MM  190    /* solo se mira lo que queda a esto o menos del eje del carro (medio carro, 100, más margen): lo de más afuera no estorba */
+#define NAV_VISTAZO_VACIO_CUADROS     6    /* cuadros seguidos sin nada en ese lado para dar por terminado lo que se estaba mirando */
+#define NAV_VISTAZO_GIRO_MIN_MS     250    /* antes de esto el carro apenas ha torcido: un eco todavía no cuenta como «visto de lado» */
+#define NAV_VISTAZO_CUADROS           3    /* cuadros seguidos con algo de una sola fuente en ese lado para dar el vistazo */
+#define NAV_VISTAZO_CELDAS_MIN        6    /* y al menos tantas celdas */
+#define NAV_VISTAZO_REPOSO_MS      2500    /* (ya no se usa: el vistazo se repite una sola vez por cosa vista, cuando está más cerca) */
+#define NAV_VISTAZO_ALCANCE_MM      650    /* un eco válido a esta distancia o menos durante el vistazo confirma */
+#define NAV_VISTAZO_ECOS              2    /* lecturas así que hacen falta */
+#define NAV_VISTAZO_ENTRE_MS       1200    /* entre el final de un vistazo y el comienzo de otro (el carro vuelve antes a su rumbo y a su línea) */
+#define NAV_VISTAZO_VUELTA_MS      1500    /* durante el vistazo y este rato después, el rumbo torcido se corrige avanzando (sin el giro parado de las correcciones) */
+#define NAV_SALIDA_TORCIDO_MIN        5    /* si al empezar un rodeo el carro está torcido esto o más respecto de la línea (por un vistazo), el primer giro lo compensa */
+#define NAV_SALIDA_TORCIDO_MAX       25
+/* BARRIDO DEL GIRO DE SALIDA (V2). El giro de salida no solo adelanta el centro: la esquina delantera del lado contrario barre un arco de hasta
+ * NAV_BARRIDO_DER_MM (girando a la derecha, sobre las ruedas derechas) o NAV_BARRIDO_IZQ_MM por delante del centro. Si lo confirmado está más cerca que eso
+ * y es ancho (o son las patas de un mueble), la esquina lo toca aunque el centro «quepa». Se aplica a lo que confirmó un VISTAZO (algo a un lado del eje):
+ * el eco del vistazo dice dónde hay ALGO, pero puede ser la pata de atrás de un mueble cuyas patas de adelante ya están junto al carro. Por eso, tras un
+ * vistazo con eco, el carro retrocede primero NAV_RETROCESO_MAX_MM por el camino que acaba de recorrer (si lo tiene) y solo entonces gira. */
+#define NAV_BARRIDO_DER_MM          285
+#define NAV_BARRIDO_IZQ_MM          225
+#define NAV_BARRIDO_HOLGURA_MM       30
+#define NAV_FIN_OBSTACULO_TOL_MM     60    /* al terminar el paso, la cuenta de avance puede quedar unos mm corta (el rumbo se desvía): la pista ya lleva 230 de margen */
+#define NAV_DIAGONAL_RESTO_MIN_MM   400    /* el regreso en diagonal solo se usa si después quedan al menos esto de ruta para afinar sobre la línea (si no, cruce corto) */
+#define NAV_DESHACER_MAX_MM         450    /* lo más que se deshace en reversa de una diagonal de entrada (nunca más de lo que avanzó) */
 
 /* RUMBO DEL FIRMWARE (J16, ver firmware_carro/rumbo.h y navegador_poner_rumbo_fw). Con el firmware sosteniendo el rumbo al avanzar, el navegador le manda el rumbo
  * que quiere mientras avanza: sobre la línea de la ruta apunta a un punto NAV_RUMBO_MIRA_MM más adelante (si el carro quedó de lado, vuelve a ella poco a poco, sin
@@ -290,6 +367,9 @@ typedef enum {
 #define NAV_CAUSA_SIN_CONFIRMACION      13   /* reservado, historico: ya no se emite por desacuerdo */
 #define NAV_CAUSA_OBSTACULO_NO_PASADO   14   /* la recta no alcanza o la vuelta sigue bloqueada */
 #define NAV_CAUSA_FIN_NO_LIBRE          15   /* no se pudo comprobar el frente libre al cerrar */
+#define NAV_CAUSA_FRENTE_ANCHO          16   /* V2: pared u objeto más ancho que el rodeo máximo (medido con el láser al girar): no hay por dónde */
+#define NAV_CAUSA_SIN_PERCEPCION        17   /* V2: la red neuronal dejó de dar resultados vigentes: no se puede confirmar nada por visión */
+#define NAV_CAUSAS                      18   /* cuántos códigos hay (para tablas) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -314,6 +394,8 @@ typedef enum {
 #define NAV_RF_GIRO2          5   /* gira al rumbo original de la línea */
 #define NAV_RF_PAUSA3         6   /* STOP; al terminar la pausa vuelve a SIGUIENDO */
 #define NAV_RF_VERIFICAR      7   /* STOP; verifica frente libre antes de retomar la ruta */
+#define NAV_RF_PAUSA_DESHACER 8   /* V2: STOP antes de deshacer en reversa la diagonal de entrada (la entrada se ocupó a medio camino) */
+#define NAV_RF_DESHACER       9   /* V2: REVERSE lo que llevaba de la diagonal (por donde acaba de pasar); después sigue de largo por el carril */
 
 /* Códigos de retorno de las funciones de configuración. */
 #define NAV_OK                 0
@@ -389,7 +471,8 @@ typedef struct {
     int zona_celdas[OBS_ZONAS];  /* cuántas celdas de obstáculo tenía cada zona en el último cuadro (para elegir el lado con más espacio) */
 
     /* Esquivar. */
-    int esquivadas;
+    int esquivadas;              /* maniobras y extensiones de rodeo de toda la ruta (para la pantalla y el tope NAV_MAX_ESQUIVADAS_RUTA) */
+    int esquivadas_obstaculo;    /* V2: las del obstáculo actual (tope NAV_MAX_ESQUIVADAS); se repone al dejarlo atrás */
     int lado;                    /* -1 = izquierda, +1 = derecha */
     int fase;                    /* NAV_FASE_*: qué hace ahora la maniobra de esquivar */
     int ms_fase;
@@ -481,6 +564,48 @@ typedef struct {
     long     recorrido_mm;           /* distancia total que el centro ha recorrido en esta ruta (estimada) */
     int      prev_x_mm, prev_y_mm;
     long     ruta_largo_mm;          /* largo de la ruta */
+    long     ruta_largo_original_mm; /* V2: el largo de la ruta tal como se dibujó (ruta_largo_mm crece si un rodeo obliga a prolongar la última recta) */
+    int      tramo_base;             /* V2: el tramo de la ruta más adelantado por el que ya pasó el carro durante un rodeo (ubicar_en_linea busca desde ahí: una pasada de
+                                      * dos obstáculos seguidos se sale de la ventana que parte del punto donde se detuvo) */
+    int      retroceso_mm;           /* V2: cuánto retrocede el escape actual (150 de siempre, o lo que falta para que quepa el giro de salida, hasta lo que se sabe libre) */
+    int      lateral_tope_mm;        /* V2: lo más que puede apartarse de la línea el rodeo actual (NAV_BORDEAR_LATERAL_MAX o lo que deja la pared que midió el barrido) */
+    int      mirada_fallida;         /* V2: la mirada antes de entrar vio ocupada la entrada: el siguiente tramo es un paso y otra mirada (no una pista entera).
+                                      * 1 = paso corto; 2 = paso corto y carril más abierto (lo visto está pegado al costado); 3 = paso largo (lo visto está más adelante);
+                                      * 4 = paso de confirmación (mirada despejada justo después de una ocupada); 5 = paso corto, lo visto queda solo del lado de atrás */
+    int      reinc_deshacer_mm;      /* V2: cuánto de la diagonal de entrada hay que deshacer en reversa */
+    int      precaucion_modo;        /* V2: cuándo «avanza a ratos» por una sola fuente de visión sin eco del láser (NAV_PRECAUCION_*); ver navegador_poner_precaucion */
+    int      vistazo_modo_mas1;      /* V2: NAV_VISTAZO_* + 1 (0 = sin fijar: vale el valor por defecto NAV_VISTAZO_POR_DEFECTO); ver navegador_poner_vistazo */
+    int      coinc_detenido;         /* V2: cuadros con coincidencia de las dos fuentes desde que el carro se detuvo (para esquivar sin láser hacen falta varios) */
+    int      coinc_seguidas[OBS_ZONAS];   /* V2: cuadros seguidos con las dos fuentes en cada zona */
+    int      vistazo_lado;           /* V2, VISTAZO: -1 izquierda, +1 derecha, 0 = no hay vistazo en curso */
+    uint32_t vistazo_t_ms;           /* cuándo empezó */
+    int      vistazo_ecos;           /* lecturas válidas y cercanas del láser durante el vistazo */
+    int      vistazo_mm;             /* la menor de ellas */
+    int      vistazo_cuadros[2];     /* cuadros seguidos con algo de una sola fuente en ese lado (0 izquierda, 1 derecha) */
+    uint32_t vistazo_ultimo_ms[2];   /* cuándo terminó el último vistazo hacia cada lado */
+    int      vistazo_hecho[2];       /* con qué cercanía se dio (0 = todavía ninguno en esta ruta) */
+    int      vistazo_cerc[2];        /* lo visto a cada lado en el último cuadro: cercanía (1 a 3, por la fila más baja), */
+    int      vistazo_n[2];           /* celdas, */
+    int      vistazo_grados_lado[2]; /* y a cuántos grados del eje de la cámara queda su columna media */
+    int      vistazo_grados;         /* cuánto tuerce el vistazo en curso */
+    int      vistazo_fase;           /* 1 = yendo (el rumbo torcido); 2 = ya de vuelta, el láser sigue escuchando NAV_VISTAZO_ESCUCHA_MS */
+    uint32_t vistazo_fase_ms;        /* cuándo empezó la fase 2 */
+    int      vistazo_lateral_mm[2];  /* a cuánto del eje del carro queda la orilla de adentro de lo visto a cada lado (estimado con la cámara SUPUESTA) */
+    int      vistazo_vacio[2];       /* cuadros seguidos sin nada en ese lado */
+    int      vistazo_solo_red[2];    /* 1 si lo de ese lado en el último cuadro es solo una caja de la red (sin celdas de color) */
+    int      vistazo_red_hecho[2];   /* 1 si a la caja de la red de ese lado ya se le dio su vistazo (no gasta los del color) */
+    int      vistazo_confirmado;     /* lado del objeto que confirmó un vistazo: se rodea por el otro (0 = ninguno) */
+    int      vistazo_retrocedio;     /* 1 si ya se retrocedió por lo que confirmó ese vistazo (se hace una sola vez, antes del primer giro) */
+    int      rodeo_por_vistazo;      /* 1 si el rodeo en curso empezó por un vistazo: lo confirmado está a un LADO del eje, no de frente */
+    uint32_t vistazo_fin_ms;         /* cuándo terminó el último vistazo (hacia cualquier lado) */
+    int      vistazo_alguno;         /* 1 si ya hubo alguno en esta ruta (vistazo_fin_ms vale) */
+    int      cmd_previo;             /* el comando anterior al actual (para saber si el carro está parado después de un avance) */
+    int      vistazos;               /* vistazos dados en la ruta */
+    int      vistazos_con_eco;       /* y cuántos confirmaron */
+    int      giro_extra_grados;      /* el primer giro del rodeo trae estos grados de más (o de menos) para deshacer lo torcido; la vuelta no los cuenta */
+    int      salida_linea_rumbo;     /* V2: rumbo de la LÍNEA de la ruta donde empezó el rodeo (salida_rumbo es el del carro al salir, que puede traer 2 o 3 grados de error) */
+    int      salida_linea_ok;        /* 1 si vale */
+    int      mirada_previa_fallida;  /* V2: la mirada anterior vio ocupada la entrada: la primera mirada despejada que le siga se confirma con otra un paso más adelante */
     int      max_giro_ruta;          /* el mayor giro que pide la propia ruta (grados) */
     char     obs_hex[OBS_ZONAS][26]; /* de lo último que se vio: la máscara de 10 x 10 en hexadecimal de cada zona (OBS_DIAG) */
     int      obs_franja_tapada, obs_franja_pct;
@@ -527,6 +652,32 @@ typedef struct {
     int      tof_mm;                 /* última lectura (1200 = libre) */
     int      tof_valida;             /* 1 si esa lectura fue una medida real */
     int      tof_libre_lecturas;     /* lecturas válidas seguidas mayores que NAV_TOF_LIBRE_MM */
+    int      tof_despejado_lecturas; /* V2: lecturas válidas seguidas mayores que NAV_FIN_HOLGURA_MM (nada confirmado en el frente inmediato) */
+    int      fin_delante_mm;         /* V2: al terminar, lo que el láser medía delante (0 = sin eco o sin dato): la app puede decir «hay algo a N cm del destino» */
+    int      giro_fw_min;            /* V2: el menor giro que acepta el firmware (5; 2 con el giro fino, CAPS GMIN): con el giroscopio sano uno menor NO se hace por tiempo */
+    int      giro_fw_fallos;         /* V2: giros por ángulo fallidos en esta ruta */
+    /* V2: rodeo medido (ver NAV_ESQ_HOLGURA_VOLVER_MM). */
+    int      scan_ext_mm;            /* hasta dónde (mm desde la línea, hacia el lado del rodeo) midió el láser el obstáculo del frente durante el primer giro; 0 = no lo vio */
+    int      scan_pared_mm;          /* distancia lateral (mm) a algo que está del lado del rodeo (una pared); 0 = nada */
+    int      scan_muestras;          /* lecturas válidas usadas */
+    int      scan_corte;             /* 1 = el barrido no pudo comprobar dónde termina la cara (se salió del alcance del láser viéndola todavía): se toma como cerrado */
+    /* Las lecturas del barrido (una por SENS): dónde pega el láser (s a lo largo de la ruta, lado hacia el costado medido), a qué ángulo del frente (grados) y, si no
+     * hubo eco, lo que habría que medir para seguir viendo la cara. Se analizan al terminar el giro (escaneo_analizar). */
+    int      scan_s[NAV_ESCANEO_MAX], scan_lado[NAV_ESCANEO_MAX], scan_grados[NAV_ESCANEO_MAX], scan_eco[NAV_ESCANEO_MAX], scan_sensor_s[NAV_ESCANEO_MAX];
+    int      scan_n;
+    int      sens_angulo_previo_x10; /* el ángulo del SENS anterior: la distancia de SENS es la mediana de 3 lecturas (~50 ms más vieja que su ángulo) */
+    int      ancho_rodeo_mm;         /* el ancho que se usó para dimensionar el rodeo (medido o supuesto) */
+    int      borde_lejos[2];         /* celdas «no piso» en el borde lejano izquierdo [0] y derecho [1] del último cuadro */
+    int      color_cercania[OBS_ZONAS];   /* la cercanía (1 a 3) que traía cada zona en el último cuadro, aunque la marcara una sola fuente */
+    long     flanco_s_mm;            /* dónde iba el carro (a lo largo de la ruta) la última vez que el costado del objeto estaba a la vista */
+    int      flanco_vistas;          /* cuántos cuadros lo vieron durante el paso en paralelo */
+    /* V2, CAMBIO DE LADO: si el láser mide que el lado elegido está cerrado (pared u objeto muy ancho, o sin espacio), el carro sigue girando EN EL MISMO SENTIDO
+     * (media vuelta y un cuarto más: una vuelta completa sobre la misma rueda, que no lo acerca al obstáculo) y en el último cuarto mide el otro lado. Si está libre
+     * rodea por ahí; con los dos cerrados pide ayuda (NAV_CAUSA_FRENTE_ANCHO) mirando otra vez al frente. Volver de frente giraría sobre la rueda del lado del
+     * obstáculo y acercaría el chasis 16 a 28 cm. */
+    int      lados_probados;         /* 0 = solo el primer lado; 1 = ya se midió (o se está midiendo) el otro */
+    int      cambio_lado;            /* 0 = no; 1 = dando la media vuelta; 2 = dando el último cuarto (midiendo el otro lado) */
+    int      scan_signo;             /* +1 = el escaneo mide hacia `lado`; -1 = hacia el lado contrario (durante el cambio de lado) */
     int      tof_cerca_lecturas;     /* lecturas válidas seguidas de 1 a NAV_REACCION_MAX_MM */
     uint32_t tof_t_ms;               /* hora de la última lectura */
     int      tof_paro_activo;        /* 1 desde TOF_PARO hasta que empieza a esquivar */
@@ -636,6 +787,35 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms);
 int  navegador_poner_giroscopio(Navegador *nav, int activo);
 int  navegador_poner_sensor_distancia(Navegador *nav, int activo);
 int  navegador_poner_autoridad_laser(Navegador *nav, int activo);
+/* V2: el menor giro (grados, de 1 a 10) que el firmware acepta en GIRAR (5 por defecto; el firmware con giro fino anuncia GMIN en CAPS). Con el giroscopio sano
+ * un giro menor que esto ya no se hace por tiempo (un micro-giro de 4 grados por tiempo salió de 18 en el carro): lo absorbe RUMBO al avanzar. */
+int  navegador_poner_giro_fw_min(Navegador *nav, int grados);
+
+/* V2, PRECAUCIÓN («avanzar a ratos»: 700 ms de avance, 300 de pausa) cuando UNA sola fuente de visión ve algo y el láser no da eco:
+ *   NAV_PRECAUCION_NUNCA (por defecto): nunca por una sola fuente. Una sola fuente de visión con el láser libre o sin eco no detiene al carro; lo de los lados lo
+ *       resuelve el vistazo sin frenar. En el banco (SIMULADO) quitó de 500 a 1000 paradas por cada 300 corridas con manchas de sol, sombras o reflejos y no cambió
+ *       el resultado del objeto bajo que ven las dos fuentes; el objeto bajo que SOLO ve el color (límite conocido) pasó de 273 a 267 de 300.
+ *   NAV_PRECAUCION_COLOR_CERCA: solo si es el COLOR, en el centro y cerca (cercanía 2 o 3): ahí el láser ya está mirando y no ve nada, así que puede ser algo bajo.
+ *   NAV_PRECAUCION_SIEMPRE: como la rama de partida (cualquier fuente, en cualquier zona).
+ * Sin el rumbo del firmware (no hay vistazo) vale siempre NAV_PRECAUCION_SIEMPRE. Es configuración: no cambia al cargar otra ruta. */
+/* V2, VISTAZO: cuántos vistazos se le dan a una misma cosa (navegador_poner_vistazo).
+ *   NAV_VISTAZO_NO: ninguno (como la rama de partida).   NAV_VISTAZO_LEJOS: uno, al verla por primera vez (lejos).
+ *   NAV_VISTAZO_LEJOS_Y_MEDIO: además otro cuando llega a cercanía 2.   NAV_VISTAZO_TODOS: además otro si ya está en cercanía 3. */
+#define NAV_VISTAZO_NO             0
+#define NAV_VISTAZO_LEJOS          1
+#define NAV_VISTAZO_LEJOS_Y_MEDIO  2
+#define NAV_VISTAZO_TODOS          3
+#define NAV_VISTAZO_POR_DEFECTO    NAV_VISTAZO_LEJOS   /* en el banco (SIMULADO) los vistazos de cerca no confirmaron más y sí acercaron el carro a las patas de una silla */
+int navegador_poner_vistazo(Navegador *nav, int modo);
+#define NAV_PRECAUCION_NUNCA       0
+#define NAV_PRECAUCION_COLOR_CERCA 1
+#define NAV_PRECAUCION_SIEMPRE     2
+/* COINCIDENCIA DE LAS DOS FUENTES (V2). Color y red en la misma zona confirman un obstáculo. Para que una caja inventada por la red que cae sobre una mancha de
+ * color durante UN cuadro no frene ni haga esquivar: con cercanía 2 hacen falta 2 cuadros seguidos para frenar (con cercanía 3 sigue bastando uno), y para
+ * ESQUIVAR sin láser que lo confirme hacen falta NAV_COINCIDENCIA_CUADROS_ESQUIVAR cuadros con coincidencia desde que el carro se detuvo. */
+#define NAV_COINCIDENCIA_CUADROS_ESQUIVAR 3
+#define NAV_COINCIDENCIA_CUADROS_FRENAR   2   /* cuadros SEGUIDOS con las dos fuentes en la misma zona para que cuente como obstáculo (el primero todavía no) */
+int navegador_poner_precaucion(Navegador *nav, int modo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);
