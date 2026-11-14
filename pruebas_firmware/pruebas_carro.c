@@ -576,29 +576,43 @@ static void prueba_balance(void)
 
 static void prueba_desconocido(void)
 {
-    /* Igual que el original: no mueve motores, pero renueva el watchdog y
-     * se guarda como comando actual. OJO: pendiente (ver docs). */
+    /* SEG=2 (autónomo v2): un texto desconocido no mueve motores, NO renueva el watchdog y NO queda como comando actual. (El original, y este firmware hasta v1.1,
+     * sí lo renovaban y lo guardaban: un cliente que probara un comando nuevo dejaba el carro avanzando sin latido y con el freno láser desarmado.) */
     reiniciar_mundo(0);
     carro_recibir_comando("HOLA");
     caso("desconocido con carro parado: no escribe nada", escrituras_pwm == 0 && pines_son(0, 0, 0, 0));
+    caso("... y se cuenta (carro_desconocidos)", carro_desconocidos() == 1u);
 
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
     int a = escrituras_pwm;
     reloj_ms = 600; carro_recibir_comando("HOLA");
     caso("desconocido en marcha: no cambia los motores", escrituras_pwm == a && pines_son(0, 255, 255, 0));
-    reloj_ms = 1500; vuelta_loop();
-    caso("desconocido RENUEVA el watchdog (como el original)", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
-    reloj_ms = 1601; vuelta_loop();
-    caso("... y frena 1001 ms después del desconocido", pines_son(0, 0, 0, 0));
+    caso("... y el carro sigue contando como «avanzando» (el freno láser sigue armado)", carro_avanzando() == 1);
+    reloj_ms = 1000; vuelta_loop();
+    caso("desconocido NO renueva el watchdog: a los 1000 ms del FORWARD todavía avanza", pines_son(0, PERFIL_AUTO_VELOCIDAD_IZQ, PERFIL_AUTO_VELOCIDAD_DER, 0));
+    reloj_ms = 1001; vuelta_loop();
+    caso("... y a los 1001 ms del FORWARD frena, aunque el desconocido llegó hace 401 ms", pines_son(0, 0, 0, 0));
 
-    /* El desconocido pasa a ser el comando actual: FORWARD vuelve a aplicarse. */
+    /* Una ráfaga de desconocidos tampoco lo mantiene en marcha. */
+    reiniciar_mundo(0);
+    carro_recibir_comando("FORWARD");
+    for (reloj_ms = 100; reloj_ms <= 1000; reloj_ms += 100) {
+        carro_recibir_comando("ACC?X");
+        carro_recibir_comando("");
+        vuelta_loop();
+    }
+    reloj_ms = 1001; vuelta_loop();
+    caso("una ráfaga de desconocidos y cadenas vacías no mantiene el avance: frena a los 1001 ms", pines_son(0, 0, 0, 0));
+
+    /* El desconocido NO pasa a ser el comando actual: el FORWARD repetido sigue siendo «repetido» y no reinicia nada. */
     reiniciar_mundo(0);
     carro_recibir_comando("FORWARD");
     carro_recibir_comando("HOLA");
     a = escrituras_pwm;
     carro_recibir_comando("FORWARD");
-    caso("tras un desconocido, FORWARD se vuelve a aplicar (4 escrituras)", escrituras_pwm == a + 4);
+    caso("tras un desconocido, el FORWARD repetido se sigue ignorando (0 escrituras): no reinicia el arranque a plena potencia", escrituras_pwm == a);
+    caso("... y el número de avances no cambia", carro_avances() == 1u);
 
     /* Comando larguísimo: no debe romper nada. */
     reiniciar_mundo(0);
@@ -718,6 +732,8 @@ static void o_execute(const char *cmd)
         return;
     } else if (!strcmp(cmd, "PING")) {
         return;
+    } else {
+        return;   /* segunda diferencia deliberada con el original (SEG=2): un texto desconocido no queda como comando actual */
     }
     strncpy(o_comando_actual, cmd, sizeof o_comando_actual - 1);
     o_comando_actual[sizeof o_comando_actual - 1] = '\0';
@@ -725,7 +741,11 @@ static void o_execute(const char *cmd)
 
 static void o_recibir(const char *msg)
 {
-    if (strcmp(msg, "PING")) o_ultimo_usuario = hw_millis();
+    /* ... ni renueva el watchdog: solo lo renuevan las órdenes que el carro entiende. */
+    if (!strcmp(msg, "FORWARD") || !strcmp(msg, "REVERSE") || !strcmp(msg, "LEFT") || !strcmp(msg, "RIGHT") || !strcmp(msg, "STOP") || !strcmp(msg, "EBRAKE") ||
+        !strcmp(msg, "MODO_MANUAL") || !strcmp(msg, "MODO_AUTO")) {
+        o_ultimo_usuario = hw_millis();
+    }
     o_execute(msg);
 }
 

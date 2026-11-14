@@ -25,6 +25,8 @@ static int      arranque_marcado = 0;   /* 1 cuando ya se anotó la hora desde l
 static int      valida          = 0;
 static int      cerca_seguidas  = 0;
 static int      ultimas[TOF_PARO_LECTURAS];   /* las últimas lecturas válidas cercanas (para informar la mayor) */
+static int      bloqueo_seguidas = 0;         /* SEG=2: lecturas válidas seguidas por debajo de TOF_BLOQUEO_MM */
+static int      ultimas_bloqueo[TOF_PARO_LECTURAS];
 static int      ventana[3];                   /* para la mediana */
 static int      ventana_n       = 0;
 static int      filtrado        = TOF_LIBRE_MM;
@@ -41,6 +43,7 @@ static void caer(void)
     }
     vivo = 0;
     cerca_seguidas = 0;
+    bloqueo_seguidas = 0;
     valida = 0;
     hay_reintento_programado = 0;   /* el primer reintento se programa en la siguiente vuelta, TOF_REINTENTO_MS después */
 }
@@ -92,6 +95,7 @@ int tof_iniciar(void)
     arranque_marcado = 0;
     valida = 0;
     cerca_seguidas = 0;
+    bloqueo_seguidas = 0;
     ventana_n = 0;
     filtrado = TOF_LIBRE_MM;
     total_lecturas = 0;
@@ -134,10 +138,19 @@ static void procesar(int crudo, uint32_t ahora_ms)
     if (crudo < 0 || crudo == 8190 || crudo == 65535 || crudo > TOF_LIBRE_MM) {
         valida = 0;
         cerca_seguidas = 0;
+        bloqueo_seguidas = 0;
         valor = TOF_LIBRE_MM;
     } else {
         valida = 1;
         valor = crudo;
+        if (crudo < TOF_BLOQUEO_MM) {
+            ultimas_bloqueo[bloqueo_seguidas % TOF_PARO_LECTURAS] = crudo;
+            if (bloqueo_seguidas < 1000) {
+                bloqueo_seguidas++;
+            }
+        } else {
+            bloqueo_seguidas = 0;
+        }
         if (crudo < TOF_PARO_MM) {
             ultimas[cerca_seguidas % TOF_PARO_LECTURAS] = crudo;
             if (cerca_seguidas < 1000) {
@@ -253,6 +266,21 @@ int tof_cerca_confirmada(void)
     for (i = 0; i < TOF_PARO_LECTURAS; i++) {
         if (ultimas[i] > mayor) {
             mayor = ultimas[i];
+        }
+    }
+    return mayor;
+}
+
+int tof_bloqueo_confirmado(void)
+{
+    int i, mayor = 0;
+
+    if (!vivo || bloqueo_seguidas < TOF_PARO_LECTURAS) {
+        return 0;
+    }
+    for (i = 0; i < TOF_PARO_LECTURAS; i++) {
+        if (ultimas_bloqueo[i] > mayor) {
+            mayor = ultimas_bloqueo[i];
         }
     }
     return mayor;

@@ -111,13 +111,23 @@ async def siguiente(ws, prefijo, espera=3.0):
 
 async def probar_sensores():
     """El servidor con --sensores (giroscopio y laser, J11) y sin ellos (firmware viejo)."""
+    # La salida de este servidor no se revisa: va a DEVNULL. (Con una tuberia que nadie lee, al llenarse el servidor se quedaba bloqueado en un print y dejaba de
+    # atender mensajes a mitad de la prueba.)
     sensores = subprocess.Popen([sys.executable, "-u", "servidor_falso.py", "--puerto", str(PUERTO_SENSORES), "--sensores"],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1.0)
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? incluye capacidades, escala del giroscopio (J16) y version simulada", await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,IMUS=0,FW:simulado")
+            caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=2, TUSO (autonomo v2) y version simulada",
+                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=2,TUSO=1,FW:simulado")
+            await ws.send("RUMBO:ON")
+            caso("sensores: RUMBO:ON -> ACK_RUMBO:1", await siguiente(ws, "ACK_RUMBO:") == "ACK_RUMBO:1")
+            await ws.send("RUMBO:-125")
+            await ws.send("RUMBO?")
+            caso("sensores: RUMBO:<n> no se contesta y RUMBO? informa encendido, sin avance y el objetivo", await siguiente(ws, "RUMBO:") == "RUMBO:1,0,-125,0,0")
+            await ws.send("RUMBO:OFF")
+            caso("sensores: RUMBO:OFF -> ACK_RUMBO:0", await siguiente(ws, "ACK_RUMBO:") == "ACK_RUMBO:0")
             await ws.send("IMU_ESCALA:-12500")
             caso("sensores: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500 y CAPS con IMUS=-12500", await siguiente(ws, "ACK_IMU_ESCALA:") == "ACK_IMU_ESCALA:-12500" and
                  (await siguiente(ws, "CAPS:") or "").find(",IMUS=-12500,") > 0)
@@ -175,8 +185,23 @@ async def probar_sensores():
                     break
             caso("sensores: FORWARD con algo a 80 mm -> TOF_PARO:80", paro == "TOF_PARO:80")
             await ws.send("STOP")
+            # SEG=2 (autonomo v2): con el frente a menos de 150 mm el FORWARD ni siquiera arranca; a 150 o mas, si.
+            while await siguiente(ws, "TOF_PARO:", 0.3):      # los TOF_PARO:80 que quedaron de los FORWARD de arriba
+                pass
+            await ws.send("SIM_TOF:140")
+            await ws.send("FORWARD")
+            caso("sensores (SEG=2): FORWARD con algo a 140 mm no arranca y contesta TOF_PARO:140 de inmediato", await siguiente(ws, "TOF_PARO:", 0.3) == "TOF_PARO:140")
+            await ws.send("SIM_TOF:160")
+            await ws.send("FORWARD")
+            caso("sensores (SEG=2): con algo a 160 mm el FORWARD arranca (sin TOF_PARO)", await siguiente(ws, "TOF_PARO:", 0.5) is None)
+            await ws.send("STOP")
+            await ws.send("SIM_TOF:80")
+            await ws.send("REVERSE")
+            caso("sensores (SEG=2): retroceder con algo a 80 mm no se bloquea", await siguiente(ws, "TOF_PARO:", 0.4) is None)
+            await ws.send("STOP")
             await ws.send("TOF_USO:0")
-            caso("sensores: TOF_USO:0 -> ACK_TOF_USO:0", await siguiente(ws, "ACK_TOF_USO") == "ACK_TOF_USO:0")
+            caso("sensores: TOF_USO:0 -> ACK_TOF_USO:0 y CAPS anuncia TUSO=0", await siguiente(ws, "ACK_TOF_USO") == "ACK_TOF_USO:0" and
+                 ",TUSO=0," in (await siguiente(ws, "CAPS:") or ""))
             paro = None
             for _ in range(6):
                 await ws.send("FORWARD")

@@ -248,6 +248,10 @@
 #define TOF_SONDEO_MS            4        /* mientras espera la medida, pregunta si está lista cada tantos ms (no en cada vuelta, para no llenar el bus) */
 #define TOF_PARO_MM              120
 #define TOF_PARO_LECTURAS        2
+/* Autónomo v2 (SEG=2): con el frente confirmado a menos de TOF_BLOQUEO_MM (TOF_PARO_LECTURAS lecturas válidas seguidas), un FORWARD en perfil AUTO NO arranca los
+ * motores: se contesta TOF_PARO:<mm>, igual que el freno. Antes cada reintento de avance daba un pulso a plena potencia contra el obstáculo antes de que el freno lo
+ * cortara. El margen sobre TOF_PARO_MM (histéresis) evita que el carro quede arrancando y frenando en el borde. Retroceder y girar no se bloquean. */
+#define TOF_BLOQUEO_MM           150
 #define TOF_LIBRE_MM             1200
 #define TOF_MIN_VALIDO_MM        8        /* menos de esto es basura del sensor: se ignora (ni libre ni cerca) */
 #define TOF_ERRORES_MAX          3

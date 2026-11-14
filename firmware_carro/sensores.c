@@ -43,6 +43,8 @@ static uint32_t ultimo_sens_serie_ms = 0;
 static int      destino_cal = SENSORES_DESTINO_WS;
 static int      tof_uso = 1;                /* 1 = la parada de emergencia del láser está encendida (TOF_USO:0 la apaga: el interruptor «Usar sensor de distancia» de la app); por defecto encendida */
 static int      paro_enviado = 0;           /* 1 desde que se pidió la parada hasta que el carro deja de avanzar */
+static uint32_t paro_avance = 0;            /* SEG=2: en qué avance (carro_avances) se pidió esa parada; un avance NUEVO rearma el freno aunque nadie haya visto al carro quieto */
+static uint32_t bloqueos_tof = 0;           /* SEG=2: avances que no se dejaron arrancar por el frente bloqueado */
 static uint32_t paros_tof = 0;
 static uint32_t loop_max_us = 0;
 static uint32_t loop_excesos = 0;
@@ -98,6 +100,8 @@ void sensores_reiniciar_estado(void)
     ultimo_sens_serie_ms = 0;
     destino_cal = SENSORES_DESTINO_WS;
     paro_enviado = 0;
+    paro_avance = 0;
+    bloqueos_tof = 0;
     tof_uso = 1;
     paros_tof = 0;
     loop_max_us = 0;
@@ -121,8 +125,11 @@ static void imu_anotar_arranque(void)
 static void texto_caps(char *dest, int largo)
 {
     /* RUMBO=1: este firmware entiende RUMBO:ON/OFF/<n> (J16). IMUS=<ppm>: entiende IMU_ESCALA y es la corrección de escala del giroscopio en uso (J16). */
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,%s",
-             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), (long)imu_escala_ppm(), FW_VERSION);
+    /* SEG=2 (autónomo v2): un texto desconocido ya no renueva el watchdog ni queda como comando actual; un FORWARD en AUTO con el frente confirmado a menos de
+     * TOF_BLOQUEO_MM no arranca (contesta TOF_PARO); el freno láser se rearma en cada avance nuevo. TUSO=<0|1>: si el freno láser está en uso (TOF_USO). Las claves
+     * nuevas van ANTES de FW: y no contienen «IMU=», «TOF=» ni «RUMBO=» (la app actual busca esas subcadenas). */
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,SEG=2,TUSO=%d,%s",
+             imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), (long)imu_escala_ppm(), tof_uso ? 1 : 0, FW_VERSION);
 }
 
 void sensores_iniciar(void)
@@ -191,6 +198,9 @@ static void revisar_paro_tof(void)
         paro_enviado = 0;                       /* ya no avanza: la próxima vez que avance se puede volver a frenar */
         return;
     }
+    if (paro_enviado && carro_avances() != paro_avance) {
+        paro_enviado = 0;                       /* SEG=2: es OTRO avance (el STOP del freno y un FORWARD nuevo se atendieron en la misma vuelta): el freno vuelve a estar armado */
+    }
     if (paro_enviado || !tof_uso || carro_perfil() != PERFIL_AUTO) {
         return;
     }
@@ -199,12 +209,31 @@ static void revisar_paro_tof(void)
         return;
     }
     paro_enviado = 1;
+    paro_avance = carro_avances();
     paros_tof++;
     carro_bloquear();
     carro_encolar_comando("__STOP_AUTO");       /* el STOP interno que nunca se pierde en la cola */
     carro_desbloquear();
     snprintf(texto, sizeof texto, "TOF_PARO:%d", mm);
     sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
+}
+
+int sensores_frente_bloqueado(void)
+{
+    int mm;
+    char texto[MENSAJE_SALIDA_MAX];
+
+    if (!tof_uso || carro_perfil() != PERFIL_AUTO) {
+        return 0;
+    }
+    mm = tof_bloqueo_confirmado();
+    if (mm <= 0) {
+        return 0;
+    }
+    bloqueos_tof++;
+    snprintf(texto, sizeof texto, "TOF_PARO:%d", mm);   /* el mismo aviso que el freno: la app ya sabe qué hacer con él */
+    sensores_enviar(SENSORES_DESTINO_WS | SENSORES_DESTINO_SERIE, texto);
+    return mm;
 }
 
 /* J16: el watchdog de 1 s frenó el carro (no le llegaron comandos): se avisa WD:<frenos desde el encendido>. Así la app sabe que el carro quedó quieto y no sigue
@@ -298,6 +327,7 @@ void sensores_registrar_loop_us(uint32_t us)
 uint32_t sensores_loop_max_us(void)  { return loop_max_us; }
 uint32_t sensores_loop_excesos(void) { return loop_excesos; }
 uint32_t sensores_paros_tof(void)    { return paros_tof; }
+uint32_t sensores_bloqueos_tof(void) { return bloqueos_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
