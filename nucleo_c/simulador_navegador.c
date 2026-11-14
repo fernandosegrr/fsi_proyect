@@ -361,12 +361,38 @@ static void j16_avanzar(Simulador *sim, int dt)
     }
 }
 
+/* AUTÓNOMO V2: azar propio (determinista por corrida) para el jitter de comandos y los giros por tiempo. */
+static int v2_entre(Simulador *sim, int minimo, int maximo)
+{
+    sim->v2_azar = sim->v2_azar * 1664525u + 1013904223u;
+    return minimo + (int)((sim->v2_azar >> 8) % (unsigned)(maximo - minimo + 1));
+}
+
 /* El comando que de verdad ejecuta el carro: el del navegador de hace j16_latencia_cmd_ticks ticks. */
 static ComandoNav j16_comando_fisico(Simulador *sim, ComandoNav comando)
 {
     int i, n = sim->j16_latencia_cmd_ticks;
     ComandoNav sale;
 
+    if (sim->j16_activo && sim->v2_jitter_cmd_pct > 0) {   /* V2: cada comando nuevo viaja con el retraso habitual, un tick menos o un tick más */
+        if (comando != sim->v2_ultimo_nav || sim->v2_n_cmd == 0) {
+            int tiro = v2_entre(sim, 0, 199), extra = 0;
+
+            if (tiro < sim->v2_jitter_cmd_pct) {
+                extra = -1;
+            } else if (tiro < 2 * sim->v2_jitter_cmd_pct) {
+                extra = 1;
+            }
+            sim->v2_retraso = n + extra;
+            if (sim->v2_retraso < 0) sim->v2_retraso = 0;
+            if (sim->v2_retraso > 7) sim->v2_retraso = 7;
+            sim->v2_ultimo_nav = comando;
+        }
+        sim->v2_hist_cmd[sim->v2_n_cmd & 15] = comando;
+        sale = (sim->v2_n_cmd >= sim->v2_retraso) ? sim->v2_hist_cmd[(sim->v2_n_cmd - sim->v2_retraso) & 15] : NAV_CMD_STOP;
+        sim->v2_n_cmd++;
+        return sale;
+    }
     if (!sim->j16_activo || n <= 0) {
         return comando;
     }
@@ -450,7 +476,9 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
             }
             celdas += (int)((sim->recorrido_cmm - e->base_recorrido_cmm) * e->crece_por_10cm / 10000);   /* un obstáculo real crece al acercarse */
             cuadro->zona[e->zona].hay_obstaculo = 1;
+#ifndef SIM_SIN_FUENTES   /* al compilar este simulador contra el núcleo de v1.1 (sin procedencia por zona) se define SIM_SIN_FUENTES */
             cuadro->fuentes_vision[e->zona] = 3; /* evento sintético observado por color y red */
+#endif
             if (celdas > cuadro->zona[e->zona].celdas) {
                 cuadro->zona[e->zona].celdas = celdas;
             }
@@ -477,16 +505,28 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
         sim->x_cmm += seno(rumbo) * distancia / 1000;
         sim->y_cmm -= coseno(rumbo) * distancia / 1000;
         break;
-    case NAV_CMD_LEFT:
-        desplazar_al_girar(sim, CAL_LADO_IZQUIERDA, (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100);
-        sim->rumbo_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
-        sim->giro_desde_cuadro_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+    case NAV_CMD_LEFT: {
+        long cola = (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+
+        if (sim->v2_giro_tiempo_real) {   /* V2: el pivote va a plena potencia y STOP es rueda libre: sigue girando varios grados (SUPUESTO: 3 a 12) */
+            cola = (cola > 600 ? cola : 600) * sim->v2_frenado_giro_pct / 100;
+        }
+        desplazar_al_girar(sim, CAL_LADO_IZQUIERDA, cola);
+        sim->rumbo_cgrados -= cola;
+        sim->giro_desde_cuadro_cgrados -= cola;
         break;
-    case NAV_CMD_RIGHT:
-        desplazar_al_girar(sim, CAL_LADO_DERECHA, (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100);
-        sim->rumbo_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
-        sim->giro_desde_cuadro_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+    }
+    case NAV_CMD_RIGHT: {
+        long cola = (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+
+        if (sim->v2_giro_tiempo_real) {
+            cola = (cola > 600 ? cola : 600) * sim->v2_frenado_giro_pct / 100;
+        }
+        desplazar_al_girar(sim, CAL_LADO_DERECHA, cola);
+        sim->rumbo_cgrados += cola;
+        sim->giro_desde_cuadro_cgrados += cola;
         break;
+    }
     default:
         break;
     }
@@ -801,6 +841,10 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
             sim->cmd_previo = fisico;
             sim->ms_en_comando = 0;
+            if (sim->v2_giro_tiempo_real && (fisico == NAV_CMD_LEFT || fisico == NAV_CMD_RIGHT)) {   /* V2: retardo de arranque y cola de ESTE giro por tiempo */
+                sim->v2_arranque_giro_ms = sim->real.arranque_ms * v2_entre(sim, 40, 110) / 100;
+                sim->v2_frenado_giro_pct = v2_entre(sim, 50, 200);
+            }
             sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* un comando nuevo: el giro (y su desplazamiento) se cuentan desde cero */
             sim->giro_acum_cgrados = 0;
             sim->desp_x_cmm = 0;
@@ -809,7 +853,8 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         {
             int antes = sim->ms_en_comando;
             int despues = antes + NAV_TICK_MS;
-            int desde = (antes > sim->real.arranque_ms) ? antes : sim->real.arranque_ms;
+            int arranque = (sim->v2_giro_tiempo_real && (fisico == NAV_CMD_LEFT || fisico == NAV_CMD_RIGHT)) ? sim->v2_arranque_giro_ms : sim->real.arranque_ms;
+            int desde = (antes > arranque) ? antes : arranque;
             int efectivo = (despues > desde) ? despues - desde : 0;
 
             if (nav->giro_fw) {

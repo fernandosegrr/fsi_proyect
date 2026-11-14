@@ -20,6 +20,7 @@
 #include "calibracion.h"
 
 #define SIM_MAX_EVENTOS   8
+#define SIM_REALISMO_V2   1   /* este simulador trae los campos v2_* (jitter de comandos y giros por tiempo realistas) */
 #define SIM_MAX_CAMBIOS 256
 
 /* Un obstáculo programado: visible en una zona entre t_ini_ms (incluido) y t_fin_ms (excluido). */
@@ -155,6 +156,19 @@ typedef struct {
     int  j16_rumbo_aprendido_mil, j16_rumbo_corr_mil;
     int  j16_rumbo_t_ms, j16_rumbo_dt_acum;
     int  j16_rumbo_objetivos;        /* cuántos RUMBO:<n> recibió */
+
+    /* AUTÓNOMO V2: realismo extra, todo opcional (con los dos en 0 el simulador hace exactamente lo de antes). SUPUESTOS, no mediciones.
+     *  - v2_jitter_cmd_pct: porcentaje de los comandos que llegan al carro un tick (50 ms) antes o después de su retraso habitual (WiFi).
+     *  - v2_giro_tiempo_real: un giro POR TIEMPO (LEFT/RIGHT sin giroscopio) arranca entre 0.4 y 1.1 veces el retardo calibrado y, al soltarlo, sigue girando
+     *    entre 0.8 y 1.5 veces el frenado calibrado: así un micro-giro de 4 grados puede salir de 5 a 18 (lo medido en B6: 4 a 18 y 4 a 5 por tiempo).
+     *  - v2_azar: semilla propia de estos dos (la pone el banco en cada corrida para que una corrida suelta se repita igual). */
+    int  v2_jitter_cmd_pct;
+    int  v2_giro_tiempo_real;
+    uint32_t v2_azar;
+    ComandoNav v2_hist_cmd[16];
+    int  v2_n_cmd, v2_retraso;
+    ComandoNav v2_ultimo_nav;
+    int  v2_arranque_giro_ms, v2_frenado_giro_pct;
 
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];

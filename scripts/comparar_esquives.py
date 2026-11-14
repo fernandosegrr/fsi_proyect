@@ -52,6 +52,12 @@ def ejecutar(destino, corridas):
     return resultado.stdout.decode("utf-8").replace("\r\n", "\n")
 
 
+def escribir(ruta, texto):
+    # Path.write_text(newline=...) no existe antes de Python 3.10; open() lo acepta en todas.
+    with open(ruta, "w", encoding="utf-8", newline="\n") as archivo:
+        archivo.write(texto)
+
+
 def filas(texto):
     patron = (r'^J16 escenario=(esquive_20x20|esquive_ancha) config="(DESPUES[^"]+)" n=(\d+) '
               r'error_mm media=(\d+) p50=\d+ p95=(\d+).*?llegan=(\d+) toques=(\d+)')
@@ -70,7 +76,7 @@ def main():
             destino = raiz / nombre
             exportar(destino, ref)
             texto = ejecutar(destino, args.corridas)
-            (salida / f"esquive_autonomia_mc_{nombre}.txt").write_text(texto, encoding="utf-8", newline="\n")
+            escribir(salida / f"esquive_autonomia_mc_{nombre}.txt", texto)
     antes = filas((salida / "esquive_autonomia_mc_v11.txt").read_text(encoding="utf-8"))
     despues = filas((salida / "esquive_autonomia_mc_actual.txt").read_text(encoding="utf-8"))
     if len(antes) != 6 or antes.keys() != despues.keys():
@@ -86,7 +92,7 @@ def main():
         lineas.append(f"{'OK' if ok else 'FALLO'} {clave}: media/p95 {a[1]}/{a[2]} -> {d[1]}/{d[2]} mm; llegadas {a[3]} -> {d[3]}; contactos {a[4]} -> {d[4]}")
     lineas.append(f"6 comparaciones, {fallos} fallos")
     texto = "\n".join(lineas) + "\n"
-    (salida / "esquive_autonomia_comparacion.txt").write_text(texto, encoding="utf-8", newline="\n")
+    escribir(salida / "esquive_autonomia_comparacion.txt", texto)
     print(texto)
     return 1 if fallos else 0
 
