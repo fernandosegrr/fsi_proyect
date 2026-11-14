@@ -53,3 +53,14 @@ Dónde está en el código: `limites_conocidos.md`, `estado_20261110.md`, `repor
 El láser cercano o la coincidencia color/red por zona confirman obstáculo. Con láser libre, una sola fuente no frena. Sin eco se decide por visión; el cierre necesita varios cuadros sin coincidencia y rebase cumplido. No hay fondo fijo de 250 mm: se explora y reintenta. El supuesto sensor-centro de 120 mm y las bandas visuales siguen pendientes de medición.
 
 Banquito 35×45 y arreglo **NO MEDIDOS** hasta repetir primero con caja de 20×20 cm, previa autorización. La app exige Aprender piso, pero no identifica automáticamente todos los cambios de iluminación. El modelo no cubre todos los objetos ni acredita espacio trasero dinámico. Códigos y presupuestos: `docs/limites_conocidos.md`. No se instaló APK, grabó firmware ni declaró v1.2.
+
+## 13.5 Autónomo v2: límites que quedan (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v2`. La lista completa y vigente está en `docs/limites_conocidos.md`.
+
+- **Muebles con patas** (banquito, silla): el láser pasa entre las patas y la visión las ve tarde. En el banco no se llega al 99 %.
+- **Objeto bajo que solo ve una fuente:** con el láser sin eco no se distingue de una mancha. Se eligió no detener al carro por una sola fuente.
+- **Punto ciego junto al carro** al girar hacia la línea: lo cubre una segunda mirada, no un sensor.
+- **Sin sensor trasero:** las reversas recorren solo camino recién pisado.
+- **Rodeo más largo:** el carro vuelve a la línea unos 60 cm después de una caja de 20 cm.
+- **Supuestos sin medir:** pivote izquierdo, campo y altura de la cámara, alcance del láser contra una pared de lado, respuesta del control de rumbo en el vistazo.

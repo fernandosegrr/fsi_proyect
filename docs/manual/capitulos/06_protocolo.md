@@ -72,3 +72,18 @@ Al abrir el `WebSocket` o al recibir `ESTADO`, el firmware envía después del m
 Esta cadena permite que la aplicación Android verifique en el primer instante si el carro cuenta con giroscopio, si ya está calibrado, si tiene láser activo, si soporta control de rumbo `RUMBO`, cuál es su escala `IMUS` guardada en `NVS` y si la revisión `FW:` coincide con el commit de la aplicación (`6d1b213`).
 
 Dónde está en el código: `carro.c`, `sensores.c`, `firmware_carro.ino`, `Enlace.kt`, `probar_servidor_falso.py`.
+
+## 6.5 Autónomo v2: `SEG=2`, `TUSO` y `cam-v2` (`COMPILADO`, no grabado)
+
+Rama `feat/autonomo-v2`. El firmware del carro con estos cambios **solo se compiló** (1 034 502 bytes, 78 %) y pasó 559 pruebas en computadora; no se grabó.
+
+| Cambio | Antes (v1.1) | Con `SEG=2` |
+|---|---|---|
+| Texto desconocido o vacío | Renovaba el watchdog y quedaba como comando actual: el carro seguía avanzando sin latido, sin freno láser y sin control de rumbo | No mueve nada, no renueva el watchdog, no cambia el comando actual |
+| `FORWARD` en perfil AUTO con el frente confirmado a menos de 150 mm | Daba un pulso a plena potencia y el freno lo cortaba una vuelta después | No arranca; contesta `TOF_PARO:<mm>` |
+| Freno láser tras un paro | Podía quedar desarmado si el `STOP` del freno y un `FORWARD` se atendían en la misma vuelta | Se rearma en cada avance nuevo |
+| `CAPS` | `...,RUMBO=1,IMUS=<ppm>,FW:<hash>-<fecha>` | `...,RUMBO=1,IMUS=<ppm>,SEG=2,TUSO=<0\|1>,FW:<hash>-<fecha>` |
+
+`TOF_PARO` sigue en 120 mm y el watchdog en 1000 ms. Retroceder, girar y el perfil MANUAL no se bloquean. `SENS` no cambia: la app v1.1 exige exactamente tres campos. Las claves nuevas de `CAPS` van antes de `FW:` y no contienen `IMU=`, `TOF=` ni `RUMBO=`, que son las subcadenas que busca la app. `TUSO` dice si el freno láser está en uso (`TOF_USO`).
+
+La cámara `cam-v2` agrega claves al final de `/stats` (ver 5.5). La app nueva funciona con los firmwares actuales, y los firmwares nuevos con la app v1.1.

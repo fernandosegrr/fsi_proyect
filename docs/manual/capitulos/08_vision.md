@@ -62,3 +62,14 @@ En la aplicación Android intervienen concurrentemente varios hilos que invocan 
 En la auditoría previa al cierre **J16** se identificó que las estructuras globales de visión en `puente.c` (`g_obs`, `g_cfg_corredor`, `g_cfg_fusion`, `g_cfg_cualq` y `g_mascara`) podían ser leídas y modificadas al mismo tiempo desde dos hilos de Kotlin sin exclusión mutua. Para eliminar cualquier riesgo de corrupción de memoria o lectura desgarrada (*torn read*), el cierre **J16** introdujo en `puente.c` un **candado mutex multiplataforma (`candado_vision`)** —implementado con `pthread_mutex_t` en Android/Linux y `CRITICAL_SECTION` en Windows— junto con las primitivas `vision_lock()` y `vision_unlock()` que envuelven todas las entradas `JNI` de visión y aprendizaje de suelo.
 
 Dónde está en el código: `obstaculos.h`, `obstaculos.c`, `corredor.h`, `corredor.c`, `fusion.h`, `fusion.c`, `cualquiera.c`, `mascara_vision.c`, `puente.c`, `DetectorTflite.kt`, `ModeloEnHilo.kt`.
+
+## 8.6 Autónomo v2: consenso temporal, salud del detector y telemetría (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. Las reglas de fusión aprobadas no cambian; cambia cuándo se aplican.
+
+- **Coincidencia de color y red:** cuenta desde el segundo cuadro seguido, y para esquivar sin láser hacen falta tres cuadros con el carro detenido. Una caja inventada por la red sobre una mancha de color suele durar un cuadro.
+- **Una sola fuente de visión** con el láser libre o sin eco no detiene ni hace avanzar a ratos. Lo que ve a un lado se resuelve con el vistazo del láser (7.6).
+- **Salud del detector de objetos:** si la ruta cuenta con él y pasan 2.5 s sin un resultado vigente, el carro se detiene y pide ayuda con la causa 17. Al iniciar, la app avisa si la ruta sale sin láser, sin detector o sin cámara.
+- **Telemetría numérica** (`nucleo_c/vision_tele.c`): cada cuadro se resume en una línea `VTEL` con el histograma de distancias de color al piso aprendido, brillo, celdas quemadas y negras, y celdas «no piso» por zona, banda y fila. Nunca se guarda la imagen.
+
+Cómo leer un falso positivo en la caja negra: si **todo** el histograma se corre a la vez, la cámara cambió su exposición o el piso se aprendió con otra luz; si solo suben unas celdas de una zona, es una mancha de sol, una sombra o un reflejo. Esta lectura es una hipótesis del banco: `NO MEDIDO` en el carro.

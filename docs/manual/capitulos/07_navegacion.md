@@ -96,3 +96,17 @@ La reincorporación exige alcanzar el avance planeado. El cierre añade STOP y 3
 Ambos lados bloqueados requieren 4000 ms y agotar el retroceso conocido: 150 mm solo si se conservan 180 mm del tramo recto recién recorrido. No existe sensor trasero; ese supuesto no cubre objetos que aparezcan por detrás. Se conservan frenos por sensores perdidos, intentos agotados y pose incoherente. El firmware mantiene TOF_PARO a 120 mm.
 
 SIMULADO: caja 20×20 termina con un intento; banquito 35×45 con tres; objeto de 90 cm de fondo con seis. Cero contactos en estos mundos. Banquito y arreglo **NO MEDIDOS**: primero repetir con caja de 20×20 cm, previa autorización. Poses, Monte Carlo contra v1.1 y códigos: `docs/diagnostico_esquive_20261111.md` y `docs/limites_conocidos.md`. No se declara v1.2 ni validación física.
+
+## 7.6 Autónomo v2: rodeo medido, mirada y vistazo (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. Todo lo de esta sección salió del banco `nucleo_c/pruebas_autonomo_v2.c`; **nada está validado en el carro**. Detalle y parámetros en `docs/autonomo_v2_diseno.md`.
+
+El carro gira sobre un costado: el pivote derecho queda a 157 mm del centro y la esquina más lejana del chasis barre hasta 285 mm. Casi todos los contactos del banco con la rama anterior salían de un giro hecho junto a algo que no se había visto. El rodeo nuevo no gira hacia nada que no haya medido o mirado antes:
+
+1. **Barrido.** Durante el primer giro, cada `SENS` da el ángulo y la distancia del láser: con eso se mide el ancho del obstáculo hacia ese lado y si hay una pared. El desvío lateral es el ancho más 240 mm (entre 400 y 800).
+2. **Cambio de lado.** Si ese lado está cerrado, el carro sigue girando en el mismo sentido y barre el otro. Con los dos cerrados pide ayuda con la causa 16, sin haberse acercado.
+3. **Paso en paralelo.** Avanza una pista calculada con el campo de la cámara después del último punto en que el costado pudo verse, sosteniendo el carril con el control de rumbo.
+4. **Mirada.** Tras el primer giro del regreso el carro se queda mirando hacia donde va a entrar. Si ve algo, avanza un paso más y vuelve a mirar. Si la entrada se ocupa a medio camino, deshace la diagonal en reversa.
+5. **Vistazo.** Lo que solo ve el color a un lado (una caja corrida, una pata) se mira con el láser torciendo el rumbo 10–16° en marcha. Dos ecos válidos confirman: el carro se detiene, retrocede por donde vino y rodea por el otro lado.
+
+Además: los giros menores que el mínimo del firmware ya no se hacen por tiempo; parado tras un avance, el rumbo sigue al giroscopio; y «Terminado» sin rodeo abierto se acepta al llegar aunque el láser vea una pared más allá del destino.

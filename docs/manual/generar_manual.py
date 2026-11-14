@@ -508,8 +508,9 @@ def construir_portada(story):
         [
             Paragraph("<b>Revisión del repositorio:</b>", STYLES["td"]),
             Paragraph(
-                '<font name="DejaVuMono" size="8.2">Base v1.1: bd1727b; revisión de autonomía 12-nov-2026</font><br/>'
-                f"{html.escape(rama)} (pendiente de validación física)",
+                '<font name="DejaVuMono" size="8.2">Base v1.1: bd1727b; autónomo v2 del 13-nov-2026</font><br/>'
+                f"{html.escape(rama)}, contenido del commit {html.escape(git('rev-parse', '--short', 'HEAD'))} "
+                "(SIMULADO; pendiente de validación física)",
                 STYLES["td"],
             ),
         ],

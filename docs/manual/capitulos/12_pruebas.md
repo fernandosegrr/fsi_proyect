@@ -101,3 +101,24 @@ Los falsos de solo color, solo red y las tres zonas de solo color continúan sin
 Monte Carlo pareado contra bd1727b: 1000 corridas por escenario y configuración. Sin RUMBO, media/p95 lateral de caja pasan de 33/78 a 32/76 mm; ancho, de 33/79 a 32/77 mm. Con RUMBO, caja pasa de 17/40 a 17/37; ancho, de 17/40 a 16/38. Con escala calibrada, caja pasa de 17/40 a 16/37; ancho, de 17/39 a 16/38. Las seis comparaciones conservan 1000 llegadas y cero contactos, sin tolerancia a empeorar. No son medidas físicas ni precisión longitudinal.
 
 Pruebas y registros reproducibles: `docs/diagnostico_esquive_20261111.md` y `scripts/comparar_esquives.py`. **Banquito: NO MEDIDA. Arreglo: NO MEDIDO en el carro.** Primero repetir con caja de 20×20 cm y telemetría, previa autorización; la validación B6 histórica no se transfiere a esta rama. APK y firmware no compilados ni instalados en esta revisión.
+
+## 12.6 Autónomo v2: banco realista y compuertas (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. El banco `nucleo_c/pruebas_autonomo_v2.c` corre el navegador, el detector de color y la fusión reales contra un mundo sintético (`mundo_v2.c`): objetos con volumen, baldosas con juntas, manchas de sol, sombras, reflejos, cámara con exposición automática, láser con su cono y una red neuronal estadística. **Ninguno de estos números se midió en el carro.**
+
+`python scripts/compuertas_autonomo.py --corridas 1000` compila tres versiones del núcleo (v1.1, `6bea71e` y la actual) contra el mismo banco y deja los resultados en `docs/precision/autonomo_v2_*.txt`.
+
+| Escenario (1000 corridas) | v1.1 | `6bea71e` | Autónomo v2 |
+|---|---|---|---|
+| Caja 20 × 20 | 629 ok, 2 contactos | 1000 ok | 1000 ok |
+| Caja corrida de lado | 991 ok, 3 contactos | 663 ok, 337 contactos | 998 ok, 2 contactos |
+| Banquito 35 × 45 | 245 ok, 596 contactos | 17 ok, 133 contactos | 774 ok, 81 contactos |
+| Objeto de 90 cm | 4 ok, 535 contactos | 85 ok, 898 contactos | 1000 ok |
+| Silla con patas | 161 ok, 524 contactos | 39 ok, 12 contactos | 318 ok, 40 contactos |
+| Dos obstáculos | 359 ok, 67 contactos | 19 ok, 110 contactos | 994 ok, 6 contactos |
+| Pared al frente | 1000 contactos | 480 contactos | 0 contactos, ayuda con causa 16 |
+| Mancha de sol | 179 ok, 792 ayudas | 996 ok, 4 esquives | 1000 ok, 0 esquives |
+
+Las compuertas del encargo **no se cumplen todas**: muebles con patas, 6 contactos de 1000 con dos obstáculos, 5 con el objeto bajo, paradas momentáneas en 7–12 % de las corridas con manchas de color, y 1 mm más de error lateral medio en el Monte Carlo heredado. El detalle y las razones están en `docs/autonomo_v2_diseno.md` y `docs/limites_conocidos.md`.
+
+Pruebas de software de la rama: `make -C nucleo_c test` 1865 casos; `make -C pruebas_firmware test` 559 casos; servidor falso 60 casos; todos sin fallos.

@@ -159,3 +159,25 @@ Lectura: la política de la rama de partida quita los esquives y las AYUDA falsa
 | Servidor falso y `verificar_version.py` | Se arregla |
 | Manual (capítulos 4, 5, 6, 8, 9) contra el código | Se corrige lo que toca al modo autónomo |
 | Mapa local y planificador (E), hilo de control separado de la interfaz, corte de PWM por temporizador | Diseño y trabajo futuro |
+
+## 6. Cierre: qué pasó con cada decisión (13-nov-2026)
+
+La tabla de arriba es el plan con el que se cerró la auditoría. Esto es lo que quedó de verdad en la rama; el detalle está en [el diseño](autonomo_v2_diseno.md).
+
+| Tema | Resultado |
+|---|---|
+| Cierre de ruta, obstáculo más allá del destino | Hecho. SIMULADO: 1000 de 1000 |
+| Geometría del rodeo, ancho con el láser | Hecho. El fondo no se mide: se cubre con la pista del paso en paralelo y la mirada antes de entrar |
+| Cono del láser frente al chasis | Hecho con el vistazo: 998 de 1000 (la partida, 663) |
+| Patas de muebles | **Parcial**: 774 y 318 de 1000. Sigue siendo un límite |
+| Vigencia del modelo | Hecho (causa 17 y aviso al iniciar) |
+| Presupuesto por obstáculo, giros por tiempo, `giro_fw_caido` | Hecho |
+| Robustez fotométrica del clasificador | **No se tocó el clasificador.** Los falsos positivos se resolvieron en la decisión (consenso temporal). Queda la telemetría para medir la causa real |
+| Caja negra, causa de AYUDA, aviso al iniciar | Hecho; compilado, sin probar en el teléfono |
+| Firmware del carro | Hecho y compilado: texto desconocido, bloqueo de `FORWARD`, rearme del freno, `CAPS`. **Giro fino y acelerómetro: solo diseño** |
+| Firmware de la cámara | Hecho y compilado: `AUTOPRUEBA` en 0 y telemetría fotométrica. **Fijar exposición: solo diseño** |
+| Servidor falso | Hecho. `verificar_version.py` sin modo solo-firmware: pendiente |
+| Manual contra el código | Se agregaron secciones de la rama a los capítulos 5, 6, 7, 8, 12, 13 y 15. **Las discrepancias viejas de los capítulos 4, 6 y 9 que encontró la auditoría (F-A6, A-M9) siguen sin corregir** |
+| Mapa local, hilo de control aparte, corte de PWM por temporizador | Diseño y trabajo futuro |
+
+Hipótesis más probable de los falsos positivos de visión, sin cambio: mancha de sol o reflejo sobre piso brillante, seguida de un cambio de exposición o de balance de blancos de la cámara con el piso fijo. **NO MEDIDO**: la caja negra y `/stats` de la cámara ya guardan los números para confirmarlo o descartarlo en la primera sesión física.
