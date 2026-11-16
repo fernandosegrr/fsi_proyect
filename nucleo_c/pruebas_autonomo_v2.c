@@ -385,6 +385,10 @@ static Resultado correr(int e, uint32_t semilla)
     /* El carro real: el modelo físico J16 con sus dispersiones (pruebas_precision_j16.c). */
     sim_iniciar(&sim, s.ruta[0].columna, s.ruta[0].fila, 0);
     sim_sembrar_azar_fw(semilla);   /* cada corrida con su propio ruido de giro: «depurar» repite la corrida de la tanda */
+#ifdef NAV_V3
+    if (getenv("AV3_MEMORIA_ECO")) navegador_poner_memoria_eco(&nav, atoi(getenv("AV3_MEMORIA_ECO")));   /* 1 por defecto; 0 = como v2 */
+    if (getenv("AV3_ECO_RETROCEDE")) navegador_poner_eco_retroceder(&nav, atoi(getenv("AV3_ECO_RETROCEDE")));
+#endif
 #ifdef NAV_PRECAUCION_NUNCA
     if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
     if (getenv("AV2_VISTAZO")) navegador_poner_vistazo(&nav, atoi(getenv("AV2_VISTAZO")));           /* 0 no, 1 lejos, 2 lejos y medio, 3 todos */

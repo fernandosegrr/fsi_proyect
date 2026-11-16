@@ -715,7 +715,10 @@ typedef struct {
     int      scan_signo;             /* +1 = el escaneo mide hacia `lado`; -1 = hacia el lado contrario (durante el cambio de lado) */
     int      tof_cerca_lecturas;     /* lecturas válidas seguidas de 1 a NAV_REACCION_MAX_MM */
     uint32_t tof_t_ms;               /* hora de la última lectura */
-    int      tof_paro_activo;        /* 1 desde TOF_PARO hasta que empieza a esquivar */
+    int      tof_paro_activo;        /* 1 desde TOF_PARO (o desde un paro confirmado por un eco válido del láser, v3) hasta que empieza a esquivar */
+    int      eco_retroceder_mm;      /* v3: umbral en mm (0 = no retroceder) */
+    int      eco_retroceder;         /* v3: el paro lo confirmó un eco a menos de NAV_ECO_RETROCEDE_MM: antes de girar se retrocede (si hay camino recién pisado) */
+    int      memoria_eco;            /* v3: 1 = un eco válido y cercano del láser que detuvo al carro no se borra porque luego el láser pierda el eco (ver NAV_V3) */
     int      tof_pendiente;          /* 1 = TOF_PARO llegó mientras esquivaba o volvía a la línea: lo atiende el siguiente tick */
     int      tof_paros;              /* TOF_PARO recibidos en esta ruta */
     int      tof_dist_mm;            /* distancia al obstáculo que midió el láser al detenerse (0 = no se sabe) */
@@ -857,6 +860,15 @@ int navegador_poner_vistazo(Navegador *nav, int modo);
 #define NAV_COINCIDENCIA_ESQUIVAR_MS    800   /* (revisión) si la parada la provocó un solo cuadro, además debe seguir habiendo coincidencia pasado este tiempo detenido */
 #define NAV_COINCIDENCIA_CUADROS_FRENAR   2   /* cuadros SEGUIDOS con las dos fuentes en la misma zona para que cuente como obstáculo (en el centro con cercanía 3, uno) */
 int navegador_poner_precaucion(Navegador *nav, int modo);
+
+/* AUTÓNOMO V3 (docs/investigacion_autonomo/). SIMULADO / NO MEDIDO en el carro.
+ *  - MEMORIA DEL ECO: si el carro se detuvo con un eco válido, fresco y cercano del láser (<= OBSTACULO_LASER_MM) y que no queda más allá del destino, el obstáculo queda
+ *    confirmado como con TOF_PARO: la cámara no lo puede «liberar» y la ausencia de eco después no cuenta como libre. Una pata delgada de un mueble da eco a ratos
+ *    (el haz la roza); antes el siguiente cuadro sin eco, con el lado visto solo por el color, reanudaba la marcha hacia ella. 1 = activa (por defecto), 0 = como v2. */
+#define NAV_V3                      1
+#define NAV_ECO_RETROCEDE_MM      350
+int navegador_poner_memoria_eco(Navegador *nav, int activa);
+int navegador_poner_eco_retroceder(Navegador *nav, int mm);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);

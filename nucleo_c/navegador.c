@@ -1998,6 +1998,9 @@ void navegador_iniciar(Navegador *nav)
     nav->usa_tof = 0;
     nav->giro_fw_caido = nav->giro_fw = nav->giro_fw_estado = nav->giro_fw_pedir = 0;
     nav->giro_fw_min = NAV_GIRO_FW_MIN_GRADOS;
+    nav->memoria_eco = 1;                    /* v3: ver NAV_V3 */
+    nav->eco_retroceder_mm = NAV_ECO_RETROCEDE_MM;
+    nav->eco_retroceder = 0;
     nav->giro_fw_fallos = 0;
     nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = nav->ancho_rodeo_mm = 0;
     nav->lados_probados = nav->cambio_lado = 0;
@@ -2942,6 +2945,13 @@ static void entrar_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->coinc_esquivar_min = NAV_COINCIDENCIA_CUADROS_ESQUIVAR + ((seguidas > 0 && seguidas < NAV_COINCIDENCIA_CUADROS_FRENAR) ? 1 : 0);
     }
 
+    if (nav->memoria_eco && !nav->tof_paro_activo && nav->usa_tof && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm <= OBSTACULO_LASER_MM &&
+        !laser_tras_el_destino(nav, nav->tof_mm)) {
+        /* v3: un eco válido y cercano participó en esta parada: es un obstáculo confirmado por el sensor fiable, igual que con TOF_PARO. */
+        diag_escribir(nav, "SENS_DIAG eco_confirma laser_mm=%d: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)", nav->tof_mm);
+        tof_marcar(nav, nav->tof_mm);
+        nav->eco_retroceder = (nav->tof_mm <= nav->eco_retroceder_mm) ? 1 : 0;
+    }
     nav->estado = NAV_DETENIDO_OBSTACULO;
     nav->t_detenido_ms = ahora_ms;
     if (!nav->tof_paro_activo) {   /* si el láser tiene una medida real reciente, es la distancia al obstáculo (sirve para saber cuánto debe pasar en paralelo) */
@@ -4298,7 +4308,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
                 int barrido = ((nav->lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
                 int cara = libre_hasta_obstaculo_mm(nav) + NAV_ARCO_MARGEN_MM;
 
-                if (nav->vistazo_confirmado != 0 && !nav->vistazo_retrocedio && nav->atras_conocido_mm >= NAV_RETROCESO_CM * 10 + 30) {
+                if ((nav->vistazo_confirmado != 0 || nav->eco_retroceder) && !nav->vistazo_retrocedio && nav->atras_conocido_mm >= NAV_RETROCESO_CM * 10 + 30) {
+                    nav->eco_retroceder = 0;
                     nav->vistazo_retrocedio = 1;
                     nav->arco_adelante_mm = NAV_RETROCESO_MAX_MM;
                     nav->arco_libre_mm = 30;             /* intentar_escape_atras retrocede (adelante - libre + 30): aquí, el máximo */
@@ -5250,6 +5261,22 @@ int navegador_poner_vistazo(Navegador *nav, int modo)
         return NAV_ERR_ARGUMENTO;
     }
     nav->vistazo_modo_mas1 = modo + 1;
+    return NAV_OK;
+}
+
+int navegador_poner_eco_retroceder(Navegador *nav, int mm)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->eco_retroceder_mm = mm < 0 ? 0 : mm;
+    return NAV_OK;
+}
+
+int navegador_poner_memoria_eco(Navegador *nav, int activa)
+{
+    if (nav == NULL) {
+        return NAV_ERR_ARGUMENTO;
+    }
+    nav->memoria_eco = activa ? 1 : 0;
     return NAV_OK;
 }
 

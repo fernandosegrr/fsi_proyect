@@ -368,12 +368,54 @@ static void probar_revision(void) {
 }
 #endif
 
+#ifdef NAV_V3
+/* AUTÓNOMO V3 (docs/investigacion_autonomo/). Casos de caja blanca de la memoria del eco y del retroceso antes de girar. SIMULADO. */
+static int v3_reanudo, v3_reversa, v3_esquiva;
+static void v3_correr(int memoria, int retroceder_mm) {
+    ResultadoObstaculos vacio;
+    int t;
+    memset(&vacio,0,sizeof vacio);
+    preparar_politica();
+    navegador_poner_memoria_eco(&nav,memoria);
+    navegador_poner_eco_retroceder(&nav,retroceder_mm);
+    nav.atras_conocido_mm=300;   /* acaba de avanzar en recta: hay camino pisado detras */
+    v3_reanudo=v3_reversa=v3_esquiva=0;
+    for(t=0;t<=600;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    /* un eco valido a 300 mm (una pata a la vista): frena y queda detenido */
+    for(t=650;t<=900;t+=50){navegador_aporte_sens(&nav,300,1,1,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    /* ...y despues el laser pierde el eco (el haz roza la pata): la camara no ve nada en el centro */
+    for(t=950;t<=3500;t+=50){
+        ComandoNav c;
+        navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);
+        c=navegador_tick(&nav,(uint32_t)t,&vacio);
+        if(nav.estado==NAV_SIGUIENDO && c==NAV_CMD_FORWARD)v3_reanudo=1;
+        if(c==NAV_CMD_REVERSE)v3_reversa=1;
+        if(nav.estado==NAV_ESQUIVANDO)v3_esquiva=1;
+    }
+}
+static void probar_v3(void) {
+    v3_correr(0,0);
+    caso("v3 sin memoria del eco (como v2): perder el eco reanuda la marcha hacia lo que el laser vio",v3_reanudo);
+    v3_correr(1,0);
+    caso("v3 memoria del eco: un eco valido a 30 cm que detuvo al carro no se borra porque despues no haya eco",!v3_reanudo && v3_esquiva);
+    caso("v3 memoria del eco, sin retroceso configurado: no retrocede antes de girar",!v3_reversa);
+    v3_correr(1,NAV_ECO_RETROCEDE_MM);
+    caso("v3 eco a menos de NAV_ECO_RETROCEDE_MM con camino pisado detras: retrocede antes de girar",v3_reversa && v3_esquiva && !v3_reanudo);
+    preparar_politica();
+    caso("v3 por defecto la memoria del eco esta encendida y retrocede con ecos de 350 mm o menos",nav.memoria_eco==1 && nav.eco_retroceder_mm==NAV_ECO_RETROCEDE_MM);
+}
+#endif
+
 int main(int argc,char **argv) {
     int i,informe=argc>1 && strcmp(argv[1],"--informe")==0;
     if(argc>1 && !informe){i=atoi(argv[1]);if(i<0||i>=11)return 2;correr(i,0);return 0;}
     for(i=0;i<11;i++)correr(i,!informe);
 #ifndef REPRO_BASE
-    if(!informe){probar_politica();probar_revision();}
+    if(!informe){probar_politica();probar_revision();
+#ifdef NAV_V3
+        probar_v3();
+#endif
+    }
 #endif
     if(!informe)printf("%d casos, %d fallos\n",casos,fallos);
     return fallos ? EXIT_FAILURE : EXIT_SUCCESS;
