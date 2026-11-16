@@ -18,7 +18,7 @@ Rama `feat/autonomo-v3` (desde `feat/autonomo-v2` = `33bdb77`), 16-nov-2026. **T
                                                                               │   CamaraObstaculos.kt (video/celdas → obstáculos)    │
                                                                               │   DetectorTflite.kt + ModeloEnHilo.kt (EfficientDet) │
                                                                               │ JNI puente.c ─► nucleo_c (C99):                      │
-                                                                              │   obstaculos.c  clasificador de color YCbCr multi-   │
+                                                                              │   obstaculos.c  clasificador de color RGB+croma, K=4 │
                                                                               │                 cluster, zonas, cercanía 0-3         │
                                                                               │   corredor.c    corredor de perspectiva              │
                                                                               │   fusion.c      color + detector → fuentes 1/2/3     │
@@ -36,7 +36,7 @@ Camino de decisión por tick (50 ms), `navegador_tick()` en `navegador.c:5780`:
 5. **Salida**: un `ComandoNav` (STOP, ADELANTE, ATRAS, GIRAR_n, etc.) más objetivo de rumbo (`navegador_tomar_rumbo_fw`) y giro por ángulo (`navegador_tomar_giro_fw`). Kotlin lo traduce al texto del protocolo (`FORWARD`, `BACKWARD`, `GIRAR:<grados>`, `RUMBO:<n>`, `STOP`).
 6. **Firmware**: `carro_recibir_comando()` (renueva watchdog solo con comandos reales), cola con STOP prioritario, `carro_actualizar()` aplica perfil y PWM; `giro.c` hace el giro en lazo cerrado con el giroscopio; `rumbo.c` el PI de rumbo al avanzar; `tof.c` + `carro.c` el freno local `__STOP_AUTO` sin pasar por el teléfono.
 
-Capas de seguridad **independientes del teléfono**: freno láser local (`TOF_PARO_MM` 120, 2 lecturas, solo AUTO y avanzando), `TOF_BLOQUEO_MM` 150 (un `FORWARD` en AUTO no arranca), watchdog de 1000 ms, STOP/EBRAKE con prioridad en la cola, `WATCHDOG_HW_MS` 5000 (reinicio si `loop()` se cuelga). Capas del **teléfono**: silencio de SENS 1.5 s, pérdida de video 700 ms (ERROR), detector caído 2.5 s (causa 17), cordura de pose (causas 9–12).
+Capas de seguridad **independientes del teléfono**: freno láser local (`TOF_PARO_MM` 120 en v1.1/SEG=2 y 150 en SEG=3, 2 lecturas, solo AUTO y avanzando), `TOF_BLOQUEO_MM` 150 (180 en SEG=3) (un `FORWARD` en AUTO no arranca), watchdog de 1000 ms, STOP/EBRAKE con prioridad en la cola, `WATCHDOG_HW_MS` 5000 (reinicio si `loop()` se cuelga). Capas del **teléfono**: silencio de SENS 1.5 s, pérdida de video 700 ms (ERROR), detector caído 2.5 s (causa 17), cordura de pose (causas 9–12).
 
 ## 2. Archivos principales
 
@@ -59,7 +59,7 @@ Capas de seguridad **independientes del teléfono**: freno láser local (`TOF_PA
 |---|---:|---|
 | `TOF_PERIODO_MS` (presupuesto de tiempo de la biblioteca) | 33 ms | frecuencia y precisión del láser |
 | `TOF_SONDEO_MS` | 4 ms | sondeo de «medida lista» |
-| `TOF_PARO_MM` / `TOF_PARO_LECTURAS` | 120 mm / 2 | freno local (solo AUTO, solo avanzando) |
+| `TOF_PARO_MM` / `TOF_PARO_LECTURAS` | 120 mm / 2 (v3 SEG=3: 150 mm) | freno local (solo AUTO, solo avanzando) |
 | `TOF_BLOQUEO_MM` | 150 mm | un FORWARD en AUTO no arranca |
 | `TOF_LIBRE_MM`, 8190, 65535 | 1200 mm | todo lo mayor o sin eco = «libre» para el firmware |
 | `TOF_MIN_VALIDO_MM` | 8 mm | por debajo se ignora |
@@ -68,7 +68,7 @@ Capas de seguridad **independientes del teléfono**: freno láser local (`TOF_PA
 | `TIEMPO_WATCHDOG_MS`, latido de la app | 1000 ms, 250 ms | corte sin enlace |
 | `COLA_COMANDOS_MAX` | 32 | cola con STOP prioritario |
 | `SENS_PERIODO_MS`, `LOOP_MAX_US` | 100 ms, 5000 µs | telemetría y latencia del lazo |
-| Velocidades | 38 cm/s (255), 19.3 cm/s (210/207) | distancia de frenado |
+| Velocidades | 38 cm/s (255), 19.3 cm/s (210/207; posiblemente obsoleta: las cajas negras del 15-nov sugieren ~30 cm/s, NO MEDIDO) | distancia de frenado |
 | `PWM_FRECUENCIA_HZ`, `PWM_BITS`, `ARRANQUE_PLENO_MS` | 1500 Hz, 8, 250 ms | motores |
 
 ### 3.2 Giroscopio y rumbo
