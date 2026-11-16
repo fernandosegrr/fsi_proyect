@@ -109,7 +109,7 @@ def fig_arquitectura():
     fig, ax = _lienzo(11.2, 5.5)
     # Tres nodos principales arriba
     _caja(ax, 2, 60, 27, 34,
-          "Teléfono Android\nApp LIDIA (Kotlin + JNI)\n• Núcleo de navegación C99\n• Visión YCbCr + TFLite\n• Supervisión activa J16",
+          "Teléfono Android\nApp LIDIA (Kotlin + JNI)\n• Núcleo de navegación C99\n• Visión RGB+croma + TFLite\n• Supervisión activa J16",
           AZUL_CLARO, AZUL, fs=8.0, bold=True)
     _caja(ax, 37, 60, 26, 34,
           "ESP32 DevKit (Carro)\nAP WiFi CarroFSI\n192.168.4.1 (:80 /ws)\n• Cola 32 órdenes + WDT\n• Lazo PI RUMBO y GIRO",
@@ -329,7 +329,7 @@ def fig_esquive():
 def fig_percepcion():
     fig, ax = _lienzo(11.2, 5.2)
     _caja(ax, 2, 69, 27, 24,
-          "1. Clasificador de piso\nobstaculos.c (YCbCr/RGB)\n• Hasta 3 clústeres de suelo\n• Regla J10c en filas < 7\n• Máscara de artefactos",
+          "1. Clasificador de piso\nobstaculos.c (RGB + croma)\n• Hasta 4 grupos de suelo\n• Regla J10c en filas < 7\n• Máscara de artefactos",
           VERDE_CLARO, VERDE, fs=7.8, bold=True)
     _caja(ax, 2, 37, 27, 24,
           "2. Red neuronal de objetos\nDetectorTflite + ModeloEnHilo\n• EfficientDet-Lite0 (90 clases)\n• Hilo propio (vigencia 300 ms)\n• Modo opcional obj-any",
@@ -398,7 +398,7 @@ def fig_desarrollo():
          "Cuadrícula 20 cm,\ncalibración y\nsuite en PC",
          VERDE_CLARO, VERDE),
         (42, "Etapa 3\nCámara HQVGA\ny visión",
-         "GC0308 a 12.4 fps,\npiso YCbCr, TFLite\ny corredor",
+         "GC0308 a 12.4 fps,\npiso RGB+croma, TFLite\ny corredor",
          AMBAR_CLARO, AMBAR),
         (62, "Etapa 4\nSensores I2C\ny pose en C",
          "Giro MPU6050,\nfreno láser 120 mm\ne integración",

@@ -34,15 +34,15 @@ Hallazgos de gravedad **crítica**: ninguno. Con el modelo propio, a velocidad d
 - Falla: golpe contra un objeto que apareció a menos de ~20 cm justo antes de un avance.
 - Recomendación: TOF_PARO 150 y TOF_BLOQUEO 180 (más conservador, nunca menos). Esfuerzo bajo. Riesgo de regresión: más paradas cerca de objetos; el banco y las pruebas del firmware lo dirán.
 - Verificación: pruebas de `pruebas_firmware` con el sensor simulado; medir `e` y la distancia de frenado reales (protocolo).
-- Estado v3: ver etapa de firmware (se endurece, solo compilado).
+- Estado v3: **ENDURECIDO** (`TOF_PARO_MM` 150 y `TOF_BLOQUEO_MM` 180 con `SEG=3`; solo compilado, no grabado; el compilador exige bloqueo > freno; `-DTOF_PARO_MM=120 -DTOF_BLOQUEO_MM=150` vuelve a lo anterior). Falta medir `e` y la distancia de frenado reales (M5 y M6).
 
 ### H-02 — Un «sin eco» rompe la racha de «cerca»
 - Dónde: [tof.c:141-146](../../firmware_carro/tof.c).
-- Hoy: 8190, 65535 o más de TOF_LIBRE ponen `cerca_seguidas = 0`. En una pata o un borde, una lectura perdida entre dos cercanas obliga a otras 2 lecturas válidas (+33 ms a 30 Hz, +100 ms al ritmo real de 100 ms) antes de frenar.
+- Hoy: 8190, 65535 o más de TOF_LIBRE ponen `cerca_seguidas = 0`. En una pata o un borde, una lectura perdida entre dos cercanas obliga a otras 2 lecturas válidas (el sensor mide cada 33 ms, `TOF_PERIODO_MS`: +33 a +66 ms) antes de frenar.
 - Fuente: lectura de código + doc 01 (el sensor devuelve estados de error en superficies angostas o a ángulo; ST community y hoja ST) + doc 10 (presupuesto de latencia). Confianza **media**.
 - Falla: el freno por láser llega 33–100 ms tarde justo en objetos delgados (el caso del banquito).
 - Recomendación: no reiniciar la racha con **un** «sin eco» seguido; reiniciar solo con dos «sin eco» seguidos o una lectura válida lejana. Siempre en el sentido de frenar más, nunca menos. Esfuerzo bajo; riesgo: paradas extra por una lectura cercana aislada rodeada de pérdidas (un objeto realmente cerca).
-- Estado v3: ver etapa de firmware.
+- Estado v3: **ENDURECIDO** (`TOF_PERDIDAS_TOLERADAS` = 1: un «sin eco» aislado no rompe la racha; dos seguidos o una lectura lejana real sí; 4 pruebas nuevas; solo compilado). Una pata en la zona ciega del sensor (<3 cm) sigue sin freno por láser (límite previo).
 
 ### H-03 — El firmware no lee el estado de la medición (RangeStatus)
 - Dónde: [firmware_carro.ino:242](../../firmware_carro/firmware_carro.ino) (`readRangeContinuousMillimeters`).
@@ -106,7 +106,7 @@ Hallazgos de gravedad **crítica**: ninguno. Con el modelo propio, a velocidad d
 
 ### H-11 — Reinicio del chip por colgado: PWM puede seguir corriendo
 - Dónde: [config.h:143](../../firmware_carro/config.h) (WATCHDOG_HW_MS 5000).
-- Hoy: si `loop()` se cuelga con el PWM encendido, los motores siguen hasta el reinicio: 5 s ≈ 96 cm en AUTO (modelo propio, doc 10; confianza **media**).
+- Hoy: si `loop()` se cuelga con el PWM encendido, los motores siguen hasta el reinicio: 5 s ≈ 96 cm en AUTO a 19.3 cm/s (modelo propio, doc 10; confianza **media**; más si la velocidad real es ~30 cm/s).
 - Recomendación: acortar a 2000–3000 ms tras medir el peor `loop()` real (H-08) o apagar el PWM desde la interrupción del watchdog. Estado: DISEÑO.
 
 ### H-12 — `navegador_ayuda_continuar` reinicia presupuestos
@@ -155,16 +155,27 @@ Hallazgos de gravedad **crítica**: ninguno. Con el modelo propio, a velocidad d
 
 ## Hallazgos de gravedad baja
 
-- **H-21 (tof.c:141)** El par (1200 mm, válida = 1): `crudo == 1200` es «válido» aunque TOF_LIBRE_MM sea 1200; visto en 7 de 107 ticks de las cajas negras del 15-nov. Corregir con `>=`. Estado: ver etapa de firmware.
+- **H-21 (tof.c:141-163)** El par (1200 mm, válida = 1) visto en 7 de 107 ticks de las cajas negras del 15-nov **no viene de una lectura de 1200 exactos** (eso lo descarté al probarlo: hay una prueba del firmware que fija 1200 como válido a propósito). Viene de la mediana de 3: `mm` es la mediana (dos «libre» = 1200 y una válida lejana) y `valida` es la bandera de la **última** lectura cruda. Es una incoherencia de significado entre los dos campos, no un error de umbral; la app trata `mm = 1200` como libre. Sin cambio; documentado.
 - **H-22** Velocidad de 19.3 cm/s en AUTO posiblemente obsoleta; las cajas negras del 15-nov sugieren ~30 cm/s. Afecta el modelo de frenado y la conversión tiempo-distancia. NO MEDIDO; medir en el protocolo.
 - **H-23** El pivote es asimétrico (derecha R ≈ 15.8 cm; izquierda ≈ 8.7–9 cm); un «espejo» del giro es incorrecto. Ya está en la calibración; no tocar.
-- **H-24** Manual: 20 ms de periodo, rango 20..2000 mm, TOF_LIBRE 150: discrepan con el código (TOF_PERIODO_MS 100 ms según el protocolo, TOF_LIBRE 1200). Corregir en Fase 4.
+- **H-24** Manual (cap. 4, 11 y anexo): decía periodo de 20 ms, rango [20, 2000] mm, filtro de salto de 150 mm y «TOF_LIBRE_MM = 150 mm» como histéresis; el código de v1.1 y el actual tienen `TOF_PERIODO_MS` 33, valores menores de 8 mm ignorados, 8190, 65535 o más de 1200 mm = libre, mediana de 3, y `TOF_LIBRE_MM` es 1200. **CORREGIDO** en el manual el 16-nov-2026.
 - **H-25** Cajas negras: la rejilla VTEL llega como 32×24 y la documentación dice 24×17. Revisar qué rejilla usa de verdad la app (Fase 4, documentación).
-- **H-26** Error lateral final del Monte Carlo heredado: v2 y v3 dan 18/44 mm (media/p95) con RUMBO contra 17/40 de v1.1 (SIMULADO). Causa: el avance paralelo con margen de 230 mm recorre más. Con 180 mm se iguala pero hay 2 contactos nuevos en `objeto_largo90` → **no se aplica**; se documenta como compromiso de seguridad. Diferencia: 1 mm.
-- **H-27** `scripts/verificar_version.py` exige el teléfono con `--puerto`; ver etapa de herramientas.
+- **H-26** (ABIERTO, compromiso de seguridad) Error lateral final del Monte Carlo heredado: v2 y v3 dan 18/44 mm (media/p95) con RUMBO contra 17/40 de v1.1 (SIMULADO). Causa: el avance paralelo con margen de 230 mm recorre más. Con 180 mm se iguala pero hay 2 contactos nuevos en `objeto_largo90` → **no se aplica**; se documenta como compromiso de seguridad. Diferencia: 1 mm.
+- **H-27** `scripts/verificar_version.py` exigía el teléfono con `--puerto`. **CORREGIDO**: `--puerto COMx --solo-fw` comprueba solo el firmware (3 pruebas nuevas, 21 en total).
 - **H-28** El servidor falso ya anuncia RUMBO=1 y SEG=2 (`probar_servidor_falso.py:122` lo prueba): el pendiente conocido ya estaba resuelto. No requiere cambio.
 - **H-29** Giros por tiempo menores de 5° pueden pasarse (un dato aislado B6: 4° dio 18°). **CORREGIDO**: bajo NAV_GIRO_TIEMPO_MIN_GRADOS = 10 sin giroscopio sano no se gira (umbral SUPUESTO).
 
 ## Lo que NO revisé a fondo
 
 Kotlin de la app (interfaz y JNI) salvo lo que consume las causas y los textos; el rendimiento de TFLite en el teléfono; el firmware de la cámara más allá de lo ya verificado en `cam-v2`; hojas de datos del TC1508A y normas ISO completas (doc 10); libros y artículos que los documentos marcan como no consultados.
+
+## Revisión independiente de la v3 (16-nov-2026)
+
+Un subagente que no vio cómo se construyó el cambio revisó el diff `0b94960..HEAD` (navegador, `tof.c`, `config.h`, `sensores.c`, simulador). Sin hallazgos críticos ni altos; nada bloquea entregar la rama. Hallazgos y qué se hizo:
+
+1. **Medio — `eco_retroceder` podía sobrevivir a una ruta nueva o a «continuar»** y causar un retroceso sin eco que lo justificara. **CORREGIDO** (se borra en `entrar_detenido`, `navegador_comenzar` y `navegador_ayuda_continuar`; 3 pruebas).
+2. **Medio — la memoria del eco dependía de que el tick de la parada cayera en una lectura válida.** **CORREGIDO**: se recuerda el último eco válido y cercano 800 ms (`NAV_ECO_MEMORIA_MS`; 3 pruebas).
+3. **Bajo-medio — causa 19:** el comentario «el plazo vuelve a empezar» era falso (con el láser aún muerto, continuar vuelve a pedir ayuda: seguro). **CORREGIDO** el comentario. Quedan como conocidos: cualquier caída del láser en el firmware (3 errores I²C o 500 ms sin lectura) cancela la ruta, y si dejan de llegar SENS el láser queda «viejo» sin causa 19 (lo cubre el silencio de SENS a 1.5 s).
+4. **Bajo — sin giroscopio sano la tolerancia de rumbo de la reincorporación no subía al mínimo del giro por tiempo.** **CORREGIDO**.
+5. **Bajo — nada impedía compilar con `TOF_BLOQUEO_MM` ≤ `TOF_PARO_MM`.** **CORREGIDO** (`#error`).
+6. **Bajo (inferencia) — el conjunto «sin eco» es {<0, 8190, 65535}**; otro código fuera de rango (8191) rompe la racha al instante (el lado seguro). Documentado.

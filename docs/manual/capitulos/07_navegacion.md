@@ -113,3 +113,24 @@ El carro gira sobre un costado: el pivote derecho queda a 157 mm del centro y la
 La guardia y las condiciones de la vuelta salieron de una revisión independiente del código (14-nov), que también encontró que el paso en paralelo podía seguir de frente más allá de una esquina; todo quedó corregido y con pruebas.
 
 Además: los giros menores que el mínimo del firmware ya no se hacen por tiempo; parado tras un avance, el rumbo sigue al giroscopio; y «Terminado» sin rodeo abierto se acepta al llegar aunque el láser vea una pared más allá del destino.
+
+## 7.7 Autónomo v3: memoria del eco, retroceso y láser caído (`SIMULADO`)
+
+Rama `feat/autonomo-v3`. Todo lo de esta sección salió del banco; **nada está validado en el carro**. Detalle en `docs/investigacion_autonomo/90_hallazgos.md`.
+
+- **Memoria del eco.** Si un eco válido y cercano (400 mm o menos, de hace 800 ms o menos) participó en una parada, el obstáculo queda confirmado como con `TOF_PARO`: la cámara no lo «libera» y la falta de eco después no cuenta como libre. Antes, un «sin eco» seguido de una cámara vacía hacía reanudar la marcha contra una pata que el láser acababa de ver.
+- **Retroceso antes de girar.** Con ese eco a 350 mm o menos y camino recién pisado detrás, el carro retrocede (nunca más de 25 cm ni más de lo que avanzó) antes de girar para rodear. Banderas: `navegador_poner_memoria_eco` y `navegador_poner_eco_retroceder` (0 lo apaga).
+- **Láser caído a mitad de ruta.** Si el láser vivía al empezar y deja de vivir 600 ms con la ruta en marcha, el carro hace STOP y pide ayuda con la causa 19. Una ruta que sale sin láser no se detiene por eso (la app ya avisa «Percepción incompleta» al iniciar). Bandera: `navegador_poner_laser_caido_para`.
+- **Giros chicos por tiempo.** Sin giroscopio sano, un giro de menos de 10° no se hace (una medición puntual: 4° dio 18°; el umbral es un SUPUESTO).
+
+**Resultado SIMULADO (1000 corridas por escenario, semillas fijas):**
+
+| Escenario | v1.1 | v2 | v3 |
+|---|---|---|---|
+| Banquito 35 × 45 | 245 ok, 596 contactos | 765 ok, 79 contactos, 112 por debajo, 44 ayudas | **849 ok, 43 contactos**, 75 por debajo, 33 ayudas |
+| Silla con patas | 161 ok, 524 contactos | 316 ok, 34 contactos, 618 por debajo, 32 ayudas | **435 ok, 21 contactos**, 529 por debajo, 15 ayudas |
+| Caja corrida de lado | 991 ok, 3 contactos | 998 ok, 2 contactos | 999 ok, 0 contactos, 1 ayuda |
+| Objeto bajo | 960 ok, 25 contactos | 997 ok, 1 contacto, 2 ayudas | 1000 ok |
+| Objeto bajo que solo ve el color | 967 ok, 22 contactos | 986 ok, 14 contactos | 1000 ok |
+
+Los muebles con patas **siguen sin llegar al 99 %**: más de la mitad de las corridas con silla pasan entre las patas sin tocar (`bajo_mueble`) y la ayuda (causas 16 y 18) sigue siendo la respuesta cuando el giro no cabe. Un modelo alterno del láser que promedia el cono (SUPUESTO) da los mismos contactos y más ayudas (23 y 14 contra 7 y 4 en 300 corridas): el resultado no depende de un láser simulado demasiado optimista.

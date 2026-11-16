@@ -26,7 +26,7 @@ Para evitar que el controlador `GIRO:<grados>` del firmware oscile dentro de su 
 | Límite identificado en el código / hardware | Valor o condición actual | Consecuencia operativa y mitigación vigente |
 |---|---|---|
 | **Rebase iterativo, sin fondo fijo** | Tramos de 200 mm, lateral 400 a 700 mm, seis intentos | Puede ampliar la recta final hasta 2 m. Si no cabe o agota intentos pide AYUDA. El modelo 35×45 y el de fondo 90 cm terminan sin contacto; solo SIMULADO. |
-| **Objetos del mismo color que el piso y no reconocidos por `COCO`** | Clasificador `YCbCr` + `EfficientDet-Lite0` | Si un obstáculo tiene exactamente la misma crominancia que la baldosa y no pertenece a una clase reconocible por la red neuronal, la cámara puede no marcarlo; la defensa es habilitar `usar_tof_en_ruta` (esquive láser a `400 mm`) y el freno local `TOF_PARO` a `120 mm`. |
+| **Objetos del mismo color que el piso y no reconocidos por `COCO`** | Clasificador de color (distancia RGB + crominancia normalizada, hasta 4 grupos de piso) + `EfficientDet-Lite0` | Si un obstáculo tiene exactamente la misma crominancia que la baldosa y no pertenece a una clase reconocible por la red neuronal, la cámara puede no marcarlo; la defensa es habilitar `usar_tof_en_ruta` (esquive láser a `400 mm`) y el freno local `TOF_PARO` a `120 mm`. |
 | **Geometría puntual del láser `VL53L0X`** | Cono frontal de `~25°` a la altura del borde delantero | Objetos muy bajos (< `4 cm`, por debajo del haz) o muy estrechos desplazados hacia una rueda pueden no reflejar el pulso láser. |
 | **Límite de 6 dígitos en el comando `RUMBO:<décimas>`** | Máximo `±99999` décimas (`~±10,000°` $\approx 27.7$ vueltas completas) | En cualquier ruta normal o cuadrado los ángulos se mantienen dentro de `±360°`; solo una rotación continua en espiral de más de 27 vueltas sin recalibrar `CAL_IMU` excedería el formato de 6 caracteres. |
 | **Transición a `AYUDA` en 1 de 6 corridas físicas B6** | Corrida 5 (`J16_B6_r5`, paso `4/10`) | El vehículo se detuvo de forma segura sin tocar la caja pero solicitó ayuda teniendo espacio físico. Para diagnosticar su causa exacta se requiere un registrador persistente de telemetría por corrida. |
@@ -65,3 +65,13 @@ Rama `feat/autonomo-v2`. La lista completa y vigente está en `docs/limites_cono
 - **Pared pegada a un lado:** si la cámara no la distingue del piso, el carro puede elegir ese lado; el láser la descubre al girar y el carro se detiene y pide ayuda (causa 18 o 16). Muy cerca (menos de ~27 cm) puede alcanzar a tocarla.
 - **Rodeo más largo:** el carro vuelve a la línea unos 60 cm después de una caja de 20 cm.
 - **Supuestos sin medir:** pivote izquierdo, campo y altura de la cámara, alcance del láser contra una pared de lado, respuesta del control de rumbo en el vistazo.
+
+## 13.6 Autónomo v3: límites y lo que sigue sin medirse (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v3`. La lista completa y vigente está en `docs/limites_conocidos.md` y los hallazgos con su gravedad en `docs/investigacion_autonomo/90_hallazgos.md`.
+
+- **El carro no se movió** en toda esta rama; el firmware (`SEG=3`) y la app solo se compilaron.
+- **Muebles con patas:** mejoran (banquito 765 → 849 ok; silla 316 → 435 en el banco) pero no llegan al 99 %.
+- **NO MEDIDO que cambia conclusiones:** si el láser ve patas reales y qué lectura da (el sensor promedia su cono); distancia del sensor al frente (`e`) y distancia de frenado real; deriva del giroscopio en reposo y en marcha; campo, altura e inclinación de la cámara (en HQVGA solo se usa ~75 % del ancho del sensor, el 56° supuesto no sirve a la vez para HQVGA y QVGA); deriva de la exposición entre sol y sombra; velocidad real en AUTO (19.3 cm/s puede estar obsoleto); latencia de extremo a extremo.
+- **No se hizo (diseño, no código):** leer el estado de la medición del VL53L0X, recuperación del bus I²C (9 pulsos de SCL), tope global de continuaciones tras ayuda, detección de atasco, bloqueo de exposición de la cámara.
+- Mediciones baratas para cerrar lo anterior: bloque M del [protocolo](../../protocolo_prueba_fisica_autonomo_v2.md) (M1 a M10).

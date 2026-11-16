@@ -1,0 +1,23 @@
+medicion,fecha,hora,condicion,objeto,distancia_cm,repeticion,valor,unidad,flag_sens,causa_o_estado,notas
+M1,2026-11-,,en_reposo,ninguno,,0 min,,grados,,,temperatura del cuarto aprox:
+M1,2026-11-,,en_reposo,ninguno,,1 min,,grados,,,
+M1,2026-11-,,en_reposo,ninguno,,2 min,,grados,,,
+M1,2026-11-,,en_reposo,ninguno,,5 min,,grados,,,
+M1,2026-11-,,en_reposo,ninguno,,10 min,,grados,,,
+M1,2026-11-,,tras_30s_de_recta_AUTO,ninguno,,0 min,,grados,,,
+M2,2026-11-,,pata_al_centro,banquito,40,1,,mm,,,sin_eco o 1200 en esta lectura: si/no
+M2,2026-11-,,pata_corrida_5cm,banquito,40,1,,mm,,,
+M2,2026-11-,,pata_al_centro,silla,40,1,,mm,,,
+M3,2026-11-,,pared_a_30cm_giro_0,pared,30,1,,mm,,,
+M3,2026-11-,,pared_a_30cm_giro_40,pared,30,1,,mm,,,
+M4,2026-11-,,luz_del_cuarto,ninguno,,1,,brillo_medio,,,archivo de caja negra:
+M4,2026-11-,,sombra,ninguno,,1,,brillo_medio,,,
+M4,2026-11-,,mancha_de_sol_o_linterna,ninguno,,1,,brillo_medio,,,
+M5,2026-11-,,AUTO_hacia_pared_desde_80cm,pared,,1,,cm_nariz_a_pared,,TOF_PARO:,mm del aviso TOF_PARO:
+M6,2026-11-,,pared_a_20cm_FORWARD,pared,20,1,,cm_avanzo,,,arranco: si/no; toco: si/no
+M7,2026-11-,,giro_4_grados_con_giroscopio,ninguno,,1,,grados_reales,,,grados_informados: ; ms_hasta_quieto:
+M7,2026-11-,,giro_4_grados_sin_giroscopio,ninguno,,1,,grados_reales,,,
+M8,2026-11-,,AUTO_recta_150cm,ninguno,150,1,,segundos,,,
+M8,2026-11-,,MANUAL_recta_150cm,ninguno,150,1,,segundos,,,
+M9,2026-11-,,carro_quieto_60s,ninguno,,1,,ms_mediana,,,minimo: ; maximo:
+M10,2026-11-,,SENS_en_30s,ninguno,,1,,lineas_SENS,,,esperado ~300

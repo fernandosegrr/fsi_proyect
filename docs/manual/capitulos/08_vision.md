@@ -12,7 +12,7 @@ En un entorno interior real, confiar la detección de obstáculos a un solo prin
 
 Al combinar las tres fuentes dentro de un marco geométrico común (**el corredor de perspectiva**), el vehículo aprovecha la cobertura espacial de la cámara (`240×176` píxeles) junto con la certidumbre de distancia del láser frontal.
 
-[FIGURA:percepcion|Tubería multimodal de visión y percepción: clasificador de piso YCbCr/RGB, red neuronal EfficientDet-Lite0, corredor de perspectiva y láser VL53L0X integrados bajo candado_vision.]
+[FIGURA:percepcion|Tubería multimodal de visión y percepción: clasificador de piso por distancia RGB y crominancia normalizada, red neuronal EfficientDet-Lite0, corredor de perspectiva y láser VL53L0X integrados bajo candado_vision.]
 
 ## 8.2 Clasificador cromático de piso multiclúster (`obstaculos.c`) y máscara fija
 
@@ -73,3 +73,13 @@ Rama `feat/autonomo-v2`. Las reglas de fusión aprobadas no cambian; cambia cuá
 - **Telemetría numérica** (`nucleo_c/vision_tele.c`): cada cuadro se resume en una línea `VTEL` con el histograma de distancias de color al piso aprendido, brillo, celdas quemadas y negras, y celdas «no piso» por zona, banda y fila. Nunca se guarda la imagen.
 
 Cómo leer un falso positivo en la caja negra: si **todo** el histograma se corre a la vez, la cámara cambió su exposición o el piso se aprendió con otra luz; si solo suben unas celdas de una zona, es una mancha de sol, una sombra o un reflejo. Esta lectura es una hipótesis del banco: `NO MEDIDO` en el carro.
+
+## 8.7 Hallazgos de la investigación de visión (v3)
+
+Documentos: `docs/investigacion_autonomo/05_vision_monocular.md` y `07_detector_efficientdet.md`.
+
+- **El clasificador de color no es `YCbCr`:** `obstaculos.c` usa distancia RGB (suma de valores absolutos) más una regla de crominancia normalizada, con hasta **4 grupos** de piso (`OBS_MAX_GRUPOS`). Las versiones anteriores del manual decían `YCbCr` con 3 grupos; está corregido.
+- **Una pata delgada de 30 mm** ocupa 2 a 4 celdas a 50 cm y ninguna a 80 cm (cálculo `SIMULADO` con campo 56°, altura 115 mm e inclinación 12° SUPUESTOS), frente a `MIN_CELDAS` = 7: el color no ve patas más allá de ~50 cm. La expansión de la imagen al acercarse (*looming*) tampoco ayuda con patas lejanas.
+- **Constantes de geometría inconsistentes:** `corredor.h` usa 10 cm de altura, 20° de inclinación y 60° de campo; el manual, 115 mm, 12° y 56°; la altura entra en centímetros enteros. Hay que medir la cámara y unificar antes de tocar el clasificador.
+- **Detector:** la documentación habla de cajas `[top, left, right, bottom]` y el código usa `[ymin, xmin, ymax, xmax]` (puede ser el orden del modelo exacto); se propone verificarlo con una imagen **sintética**. El detector estira 240×176 a 320×320, usa NMS con IoU 0.5, máximo 25 cajas y un solo umbral de 0.6.
+- **Sombras, manchas de sol y reaprender el piso** no están medidos (M4 del protocolo); no se cambió el clasificador sin esa medición.

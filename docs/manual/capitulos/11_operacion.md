@@ -45,7 +45,7 @@ El orden de encendido es importante porque el firmware de la `ESP32 DevKit` cali
 Ante cualquier comportamiento inesperado, el sistema dispone de cuatro mecanismos de detención ordenados por inmediatez:
 
 1. **Paro por liberación o botón `PARO` en pantalla (`< 50 ms`):** soltar el control manual o tocar el botón rojo **`PARO`** envía `STOP` con prioridad máxima en la cola del firmware.
-2. **Paro automático por láser frontal (`< 20 ms` locales):** cualquier objeto dentro del cono del `VL53L0X` a menos de `120 mm` detiene los motores en el propio microcontrolador.
+2. **Paro automático por láser frontal (local, sin pasar por el teléfono):** cualquier objeto dentro del cono del `VL53L0X` a menos de `120 mm` (firmware v1.1; `150 mm` en `SEG=3`) detiene los motores en el propio microcontrolador tras dos lecturas válidas seguidas (≈ 66 ms entre lecturas más el ciclo del lazo; el tiempo total NO está medido aislado, ver M5 del protocolo).
 3. **Paro por *watchdog* o silencio de sensores (`1.0 s` a `1.5 s`):** apagar la pantalla del teléfono, cerrar la aplicación o desconectar el WiFi detiene el carro a lo sumo en `1,000 ms` (`WD:<n>`).
 4. **Corte físico de energía (`instantáneo`):** apagar el interruptor del portapilas `4×AA` corta directamente la alimentación `VDD` del puente H `TC1508A` sin apagar el microcontrolador ni perder la sesión de diagnóstico.
 

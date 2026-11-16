@@ -52,3 +52,13 @@ Rama `feat/autonomo-v2` (`SIMULADO`; la app solo se compiló).
 | El carro avanza mucho más allá del obstáculo antes de volver | Es la pista del paso en paralelo (la cámara no ve lo que tiene al lado) | Dejar al menos 1.3 m de ruta después del obstáculo |
 
 **Caja negra.** Cada ruta deja un archivo de texto en `Android/data/com.fsi.carro/files/cajas_negras/`. Su nombre aparece en Ejecutar ruta → Avanzado. Para sacarlos: `adb pull /sdcard/Android/data/com.fsi.carro/files/cajas_negras`. El formato de las líneas está en `docs/autonomo_v2_diseno.md`.
+
+## 15.5 Autónomo v3: causa 19 y el freno de 150 mm
+
+Rama `feat/autonomo-v3` (`SIMULADO`; la app solo se compiló).
+
+| Síntoma | Qué significa | Qué hacer |
+|---|---|---|
+| «Causa 19: el láser dejó de responder a mitad de la ruta…» | Con la ruta en marcha, el láser vivía al empezar y lleva 600 ms sin vivir | Revisar la pantalla Sensores (láser caído, cable I²C). El carro se detuvo a propósito: no avanza sin el láser. Con el láser aún muerto, continuar vuelve a pedir ayuda |
+| Con firmware `SEG=3` el carro se detiene a ~15 cm de una pared en vez de ~12 cm | `TOF_PARO_MM` pasó de 120 a 150 mm | Normal. `CAPS` trae `TOFP=150` |
+| Con firmware `SEG=3` un avance contra algo a menos de 18 cm no arranca | `TOF_BLOQUEO_MM` es 180 mm | Alejar el carro o pasar a MANUAL |

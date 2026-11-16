@@ -127,3 +127,11 @@ Dieciséis de los 23 escenarios quedan en 1000 de 1000 sin contactos. Las compue
 Los dos últimos escenarios de la tabla y varias correcciones salieron de una revisión independiente del código hecha el 14-nov (sin hallazgos críticos, dos altos, tres medios y tres bajos, todos corregidos).
 
 Pruebas de software de la rama: `make -C nucleo_c test` 1884 casos; `make -C pruebas_firmware test` 564 casos; servidor falso 60 casos; todos sin fallos.
+
+## 12.7 Autónomo v3 (`SIMULADO`; firmware y app solo compilados)
+
+Rama `feat/autonomo-v3`. Las columnas del banco ahora son **excluyentes y suman las corridas**: `ok`, `contacto`, `bajo_mueble` (pasó entre las patas sin tocar), `ayuda`, `error`, `sin_terminar`, `falso_fin`, `esquive_falso` y `otro`, en ese orden de prioridad. El script `scripts/compuertas_autonomo.py --corridas 1000` compara cuatro versiones (v1.1, `6bea71e`, v2 y la actual) y deja los resultados en `docs/precision/autonomo_v3_*.txt` (los de v2 no se tocan).
+
+Verificación de software de la rama: `make -C nucleo_c test` 1901 casos y `make -C pruebas_firmware test` sin fallos, el núcleo también con `-ftrapv` (desbordes enteros) y el analizador estático de GCC sin avisos; servidor falso 60 casos; `scripts/probar_version.py` 21 casos; la app y los dos firmwares compilan (no se instalaron ni se grabaron). **No se pudieron correr ASan, UBSan ni TSan** (el compilador de Windows de este equipo no trae sus bibliotecas y no hay WSL). Revisión independiente de seguridad (un subagente que no vio cómo se hizo el cambio): sin hallazgos críticos ni altos; dos medios y cuatro menores, corregidos o documentados.
+
+Compuertas del encargo contra el banco: **siguen rojas** (23 líneas; v2 tenía 19): muebles con patas, paradas momentáneas con sol, sombra y reflejo (8–13 % de las corridas), la caja con pared a un lado (613 ok, 387 ayudas) y, por comparar contra v2, una ayuda de más en la caja corrida de lado, una en el banquito y nueve en la silla (las ayudas «finales» bajan: 44 → 33 y 32 → 15, y los contactos se reducen a la mitad o más). Error lateral final del Monte Carlo heredado: 18/44 mm contra 17/40 de v1.1 (SIMULADO); con un margen de paso menor (180 mm) se iguala, pero produce 2 contactos en el objeto largo: no se aplica.

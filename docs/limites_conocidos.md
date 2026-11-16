@@ -1,5 +1,35 @@
 # Límites conocidos de la navegación
 
+## Rama `feat/autonomo-v3` (16-nov-2026): lo que cambia y lo que sigue igual
+
+**SIMULADO / NO MEDIDO en el carro.** El carro no se movió, no se instaló la APK y no se grabó firmware (solo se compilaron). `main` y el tag `v1.1` (`bd1727b`) no se tocaron. No es v1.2. Detalle en [estado_20261116.md](estado_20261116.md); hallazgos y su gravedad en [investigacion_autonomo/90_hallazgos.md](investigacion_autonomo/90_hallazgos.md).
+
+Las columnas del banco ahora son **excluyentes y suman las corridas**: ok, contacto, bajo_mueble (pasó entre las patas sin tocar), ayuda, error, sin_terminar, falso_fin, esquive_falso, otro (en ese orden de prioridad). La tabla de abajo (v2) usa las columnas viejas, que se traslapaban.
+
+| Caso (1000 corridas, SIMULADO) | v2 | v3 | Qué cambió |
+|---|---|---|---|
+| Banquito 35 × 45 con patas | 765 ok, 79 contactos, 112 por debajo, 44 ayuda | **849 ok, 43 contactos**, 75 por debajo, 33 ayuda | Memoria del eco y retroceso antes de girar |
+| Silla con patas | 316 ok, 34 contactos, 618 por debajo, 32 ayuda | **435 ok, 21 contactos**, 529 por debajo, 15 ayuda | Igual |
+| Caja corrida de lado | 998 ok, 2 contactos | 999 ok, 0 contactos, 1 ayuda | Igual |
+| Objeto bajo (color y red) / solo color | 997 ok, 1 contacto / 986 ok, 14 contactos | 1000 ok / 1000 ok | Igual |
+| Caja con pared a un lado | 615 ok, 2 contactos, 383 ayuda | 613 ok, 1 contacto, 386 ayuda | Sin cambio real (una ayuda por contacto) |
+| Manchas de sol, sombras, reflejos | 8–13 % de corridas con parada momentánea | igual | La regla aprobada (color y red coinciden) |
+| Error lateral final tras esquivar (Monte Carlo heredado) | 18/44 mm | 18/44 mm | v1.1 da 17/40. Un margen de paso de 180 mm iguala pero mete 2 contactos con el objeto largo: no se aplica |
+
+**Compuertas del encargo: siguen en rojo.** Muebles con patas (contactos y ayudas), la caja con pared a un lado y las paradas con sol, sombra y reflejo. Respecto a v2, dos cosas no mejoran: las ayudas totales de banquito (59 contra 58) y silla (73 contra 64), y una ayuda de más en la caja corrida de lado. Las ayudas «finales» (el carro termina pidiendo ayuda) sí bajan, y los contactos se reducen a la mitad. Lo que quedó: la ayuda con causas 16 y 18 es la respuesta cuando el giro no cabe entre las patas (no hay sensor trasero y el retroceso se limita a 25 cm).
+
+**Modelo del láser.** El banco supone que el láser lee «el grupo más cercano dentro del cono»; la documentación del sensor dice que promedia lo que cae en su cono (media confianza). Con el modelo alterno (`AV3_LASER_MEZCLA=1`, SUPUESTO) los contactos son iguales y las ayudas suben (banquito 23 y silla 14 contra 7 y 4 en 300 corridas). Ninguna cifra de muebles se debe leer como del carro: **NO MEDIDO** si el láser ve patas reales.
+
+**Lo nuevo en v3:** memoria del eco y retroceso antes de girar; causa 19 (láser caído a mitad de ruta); giros de menos de 10° por tiempo no se hacen sin giroscopio sano (umbral SUPUESTO); firmware `SEG=3` (freno 150 mm, bloqueo 180 mm, un «sin eco» aislado no rompe la racha de «cerca»; **solo compilado**); `verificar_version.py --solo-fw`.
+
+**Sigue sin hacerse (diseño):** leer el estado de la medición del VL53L0X (el firmware solo ve milímetros; 8190 y 65535 son «libre»), recuperación del bus I²C, tope global de continuaciones tras ayuda (cada «continuar» devuelve los presupuestos), detección de atasco, bloqueo de exposición (el controlador y la hoja de datos del GC0308 discrepan en los bits de AEC y AGC), frescura de SENS medida desde la medición y no desde su llegada, pines del TC1508A al reiniciar (`seguridad.md` §3.2 dice que el reinicio los lleva «a nivel bajo por hardware»; la hoja del ESP32 indica que los GPIO 25, 26, 27 y 33 arrancan sin salida ni entrada habilitada, es decir flotantes, así que depende del driver o de un pull-down externo: NO MEDIDO).
+
+**Mediciones baratas que cierran lo anterior:** bloque M (M1 a M10) del [protocolo](protocolo_prueba_fisica_autonomo_v2.md#10-bloque-m--mediciones-baratas-v3) y su [plantilla CSV](pruebas_fisicas_mediciones_v3_plantilla.csv).
+
+---
+
+# (Base) Límites conocidos de v2, todavía vigentes salvo lo indicado arriba
+
 Rama `feat/autonomo-v2`, 14-nov-2026 (con las correcciones de la revisión independiente), sobre v1.1 (`bd1727b`) y `6bea71e`. **SIMULADO / NO MEDIDO en el carro.** No es v1.2. El carro no se movió, no se instaló la APK y no se grabó firmware. [Diseño y resultados](autonomo_v2_diseno.md) · [auditoría](auditoria_autonomo_v2.md) · [protocolo de prueba física](protocolo_prueba_fisica_autonomo_v2.md) · [diagnóstico anterior](diagnostico_esquive_20261111.md).
 
 ## Lo que el simulador ya dice que no se cumple
@@ -43,7 +73,7 @@ Antes de entrar a la línea el carro mira; no ve lo que queda pegado a su costad
 
 «Terminado» sin rodeo abierto se acepta al llegar; lo que el láser vea más allá del destino no lo impide. Con un rodeo abierto hacen falta el avance cumplido y, parado, tres lecturas nuevas a más de 400 mm o, sin eco, cinco cuadros sin coincidencia (con la red vigente). **Sin eco no cuenta como libre.**
 
-Siguen: pérdida de video a 700 ms, silencio de SENS a 1.5 s, watchdog del firmware a 1000 ms y `TOF_PARO` a 120 mm. STOP no elimina la latencia ni la inercia.
+Siguen: pérdida de video a 700 ms, silencio de SENS a 1.5 s, watchdog del firmware a 1000 ms y `TOF_PARO` a 120 mm (v1.1 y `SEG=2`; 150 mm con `SEG=3`, solo compilado). STOP no elimina la latencia ni la inercia.
 
 Firmware: hay cambios **solo compilados** (carro `SEG=2`, cámara `cam-v2`). La app nueva funciona con los firmwares actuales.
 
@@ -72,12 +102,13 @@ La pantalla muestra «Causa N: texto». Con AYUDA desactivada se comunica ERROR;
 | 16 | **V2.** Pared u objeto muy ancho: el láser midió los lados al girar y no hay por dónde (o medir el otro lado no era seguro). El carro no se acercó. |
 | 17 | **V2.** El detector de objetos dejó de dar resultados vigentes durante 2.5 s. |
 | 18 | **V2.** El láser vio algo dentro del arco que barre el chasis al girar para rodear (una pared pegada, un objeto junto al carril): el carro dejó de girar. |
+| 19 | **V3.** El láser dejó de responder a mitad de la ruta (vivía al empezar y lleva 600 ms sin vivir): STOP y ayuda. Con el láser aún muerto, continuar vuelve a pedir ayuda. |
 
 ## Piso y precisión
 
 La app exige «Aprender piso» en cada ruta. No detecta sola un cambio de iluminación; la caja negra guarda los números para verlo después (líneas `VTEL`, y `foto` de la cámara con `cam-v2`). Valores de color: 40, 7 celdas, fila mínima 44 %. La pantalla de Visión deja poner el umbral hasta 300 y las celdas hasta 40 sin avisar: con 240/23 el detector de color queda prácticamente ciego.
 
-No hay encoders: la distancia se estima por tiempo. El pivote izquierdo es el espejo del derecho, no una medida propia. Los 120 mm sensor–centro, el campo y la altura de la cámara son supuestos.
+No hay encoders: la distancia se estima por tiempo. El pivote es **asimétrico** (derecho: radio ~15.8 cm; izquierdo: ~8.7–9 cm, según la calibración y la investigación de cinemática): el «espejo» del giro es incorrecto; el izquierdo sigue siendo poco medido. La velocidad de 19.3 cm/s en AUTO puede estar obsoleta (las cajas negras del 15-nov sugieren ~30 cm/s). Los 120 mm sensor–centro, el campo y la altura de la cámara son supuestos.
 
 ## Pendiente de medición física
 

@@ -87,3 +87,18 @@ Rama `feat/autonomo-v2`. El firmware del carro con estos cambios **solo se compi
 `TOF_PARO` sigue en 120 mm y el watchdog en 1000 ms. Retroceder, girar y el perfil MANUAL no se bloquean. `SENS` no cambia: la app v1.1 exige exactamente tres campos. Las claves nuevas de `CAPS` van antes de `FW:` y no contienen `IMU=`, `TOF=` ni `RUMBO=`, que son las subcadenas que busca la app. `TUSO` dice si el freno láser está en uso (`TOF_USO`).
 
 La cámara `cam-v2` agrega claves al final de `/stats` (ver 5.5). La app nueva funciona con los firmwares actuales, y los firmwares nuevos con la app v1.1.
+
+## 6.6 Autónomo v3: `SEG=3` y `TOFP` (`COMPILADO`, no grabado)
+
+Rama `feat/autonomo-v3`. El firmware del carro con estos cambios **solo se compiló** (1 034 622 bytes, 78 %) y pasó las pruebas en computadora; no se grabó.
+
+| Cambio | v1.1 y `SEG=2` | Con `SEG=3` |
+|---|---|---|
+| Freno por láser (`TOF_PARO_MM`) | 120 mm | **150 mm** |
+| Bloqueo de arranque (`TOF_BLOQUEO_MM`, `SEG=2`) | 150 mm | **180 mm** |
+| Un «sin eco» entre dos lecturas cercanas | Rompe la racha de «cerca» (hacían falta otras dos lecturas) | **No la rompe** (`TOF_PERDIDAS_TOLERADAS` = 1); dos «sin eco» seguidos o una lectura lejana real sí |
+| `CAPS` | `...,SEG=2,TUSO=<0\|1>,FW:...` | `...,SEG=3,TUSO=<0\|1>,TOFP=150,FW:...` |
+
+**Por qué.** El pulso de arranque (255 por 250 ms, unos 9.5 cm) y la distancia del sensor al frente del carro (`e`, **NO MEDIDA**) hacen que 120 mm pueda no alcanzar si `e` pasa de unos 2 cm (modelo propio, `docs/investigacion_autonomo/10_seguridad_funcional.md`; confianza media). Más conservador, nunca menos. Volver a los valores anteriores: compilar con `-DTOF_PARO_MM=120 -DTOF_BLOQUEO_MM=150` (el compilador rechaza un bloqueo menor o igual al freno).
+
+**Compatibilidad.** `TOFP=` no contiene «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas) y la app nueva no lo necesita. `SENS` no cambia. El peor `CAPS` mide ~119 caracteres contra 128 del buffer. El servidor falso del repositorio imita `SEG=3` y las pruebas del firmware cubren los umbrales y la racha. `python scripts/verificar_version.py --puerto COM6 --solo-fw` comprueba el firmware cargado sin teléfono.
