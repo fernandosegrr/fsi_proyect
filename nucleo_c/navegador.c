@@ -1999,6 +1999,9 @@ void navegador_iniciar(Navegador *nav)
     nav->giro_fw_caido = nav->giro_fw = nav->giro_fw_estado = nav->giro_fw_pedir = 0;
     nav->giro_fw_min = NAV_GIRO_FW_MIN_GRADOS;
     nav->memoria_eco = 1;                    /* v3: ver NAV_V3 */
+    nav->tof_visto_vivo = 0;
+    nav->tof_caido_desde_ms = 0;
+    nav->laser_caido_para = 1;
     nav->eco_retroceder_mm = NAV_ECO_RETROCEDE_MM;
     nav->eco_retroceder = 0;
     nav->giro_fw_fallos = 0;
@@ -2195,6 +2198,8 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->modelo_visto = nav->modelo_vigente = 0;
     nav->modelo_t_ok_ms = 0;
     nav->reinc_deshacer_mm = 0;
+    nav->tof_visto_vivo = nav->tof_vivo ? 1 : 0;   /* v3: el láser cuenta como «visto vivo» solo si vive al empezar la ruta */
+    nav->tof_caido_desde_ms = 0;
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
     nav->vistazo_lado = nav->vistazo_ecos = nav->vistazo_mm = nav->vistazo_confirmado = nav->vistazos = nav->vistazos_con_eco = nav->giro_extra_grados = 0;
@@ -3254,7 +3259,7 @@ static int giroscopio_sano(const Navegador *nav)
 }
 
 /* V2: ¿se ejecuta un giro de `giro` grados (con signo)? No si es menor que NAV_REINC_GIRO_MIN_GRADOS (como siempre) ni, con el giroscopio sano, si es menor que el mínimo
- * que acepta el firmware: ese giro iría POR TIEMPO, con el pivote a plena potencia y sin freno (en B6 un ajuste de 4 grados giró 18). Lo que falte de rumbo lo corrige RUMBO
+ * que acepta el firmware: ese giro iría POR TIEMPO (v3: sin giroscopio sano tampoco se hace uno menor que NAV_GIRO_TIEMPO_MIN_GRADOS), con el pivote a plena potencia y sin freno (en B6 un ajuste de 4 grados giró 18). Lo que falte de rumbo lo corrige RUMBO
  * al avanzar o el plan siguiente. */
 static int giro_ejecutable(const Navegador *nav, int giro)
 {
@@ -3263,7 +3268,10 @@ static int giro_ejecutable(const Navegador *nav, int giro)
     if (g < NAV_REINC_GIRO_MIN_GRADOS) {
         return 0;
     }
-    return !(giroscopio_sano(nav) && g < nav->giro_fw_min);
+    if (!giroscopio_sano(nav)) {
+        return g >= NAV_GIRO_TIEMPO_MIN_GRADOS;   /* v3: por tiempo, un giro chico se pasa de largo */
+    }
+    return g >= nav->giro_fw_min;
 }
 
 /* El giro `g` (grados con signo) que, hecho desde `p` con el desplazamiento del pivote, deja el rumbo apuntando al punto (ox, oy) DESDE LA POSICIÓN NUEVA (no desde la de antes del giro:
@@ -5271,6 +5279,13 @@ int navegador_poner_eco_retroceder(Navegador *nav, int mm)
     return NAV_OK;
 }
 
+int navegador_poner_laser_caido_para(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->laser_caido_para = activo ? 1 : 0;
+    return NAV_OK;
+}
+
 int navegador_poner_memoria_eco(Navegador *nav, int activa)
 {
     if (nav == NULL) {
@@ -5661,6 +5676,12 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
     /* Un duplicado de SENS no es otra confirmacion. El angulo ya se actualizo. */
     if (ahora_ms == nav->tof_t_ms && (nav->tof_libre_lecturas || nav->tof_cerca_lecturas) &&
         tof_vivo && tof_valida && mm > 0) return;
+    if (tof_vivo) {
+        nav->tof_visto_vivo = 1;
+        nav->tof_caido_desde_ms = 0;
+    } else if (nav->tof_visto_vivo && nav->tof_caido_desde_ms == 0) {
+        nav->tof_caido_desde_ms = ahora_ms ? ahora_ms : 1;
+    }
     nav->tof_vivo = tof_vivo ? 1 : 0;
     nav->tof_mm = mm;
     nav->tof_valida = tof_valida ? 1 : 0;
@@ -5887,6 +5908,17 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         return NAV_CMD_STOP;
     }
 
+    /* V3: el láser estaba vivo y dejó de funcionar a mitad de ruta (cause 19). */
+    if (nav->usa_tof && nav->laser_caido_para && nav->tof_visto_vivo && nav->tof_caido_desde_ms != 0 && !nav->tof_vivo &&
+        (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) &&
+        (uint32_t)(ahora_ms - nav->tof_caido_desde_ms) > (uint32_t)NAV_TOF_CAIDO_MS && (uint32_t)(ahora_ms - nav->tof_caido_desde_ms) < 0x80000000u) {
+        diag_escribir(nav, "AYUDA_DIAG laser_caido ms=%lu: se detiene (sin el sensor fiable no se sigue)", (unsigned long)(uint32_t)(ahora_ms - nav->tof_caido_desde_ms));
+        cambiar_comando(nav, NAV_CMD_STOP);
+        ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_SIN_LASER);   /* con «pedir ayuda»: AYUDA con su causa; sin ella, ERROR */
+        nav->tof_caido_desde_ms = ahora_ms;   /* si el usuario continúa desde la ayuda, el plazo vuelve a empezar */
+        return NAV_CMD_STOP;
+    }
+
     if (nav->estado == NAV_ERROR || nav->estado == NAV_AYUDA || nav->estado == NAV_ESPERANDO) {
         nav->fin_pendiente = nav->verificando_frente = 0;
     }
@@ -6002,6 +6034,9 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         break;
     case NAV_CAUSA_SIN_PERCEPCION:
         n = snprintf(texto, (size_t)capacidad, "el detector de objetos dejó de dar resultados: no se puede confirmar el frente por visión");
+        break;
+    case NAV_CAUSA_SIN_LASER:
+        n = snprintf(texto, (size_t)capacidad, "el láser dejó de responder a mitad de la ruta: sin él no hay un sensor fiable que confirme el frente");
         break;
     case NAV_CAUSA_GIRO_BLOQUEADO:
         n = snprintf(texto, (size_t)capacidad, "el láser vio algo dentro del arco del giro (una pared o un objeto pegado al costado): el carro dejó de girar");

@@ -392,7 +392,8 @@ typedef enum {
 #define NAV_CAUSA_FRENTE_ANCHO          16   /* V2: pared u objeto más ancho que el rodeo máximo (medido con el láser al girar): no hay por dónde */
 #define NAV_CAUSA_SIN_PERCEPCION        17   /* V2: la red neuronal dejó de dar resultados vigentes: no se puede confirmar nada por visión */
 #define NAV_CAUSA_GIRO_BLOQUEADO        18   /* V2 (revisión): el láser vio algo DENTRO del arco que barre el chasis al girar para rodear: el carro dejó de girar */
-#define NAV_CAUSAS                      19   /* cuántos códigos hay (para tablas) */
+#define NAV_CAUSA_SIN_LASER             19   /* V3: la ruta cuenta con el láser y este dejó de contestar NAV_TOF_CAIDO_MS a mitad de ruta: sin el sensor fiable no se sigue */
+#define NAV_CAUSAS                      20   /* cuántos códigos hay (para tablas) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -718,6 +719,9 @@ typedef struct {
     int      tof_paro_activo;        /* 1 desde TOF_PARO (o desde un paro confirmado por un eco válido del láser, v3) hasta que empieza a esquivar */
     int      eco_retroceder_mm;      /* v3: umbral en mm (0 = no retroceder) */
     int      eco_retroceder;         /* v3: el paro lo confirmó un eco a menos de NAV_ECO_RETROCEDE_MM: antes de girar se retrocede (si hay camino recién pisado) */
+    int      tof_visto_vivo;         /* v3: el láser estuvo vivo en esta ruta */
+    uint32_t tof_caido_desde_ms;     /* v3: desde cuándo el SENS dice que el láser no vive (0 = vive) */
+    int      laser_caido_para;       /* v3: 1 = detener la ruta si el láser cae (por defecto) */
     int      memoria_eco;            /* v3: 1 = un eco válido y cercano del láser que detuvo al carro no se borra porque luego el láser pierda el eco (ver NAV_V3) */
     int      tof_pendiente;          /* 1 = TOF_PARO llegó mientras esquivaba o volvía a la línea: lo atiende el siguiente tick */
     int      tof_paros;              /* TOF_PARO recibidos en esta ruta */
@@ -867,7 +871,14 @@ int navegador_poner_precaucion(Navegador *nav, int modo);
  *    (el haz la roza); antes el siguiente cuadro sin eco, con el lado visto solo por el color, reanudaba la marcha hacia ella. 1 = activa (por defecto), 0 = como v2. */
 #define NAV_V3                      1
 #define NAV_ECO_RETROCEDE_MM      350
+/* Giros por TIEMPO (sin giroscopio sano) menores que esto no se hacen: el pivote arranca a plena potencia y el carro gira más de lo que dice el tiempo (en B6, el 10-nov,
+ * un ajuste de 4 grados giró 18; un solo dato, SUPUESTO el umbral). Con un giro de menos de NAV_GIRO_TIEMPO_MIN_GRADOS se queda el error de rumbo que ya había, que es menor. */
+#define NAV_GIRO_TIEMPO_MIN_GRADOS  10
+/* LÁSER CAÍDO A MITAD DE RUTA (v3, hallazgo de docs/investigacion_autonomo/10_seguridad_funcional.md §2.5c): si la ruta salió con el láser vivo y el SENS dice que dejó de
+ * funcionar durante NAV_TOF_CAIDO_MS seguidos, el carro se detiene y pide ayuda (causa 19). Antes seguía avanzando con la cámara sola, sin el único sensor que confirma. */
+#define NAV_TOF_CAIDO_MS           600
 int navegador_poner_memoria_eco(Navegador *nav, int activa);
+int navegador_poner_laser_caido_para(Navegador *nav, int activo);   /* v3: 1 (por defecto) = el láser caído a mitad de ruta detiene la ruta (causa 19) */
 int navegador_poner_eco_retroceder(Navegador *nav, int mm);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);

@@ -393,7 +393,32 @@ static void v3_correr(int memoria, int retroceder_mm) {
         if(nav.estado==NAV_ESQUIVANDO)v3_esquiva=1;
     }
 }
+
+static void probar_v3_laser_caido(void) {
+    ResultadoObstaculos vacio;
+    int t, nodetuvo=1;
+    char frase[200];
+    memset(&vacio,0,sizeof vacio);
+    preparar_politica();
+    for(t=0;t<=1500;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    caso("v3 laser vivo: la ruta avanza",nav.estado==NAV_SIGUIENDO && nav.cmd_actual==NAV_CMD_FORWARD);
+    for(t=1550;t<=1550+NAV_TOF_CAIDO_MS-100;t+=50){navegador_aporte_sens(&nav,0,0,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);if(nav.estado!=NAV_SIGUIENDO)nodetuvo=0;}
+    caso("v3 laser caido menos del plazo: todavia avanza",nodetuvo && nav.estado==NAV_SIGUIENDO);
+    for(;t<=1550+NAV_TOF_CAIDO_MS+300;t+=50){navegador_aporte_sens(&nav,0,0,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    caso("v3 laser caido mas del plazo: STOP y AYUDA con la causa 19",nav.estado==NAV_AYUDA && nav.cmd_actual==NAV_CMD_STOP && nav.error_causa==NAV_CAUSA_SIN_LASER);
+    caso("v3 la causa 19 tiene su frase",navegador_texto_error(&nav,frase,(int)sizeof frase)>0 && strstr(frase,"láser")!=NULL);
+    preparar_politica();
+    navegador_poner_laser_caido_para(&nav,0);
+    for(t=0;t<=1500;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    for(t=1550;t<=4000;t+=50){navegador_aporte_sens(&nav,0,0,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    caso("v3 con la bandera apagada el laser caido no detiene (como v2)",nav.estado!=NAV_AYUDA);
+    preparar_politica();
+    for(t=0;t<=4000;t+=50){navegador_aporte_sens(&nav,0,0,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&vacio);}
+    caso("v3 la ruta que salio SIN laser no se detiene por eso (la app ya avisa al iniciar)",nav.estado!=NAV_AYUDA);
+}
+
 static void probar_v3(void) {
+    probar_v3_laser_caido();
     v3_correr(0,0);
     caso("v3 sin memoria del eco (como v2): perder el eco reanuda la marcha hacia lo que el laser vio",v3_reanudo);
     v3_correr(1,0);
