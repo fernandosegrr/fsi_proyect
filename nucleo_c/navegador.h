@@ -259,7 +259,9 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PASAR_SIN_AVANCE_MAX      3    /* (revisión) planes seguidos de «pasar primero» sin que avance la cuenta a lo largo de la ruta: se pide ayuda en vez de repetir */
 #define NAV_CAMARA_FOV_GRADOS        56    /* campo horizontal de la cámara (SUPUESTO del manual; pendiente de medir) */
 #define NAV_CAMARA_ADELANTE_MM      100    /* del centro del carro a la lente (SUPUESTO) */
+#ifndef NAV_PASO_VISTA_MARGEN_MM
 #define NAV_PASO_VISTA_MARGEN_MM    230    /* 10 a 50 que necesita el giro de regreso + ~100 porque las ultimas celdas del costado dejan de contarse antes de salir del cuadro + 80 de error de distancia por tiempo */
+#endif
 #define NAV_PASO_PARALELO_MAX_MM   2500
 #define NAV_FLANCO_CELDAS_MIN         2    /* celdas en el borde lejano del lado del objeto para decir que el costado sigue a la vista */
 #define NAV_FLANCO_OTRO_MM          250    /* si el paso llevaba esto sin ver nada de ese lado, lo que asoma es OTRO objeto (el que se rodea ya quedó al lado o atrás) */
