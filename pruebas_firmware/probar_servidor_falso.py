@@ -119,8 +119,8 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=2, TUSO (autonomo v2) y version simulada",
-                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=2,TUSO=1,FW:simulado")
+            caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=3, TUSO, TOFP (autonomo v2/v3) y version simulada",
+                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150,FW:simulado")
             await ws.send("RUMBO:ON")
             caso("sensores: RUMBO:ON -> ACK_RUMBO:1", await siguiente(ws, "ACK_RUMBO:") == "ACK_RUMBO:1")
             await ws.send("RUMBO:-125")
@@ -185,15 +185,15 @@ async def probar_sensores():
                     break
             caso("sensores: FORWARD con algo a 80 mm -> TOF_PARO:80", paro == "TOF_PARO:80")
             await ws.send("STOP")
-            # SEG=2 (autonomo v2): con el frente a menos de 150 mm el FORWARD ni siquiera arranca; a 150 o mas, si.
+            # SEG=3 (autonomo v3): con el frente a menos de 180 mm el FORWARD ni siquiera arranca; a 180 o mas, si.
             while await siguiente(ws, "TOF_PARO:", 0.3):      # los TOF_PARO:80 que quedaron de los FORWARD de arriba
                 pass
-            await ws.send("SIM_TOF:140")
+            await ws.send("SIM_TOF:170")
             await ws.send("FORWARD")
-            caso("sensores (SEG=2): FORWARD con algo a 140 mm no arranca y contesta TOF_PARO:140 de inmediato", await siguiente(ws, "TOF_PARO:", 0.3) == "TOF_PARO:140")
-            await ws.send("SIM_TOF:160")
+            caso("sensores (SEG=2): FORWARD con algo a 170 mm no arranca y contesta TOF_PARO:170 de inmediato", await siguiente(ws, "TOF_PARO:", 0.3) == "TOF_PARO:170")
+            await ws.send("SIM_TOF:190")
             await ws.send("FORWARD")
-            caso("sensores (SEG=2): con algo a 160 mm el FORWARD arranca (sin TOF_PARO)", await siguiente(ws, "TOF_PARO:", 0.5) is None)
+            caso("sensores (SEG=2): con algo a 190 mm el FORWARD arranca (sin TOF_PARO)", await siguiente(ws, "TOF_PARO:", 0.5) is None)
             await ws.send("STOP")
             await ws.send("SIM_TOF:80")
             await ws.send("REVERSE")

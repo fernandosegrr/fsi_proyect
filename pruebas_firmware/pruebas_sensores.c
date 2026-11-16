@@ -900,7 +900,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=2, TUSO y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=2,TUSO=1," FW_VERSION) == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=3, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1189,6 +1189,25 @@ static void prueba_laser_lecturas(void)
     tof_probar_lectura(500, 5u);
     tof_probar_lectura(500, 6u);
 
+    /* SEG=3: un «sin eco» aislado no rompe la racha de «cerca»; dos seguidos o una lectura lejana REAL sí. */
+    tof_probar_lectura(500, 20u);
+    tof_probar_lectura(500, 21u);
+    tof_probar_lectura(90, 22u);
+    tof_probar_lectura(8190, 23u);
+    tof_probar_lectura(90, 24u);
+    caso("SEG=3: cercana, sin eco, cercana confirma la racha de cerca (un sin eco aislado no la rompe)", TOF_PERDIDAS_TOLERADAS < 1 || tof_cerca_confirmada() == 90);
+    tof_probar_lectura(500, 30u);
+    tof_probar_lectura(90, 31u);
+    tof_probar_lectura(8190, 32u);
+    tof_probar_lectura(65535, 33u);
+    tof_probar_lectura(90, 34u);
+    caso("SEG=3: cercana, dos sin eco seguidos, cercana: la racha se rompe", tof_cerca_confirmada() == 0);
+    tof_probar_lectura(500, 40u);
+    tof_probar_lectura(90, 41u);
+    tof_probar_lectura(500, 42u);
+    tof_probar_lectura(90, 43u);
+    caso("SEG=3: cercana, lejana REAL, cercana: la racha se rompe al instante", tof_cerca_confirmada() == 0);
+
     /* Lecturas basura (menos de 8 mm) se ignoran. */
     tof_probar_lectura(300, 7u);
     tof_probar_lectura(300, 8u);
@@ -1235,7 +1254,7 @@ static void prueba_laser_paro(void)
     avanzando_en_auto();
     falso_tof_mm = 350;
     avanzar_ms(250);
-    caso("J13: el umbral de autoridad de la app no cambia el freno firmware de 120 mm", TOF_PARO_MM == 120 && carro_avanzando() && sensores_paros_tof() == 0);
+    caso("J13/SEG=3: el umbral de autoridad de la app no cambia el freno firmware de 150 mm", TOF_PARO_MM == 150 && TOF_BLOQUEO_MM == 180 && carro_avanzando() && sensores_paros_tof() == 0);
     avanzando_en_auto();
     caso("avanza en AUTO con el laser libre", carro_avanzando());
     falso_tof_mm = 100;
@@ -1260,16 +1279,16 @@ static void prueba_laser_paro(void)
     avanzar_ms(200);
     caso("una lectura cercana suelta no frena", carro_avanzando() && sensores_paros_tof() == 0);
 
-    /* Cercana, libre, cercana, libre... nunca hay 2 seguidas. */
-    for (i = 0; i < 8; i++) {
-        falso_tof_mm = (i % 2 == 0) ? 100 : 8190;
+    /* Cercana y DOS «sin eco» seguidos, de nuevo cercana...: la racha se rompe y nunca hay 2 cercanas seguidas (SEG=3: un solo «sin eco» no la rompe, dos sí). */
+    for (i = 0; i < 9; i++) {
+        falso_tof_mm = (i % 3 == 0) ? 100 : 8190;
         avanzar_ms(35);
         if (i % 4 == 0) orden("FORWARD");
     }
-    caso("cercana/libre alternadas (nunca 2 seguidas cercanas) no frenan", carro_avanzando() && sensores_paros_tof() == 0);
+    caso("cercana + dos sin eco seguidos (la racha se rompe) no frenan", carro_avanzando() && sensores_paros_tof() == 0);
 
-    /* 130 mm no es menor de 120. */
-    falso_tof_mm = 130;
+    /* 160 mm no es menor de TOF_PARO_MM (150). */
+    falso_tof_mm = 160;
     avanzar_ms(200);
     orden("FORWARD");
     avanzar_ms(100);
@@ -1371,17 +1390,17 @@ static void prueba_laser_paro(void)
         orden("MODO_AUTO");
         avanzar_ms(20);
     }
-    /* Histéresis: entre TOF_PARO_MM (120) y TOF_BLOQUEO_MM (150) tampoco arranca; a 150 o más, sí. */
-    falso_tof_mm = 140;
+    /* Histéresis: entre TOF_PARO_MM (150) y TOF_BLOQUEO_MM (180) tampoco arranca; a 180 o más, sí. */
+    falso_tof_mm = 170;
     avanzar_ms(150);
     orden("FORWARD");
     avanzar_ms(60);
-    caso("SEG=2: a 140 mm (entre el freno y el bloqueo) el FORWARD no arranca", motores_parados());
-    falso_tof_mm = 160;
+    caso("SEG=3: a 170 mm (entre el freno y el bloqueo) el FORWARD no arranca", motores_parados());
+    falso_tof_mm = 190;
     avanzar_ms(150);
     orden("FORWARD");
     avanzar_ms(60);
-    caso("SEG=2: a 160 mm el FORWARD arranca (y el freno de 120 mm sigue vigilando)", carro_avanzando());
+    caso("SEG=3: a 190 mm el FORWARD arranca (y el freno de 150 mm sigue vigilando)", carro_avanzando());
     falso_tof_mm = 100;
     avanzar_ms(150);
     caso("... y al acercarse a 100 mm frena", motores_parados() && sensores_paros_tof() == 2);
@@ -1543,16 +1562,16 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=2,TUSO=1," FW_VERSION) == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=2,TUSO=1," FW_VERSION) == 0);
-    caso("SEG=2: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
-         m != NULL && strstr(m, "SEG=2,TUSO=1,FW:") != NULL && strstr(strstr(m, "SEG=2"), "IMU=") == NULL && strstr(strstr(m, "SEG=2"), "TOF=") == NULL &&
-         strstr(strstr(m, "SEG=2"), "RUMBO=") == NULL);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("SEG=3: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
+         m != NULL && strstr(m, "SEG=3,TUSO=1,TOFP=150,FW:") != NULL && strstr(strstr(m, "SEG=3"), "IMU=") == NULL && strstr(strstr(m, "SEG=3"), "TOF=") == NULL &&
+         strstr(strstr(m, "SEG=3"), "RUMBO=") == NULL);
     caso("J13: CAPS incluye la version compilada sin truncarla", m && strstr(m, FW_VERSION) && strlen(m) < MENSAJE_SALIDA_MAX);
     orden("IMU?");
     avanzar_ms(5);

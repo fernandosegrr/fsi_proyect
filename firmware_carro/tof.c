@@ -2,7 +2,8 @@
  * tof.c — Sensor láser VL53L0X en C puro (ver tof.h).
  *
  * Cada lectura cruda se clasifica así:
- *   8190, 65535 o más de TOF_LIBRE_MM  → LIBRE (nada a la vista): rompe cualquier racha de "cerca".
+ *   8190, 65535 o más de TOF_LIBRE_MM  → LIBRE (nada a la vista). Un valor lejano REAL rompe la racha de "cerca" al instante; un "sin eco" (8190, 65535)
+ *                                       aislado no (hasta TOF_PERDIDAS_TOLERADAS seguidos, SEG=3): en una pata o un borde delgado el sensor alterna eco y "sin eco".
  *   menos de TOF_MIN_VALIDO_MM          → basura del sensor: se ignora del todo.
  *   el resto                            → medida válida; si es menor de TOF_PARO_MM suma a la racha de "cerca".
  * El valor que se informa es la mediana de las últimas 3 (un pico suelto no cambia nada); "libre" cuenta como TOF_LIBRE_MM.
@@ -25,6 +26,7 @@ static int      arranque_marcado = 0;   /* 1 cuando ya se anotó la hora desde l
 static int      valida          = 0;
 static int      cerca_seguidas  = 0;
 static int      ultimas[TOF_PARO_LECTURAS];   /* las últimas lecturas válidas cercanas (para informar la mayor) */
+static int      perdidas_seguidas = 0;        /* SEG=3: «sin eco» seguidos (no rompen la racha de cerca hasta pasar de TOF_PERDIDAS_TOLERADAS) */
 static int      bloqueo_seguidas = 0;         /* SEG=2: lecturas válidas seguidas por debajo de TOF_BLOQUEO_MM */
 static int      ultimas_bloqueo[TOF_PARO_LECTURAS];
 /* Dónde se guarda la próxima lectura de cada lista. Van aparte de las cuentas de «seguidas»: esas se detienen en 1000 y, usadas como índice, dejaban de recorrer la
@@ -99,6 +101,7 @@ int tof_iniciar(void)
     valida = 0;
     cerca_seguidas = 0;
     bloqueo_seguidas = 0;
+    perdidas_seguidas = 0;
     ventana_n = 0;
     filtrado = TOF_LIBRE_MM;
     total_lecturas = 0;
@@ -139,12 +142,26 @@ static void procesar(int crudo, uint32_t ahora_ms)
         return;                                          /* basura: ni libre ni cerca */
     }
     if (crudo < 0 || crudo == 8190 || crudo == 65535 || crudo > TOF_LIBRE_MM) {
+        const int sin_eco = (crudo < 0 || crudo == 8190 || crudo == 65535);
+
         valida = 0;
-        cerca_seguidas = 0;
-        bloqueo_seguidas = 0;
+        if (sin_eco) {
+            if (perdidas_seguidas < 1000) {
+                perdidas_seguidas++;
+            }
+            if (perdidas_seguidas > TOF_PERDIDAS_TOLERADAS) {   /* un «sin eco» aislado entre dos cercanas no rompe la racha */
+                cerca_seguidas = 0;
+                bloqueo_seguidas = 0;
+            }
+        } else {
+            perdidas_seguidas = 0;                               /* una lectura lejana REAL sí la rompe de inmediato */
+            cerca_seguidas = 0;
+            bloqueo_seguidas = 0;
+        }
         valor = TOF_LIBRE_MM;
     } else {
         valida = 1;
+        perdidas_seguidas = 0;
         valor = crudo;
         if (crudo < TOF_BLOQUEO_MM) {
             ultimas_bloqueo[indice_bloqueo] = crudo;

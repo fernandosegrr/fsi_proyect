@@ -22,7 +22,7 @@ GUIA DE LECTURA
     un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser), TOF_PARO:<mm> y WD:<n> cuando frena el watchdog (J16).
     J16: CAPS anuncia IMUS=<ppm> y entiende IMU_ESCALA:<ppm> / IMU_ESCALA? (correccion de escala del giroscopio; no la aplica a su angulo simulado);
     SIM_ANGULO:<decimas> (solo de pruebas) suma ese angulo como si el carro se hubiera girado a mano. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
-    "ve" el laser; con FORWARD en AUTO y menos de 120 mm dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
+    "ve" el laser; con FORWARD en AUTO y menos de 150 mm (TOF_PARO_MM, SEG=3; antes 120) dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
     porta como un firmware viejo: esos mensajes se tratan como desconocidos (sin respuesta).
 
 Uso (desde la carpeta pruebas_firmware, con el entorno virtual local):
@@ -130,9 +130,9 @@ async def hacer_giro(conexion, grados):
 
 def texto_caps():
     s = estado["sens"]
-    # Igual que el firmware (sensores.c): RUMBO=1 (J16) y, desde el autonomo v2, SEG=2 (un texto desconocido no renueva el watchdog; FORWARD en AUTO con el frente a
+    # Igual que el firmware (sensores.c): RUMBO=1 (J16) y, desde el autonomo v2, SEG=2 y desde el v3 SEG=3 con TOFP=150 (un texto desconocido no renueva el watchdog; FORWARD en AUTO con el frente a
     # menos de 150 mm no arranca y contesta TOF_PARO) y TUSO=<0|1> (si el freno del laser esta en uso). Las claves nuevas van antes de FW:.
-    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,RUMBO=1,IMUS=%d,SEG=2,TUSO=%d,FW:simulado" % (
+    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,RUMBO=1,IMUS=%d,SEG=3,TUSO=%d,TOFP=150,FW:simulado" % (
         1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3, s["escala_ppm"], 1 if s["tof_uso"] else 0)
 
 
@@ -203,7 +203,7 @@ async def procesar_sensores(conexion, mensaje):
 
 
 async def emisor_sens():
-    """Cada 100 ms: SENS al cliente (con perfil AUTO) y el freno de emergencia del laser (2 lecturas seguidas menores de 120 mm, AUTO, avanzando)."""
+    """Cada 100 ms: SENS al cliente (con perfil AUTO) y el freno de emergencia del laser (2 lecturas seguidas menores de 150 mm, AUTO, avanzando)."""
     while True:
         await asyncio.sleep(0.1)
         s = estado["sens"]
@@ -212,7 +212,7 @@ async def emisor_sens():
             continue
         try:
             if s["tof"] and s["tof_uso"] and estado["perfil"] == "AUTO" and estado["motores_en_marcha"] and estado.get("ultimo_movimiento") == "FORWARD":
-                s["cerca"] = s["cerca"] + 1 if s["mm"] < 120 else 0
+                s["cerca"] = s["cerca"] + 1 if s["mm"] < 150 else 0
                 if s["cerca"] >= 2:
                     s["cerca"] = 0
                     estado["motores_en_marcha"] = False
@@ -297,8 +297,8 @@ async def procesar(conexion, mensaje):
         await conexion.send("ACK_" + nuevo)
         return
     s = estado["sens"]
-    if mensaje == "FORWARD" and s["activo"] and s["tof"] and s["tof_uso"] and estado["perfil"] == "AUTO" and s["mm"] < 150:
-        # SEG=2: con el frente a menos de 150 mm (TOF_BLOQUEO_MM) el avance no arranca: se contesta TOF_PARO:<mm>, igual que el freno.
+    if mensaje == "FORWARD" and s["activo"] and s["tof"] and s["tof_uso"] and estado["perfil"] == "AUTO" and s["mm"] < 180:
+        # SEG=2/3: con el frente a menos de 180 mm (TOF_BLOQUEO_MM; 150 hasta SEG=2) el avance no arranca: se contesta TOF_PARO:<mm>, igual que el freno.
         imprimir("             FORWARD rechazado: frente a %d mm (TOF_PARO)" % s["mm"])
         estado["motores_en_marcha"] = False
         await mandar(conexion, "TOF_PARO:%d" % s["mm"])

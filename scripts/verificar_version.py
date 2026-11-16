@@ -2,6 +2,7 @@
 
 Uso: pruebas_firmware\\.venv\\Scripts\\python.exe scripts\\verificar_version.py --puerto COM6
 Se puede indicar --adb, --apk (para comparar también bytes) y --revision.
+Con --puerto COMx --solo-fw solo comprueba el firmware del carro (sin teléfono ni adb; v3).
 Con --solo-apk no abre ningún puerto serie y deja el FW pendiente para Sensores.
 Con --solo-archivo --apk dist/<apk> (J16) no usa ni el teléfono ni el puerto serie: comprueba el APK de la entrega contra Git
 (versión incrustada, revisión, fuentes limpias y SHA256SUMS.txt). No sustituye la comprobación del APK instalado.
@@ -124,6 +125,7 @@ def main():
     conexion.add_argument("--puerto")
     conexion.add_argument("--solo-apk", action="store_true")
     conexion.add_argument("--solo-archivo", action="store_true")
+    p.add_argument("--solo-fw", action="store_true", help="con --puerto: comprueba solo el firmware del carro contra Git (sin teléfono ni adb)")
     p.add_argument("--adb", default=str(Path(os.environ.get("LOCALAPPDATA", "")) / "Android/Sdk/platform-tools/adb.exe"))
     p.add_argument("--apk", type=Path)
     p.add_argument("--revision", default="HEAD")
@@ -133,6 +135,19 @@ def main():
             if a.apk is None:
                 raise ValueError("--solo-archivo necesita --apk dist/<archivo>.apk")
             return verificar_archivo(a.apk, a.revision)
+        if a.solo_fw:
+            if not a.puerto:
+                raise ValueError("--solo-fw necesita --puerto COMx")
+            caps = consultar_caps(a.puerto)
+            fw, hash_fw = version_fw(caps)
+            fuentes_limpias = not ejecutar(["git", "status", "--porcelain", "--untracked-files=no", "--", "firmware_carro"]).strip()
+            ok = coincide_revision(hash_fw, a.revision) and fuentes_limpias
+            print(caps)
+            print(fw)
+            print("APK: no se comprueba (--solo-fw, sin teléfono)")
+            print("Fuentes del firmware versionadas sin cambios locales=" + str(fuentes_limpias))
+            print("Comparación con " + a.revision + ": " + ("PASA" if ok else "NO COINCIDE"))
+            return 0 if ok else 1
         caps = consultar_caps(a.puerto) if a.puerto else ""
         fw, hash_fw = version_fw(caps) if caps else ("FW PENDIENTE: comprobar en Sensores con el carro conectado", "")
         ruta = ejecutar([a.adb, "shell", "pm", "path", "com.fsi.carro"]).strip().splitlines()

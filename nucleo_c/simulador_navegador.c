@@ -16,6 +16,11 @@
 #include "simulador_navegador.h"
 #include "calibracion.h"
 
+/* v3: el freno por láser del firmware (TOF_PARO_MM de config.h) es 150 mm desde SEG=3 (antes 120); -DSIM_TOF_PARO_MM=120 reproduce el firmware anterior. */
+#ifndef SIM_TOF_PARO_MM
+#define SIM_TOF_PARO_MM 150
+#endif
+
 /* Seno de 0 a 90 grados, en milésimas (1000 = 1.0). Tabla fija: no se usa math.h. */
 static const int SENO_MILESIMAS[91] = {
        0,   17,   35,   52,   70,   87,  105,  122,  139,  156,  174,  191,  208,  225,  242,
@@ -792,7 +797,7 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0,
                                  sim->tof_activo && laser_ok && mm > 0, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
-                sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
+                sim->tof_cerca_seguidas = (mm < SIM_TOF_PARO_MM) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */
                     sim->tof_parado = 1;
                     sim->tof_paro_hecho++;
