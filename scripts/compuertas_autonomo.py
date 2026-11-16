@@ -1,4 +1,4 @@
-"""Compuertas del modo autónomo v2: el banco realista (nucleo_c/pruebas_autonomo_v2.c) contra tres versiones del núcleo.
+"""Compuertas del modo autónomo (v2 y v3): el banco realista (nucleo_c/pruebas_autonomo_v2.c) contra cuatro versiones del núcleo.
 
 SIMULADO / NO MEDIDO en el carro. Solo PC: no conecta con el carro ni con el teléfono, no lee secretos.h,
 no cambia de rama y no genera binarios de firmware. Compila en una carpeta temporal.
@@ -7,14 +7,28 @@ Versiones (el MISMO banco, el MISMO mundo y el MISMO simulador físico; solo cam
 navegador, fusión, clasificador de color, corredor, calibración y trayectoria):
   v11     bd1727b  (versión final publicada 1.1)
   partida 6bea71e  (rama fix/navegacion-esquive-confirmado)
-  actual  el árbol de trabajo
+  v2      33bdb77  (feat/autonomo-v2: la referencia que la v3 no puede empeorar)
+  actual  el árbol de trabajo (feat/autonomo-v3)
 
 Uso:
   python scripts/compuertas_autonomo.py                    1000 corridas por escenario, las tres versiones
   python scripts/compuertas_autonomo.py --corridas 200     más rápido, para iterar
   python scripts/compuertas_autonomo.py --solo actual      solo el árbol de trabajo
-Salida: docs/precision/autonomo_v2_mc_<version>.txt, docs/precision/autonomo_v2_comparacion.txt y código de
-salida 1 si la versión actual no pasa las compuertas.
+Salida: docs/precision/autonomo_v3_mc_<version>.txt, docs/precision/autonomo_v3_comparacion.txt y código de
+salida 1 si la versión actual no pasa las compuertas. (Los autonomo_v2_*.txt son la referencia de la rama v2 y no se tocan.)
+
+COLUMNAS DEL INFORME (v3). Cada corrida termina en UNA sola categoría y las categorías suman las corridas (n):
+  ok            la meta del escenario: llegó, sin contacto, sin pasar por debajo de un mueble y con el objeto ya atrás (en «falsos»: sin esquivar ni pedir
+                ayuda; en «imposible»: paró sin tocar y pidió ayuda)
+  contacto      tocó algo físico (aunque después llegara)
+  bajo_mueble   sin contacto, pero entró en la planta de un mueble (entre sus patas)
+  ayuda         pidió AYUDA (o terminó en AYUDA) sin contacto
+  error         terminó en ERROR sin lo anterior
+  sin_terminar  se acabó el tiempo
+  falso_fin     dijo Terminado sin haber dejado atrás el objeto
+  esquive_falso esquivó algo que no existía (escenarios de falsos positivos)
+  otro          el resto (no debería haber)
+Las banderas «contactos», «ayuda» y «bajo_mueble» del banco antiguo se traslapan entre sí y con ok: no suman n.
 """
 import argparse
 import concurrent.futures
@@ -28,23 +42,29 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 VERSIONES = [("v11", "bd1727b", ["-DAV2_BASE_V11", "-DSIM_SIN_FUENTES"]),
              ("partida", "6bea71e", ["-DAV2_BASE_6BEA"]),
+             ("v2", "33bdb77", []),
              ("actual", None, [])]
+PREFIJO = "autonomo_v3"
+CATEGORIAS = ["ok", "contacto", "bajo_mueble", "ayuda", "error", "sin_terminar", "falso_fin", "esquive_falso", "otro"]
 # El núcleo de decisión (sale de cada versión) y el banco con su mundo (siempre del árbol de trabajo).
 NUCLEO = ["navegador.c", "navegador.h", "trayectoria.c", "trayectoria.h", "obstaculos.c", "obstaculos.h",
           "mascara_vision.c", "mascara_vision.h", "calibracion.c", "calibracion.h", "fusion.c", "fusion.h",
           "corredor.c", "corredor.h", "movimiento_piso.h"]
 BANCO = ["pruebas_autonomo_v2.c", "mundo_v2.c", "mundo_v2.h", "simulador_navegador.c", "simulador_navegador.h"]
-OPCIONALES = ["vision_tele.c", "vision_tele.h", "odometria.c", "odometria.h"]   # módulos nuevos: solo existen en la versión actual
+OPCIONALES = ["vision_tele.c", "vision_tele.h", "odometria.c", "odometria.h"]   # módulos nuevos: solo existen en las versiones que los tienen
 N_ESCENARIOS = 23
 
 
 def exportar(destino, referencia):
     destino.mkdir(parents=True)
-    for nombre in NUCLEO + (OPCIONALES if referencia is None else []):
+    for nombre in NUCLEO + OPCIONALES:
         if referencia:
-            datos = subprocess.run(["git", "show", f"{referencia}:nucleo_c/{nombre}"], cwd=ROOT,
-                                   capture_output=True, check=True).stdout
-            (destino / nombre).write_bytes(datos)
+            r = subprocess.run(["git", "show", f"{referencia}:nucleo_c/{nombre}"], cwd=ROOT, capture_output=True)
+            if r.returncode != 0:
+                if nombre in OPCIONALES:
+                    continue   # ese módulo no existe en esa versión
+                raise subprocess.CalledProcessError(r.returncode, r.args, r.stdout, r.stderr)
+            (destino / nombre).write_bytes(r.stdout)
         elif (ROOT / "nucleo_c" / nombre).exists():
             shutil.copyfile(ROOT / "nucleo_c" / nombre, destino / nombre)
     for nombre in BANCO:
@@ -67,9 +87,15 @@ def correr(destino, corridas, escenario):
 
 def campos(linea):
     d = {"causas": ""}
-    m = re.search(r"\| causas(.*)$", linea)
+    m = re.search(r"\| causas([^|]*)", linea)
     if m:
         d["causas"] = m.group(1).strip()
+    d["cat"] = {}
+    m = re.search(r"\| cat (.*)$", linea)
+    if m:
+        for par in m.group(1).split():
+            k, v = par.split("=")
+            d["cat"][k] = int(v)
     d["escenario"] = re.search(r"escenario=(\S+)", linea).group(1)
     d["tipo"] = re.search(r"tipo=(\S+)", linea).group(1)
     for clave in ["n", "exito", "contactos", "ayuda", "error", "terminado_falso", "sin_terminar", "llegan", "esquivas",
@@ -91,7 +117,7 @@ def escribir(ruta, texto):
         archivo.write(texto)
 
 
-def compuertas(actual, partida, v11=None):
+def compuertas(actual, partida, v11=None, v2=None):
     """Las metas medibles del encargo. Devuelve la lista de fallos (vacía = pasa).
 
     «contactos» son contactos FÍSICOS (una caja, una pared, una pata). Pasar por debajo de un mueble entre sus patas sin tocar nada se cuenta aparte
@@ -119,7 +145,7 @@ def compuertas(actual, partida, v11=None):
                 fallos.append(f"{nombre}: éxito {a['exito']}/{n} (meta >= 99 %)")
         if a["tipo"] == "imposible" and a["exito"] * 100 < n * 99:
             fallos.append(f"{nombre}: paró sin tocar y pidió ayuda {a['exito']}/{n} (meta >= 99 %)")
-        for etiqueta, base in (("la rama de partida", partida), ("v1.1", v11)):
+        for etiqueta, base in (("la rama de partida", partida), ("v1.1", v11), ("feat/autonomo-v2", v2)):
             if not base or nombre not in base:
                 continue
             p = base[nombre]
@@ -141,13 +167,13 @@ def main():
     parser.add_argument("--procesos", type=int, default=max(2, (os.cpu_count() or 4) - 2))
     parser.add_argument("--sin-guardar", action="store_true", help="no escribe en docs/precision (para iterar)")
     parser.add_argument("--desde-guardado", action="store_true",
-                        help="no simula: vuelve a armar la comparación y las compuertas con los docs/precision/autonomo_v2_mc_<versión>.txt ya guardados")
+                        help="no simula: vuelve a armar la comparación y las compuertas con los docs/precision/autonomo_v3_mc_<versión>.txt ya guardados")
     args = parser.parse_args()
     salida = ROOT / "docs/precision"
     resultados = {}
     if args.desde_guardado:
         for nombre, _ref, _banderas in VERSIONES:
-            ruta = salida / f"autonomo_v2_mc_{nombre}.txt"
+            ruta = salida / f"{PREFIJO}_mc_{nombre}.txt"
             if not ruta.exists():
                 continue
             resultados[nombre] = {}
@@ -175,7 +201,7 @@ def main():
                 e, ls = futuro.result()
                 lineas.setdefault(futuros[futuro], {})[e] = ls
         for nombre in lineas:
-            texto = [f"-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), version {nombre}, {args.corridas} corridas por escenario, "
+            texto = [f"-- Banco autonomo (SIMULADO / NO MEDIDO en el carro), version {nombre}, {args.corridas} corridas por escenario, "
                      "semillas 170000 + indice * 10007 + corrida --"]
             resultados[nombre] = {}
             for e in sorted(lineas[nombre]):
@@ -184,29 +210,32 @@ def main():
                     d = campos(l)
                     resultados[nombre][d["escenario"]] = d
             if not args.sin_guardar:
-                escribir(salida / f"autonomo_v2_mc_{nombre}.txt", "\n".join(texto) + "\n")
+                escribir(salida / f"{PREFIJO}_mc_{nombre}.txt", "\n".join(texto) + "\n")
     orden = [v[0] for v in VERSIONES if v[0] in resultados]
     informe = ["SIMULADO / NO MEDIDO en el carro. Banco nucleo_c/pruebas_autonomo_v2.c; "
                f"{args.corridas} corridas por escenario; semillas 170000 + indice * 10007 + corrida.",
-               "Por escenario y versión: éxito / contactos FÍSICOS / pasa bajo un mueble sin tocar / AYUDA / Terminado falso | esquives | paradas (corridas con parada) |"
-               " tiempo medio (s) | lateral p95 (mm) | vistazos (con eco)", ""]
+               "Columnas EXCLUYENTES (suman las corridas): ok | contacto | bajo_mueble | ayuda | error | sin_terminar | falso_fin | esquive_falso | otro (ver la cabecera de scripts/compuertas_autonomo.py).",
+               "Después, aparte: esquives (total) | paradas (corridas con parada) | tiempo medio (s) | lateral p95 (mm) | vistazos (con eco) | causas de AYUDA/ERROR", ""]
     nombres = list(resultados[orden[-1]].keys())
     for esc in nombres:
         informe.append(f"{esc}  [{resultados[orden[-1]][esc]['tipo']}]")
         for v in orden:
             d = resultados[v].get(esc)
             if d:
-                informe.append(f"   {v:8s} {d['exito']:5d}/{d['n']} ok  contactos {d['contactos']:4d}  bajo_mueble {d['bajo_mueble']:4d}  ayuda {d['ayuda']:4d}"
-                               f"  falso_fin {d['terminado_falso']:3d} | esquives {d['esquivas']:5d} | paradas {d['paradas']:5d} ({d['corridas_con_parada']:4d})"
+                c = d["cat"] or {}
+                cols = " ".join(f"{k}={c.get(k, 0)}" for k in CATEGORIAS) if c else "(sin columnas excluyentes)"
+                suma = sum(c.get(k, 0) for k in CATEGORIAS) if c else d["n"]
+                aviso = "" if suma == d["n"] else f"  !!! SUMAN {suma} y n={d['n']}"
+                informe.append(f"   {v:8s} {cols}{aviso} | esquives {d['esquivas']:5d} | paradas {d['paradas']:5d} ({d['corridas_con_parada']:4d})"
                                f" | t {d['t_media'] / 1000:5.1f} s | lat p95 {d['lat_p95']:4d} | vistazos {d['vistazos']:5d} ({d['vistazos_con_eco']:4d})"
                                f" | causas {d['causas']}")
     fallos = []
     if "actual" in resultados:
-        fallos = compuertas(resultados["actual"], resultados.get("partida"), resultados.get("v11"))
+        fallos = compuertas(resultados["actual"], resultados.get("partida"), resultados.get("v11"), resultados.get("v2"))
         informe += ["", f"COMPUERTAS de la versión actual: {'PASAN' if not fallos else str(len(fallos)) + ' fallos'}"] + ["   FALLO " + f for f in fallos]
     texto = "\n".join(informe) + "\n"
     if not args.sin_guardar:
-        escribir(salida / "autonomo_v2_comparacion.txt", texto)
+        escribir(salida / f"{PREFIJO}_comparacion.txt", texto)
     print(texto)
     return 1 if fallos else 0
 

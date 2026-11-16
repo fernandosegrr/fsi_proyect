@@ -286,7 +286,13 @@ typedef struct {
     int tiempo_ms, lateral, longitudinal, desvio_max, cola_mm, piso_aprendido, cuadros_color, cuadros_coinc;
     int bajo_mueble;   /* entró en la planta de un mueble (pasó por debajo, entre las patas) sin tocar nada físico */
     int vistazos, vistazos_con_eco;
+    int categoria;     /* v3: el resultado final de la corrida en UNA sola categoria (CAT_*): las categorias suman las corridas */
 } Resultado;
+
+/* v3: categorias EXCLUYENTES del resultado de una corrida, por orden de prioridad (la primera que se cumple). Las banderas de siempre (contacto, bajo_mueble, ayuda)
+ * se traslapan entre si y con el exito; estas no: la suma de todas es exactamente el numero de corridas. */
+enum { CAT_EXITO, CAT_CONTACTO, CAT_BAJO_MUEBLE, CAT_AYUDA, CAT_ERROR, CAT_SIN_TERMINAR, CAT_FALSO_FIN, CAT_ESQUIVE_FALSO, CAT_OTRO, CAT_N };
+static const char *const CAT_NOMBRE[CAT_N] = { "ok", "contacto", "bajo_mueble", "ayuda", "error", "sin_terminar", "falso_fin", "esquive_falso", "otro" };
 
 #define COLA_CUADROS 16
 typedef struct { uint32_t llega_ms; int usado; unsigned char celdas[MV_FILAS * MV_COLUMNAS * 3]; MvPose pose; uint32_t captura_ms; } CuadroEnViaje;
@@ -629,6 +635,16 @@ static Resultado correr(int e, uint32_t semilla)
         case T_IMPOSIBLE: r.exito = !r.contacto && estado_fin == NAV_AYUDA; break;
         default:          r.exito = r.llego && !r.contacto && !r.bajo_mueble && pasados; break;
         }
+        /* La categoria excluyente. En un escenario «imposible» pedir ayuda sin tocar ES el exito. */
+        if (r.exito) r.categoria = CAT_EXITO;
+        else if (r.contacto) r.categoria = CAT_CONTACTO;
+        else if (r.bajo_mueble) r.categoria = CAT_BAJO_MUEBLE;
+        else if (estado_fin == NAV_AYUDA || nav.ayudas > 0) r.categoria = CAT_AYUDA;
+        else if (r.error) r.categoria = CAT_ERROR;
+        else if (r.sin_terminar) r.categoria = CAT_SIN_TERMINAR;
+        else if (r.terminado_falso) r.categoria = CAT_FALSO_FIN;
+        else if (s.tipo == T_FALSO && nav.esquivadas > 0) r.categoria = CAT_ESQUIVE_FALSO;
+        else r.categoria = CAT_OTRO;
         if (depurar) {
             printf("FIN %s semilla=%u estado=%s causa=%d exito=%d contacto=%d esquivas=%d ayudas=%d paradas=%d t=%d ms real=(%.0f,%.0f,%.1f) nav=(%d,%d,%d) lateral=%d long=%d cola=%d piso_aprendido=%d\n",
                    ESC[e].nombre, (unsigned)semilla, navegador_texto_estado((EstadoNav)estado_fin), causa_fin, r.exito, r.contacto, nav.esquivadas, nav.ayudas, r.paradas, t,
@@ -643,6 +659,7 @@ static Resultado correr(int e, uint32_t semilla)
 typedef struct {
     int n, exito, llegan, contactos, ayudas, errores, falsos_terminado, sin_terminar, esquivas, paradas, corridas_con_parada, sin_piso;
     int bajo_mueble, vistazos, vistazos_con_eco;
+    int cat[CAT_N];
     int causas[20];
     int t_media, t_p95, lat_media, lat_p95, lon_media, lon_p95, desvio_p95, color_cuadros, coinc_cuadros;
 } Resumen;
@@ -677,6 +694,7 @@ static Resumen monte_carlo(int e, int n)
         s.corridas_con_parada += (r.paradas > 0); s.sin_piso += !r.piso_aprendido;
         s.color_cuadros += r.cuadros_color; s.coinc_cuadros += r.cuadros_coinc;
         s.bajo_mueble += r.bajo_mueble; s.vistazos += r.vistazos; s.vistazos_con_eco += r.vistazos_con_eco;
+        s.cat[r.categoria]++;
         if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 20) s.causas[r.causa]++;
         vdes[i] = r.desvio_max;
         if (r.llego) { vt[k] = r.tiempo_ms; vlat[k] = r.lateral; vlon[k] = r.longitudinal; k++; }
@@ -704,6 +722,8 @@ static void imprimir(int e, const Resumen *s)
            s->lat_media, s->lat_p95, s->lon_media, s->lon_p95, s->desvio_p95, s->esquivas, s->paradas, s->corridas_con_parada, s->color_cuadros, s->coinc_cuadros, s->sin_piso,
            s->bajo_mueble, s->vistazos, s->vistazos_con_eco);
     for (c = 0; c < 20; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
+    printf(" | cat");
+    for (c = 0; c < CAT_N; c++) printf(" %s=%d", CAT_NOMBRE[c], s->cat[c]);
     printf("\n");
 }
 
@@ -743,6 +763,17 @@ int main(int argc, char **argv)
             if (ESC[e].tipo == T_LIMITE) continue;
             contactos += res[e].contactos;
             falsos += res[e].falsos_terminado;
+        }
+        {
+            int suman = 1, k;
+
+            for (e = 0; e < N_ESC; e++) {
+                int total = 0;
+
+                for (k = 0; k < CAT_N; k++) total += res[e].cat[k];
+                if (total != res[e].n || res[e].cat[CAT_EXITO] != res[e].exito) suman = 0;
+            }
+            caso("v3: las categorias excluyentes (ok, contacto, bajo_mueble, ayuda...) suman las corridas de cada escenario y ok coincide con el exito", suman);
         }
         caso("compuerta: cero contactos en todos los escenarios (salvo el limite conocido)", contactos == 0);
         caso("compuerta: ningun Terminado sin haber dejado atras el objeto", falsos == 0);
