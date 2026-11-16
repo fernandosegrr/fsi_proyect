@@ -417,8 +417,50 @@ static void probar_v3_laser_caido(void) {
     caso("v3 la ruta que salio SIN laser no se detiene por eso (la app ya avisa al iniciar)",nav.estado!=NAV_AYUDA);
 }
 
+/* Revisión independiente de la v3: el eco recordado y el reinicio de eco_retroceder. */
+static void probar_v3_revision(void) {
+    ResultadoObstaculos cuadro;
+    int t, memoria;
+    for(memoria=1;memoria>=0;memoria--){
+        memset(&cuadro,0,sizeof cuadro);
+        preparar_politica();
+        navegador_poner_memoria_eco(&nav,memoria);
+        for(t=0;t<=550;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+        navegador_aporte_sens(&nav,300,1,1,0,600u);   /* un eco válido a 30 cm llega... y el tick de la parada cae en un «sin eco» (el haz roza la pata) */
+        cuadro.fuentes_vision[1]=3;cuadro.zona[1].hay_obstaculo=1;cuadro.zona[1].cercania=3;cuadro.zona[1].celdas=30;
+        for(t=650;t<=1300 && nav.estado!=NAV_DETENIDO_OBSTACULO;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+        if(memoria)caso("v3 revision: el eco de hace menos de 800 ms confirma la parada aunque el tick caiga en un sin eco",nav.estado==NAV_DETENIDO_OBSTACULO && nav.tof_paro_activo);
+        else caso("v3 revision: sin memoria del eco la parada por camara no queda confirmada por el laser (como v2)",nav.estado==NAV_DETENIDO_OBSTACULO && !nav.tof_paro_activo);
+    }
+    /* un eco viejo (más de NAV_ECO_MEMORIA_MS) ya no confirma */
+    memset(&cuadro,0,sizeof cuadro);
+    preparar_politica();
+    for(t=0;t<=550;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+    navegador_aporte_sens(&nav,300,1,1,0,600u);
+    for(t=650;t<=600+NAV_ECO_MEMORIA_MS+200;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+    cuadro.fuentes_vision[1]=3;cuadro.zona[1].hay_obstaculo=1;cuadro.zona[1].cercania=3;cuadro.zona[1].celdas=30;
+    for(;t<=600+NAV_ECO_MEMORIA_MS+1200 && nav.estado!=NAV_DETENIDO_OBSTACULO;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+    caso("v3 revision: un eco de hace mas de 800 ms ya no confirma la parada",nav.estado==NAV_DETENIDO_OBSTACULO && !nav.tof_paro_activo);
+    /* eco_retroceder no sobrevive a una ruta nueva, a «continuar» ni a una parada sin eco */
+    preparar_politica();
+    nav.estado=NAV_ESPERANDO;nav.eco_retroceder=1;nav.eco_ultimo_mm=300;nav.eco_ultimo_t_ms=100;
+    navegador_comenzar(&nav,0);
+    caso("v3 revision: navegador_comenzar borra eco_retroceder y el ultimo eco",nav.eco_retroceder==0 && nav.eco_ultimo_t_ms==0);
+    preparar_politica();
+    nav.estado=NAV_AYUDA;nav.eco_retroceder=1;nav.eco_ultimo_mm=300;nav.eco_ultimo_t_ms=100;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("v3 revision: continuar tras la ayuda borra eco_retroceder y el ultimo eco",nav.eco_retroceder==0 && nav.eco_ultimo_t_ms==0);
+    memset(&cuadro,0,sizeof cuadro);
+    preparar_politica();
+    nav.eco_retroceder=1;
+    cuadro.fuentes_vision[1]=3;cuadro.zona[1].hay_obstaculo=1;cuadro.zona[1].cercania=3;cuadro.zona[1].celdas=30;
+    for(t=0;t<=1500 && nav.estado!=NAV_DETENIDO_OBSTACULO;t+=50){navegador_aporte_sens(&nav,1200,1,0,0,(uint32_t)t);navegador_tick(&nav,(uint32_t)t,&cuadro);}
+    caso("v3 revision: una parada solo por camara no hereda un eco_retroceder viejo",nav.estado==NAV_DETENIDO_OBSTACULO && nav.eco_retroceder==0);
+}
+
 static void probar_v3(void) {
     probar_v3_laser_caido();
+    probar_v3_revision();
     v3_correr(0,0);
     caso("v3 sin memoria del eco (como v2): perder el eco reanuda la marcha hacia lo que el laser vio",v3_reanudo);
     v3_correr(1,0);

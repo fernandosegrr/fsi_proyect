@@ -259,6 +259,9 @@
 #ifndef TOF_BLOQUEO_MM
 #define TOF_BLOQUEO_MM           180
 #endif
+#if TOF_BLOQUEO_MM <= TOF_PARO_MM
+#error "TOF_BLOQUEO_MM debe ser mayor que TOF_PARO_MM (la histeresis evita arrancar y frenar en el borde)"
+#endif
 /* Autónomo v3 (SEG=3): cuántos «sin eco» SEGUIDOS se toleran dentro de una racha de «cerca» sin romperla (una pata o un borde delgado devuelve un «sin eco» entre dos
  * lecturas cercanas). Con 0 se vuelve al comportamiento anterior (cualquier «sin eco» rompe la racha). Una lectura válida lejana siempre la rompe. */
 #ifndef TOF_PERDIDAS_TOLERADAS

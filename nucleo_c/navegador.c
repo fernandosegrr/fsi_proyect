@@ -2200,6 +2200,9 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->reinc_deshacer_mm = 0;
     nav->tof_visto_vivo = nav->tof_vivo ? 1 : 0;   /* v3: el láser cuenta como «visto vivo» solo si vive al empezar la ruta */
     nav->tof_caido_desde_ms = 0;
+    nav->eco_retroceder = 0;                       /* v3 (revisión): lo de una ruta o una parada anterior no vale */
+    nav->eco_ultimo_mm = 0;
+    nav->eco_ultimo_t_ms = 0;
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
     nav->vistazo_lado = nav->vistazo_ecos = nav->vistazo_mm = nav->vistazo_confirmado = nav->vistazos = nav->vistazos_con_eco = nav->giro_extra_grados = 0;
@@ -2950,12 +2953,21 @@ static void entrar_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->coinc_esquivar_min = NAV_COINCIDENCIA_CUADROS_ESQUIVAR + ((seguidas > 0 && seguidas < NAV_COINCIDENCIA_CUADROS_FRENAR) ? 1 : 0);
     }
 
-    if (nav->memoria_eco && !nav->tof_paro_activo && nav->usa_tof && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm <= OBSTACULO_LASER_MM &&
-        !laser_tras_el_destino(nav, nav->tof_mm)) {
-        /* v3: un eco válido y cercano participó en esta parada: es un obstáculo confirmado por el sensor fiable, igual que con TOF_PARO. */
-        diag_escribir(nav, "SENS_DIAG eco_confirma laser_mm=%d: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)", nav->tof_mm);
-        tof_marcar(nav, nav->tof_mm);
-        nav->eco_retroceder = (nav->tof_mm <= nav->eco_retroceder_mm) ? 1 : 0;
+    nav->eco_retroceder = 0;   /* v3 (revisión): solo vale el de ESTA parada */
+    if (nav->memoria_eco && !nav->tof_paro_activo && nav->usa_tof && nav->tof_vivo) {
+        int eco_mm = 0;
+
+        if (tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm <= OBSTACULO_LASER_MM) {
+            eco_mm = nav->tof_mm;
+        } else if (nav->eco_ultimo_t_ms != 0 && (uint32_t)(ahora_ms - nav->eco_ultimo_t_ms) <= (uint32_t)NAV_ECO_MEMORIA_MS) {
+            eco_mm = nav->eco_ultimo_mm;   /* una pata da eco a ratos: el último eco de hace poco cuenta */
+        }
+        if (eco_mm > 0 && !laser_tras_el_destino(nav, eco_mm)) {
+            /* v3: un eco válido y cercano participó en esta parada: es un obstáculo confirmado por el sensor fiable, igual que con TOF_PARO. */
+            diag_escribir(nav, "SENS_DIAG eco_confirma laser_mm=%d: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)", eco_mm);
+            tof_marcar(nav, eco_mm);
+            nav->eco_retroceder = (eco_mm <= nav->eco_retroceder_mm) ? 1 : 0;
+        }
     }
     nav->estado = NAV_DETENIDO_OBSTACULO;
     nav->t_detenido_ms = ahora_ms;
@@ -3681,6 +3693,9 @@ static int reinc_calcular(Navegador *nav)
     }
     if (giroscopio_sano(nav) && nav->reinc_rumbo_tol < nav->giro_fw_min) {
         nav->reinc_rumbo_tol = nav->giro_fw_min;   /* no se vuelve a planear por un error de rumbo que el giro mínimo no puede corregir */
+    }
+    if (!giroscopio_sano(nav) && nav->reinc_rumbo_tol < NAV_GIRO_TIEMPO_MIN_GRADOS) {
+        nav->reinc_rumbo_tol = NAV_GIRO_TIEMPO_MIN_GRADOS;   /* v3 (revisión): igual sin giroscopio: un giro por tiempo menor de ese mínimo no se hace, así que no se replanea por él */
     }
     if (nav->reinc_solo_rumbo && !nav->reinc_pasar_primero) {   /* solo rumbo: la pose planeada es la de después de enderezarse */
         p1 = pose_tras_giro_con_signo(nav, p0, nav->reinc_giro1);
@@ -5686,6 +5701,10 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
     nav->tof_mm = mm;
     nav->tof_valida = tof_valida ? 1 : 0;
     nav->tof_t_ms = ahora_ms;
+    if (nav->tof_vivo && nav->tof_valida && mm > 0 && mm <= OBSTACULO_LASER_MM) {
+        nav->eco_ultimo_mm = mm;      /* v3 (revisión): se recuerda el último eco cercano */
+        nav->eco_ultimo_t_ms = ahora_ms ? ahora_ms : 1;
+    }
     if (!nav->tof_vivo || !nav->tof_valida || mm <= 0) {
         nav->tof_libre_lecturas = 0;
         nav->tof_cerca_lecturas = 0;
@@ -5806,6 +5825,9 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
      * obstáculo que ya no tenía delante (TOF_PARO o un vistazo confirmados antes de pedir ayuda). Lo que haya ahora lo vuelven a decir el láser y la cámara. */
     nav->tof_paro_activo = 0;
     nav->tof_pendiente = 0;
+    nav->eco_retroceder = 0;      /* v3 (revisión): el usuario movió el carro: ningún eco anterior vale */
+    nav->eco_ultimo_mm = 0;
+    nav->eco_ultimo_t_ms = 0;
     nav->vistazo_confirmado = 0;
     nav->vistazo_retrocedio = 0;
     nav->lados_probados = nav->cambio_lado = 0;
@@ -5915,7 +5937,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         diag_escribir(nav, "AYUDA_DIAG laser_caido ms=%lu: se detiene (sin el sensor fiable no se sigue)", (unsigned long)(uint32_t)(ahora_ms - nav->tof_caido_desde_ms));
         cambiar_comando(nav, NAV_CMD_STOP);
         ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_SIN_LASER);   /* con «pedir ayuda»: AYUDA con su causa; sin ella, ERROR */
-        nav->tof_caido_desde_ms = ahora_ms;   /* si el usuario continúa desde la ayuda, el plazo vuelve a empezar */
+        nav->tof_caido_desde_ms = ahora_ms;   /* (revisión) se fija al disparar: con el láser aún muerto, al continuar desde la ayuda el primer tick vuelve a pedir ayuda */
         return NAV_CMD_STOP;
     }
 

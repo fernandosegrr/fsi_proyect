@@ -254,7 +254,9 @@ extern "C" {   /* permite usarlo desde C++ / JNI */
 #define NAV_PARED_PEGADA_TOL_MM       50    /* dos lecturas seguidas del barrido «a la misma distancia lateral»: a menos de esto una de otra */
 #define NAV_PARED_PEGADA_TRAMO_MM     60    /* ...y separadas al menos esto a lo largo de la ruta: una pared paralela a la ruta, no un objeto suelto */
 #define NAV_PARED_PATAS_MM           250    /* una «pared» a menos de esto de la línea también pueden ser dos patas de un mueble: se exige que llegue hasta el costado del carro */
+#ifndef NAV_DESHACER_GIRO_MAX
 #define NAV_DESHACER_GIRO_MAX          0    /* APAGADO (0): deshacer el giro y rodear por el otro lado empeoro «caja y pared al lado» en el banco (534 ok, 7 contactos; sin ello 615 y 2). Con 50 se activa. */
+#endif
 #define NAV_GUARDIA_BRAZO_MIN_MM      30    /* con un brazo de pivote menor que esto en la calibración (sin medir) la guardia del giro no se aplica */
 #define NAV_PASAR_SIN_AVANCE_MAX      3    /* (revisión) planes seguidos de «pasar primero» sin que avance la cuenta a lo largo de la ruta: se pide ayuda en vez de repetir */
 #define NAV_CAMARA_FOV_GRADOS        56    /* campo horizontal de la cámara (SUPUESTO del manual; pendiente de medir) */
@@ -720,6 +722,8 @@ typedef struct {
     uint32_t tof_t_ms;               /* hora de la última lectura */
     int      tof_paro_activo;        /* 1 desde TOF_PARO (o desde un paro confirmado por un eco válido del láser, v3) hasta que empieza a esquivar */
     int      eco_retroceder_mm;      /* v3: umbral en mm (0 = no retroceder) */
+    int      eco_ultimo_mm;          /* v3 (revisión): último eco válido y cercano (<= OBSTACULO_LASER_MM) visto y cuándo; una pata da eco a ratos y el tick de la parada puede caer en un «sin eco» */
+    uint32_t eco_ultimo_t_ms;
     int      eco_retroceder;         /* v3: el paro lo confirmó un eco a menos de NAV_ECO_RETROCEDE_MM: antes de girar se retrocede (si hay camino recién pisado) */
     int      tof_visto_vivo;         /* v3: el láser estuvo vivo en esta ruta */
     uint32_t tof_caido_desde_ms;     /* v3: desde cuándo el SENS dice que el láser no vive (0 = vive) */
@@ -872,6 +876,7 @@ int navegador_poner_precaucion(Navegador *nav, int modo);
  *    confirmado como con TOF_PARO: la cámara no lo puede «liberar» y la ausencia de eco después no cuenta como libre. Una pata delgada de un mueble da eco a ratos
  *    (el haz la roza); antes el siguiente cuadro sin eco, con el lado visto solo por el color, reanudaba la marcha hacia ella. 1 = activa (por defecto), 0 = como v2. */
 #define NAV_V3                      1
+#define NAV_ECO_MEMORIA_MS         800    /* v3 (revisión): un eco válido y cercano de hace tanto o menos todavía confirma la parada (una pata da eco a ratos) */
 #define NAV_ECO_RETROCEDE_MM      350
 /* Giros por TIEMPO (sin giroscopio sano) menores que esto no se hacen: el pivote arranca a plena potencia y el carro gira más de lo que dice el tiempo (en B6, el 10-nov,
  * un ajuste de 4 grados giró 18; un solo dato, SUPUESTO el umbral). Con un giro de menos de NAV_GIRO_TIEMPO_MIN_GRADOS se queda el error de rumbo que ya había, que es menor. */
