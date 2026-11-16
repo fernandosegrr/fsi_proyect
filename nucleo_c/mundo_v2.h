@@ -128,6 +128,7 @@ int  mv_parche(Mundo *m, double cx, double cy, double hx, double hy, double rot_
  * exposición y el balance automáticos de la cámara: hay que llamarla en orden de tiempo, una vez por cuadro capturado. */
 void mv_render_celdas(Mundo *m, MvPose p, uint32_t t_ms, unsigned char *celdas);
 /* Lectura del láser en mm (8..1200). Devuelve 1 si es una medida real y 0 si no hubo eco suficiente (entonces *mm = 1200). */
+extern int mv_laser_mezcla;   /* v3: 1 = el láser promedia lo que cae en su cono (SUPUESTO, NO MEDIDO); 0 = grupo más cercano (v2) */
 int  mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm);
 /* Lo que diría el detector neuronal con un cuadro capturado desde `p`. `marca_ms` es la hora en que termina la inferencia. */
 void mv_detector(Mundo *m, MvPose p, uint32_t t_ms, uint32_t marca_ms, DeteccionesModelo *salida);

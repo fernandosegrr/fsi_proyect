@@ -386,6 +386,7 @@ static Resultado correr(int e, uint32_t semilla)
     sim_iniciar(&sim, s.ruta[0].columna, s.ruta[0].fila, 0);
     sim_sembrar_azar_fw(semilla);   /* cada corrida con su propio ruido de giro: «depurar» repite la corrida de la tanda */
 #ifdef NAV_V3
+    if (getenv("AV3_LASER_MEZCLA")) mv_laser_mezcla = atoi(getenv("AV3_LASER_MEZCLA"));   /* sensibilidad: 1 = el láser promedia el cono (SUPUESTO) */
     if (getenv("AV3_MEMORIA_ECO")) navegador_poner_memoria_eco(&nav, atoi(getenv("AV3_MEMORIA_ECO")));   /* 1 por defecto; 0 = como v2 */
     if (getenv("AV3_ECO_RETROCEDE")) navegador_poner_eco_retroceder(&nav, atoi(getenv("AV3_ECO_RETROCEDE")));
 #endif

@@ -363,6 +363,10 @@ void mv_render_celdas(Mundo *m, MvPose p, uint32_t t_ms, unsigned char *celdas)
     }
 }
 
+/* v3: modelo de mezcla del láser (SUPUESTO, doc 01: el VL53L0X entrega una mezcla de lo que cae dentro de su cono; una pata delgada «jala» la lectura hacia el fondo).
+ * 0 = el grupo más cercano que supere el umbral (modelo de v2, el del banco de compuertas); 1 = promedio de las distancias ponderado por la señal de cada grupo. NO MEDIDO. */
+int mv_laser_mezcla = 0;
+
 int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
 {
     enum { NH = 9, NV = 9 };
@@ -407,6 +411,33 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
         }
     }
     if (peso_total <= 0.0 || mv_uniforme(m) < 0.02) return 0;   /* 2 % de lecturas perdidas */
+    if (mv_laser_mezcla && n_golpes > 0) {   /* v3: promedio ponderado por la señal de cada grupo (grupos separados por más de 80 mm) */
+        double s_tot = 0.0, sd_tot = 0.0;
+        int hecho[NH * NV];
+
+        for (i = 0; i < n_golpes; i++) hecho[i] = 0;
+        for (intento = 0; intento < n_golpes; intento++) {
+            double d0 = 1e18, suma_r = 0.0, senal, dd;
+            int j, queda = 0;
+
+            for (j = 0; j < n_golpes; j++) if (!hecho[j] && dist[j] < d0) { d0 = dist[j]; queda = 1; }
+            if (!queda) break;
+            for (j = 0; j < n_golpes; j++) {
+                if (!hecho[j] && dist[j] <= d0 + 80.0) { suma_r += refl[j] * peso[j]; hecho[j] = 1; }
+            }
+            dd = d0 > 30.0 ? d0 : 30.0;
+            senal = (suma_r / peso_total) / 0.5 * (MV_LASER_ALCANCE_MM / dd) * (MV_LASER_ALCANCE_MM / dd);
+            s_tot += senal;
+            sd_tot += senal * d0;
+        }
+        if (s_tot >= 1.0) {
+            double leido = (sd_tot / s_tot) * (1.0 + mv_normal(m, 0.02)) + mv_normal(m, 3.0);
+
+            *mm = (int)limitar(leido, 8.0, MV_LASER_ALCANCE_MM);
+            return 1;
+        }
+        return 0;
+    }
     for (intento = 0; intento < 3 && n_golpes > 0; intento++) {   /* del grupo más cercano al más lejano */
         double d0 = 1e18, suma_r = 0.0, senal, dd;
         int k = 0;
