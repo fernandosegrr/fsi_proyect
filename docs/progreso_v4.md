@@ -9,3 +9,11 @@ Salida del banco calibrado: `11760 corridas. 86/98 combinaciones con alguna comp
 Pruebas de C y firmware en PC sin fallos, servidor falso `60 casos, 0 fallos`, versión `Ran 21 tests`, J16 `46 casos, 0 fallos`. Comparación de precisión contra v1.1: `6 comparaciones, 4 fallos`. En caja con RUMBO, media/p95 de 17/40 a 18/44 mm. [Salida de los comandos](precision/v4/verificacion0.txt). Una consulta inicial de documentos con comodín para rg falló en Windows y se repitió sobre el directorio. Se corrigió asimismo la ruta de lectura de latencia a docs/latencia_modos.md. La consulta de un espejo de UM2039 falló y no se usa como fuente.
 
 Decisión: investigar las causas observadas en desarrollo. Los dos perfiles del láser, el oráculo de fin y la geometría quedan fijos. Las medidas de distancia de frenado y ecos en patas siguen PENDIENTES.
+
+## Fase 1 · diagnóstico y diseño
+
+Se reprodujeron con semilla los contactos de caja lateral y banquito, la entrada bajo una silla y dos ayudas ante el arco de pivote. En los registros físicos se pudo atribuir un aborto a la pérdida de video. Falta evidencia para asignar las causas de las patas al carro. [Diseño y verificación física por idea](autonomo_v4_diseno.md).
+
+Decisión de implementación: una etapa de parada por percepción incierta con una sola bandera experimental, que usa la máscara lateral existente y la edad del filtro de distancia cuando el firmware puede proporcionarla. Las capacidades antiguas deben seguir funcionando. Se posponen la recuperación automática contra pared y los cambios de exposición. Un primer filtro de las trazas falló por un conducto mal formado en PowerShell; la extracción corregida se guardó en el informe de trazas.
+
+Salida repetida: `11760 corridas. 86/98 combinaciones con alguna compuerta roja.` El banco histórico completo, con las cuatro versiones a 1000 corridas por escena, volvió a dar 23 fallos; el resultado histórico de fase 0 con solo la actual tenía 12 porque omitía las comparaciones entre versiones. [Salida del banco histórico](precision/v4/historico_completo.txt), [banco calibrado de esta fase](precision/v4/fase1.txt) y [verificación](precision/v4/verificacion1.txt).

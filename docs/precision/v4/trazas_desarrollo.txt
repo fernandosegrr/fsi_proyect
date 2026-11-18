@@ -1,0 +1,16 @@
+   [  3900 ms real=(1012,1021,0)] VISTAZO_DIAG sin_eco lado=-1 ms=1350: sigue la ruta
+   [  4200 ms] CONTACTO con caja20 real=(1012,916,-0.1) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+FIN caja20_lateral semilla=1280077 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=0 ayudas=0 paradas=1 t=6900 ms real=(1012,59,0.2) nav=(1000,3,0) lateral=12 long=58 cola=384 piso_aprendido=1
+   [  1500 ms real=(1007,1694,0)] VISTAZO_DIAG sin_eco lado=1 ms=750: sigue la ruta
+   [  3050 ms] BAJO EL MUEBLE banquito (entra en su planta sin tocar nada) real=(972,1251,-13.9) estado=SIGUIENDO cmd=FORWARD
+   [  3200 ms] CONTACTO con banquito real=(957,1195,-15.4) estado=DETENIDO_OBSTACULO fase=0 reinc=0 cmd=STOP
+   [  5550 ms real=(1044,1263,30)] AYUDA_DIAG pide ayuda motivo=1 causa=18 pose=(1075,1245,27) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=98 laser_valido=1
+FIN banquito35x45 semilla=1290065 estado=AYUDA causa=18 exito=0 contacto=1 esquivas=1 ayudas=1 paradas=1 t=5500 ms real=(1044,1263,30.0) nav=(1075,1245,27) lateral=44 long=1263 cola=-757 piso_aprendido=1
+   [  1700 ms real=(951,1593,2)] VISTAZO_DIAG sin_eco lado=-1 ms=850: sigue la ruta
+   [  2850 ms] BAJO EL MUEBLE silla (entra en su planta sin tocar nada) real=(980,1228,2.2) estado=SIGUIENDO cmd=FORWARD
+   [  4200 ms real=(935,837,2)] VISTAZO_DIAG sin_eco lado=-1 ms=850: sigue la ruta
+FIN silla_patas semilla=1310078 estado=TERMINADO causa=0 exito=0 contacto=0 esquivas=0 ayudas=0 paradas=0 t=6750 ms real=(977,18,-1.0) nav=(998,-9,0) lateral=22 long=18 cola=532 piso_aprendido=0
+   [  3450 ms real=(904,1371,273)] AYUDA_DIAG pide ayuda motivo=1 causa=18 pose=(914,1388,273) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=107 laser_valido=1
+FIN caja_y_pared_al_lado semilla=1410147 estado=AYUDA causa=18 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=3400 ms real=(905,1372,-87.6) nav=(914,1388,273) lateral=95 long=1371 cola=-603 piso_aprendido=1
+   [  5850 ms real=(1237,1158,125)] AYUDA_DIAG pide ayuda motivo=1 causa=18 pose=(1237,1103,117) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=124 laser_valido=1
+FIN caja_y_pared_al_lado semilla=1410148 estado=AYUDA causa=18 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=5800 ms real=(1237,1159,125.6) nav=(1237,1103,117) lateral=237 long=1158 cola=-675 piso_aprendido=1
