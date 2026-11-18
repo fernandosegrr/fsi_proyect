@@ -52,6 +52,9 @@ void mv_iniciar(Mundo *m, uint32_t semilla)
     m->foto.wb[0] = m->foto.wb[1] = m->foto.wb[2] = 1.0;
     m->foto.objetivo_luma = 128.0;
     m->foto.ruido = 1.5;
+    m->perdida_laser = 0.02;
+    m->umbral_senal = 1.0;
+    m->ruido_laser = 0.02;
     m->foto.escalon_ganancia = 1.0;
     m->foto.fondo[0] = 0.50; m->foto.fondo[1] = 0.48; m->foto.fondo[2] = 0.45;
     m->foto.brillo_piso = 0.0;
@@ -372,7 +375,7 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
     enum { NH = 9, NV = 9 };
     const double medio = rad(MV_LASER_CONO_GRADOS / 2.0);
     double fx = sin(p.rumbo_rad), fy = -cos(p.rumbo_rad), rx = cos(p.rumbo_rad), ry = sin(p.rumbo_rad);
-    double ox = p.x + fx * MV_LASER_ADELANTE_MM, oy = p.y + fy * MV_LASER_ADELANTE_MM, oz = MV_LASER_ALTURA_MM;
+    double ox = p.x + fx * (MV_LASER_ADELANTE_MM - m->retiro_laser_mm), oy = p.y + fy * (MV_LASER_ADELANTE_MM - m->retiro_laser_mm), oz = MV_LASER_ALTURA_MM;
     double dist[NH * NV], refl[NH * NV], peso[NH * NV];
     double corr = (mv_uniforme(m) - 0.5) * 2.0 * medio / (NH - 1);   /* la rejilla de rayos se corre un poco en cada lectura */
     double peso_total = 0.0;
@@ -410,7 +413,7 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
             }
         }
     }
-    if (peso_total <= 0.0 || mv_uniforme(m) < 0.02) return 0;   /* 2 % de lecturas perdidas */
+    if (peso_total <= 0.0 || mv_uniforme(m) < m->perdida_laser) return 0;   /* 2 % de lecturas perdidas */
     if (mv_laser_mezcla && n_golpes > 0) {   /* v3: promedio ponderado por la señal de cada grupo (grupos separados por más de 80 mm) */
         double s_tot = 0.0, sd_tot = 0.0;
         int hecho[NH * NV];
@@ -430,8 +433,8 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
             s_tot += senal;
             sd_tot += senal * d0;
         }
-        if (s_tot >= 1.0) {
-            double leido = (sd_tot / s_tot) * (1.0 + mv_normal(m, 0.02)) + mv_normal(m, 3.0);
+        if (s_tot >= m->umbral_senal) {
+            double leido = (sd_tot / s_tot) * (1.0 + mv_normal(m, m->ruido_laser)) + mv_normal(m, 3.0);
 
             *mm = (int)limitar(leido, 8.0, MV_LASER_ALCANCE_MM);
             return 1;
@@ -450,7 +453,7 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
         /* Normalizada: un blanco de cartón (0.5) que llena el cono se ve justo hasta el alcance. */
         senal = (suma_r / peso_total) / 0.5 * (MV_LASER_ALCANCE_MM / dd) * (MV_LASER_ALCANCE_MM / dd);
         if (senal >= 1.0) {
-            double leido = d0 * (1.0 + mv_normal(m, 0.02)) + mv_normal(m, 3.0);
+            double leido = d0 * (1.0 + mv_normal(m, m->ruido_laser)) + mv_normal(m, 3.0);
 
             *mm = (int)limitar(leido, 8.0, MV_LASER_ALCANCE_MM);
             return 1;

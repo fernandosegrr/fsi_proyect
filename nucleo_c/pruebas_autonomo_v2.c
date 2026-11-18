@@ -39,7 +39,7 @@ enum {
     E_LIBRE, E_FP_JUNTAS, E_FP_SOL, E_FP_SOMBRA, E_FP_REFLEJO, E_FP_EXPOSICION, E_FP_DETECTOR,
     E_CAJA20, E_CAJA20_LADO, E_BANQUITO, E_LARGO90, E_SILLA, E_PARED_FINAL, E_DOS, E_PASILLO, E_APARECE, E_BAJO,
     E_CAJA20_SOL, E_BATERIA, E_PARED_FRENTE, E_BAJO_SOLO_COLOR,
-    E_CAJA_PARED, E_ESQUINA, N_ESC   /* añadidos tras la revisión independiente: van al final para no mover las semillas de los anteriores */
+    E_CAJA_PARED, E_ESQUINA, E_DOS_MUEBLES, E_MUEBLE_PARED, E_SIN_ECO, N_ESC   /* añadidos tras la revisión independiente: van al final para no mover las semillas de los anteriores */
 };
 static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "libre_limpio", T_FALSO }, { "falso_juntas", T_FALSO }, { "falso_sol", T_FALSO }, { "falso_sombra", T_FALSO },
@@ -48,7 +48,8 @@ static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "silla_patas", T_OBSTACULO }, { "pared_tras_el_final", T_OBSTACULO }, { "dos_obstaculos", T_OBSTACULO }, { "pasillo", T_OBSTACULO },
     { "aparece_de_repente", T_OBSTACULO }, { "objeto_bajo", T_OBSTACULO }, { "caja20_con_sol", T_OBSTACULO }, { "bateria_baja", T_OBSTACULO },
     { "pared_al_frente", T_IMPOSIBLE }, { "bajo_solo_color", T_LIMITE },
-    { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO }
+    { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO },
+    { "dos_muebles", T_OBSTACULO }, { "mueble_con_pared", T_OBSTACULO }, { "bloque_sin_eco", T_OBSTACULO }
 };
 
 static Navegador nav;
@@ -56,6 +57,8 @@ static Simulador sim;
 static Mundo mundo;
 static int casos, fallos, depurar;
 static uint32_t azar;
+static int calibrado, reservado, pesimista;
+static uint32_t base_semilla = 170000u;
 
 static void caso(const char *nombre, int ok)
 {
@@ -195,7 +198,7 @@ static void armar_escena(int e, Escena *s)
         break;
     case E_BANQUITO:         /* 35 x 45 cm con patas; el asiento queda arriba del haz del láser */
         d = unif(800.0, 1100.0);
-        mv_mueble(&mundo, "banquito", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 225.0, 350.0, 450.0, 35.0, unif(280.0, 400.0), 0.0, 140, 95, 55, unif(0.45, 0.70), 13);
+        mv_mueble(&mundo, "banquito", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 225.0, 350.0, 450.0, reservado ? unif(18, 48) : 35.0, unif(280.0, 400.0), 0.0, 140, 95, 55, unif(0.45, 0.70), 13);
         break;
     case E_LARGO90:          /* objeto macizo de 90 cm de fondo */
         ruta_recta(s, 14);
@@ -204,7 +207,7 @@ static void armar_escena(int e, Escena *s)
         break;
     case E_SILLA:            /* silla de patas delgadas con respaldo */
         d = unif(800.0, 1100.0);
-        mv_mueble(&mundo, "silla", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 210.0, 400.0, 420.0, 25.0, unif(420.0, 460.0), 400.0, 60, 60, 70, unif(0.70, 0.90), 61);
+        mv_mueble(&mundo, "silla", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 210.0, 400.0, 420.0, reservado ? unif(15, 34) : 25.0, unif(420.0, 460.0), 400.0, 60, 60, 70, unif(0.70, 0.90), 61);
         break;
     case E_PARED_FINAL:      /* la ruta termina a 45-65 cm de una pared: debe terminar sin tocarla ni rodearla */
         ruta_recta(s, 7);
@@ -227,7 +230,7 @@ static void armar_escena(int e, Escena *s)
         mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
         {
             int o = mv_objeto(&mundo, "paredes", 0.0, 0, 0, 0);
-            double w = unif(780.0, 900.0);
+            double w = reservado ? unif(520.0, 750.0) : unif(780.0, 900.0);
 
             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
             mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
@@ -265,6 +268,24 @@ static void armar_escena(int e, Escena *s)
             else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
         }
         break;
+    case E_SIN_ECO:
+        mv_caja(&mundo, "bloque_mate", 1000 + unif(-70, 70), s->y0 - unif(750, 1150),
+                280, 160, 180, 60, 65, 80, 0.0, 0.05, 72, 0);
+        break;
+    case E_DOS_MUEBLES:
+    case E_MUEBLE_PARED:
+        ruta_recta(s, 16);
+        mv_mueble(&mundo, "asiento", 1000 + unif(-90, 90), s->y0 - unif(950, 1200), 390, 360,
+                  unif(18, 45), 380, 0, 80, 60, 55, 0.4, 13);
+        if (e == E_DOS_MUEBLES) {
+            mv_mueble(&mundo, "segundo", 1000 + unif(-110, 110), s->y0 - unif(2000, 2300),
+                      450, 390, unif(18, 36), 430, 400, 90, 80, 70, 0.7, 61);
+        } else {
+            int o = mv_objeto(&mundo, "pared", 0, 0, 0, 0);
+            double x = 1000 + (entre(0, 1) ? 1 : -1) * unif(340, 510);
+            mv_prisma(&mundo, o, x-40, -500, x+40, s->y0+500, 0, 1200, 205, 198, 192, 0.6);
+        }
+        break;
     default:                 /* E_ESQUINA (revisión): ruta en L con la caja 40 a 60 cm antes de la esquina: el paso en paralelo no puede seguir de frente más allá */
         {
             int o;
@@ -272,7 +293,7 @@ static void armar_escena(int e, Escena *s)
             ruta_ele(s, 8, 6, entre(0, 1) ? 1 : -1);
             d = unif(400.0, 600.0);              /* de la cara de la caja a la esquina (que está en y = 0) */
             o = mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), d + 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
-            mundo.objetos[o].en_ruta = 0;        /* «haberla dejado atrás» aquí es llegar al final, que está después de la esquina */
+            mundo.objetos[o].en_ruta = calibrado;        /* «haberla dejado atrás» aquí es llegar al final, que está después de la esquina */
         }
         break;
     }
@@ -347,6 +368,8 @@ static Resultado correr(int e, uint32_t semilla)
     int det_ocupado = 0, hay_det = 0;
     int i, t, a, d, zm, delta_ppm, tope_ms, base_avance, cmd_antes = NAV_CMD_STOP;
     double ux, uy;
+    MvPose pose_declarada;
+    int periodo_camara = 0;
 
     memset(&r, 0, sizeof r);
     memset(cola, 0, sizeof cola);
@@ -361,7 +384,7 @@ static Resultado correr(int e, uint32_t semilla)
     /* Lo que el navegador cree: la calibración del carro (la de J15/J16). */
     cal_defecto(&cal);
     cal.arranque_ms = 100;
-    cal.ms_por_cm_x10 = 518;
+    cal.ms_por_cm_x10 = calibrado ? 325 : 518;
     cal.frenado_mm = 30;
     cal.ms_por_grado_izq_x10 = 74;
     cal.ms_por_grado_der_x10 = 78;
@@ -403,6 +426,18 @@ static Resultado correr(int e, uint32_t semilla)
     sim_j16_activar(&sim);
     sim.real = cal;
     base_avance = entre(96, 104);
+    if (calibrado) {
+        /* La cinta mide el viaje entero. Variar el crucero es un supuesto, no una medida instantánea. */
+        sim.real.ms_por_cm_x10 = entre(310, 390);
+        sim.real.ms_por_grado_der_x10 += entre(-6, 6);
+        sim.real.ms_por_grado_izq_x10 += entre(-6, 6);
+        mundo.perdida_laser = pesimista ? unif(0.08, 0.20) : unif(0.01, 0.05);
+        mundo.umbral_senal = pesimista ? unif(1.5, 3.0) : unif(0.8, 1.2);
+        mundo.ruido_laser = unif(0.01, pesimista ? 0.06 : 0.03);
+        mundo.retiro_laser_mm = unif(0, 35);
+        mv_laser_mezcla = 1;
+        periodo_camara = entre(55, 145);
+    }
     sim.pct_avance = base_avance;
     sim.real.frenado_mm = entre(25, 35);
     i = entre(85, 115);
@@ -491,7 +526,8 @@ static Resultado correr(int e, uint32_t semilla)
                 cola[libre].llega_ms = (uint32_t)t + (uint32_t)(110 + (int)(60.0 * mv_uniforme(&mundo)));
                 cola[libre].usado = (mv_uniforme(&mundo) >= 0.02);
             }
-            prox_captura = (uint32_t)t + 70u + (uint32_t)(25.0 * mv_uniforme(&mundo));
+            if (calibrado) prox_captura += (uint32_t)periodo_camara;
+            else prox_captura = (uint32_t)t + 70u + (uint32_t)(25.0 * mv_uniforme(&mundo));
         }
         for (i = 0; i < COLA_CUADROS; i++) {   /* el más nuevo de los que ya llegaron; los demás se descartan (buzón de último cuadro) */
             if (cola[i].usado && cola[i].llega_ms <= (uint32_t)t) {
@@ -595,6 +631,7 @@ static Resultado correr(int e, uint32_t semilla)
     r.sin_terminar = (t >= tope_ms);
     /* Cómo terminó, ANTES de dejar que el carro acabe de frenar: en esos 600 ms el banco ya no manda cuadros y el navegador, con razón, acaba dando «sin video»
      * (ERROR, causa 5). Eso es del banco, no de la corrida: se anotaban como ERROR unas pocas corridas que habían terminado pidiendo ayuda. */
+    pose_declarada = pose_real();
     estado_fin = nav.estado;
     causa_fin = nav.error_causa;
     sim_correr(&sim, &nav, 600);   /* que termine de frenar */
@@ -621,6 +658,14 @@ static Resultado correr(int e, uint32_t semilla)
                 /* la cara lejana del objeto a lo largo de la ruta (hacia -y es la de menor y) */
                 double lejos_s = (0.0) * ux + (mundo.objetos[o].by0 - s.fin_y) * uy;
                 int margen = (int)(cola_s - lejos_s);
+                if (calibrado) {
+                    /* Las cuatro esquinas deben rebasar la cara lejana del objeto AL declarar
+                     * Terminado. Los objetos del banco están en la primera recta (hacia -y),
+                     * también cuando la ruta dobla después del obstáculo. */
+                    double semi_y = 0.5 * (MV_CARRO_LARGO_MM * fabs(cos(pose_declarada.rumbo_rad))
+                                        + MV_CARRO_ANCHO_MM * fabs(sin(pose_declarada.rumbo_rad)));
+                    margen = (int)floor(mundo.objetos[o].by0 - pose_declarada.y - semi_y);
+                }
 
                 if (margen < r.cola_mm) r.cola_mm = margen;
                 if (margen <= 0) pasados = 0;
@@ -692,7 +737,7 @@ static Resumen monte_carlo(int e, int n)
     memset(&s, 0, sizeof s);
     s.n = n;
     for (i = 0; i < n; i++) {
-        Resultado r = correr(e, 170000u + (uint32_t)e * 10007u + (uint32_t)i);
+        Resultado r = correr(e, base_semilla + (uint32_t)e * 10007u + (uint32_t)i);
 
         s.exito += r.exito; s.llegan += r.llego; s.contactos += r.contacto; s.ayudas += r.ayuda; s.errores += r.error;
         s.falsos_terminado += r.terminado_falso; s.sin_terminar += r.sin_terminar; s.esquivas += r.esquivas; s.paradas += r.paradas;
@@ -737,6 +782,14 @@ int main(int argc, char **argv)
     int n = 40, e, solo = -1;
     static Resumen res[N_ESC];
 
+    const char *conjunto = getenv("AV4_CONJUNTO");
+    if (conjunto) {
+        reservado = strcmp(conjunto, "reservado") == 0;
+        if (!reservado && strcmp(conjunto, "desarrollo") != 0) return 2;
+        calibrado = 1;
+        base_semilla = reservado ? 3200000u : 1200000u;
+        pesimista = getenv("AV4_PESIMISTA") && strcmp(getenv("AV4_PESIMISTA"), "1") == 0;
+    }
     if (getenv("AV2_UMBRAL")) op_umbral = atoi(getenv("AV2_UMBRAL"));
     if (getenv("AV2_CELDAS")) op_celdas = atoi(getenv("AV2_CELDAS"));
     if (getenv("AV2_AEC_FIJO")) op_aec_fijo = atoi(getenv("AV2_AEC_FIJO"));
@@ -744,7 +797,7 @@ int main(int argc, char **argv)
         depurar = getenv("AV2_TODO") ? 2 : 1;
         e = atoi(argv[2]);
         if (e < 0 || e >= N_ESC) return 2;
-        correr(e, 170000u + (uint32_t)e * 10007u + (uint32_t)atoi(argv[3]));
+        correr(e, base_semilla + (uint32_t)e * 10007u + (uint32_t)atoi(argv[3]));
         return 0;
     }
     if (argc > 1) {
@@ -753,8 +806,8 @@ int main(int argc, char **argv)
         if (n > 5000) n = 5000;
     }
     if (argc > 2) solo = atoi(argv[2]);
-    printf("-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), %d corridas por escenario, semillas 170000 + indice * 10007 + corrida --\n", n);
-    for (e = 0; e < N_ESC; e++) {
+    printf("-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), %d corridas por escenario, semillas %u + indice * 10007 + corrida --\n", n, (unsigned)base_semilla);
+    for (e = 0; e < (reservado ? N_ESC : E_DOS_MUEBLES); e++) {
         if (solo >= 0 && e != solo) continue;
         res[e] = monte_carlo(e, n);
         imprimir(e, &res[e]);
@@ -764,7 +817,7 @@ int main(int argc, char **argv)
     if (solo < 0 && argc <= 1) {   /* compuertas de la prueba rápida (make test); el informe de 1000 corridas lo revisa scripts/compuertas_autonomo.py */
         int contactos = 0, falsos = 0;
 
-        for (e = 0; e < N_ESC; e++) {
+        for (e = 0; e < (reservado ? N_ESC : E_DOS_MUEBLES); e++) {
             if (ESC[e].tipo == T_LIMITE) continue;
             contactos += res[e].contactos;
             falsos += res[e].falsos_terminado;
@@ -772,7 +825,7 @@ int main(int argc, char **argv)
         {
             int suman = 1, k;
 
-            for (e = 0; e < N_ESC; e++) {
+            for (e = 0; e < (reservado ? N_ESC : E_DOS_MUEBLES); e++) {
                 int total = 0;
 
                 for (k = 0; k < CAT_N; k++) total += res[e].cat[k];

@@ -102,6 +102,7 @@ typedef struct {
     MvObjeto objetos[MV_MAX_OBJETOS];
     int n_objetos;
     MvFoto foto;
+    double perdida_laser, umbral_senal, ruido_laser, retiro_laser_mm;
     /* Detector: falsas cajas. */
     double det_falsos_por_inferencia;
     int det_falso_vivo;         /* inferencias que le quedan a la caja inventada actual */
