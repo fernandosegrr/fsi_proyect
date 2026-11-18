@@ -375,110 +375,26 @@ static void pruebas_no_evaluar(void)
 
 /* ── 5. Entrada opcional de la fusión ──────────────────────────────────── */
 
-static ZonaFlujo zona_flujo(int piso, int cerca, int dudoso)
-{
-    ZonaFlujo z;
 
-    memset(&z, 0, sizeof z);
-    z.piso = piso;
-    z.cerca = cerca;
-    z.dudoso = dudoso;
-    z.hay_cerca = cerca > 0;
-    z.piso_consistente = (piso + cerca >= 3 && cerca == 0 && dudoso * 2 <= piso + cerca) ? 1 : 0;
-    return z;
-}
 
-static ResultadoObstaculos detector_con(int zona, int cercania, int celdas)
-{
-    ResultadoObstaculos d;
 
-    memset(&d, 0, sizeof d);
-    d.zona[zona].hay_obstaculo = 1;
-    d.zona[zona].cercania = cercania;
-    d.zona[zona].celdas = celdas;
-    return d;
-}
 
 static void pruebas_fusion(void)
 {
-    ConfigFusion cfg;
-    ResultadoObstaculos det;
-    ResultadoFusion sal;
-    ZonaFlujo flujo[OBS_ZONAS];
-
+    ConfigFusion cfg;ResultadoObstaculos color;ResultadoFusion sal;ZonaObstaculo red[3];ZonaFlujo flujo[3];
+    int z, banda, fuentes, consistente;
     fusion_config_defecto(&cfg);
-
-    /* El color marca un obstáculo lejano (cercanía 1) en el centro de un piso de 2 colores: el flujo dice piso consistente. */
-    det = detector_con(ZONA_CENTRO, 1, 12);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    caso("(sin flujo) el color con cercanía 1 queda como aviso de severidad 1", sal.severidad == FUS_SEV_AVISO && sal.zona[ZONA_CENTRO].hay_obstaculo);
-    flujo[0] = zona_flujo(0, 0, 0);
-    flujo[1] = zona_flujo(6, 0, 1);
-    flujo[2] = zona_flujo(0, 0, 0);
-    caso("fusion_aplicar_flujo devuelve OK", fusion_aplicar_flujo(&cfg, flujo, 1, &sal) == FUS_OK);
-    caso("color cercanía 1 + piso consistente: se baja (la zona queda libre)", !sal.zona[ZONA_CENTRO].hay_obstaculo && sal.zona[ZONA_CENTRO].cercania == 0);
-    caso("... y se cuenta en 'bajados por el flujo'", sal.bajados_flujo == 1);
-    caso("... queda solo un aviso (severidad aviso), no frena", sal.aviso && sal.severidad == FUS_SEV_AVISO && sal.zona[ZONA_CENTRO].hay_obstaculo == 0);
-
-    /* Cercanía media o alta: el color manda, el flujo no baja nada. */
-    det = detector_con(ZONA_CENTRO, 2, 12);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("color cercanía 2 + piso consistente: NO se baja (el color manda)", sal.zona[ZONA_CENTRO].hay_obstaculo && sal.zona[ZONA_CENTRO].cercania == 2 && sal.bajados_flujo == 0);
-    det = detector_con(ZONA_CENTRO, 3, 20);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("color cercanía 3 + piso consistente: NO se baja", sal.zona[ZONA_CENTRO].hay_obstaculo && sal.severidad == FUS_SEV_PARAR);
-
-    /* Si el flujo no es consistente (hay 'cerca' o no hay datos) tampoco se baja. */
-    det = detector_con(ZONA_CENTRO, 1, 12);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    flujo[1] = zona_flujo(2, 1, 0);
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("color cercanía 1 + flujo con un bloque 'cerca': NO se baja", sal.zona[ZONA_CENTRO].hay_obstaculo && sal.bajados_flujo == 0);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    flujo[1] = zona_flujo(1, 0, 0);
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("color cercanía 1 + muy pocos bloques de piso (sin dato): NO se baja", sal.zona[ZONA_CENTRO].hay_obstaculo && sal.bajados_flujo == 0);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    flujo[1] = zona_flujo(6, 0, 1);
-    caso("flujo no vigente (cuadro sin evaluar): no cambia nada", fusion_aplicar_flujo(&cfg, flujo, 0, &sal) == FUS_OK && sal.zona[ZONA_CENTRO].hay_obstaculo && sal.bajados_flujo == 0);
-
-    /* Una zona distinta no se toca. */
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    flujo[1] = zona_flujo(0, 0, 0);
-    flujo[0] = zona_flujo(6, 0, 0);
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("el flujo consistente de OTRA zona no baja el obstáculo del centro", sal.zona[ZONA_CENTRO].hay_obstaculo);
-
-    /* El flujo nunca frena por su cuenta: 'cerca' sin color = solo aviso. */
-    memset(&det, 0, sizeof det);
-    fusion_decidir(&cfg, &det, NULL, 1000, &sal);
-    flujo[1] = zona_flujo(1, 4, 0);
-    flujo[1].cercania = 3;
-    fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-    caso("el flujo ve 'cerca' y el color no ve nada: solo AVISO, nunca frena", sal.aviso && !sal.zona[ZONA_CENTRO].hay_obstaculo && sal.severidad == FUS_SEV_AVISO);
-
-    /* Si un modelo ya confirmó el obstáculo (fuente ambos), el flujo no lo baja. */
-    {
-        DeteccionesModelo dm;
-        memset(&dm, 0, sizeof dm);
-        dm.marca_ms = 1000;
-        dm.n = 1;
-        dm.cajas[0].clase = 3;
-        dm.cajas[0].confianza_mil = 900;
-        dm.cajas[0].xmin_mil = 350;
-        dm.cajas[0].xmax_mil = 650;
-        dm.cajas[0].ymin_mil = 400;
-        dm.cajas[0].ymax_mil = 600;
-        det = detector_con(ZONA_CENTRO, 1, 12);
-        fusion_decidir(&cfg, &det, &dm, 1000, &sal);
-        flujo[1] = zona_flujo(6, 0, 0);
-        fusion_aplicar_flujo(&cfg, flujo, 1, &sal);
-        caso("si el modelo también ve el objeto (fuente ambos o modelo): el flujo no baja nada", sal.zona[ZONA_CENTRO].hay_obstaculo && sal.bajados_flujo == 0);
+    for(z=0;z<3;z++)for(banda=1;banda<=3;banda++)for(fuentes=0;fuentes<4;fuentes++)for(consistente=0;consistente<2;consistente++) {
+        memset(&color,0,sizeof color);memset(red,0,sizeof red);memset(flujo,0,sizeof flujo);
+        color.zona[z].hay_obstaculo=(fuentes&1)!=0;color.zona[z].cercania=banda;
+        red[z].hay_obstaculo=(fuentes&2)!=0;red[z].cercania=banda;
+        flujo[z].piso_consistente=consistente;flujo[z].hay_cerca=!consistente;flujo[z].cercania=3;
+        fusion_decidir_cualquiera(&cfg,&color,red,1,&sal);
+        fusion_aplicar_flujo(&cfg,flujo,1,&sal);
+        caso("flujo no crea segunda fuente ni elimina coincidencia color/red",sal.fuentes_vision[z]==fuentes && sal.zona[z].hay_obstaculo==(fuentes==3));
     }
-    caso("argumentos nulos: error", fusion_aplicar_flujo(NULL, flujo, 1, &sal) == FUS_ERR_ARGUMENTO && fusion_aplicar_flujo(&cfg, NULL, 1, &sal) == FUS_ERR_ARGUMENTO &&
-                                    fusion_aplicar_flujo(&cfg, flujo, 1, NULL) == FUS_ERR_ARGUMENTO);
+    caso("flujo rechaza argumentos nulos",fusion_aplicar_flujo(NULL,flujo,1,&sal)==FUS_ERR_ARGUMENTO &&
+         fusion_aplicar_flujo(&cfg,NULL,1,&sal)==FUS_ERR_ARGUMENTO && fusion_aplicar_flujo(&cfg,flujo,1,NULL)==FUS_ERR_ARGUMENTO);
 }
 
 int main(void)

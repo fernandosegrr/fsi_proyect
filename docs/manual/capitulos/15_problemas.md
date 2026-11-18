@@ -36,3 +36,29 @@ Si se desea diagnosticar la placa `ESP32 DevKit` directamente desde una computad
 4. `RUMBO?` → debe responder `RUMBO:1,0,0,0,0,0` (confirmando que el controlador `PI` de rumbo está habilitado y listo).
 
 Dónde está en el código: `carro.c`, `sensores.c`, `recuperacion.c`, `Enlace.kt`, `ModoSemiautonomo.kt`, `SensoresActivity.kt`.
+
+## 15.4 Autónomo v2: causas nuevas y caja negra
+
+Rama `feat/autonomo-v2` (`SIMULADO`; la app solo se compiló).
+
+| Síntoma | Qué significa | Qué hacer |
+|---|---|---|
+| «Causa 16: pared u objeto muy ancho…» | El láser midió los lados al girar y no encontró por dónde rodear, o medir el otro lado no era seguro | Quitar el objeto o dibujar otra ruta. El carro no se acercó |
+| «Causa 17: el detector de objetos dejó de dar resultados…» | La red neuronal lleva 2.5 s sin un resultado vigente | Revisar en Visión que el modelo esté cargado; reiniciar la app |
+| «Causa 18: el láser vio algo dentro del arco del giro…» | Al girar para rodear había una pared o un objeto pegado al costado; el carro dejó de girar para no barrerlo | Tomar el control, alejar el carro de eso y continuar, o dibujar la ruta más lejos de la pared |
+| «Aviso: Percepción incompleta: …» al iniciar | La ruta sale sin láser, sin detector de objetos o sin cámara | Decidir si conviene salir así; sin láser nada frena por distancia |
+| El carro tuerce unos grados y vuelve sin frenar | Es el vistazo: el láser mira algo que solo vio el color | Nada. Si confirma, se detiene y rodea |
+| El carro se queda medio segundo quieto antes de volver a la línea | Es la mirada antes de entrar | Nada |
+| El carro avanza mucho más allá del obstáculo antes de volver | Es la pista del paso en paralelo (la cámara no ve lo que tiene al lado) | Dejar al menos 1.3 m de ruta después del obstáculo |
+
+**Caja negra.** Cada ruta deja un archivo de texto en `Android/data/com.fsi.carro/files/cajas_negras/`. Su nombre aparece en Ejecutar ruta → Avanzado. Para sacarlos: `adb pull /sdcard/Android/data/com.fsi.carro/files/cajas_negras`. El formato de las líneas está en `docs/autonomo_v2_diseno.md`.
+
+## 15.5 Autónomo v3: causa 19 y el freno de 150 mm
+
+Rama `feat/autonomo-v3` (`SIMULADO`; la app solo se compiló).
+
+| Síntoma | Qué significa | Qué hacer |
+|---|---|---|
+| «Causa 19: el láser dejó de responder a mitad de la ruta…» | Con la ruta en marcha, el láser vivía al empezar y lleva 600 ms sin vivir | Revisar la pantalla Sensores (láser caído, cable I²C). El carro se detuvo a propósito: no avanza sin el láser. Con el láser aún muerto, continuar vuelve a pedir ayuda |
+| Con firmware `SEG=3` el carro se detiene a ~15 cm de una pared en vez de ~12 cm | `TOF_PARO_MM` pasó de 120 a 150 mm | Normal. `CAPS` trae `TOFP=150` |
+| Con firmware `SEG=3` un avance contra algo a menos de 18 cm no arranca | `TOF_BLOQUEO_MM` es 180 mm | Alejar el carro o pasar a MANUAL |

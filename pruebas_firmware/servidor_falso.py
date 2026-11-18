@@ -22,7 +22,7 @@ GUIA DE LECTURA
     un momento despues, IMU_CAL_OK:-47), TOF_USO:<0|1> (apaga o enciende el freno del laser), TOF_PARO:<mm> y WD:<n> cuando frena el watchdog (J16).
     J16: CAPS anuncia IMUS=<ppm> y entiende IMU_ESCALA:<ppm> / IMU_ESCALA? (correccion de escala del giroscopio; no la aplica a su angulo simulado);
     SIM_ANGULO:<decimas> (solo de pruebas) suma ese angulo como si el carro se hubiera girado a mano. Para probar el laser sin objetos: el mensaje SIM_TOF:<mm> (solo de pruebas) fija la distancia que
-    "ve" el laser; con FORWARD en AUTO y menos de 120 mm dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
+    "ve" el laser; con FORWARD en AUTO y menos de 150 mm (TOF_PARO_MM, SEG=3; antes 120) dos lecturas seguidas el servidor frena y manda TOF_PARO. --sin-giroscopio y --sin-laser hacen que CAPS? diga 0. SIN --sensores el servidor se
     porta como un firmware viejo: esos mensajes se tratan como desconocidos (sin respuesta).
 
 Uso (desde la carpeta pruebas_firmware, con el entorno virtual local):
@@ -59,7 +59,8 @@ estado = {
     "watchdogs": 0,              # cuantas veces freno el watchdog (con --sensores se avisa WD:<n>, como el firmware J16)
     "ultimo_mensaje": None,      # para los ms desde el mensaje anterior
     "perfil": "AUTO",            # "MANUAL" (255) o "AUTO" (210); siempre arranca y se reconecta en AUTO
-    "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None, "escala_ppm": 0},   # sensores (J11), solo con --sensores
+    "sens": {"activo": False, "imu": True, "tof": True, "angulo_x10": 0, "sesgo_x100": -47, "mm": 1200, "tof_uso": True, "giro": None, "cerca": 0, "cal": None, "escala_ppm": 0,
+             "rumbo": False, "rumbo_objetivo_x10": 0},   # sensores (J11), solo con --sensores
     "balance": {"AUTO": 986, "MANUAL": 988},   # factor del lado izquierdo de cada perfil (milesimas); como la memoria no volatil del carro, no se pierde al desconectar
     "ant": {"AUTO": [100, 100], "MANUAL": [20, 20]},
 }
@@ -129,7 +130,10 @@ async def hacer_giro(conexion, grados):
 
 def texto_caps():
     s = estado["sens"]
-    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,IMUS=%d,FW:simulado" % (1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3, s["escala_ppm"])
+    # Igual que el firmware (sensores.c): RUMBO=1 (J16) y, desde el autonomo v2, SEG=2 y desde el v3 SEG=3 con TOFP=150 (un texto desconocido no renueva el watchdog; FORWARD en AUTO con el frente a
+    # menos de 150 mm no arranca y contesta TOF_PARO) y TUSO=<0|1> (si el freno del laser esta en uso). Las claves nuevas van antes de FW:.
+    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,RUMBO=1,IMUS=%d,SEG=3,TUSO=%d,TOFP=150,FW:simulado" % (
+        1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3, s["escala_ppm"], 1 if s["tof_uso"] else 0)
 
 
 async def procesar_sensores(conexion, mensaje):
@@ -179,6 +183,7 @@ async def procesar_sensores(conexion, mensaje):
     elif mensaje.startswith("TOF_USO:"):
         s["tof_uso"] = mensaje[8:] != "0"
         await mandar(conexion, "ACK_TOF_USO:%d" % (1 if s["tof_uso"] else 0))
+        await mandar(conexion, texto_caps())          # TUSO cambio: el firmware vuelve a anunciar CAPS
     elif mensaje.startswith("SIM_TOF:"):          # solo de pruebas: la distancia que "ve" el laser
         s["mm"] = max(0, min(1200, int(mensaje[8:] or 1200)))
     elif mensaje.startswith("GIRAR:"):
@@ -198,7 +203,7 @@ async def procesar_sensores(conexion, mensaje):
 
 
 async def emisor_sens():
-    """Cada 100 ms: SENS al cliente (con perfil AUTO) y el freno de emergencia del laser (2 lecturas seguidas menores de 120 mm, AUTO, avanzando)."""
+    """Cada 100 ms: SENS al cliente (con perfil AUTO) y el freno de emergencia del laser (2 lecturas seguidas menores de 150 mm, AUTO, avanzando)."""
     while True:
         await asyncio.sleep(0.1)
         s = estado["sens"]
@@ -207,7 +212,7 @@ async def emisor_sens():
             continue
         try:
             if s["tof"] and s["tof_uso"] and estado["perfil"] == "AUTO" and estado["motores_en_marcha"] and estado.get("ultimo_movimiento") == "FORWARD":
-                s["cerca"] = s["cerca"] + 1 if s["mm"] < 120 else 0
+                s["cerca"] = s["cerca"] + 1 if s["mm"] < 150 else 0
                 if s["cerca"] >= 2:
                     s["cerca"] = 0
                     estado["motores_en_marcha"] = False
@@ -248,9 +253,27 @@ async def procesar(conexion, mensaje):
             imprimir("             Balance no valido (NAK_BAL)")
             await conexion.send("NAK_BAL")
         return
+    if estado["sens"]["activo"] and mensaje.startswith("RUMBO"):
+        # J16: RUMBO:ON / RUMBO:OFF / RUMBO:<decimas> / RUMBO? (firmware_carro/rumbo.h). No son un movimiento: no renuevan el watchdog.
+        s = estado["sens"]
+        imprimir("%s  %s" % (intervalo, mensaje))
+        if mensaje == "RUMBO:ON":
+            s["rumbo"] = True
+            await mandar(conexion, "ACK_RUMBO:1")
+        elif mensaje == "RUMBO:OFF":
+            s["rumbo"] = False
+            await mandar(conexion, "ACK_RUMBO:0")
+        elif mensaje == "RUMBO?":
+            en_marcha = 1 if (s["rumbo"] and estado["motores_en_marcha"] and estado.get("ultimo_movimiento") == "FORWARD") else 0
+            await mandar(conexion, "RUMBO:%d,%d,%d,0,0" % (1 if s["rumbo"] else 0, en_marcha, s["rumbo_objetivo_x10"]))
+        elif mensaje.startswith("RUMBO:"):
+            try:
+                s["rumbo_objetivo_x10"] = int(mensaje[6:])      # objetivo del avance en curso: sin respuesta
+            except ValueError:
+                pass
+        return
     if mensaje not in COMANDOS_VALIDOS:
-        # El firmware real guarda el desconocido y renueva el watchdog (pendiente, ver
-        # docs/pendientes_firmware.md); aqui se ignora como pidio la prueba.
+        # Igual que el firmware desde SEG=2 (autonomo v2): un texto desconocido no mueve nada, no renueva el watchdog y no queda como comando actual.
         imprimir("%s  DESCONOCIDO (ignorado): %r" % (intervalo, mensaje))
         return
 
@@ -272,6 +295,13 @@ async def procesar(conexion, mensaje):
             estado["perfil"] = nuevo
             imprimir("             Perfil: %s" % nuevo)
         await conexion.send("ACK_" + nuevo)
+        return
+    s = estado["sens"]
+    if mensaje == "FORWARD" and s["activo"] and s["tof"] and s["tof_uso"] and estado["perfil"] == "AUTO" and s["mm"] < 180:
+        # SEG=2/3: con el frente a menos de 180 mm (TOF_BLOQUEO_MM; 150 hasta SEG=2) el avance no arranca: se contesta TOF_PARO:<mm>, igual que el freno.
+        imprimir("             FORWARD rechazado: frente a %d mm (TOF_PARO)" % s["mm"])
+        estado["motores_en_marcha"] = False
+        await mandar(conexion, "TOF_PARO:%d" % s["mm"])
         return
     estado["motores_en_marcha"] = mensaje in COMANDOS_MOVIMIENTO
     estado["ultimo_movimiento"] = mensaje

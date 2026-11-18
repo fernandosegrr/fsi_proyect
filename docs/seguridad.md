@@ -62,7 +62,7 @@ El sistema integra tres niveles independientes de supervisión automática:
 ### 3.2 Watchdog de hardware del microcontrolador (5000 ms)
 - El temporizador de vigilancia por hardware del ESP32 (`esp_task_wdt`) está configurado a 5000 ms (`firmware_carro.ino`).
 - En cada ciclo de la función `loop()`, se ejecuta `esp_task_wdt_reset()`.
-- Si el hilo principal sufriera un bloqueo indefinido por alguna transacción I2C colgada o fallo de memoria, el microcontrolador se reinicia automáticamente en frío, llevando de inmediato los pines de motor a nivel bajo por hardware.
+- Si el hilo principal sufriera un bloqueo indefinido por alguna transacción I2C colgada o fallo de memoria, el microcontrolador se reinicia automáticamente en frío, llevando de inmediato los pines de motor a nivel bajo por hardware (*corrección del 16-nov-2026: la hoja de datos del ESP32 indica que los GPIO 25, 26, 27 y 33 arrancan sin salida ni entrada habilitada, es decir flotantes; que queden en bajo depende del driver TC1508A o de un pull-down externo, y NO está medido. Mientras el chip está colgado con el PWM ya encendido, los motores siguen hasta el reinicio: ~5 s, ≈96 cm en AUTO a 19.3 cm/s (más si la velocidad real es ~30 cm/s) según el modelo de `docs/investigacion_autonomo/10_seguridad_funcional.md`*).
 
 ### 3.3 Parada de emergencia por proximidad láser (Autoridad ToF)
 - En perfil `AUTO`, el sensor láser VL53L0X mide continuamente la distancia hacia el frente.

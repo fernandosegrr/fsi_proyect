@@ -10,22 +10,15 @@
  *     marca de tiempo (el modelo corre en otro hilo, a otro ritmo) + la hora de ahora.
  *  3. Salida: las tres zonas ya fusionadas (hay obstáculo y cercanía, el mismo formato que el detector, así
  *     que el navegador las usa igual), la severidad, y QUIÉN decidió (detector, modelo o ambos).
- *  4. Reglas (en este orden de importancia):
- *       a) El DETECTOR MANDA en seguridad: si el detector ve un obstáculo cerca, la salida es esa, sin esperar
- *          al modelo y aunque el modelo diga otra cosa (contradicción) o esté caducado o ausente. La fusión
- *          nunca baja lo que ve el detector.
- *       b) Si el modelo ve un objeto EN EL CAMINO (cruza la zona central) y el detector DUDA (ve algo pero
- *          menos cerca, o ve unas pocas celdas que no llegan al mínimo), sube la severidad al mayor de los dos.
- *       c) Si el modelo ve un objeto lejano que el detector no ve, SOLO AVISA: no frena.
- *       d) Si el modelo ve un objeto cercano (cercanía 2 o 3) que el detector no ve en absoluto, frena solo
- *          si el modelo está muy seguro (CONFIANZA_FRENAR); si no, solo avisa.
- *       e) Un resultado del modelo más viejo que `vigencia_ms` (300 ms) se ignora por completo.
+ *  4. Color y modelo vigentes deben coincidir EN LA MISMA ZONA para confirmar por vision.
+ *     Una fuente aislada solo avisa; se conserva su banda y procedencia (bits 1=color, 2=modelo).
+ *     El navegador aplica despues la autoridad del laser: cercano confirma, libre descarta
+ *     positivos aislados. Un modelo mas viejo que vigencia_ms (300 ms) no confirma.
  *  5. Caja → zona y cercanía: ver fusion_caja_a_zona y fusion_cercania_de_caja. La cercanía sale de la posición
  *     vertical del borde de abajo de la caja y de su tamaño; los límites son los mismos que usa el detector
  *     de color (OBS_MEDIA_MIL y OBS_CERCA_MIL), así los dos hablan el mismo idioma.
- *  6. Clases de interés (persona, mascota, silla, mesa, botella...): se configuran con fusion_marcar_clase.
- *     Una clase de interés fuera del camino también genera un AVISO. Cualquier otra clase cuenta igual cuando
- *     está en el camino: el modelo no necesita "conocer" el objeto para que frene.
+ *  6. Las clases de interes se conservan para configuracion/presentacion. Cualquier clase
+ *     con confianza suficiente puede confirmar color, incluso en zonas laterales.
  *  Solo enteros, sin malloc, sin recursión; los errores son códigos de retorno.
  */
 #ifndef FUSION_H
@@ -77,7 +70,7 @@ typedef struct {
 typedef struct {
     int vigencia_ms;          /* un resultado del modelo más viejo que esto se ignora (300) */
     int confianza_min_mil;    /* por debajo de esta confianza una caja no cuenta (600 = 60 %) */
-    int confianza_frenar_mil; /* para frenar SOLO por el modelo (detector sin evidencia) hace falta esta confianza (600) */
+    int confianza_frenar_mil; /* compatibilidad de configuracion; el modelo aislado ya no frena */
     int solape_camino_mil;    /* una caja está "en el camino" si cruza la zona central al menos esto, en milésimas del ancho (60) */
     int cerca_mil;            /* borde de abajo de la caja a partir de aquí = cercanía 3 (834, como el detector) */
     int media_mil;            /* ... a partir de aquí = cercanía 2 (667) */
@@ -88,9 +81,10 @@ typedef struct {
 /* Lo que sale de decidir. */
 typedef struct {
     ZonaObstaculo zona[OBS_ZONAS];   /* zonas ya fusionadas: el mismo formato que usa el navegador */
+    int fuentes_vision[OBS_ZONAS];  /* evidencia independiente POR ZONA, no el resumen global fuente */
     int severidad;                   /* FUS_SEV_* (la mayor de las tres zonas, o aviso si solo hay un aviso) */
     int fuente;                      /* FUS_FUENTE_* */
-    int detector_solo_decide;        /* 1 si el detector solo ya pide frenar (cercanía >= 2): no se espera al modelo */
+    int detector_solo_decide;        /* compatibilidad JNI: siempre 0 con consenso obligatorio */
     int modelo_vigente;              /* 1 si el resultado del modelo se usó (no estaba caducado ni vacío) */
     int edad_modelo_ms;              /* edad del resultado del modelo (0 si no hay) */
     int aviso;                       /* 1 si hay algo que solo se avisa (no frena) */
@@ -137,25 +131,14 @@ int fusion_cercania_de_caja(const ConfigFusion *config, const CajaModelo *caja);
 int fusion_decidir(const ConfigFusion *config, const ResultadoObstaculos *detector, const DeteccionesModelo *modelo,
                    unsigned int ahora_ms, ResultadoFusion *salida);
 
-/* MODO «CUALQUIER OBJETO» (cualquiera.h): el modelo no dice QUÉ es, solo que hay una caja sobre el piso (ya filtrada y con persistencia: `cualquiera` trae las zonas que
- * cuentan). La regla, que se prueba en pruebas_cualquiera.c, es: EL COLOR MANDA EN SEGURIDAD.
- *   a) El color ve obstáculo en una zona y «cualquier objeto» también (coinciden): la zona queda con la MAYOR de las dos cercanías (sube la severidad); fuente AMBOS.
- *   b) El color DUDA (algunas celdas, menos del mínimo) y «cualquier objeto» ve algo en esa zona: se sube al valor de «cualquier objeto»; fuente AMBOS.
- *   c) «Cualquier objeto» ve algo y el color no ve nada ni duda: solo AVISO (aviso = 1), NUNCA frena.
- *   d) El color ve obstáculo con cercanía BAJA (1: lejos), «cualquier objeto» tiene un resultado vigente y NO ve nada en esa zona: se DESMIENTE el falso positivo de color
- *      (la zona queda libre y se cuenta en `desmentidos`). Con cercanía 2 o 3 el color nunca se desmiente.
- *   e) Sin resultado vigente de «cualquier objeto» (`cualquiera_vigente` = 0) no cambia nada: sale lo que vio el color.
- * Devuelve FUS_OK o un código de error; con un error `salida` queda en ceros. */
+/* Modo cualquier objeto: recibe zonas neuronales ya filtradas por persistencia.
+ * Aplica el mismo consenso por zona; ni unas pocas celdas ni el flujo cuentan
+ * como un positivo de color. Un resultado no vigente no confirma. */
 int fusion_decidir_cualquiera(const ConfigFusion *config, const ResultadoObstaculos *detector, const ZonaObstaculo cualquiera[OBS_ZONAS],
                               int cualquiera_vigente, ResultadoFusion *salida);
 
-/* ENTRADA OPCIONAL DEL FLUJO DEL PISO (movimiento_piso.h), se aplica DESPUÉS de fusion_decidir / fusion_decidir_cualquiera sobre su salida. El color manda:
- *   a) El color marca obstáculo con cercanía BAJA (1: lejos) en una zona que el flujo ve como «piso con textura consistente» (con dato suficiente y ningún
- *      bloque más cerca que el piso) y NADIE más (modelo) lo confirma (fuente = detector): se BAJA la severidad: la zona queda libre, queda un AVISO y se cuenta en
- *      `bajados_flujo`. Con cercanía 2 o 3 el color nunca se baja.
- *   b) El flujo ve algo «más cerca que el piso» en una zona donde el color no ve nada: solo AVISO, NUNCA frena.
- *   c) Con `flujo_vigente` = 0 (cuadro sin evaluar: el carro no avanzaba o los cuadros no llegaron a tiempo) no cambia nada.
- * Devuelve FUS_OK o FUS_ERR_ARGUMENTO. */
+/* Flujo opcional: solo aporta avisos. No crea consenso color/red ni elimina
+ * una coincidencia existente. Sin flujo vigente no modifica la salida. */
 int fusion_aplicar_flujo(const ConfigFusion *config, const ZonaFlujo flujo[OBS_ZONAS], int flujo_vigente, ResultadoFusion *salida);
 
 /* Texto corto en español de una fuente (para mostrar en pantalla). */

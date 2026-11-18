@@ -36,6 +36,7 @@ int  tof_vivo(void);            /* 1 si el sensor funciona */
 int  tof_mm(void);              /* distancia filtrada en mm; nunca más de TOF_LIBRE_MM (ese valor = libre) */
 int  tof_valida(void);          /* 1 si la última lectura fue una medida real, 0 si fue "libre" (sin eco o más lejos de TOF_LIBRE_MM) */
 int  tof_cerca_confirmada(void);/* la lectura más grande de las últimas TOF_PARO_LECTURAS si todas fueron válidas y menores de TOF_PARO_MM; 0 si no */
+int  tof_bloqueo_confirmado(void);/* lo mismo con TOF_BLOQUEO_MM: el frente está demasiado cerca para ARRANCAR un avance (SEG=2); 0 si no */
 int  tof_tomar_eventos(void);
 uint32_t tof_lecturas(void);    /* cuántas lecturas se han recibido */
 

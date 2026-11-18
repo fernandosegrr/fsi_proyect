@@ -16,6 +16,11 @@
 #include "simulador_navegador.h"
 #include "calibracion.h"
 
+/* v3: el freno por láser del firmware (TOF_PARO_MM de config.h) es 150 mm desde SEG=3 (antes 120); -DSIM_TOF_PARO_MM=120 reproduce el firmware anterior. */
+#ifndef SIM_TOF_PARO_MM
+#define SIM_TOF_PARO_MM 150
+#endif
+
 /* Seno de 0 a 90 grados, en milésimas (1000 = 1.0). Tabla fija: no se usa math.h. */
 static const int SENO_MILESIMAS[91] = {
        0,   17,   35,   52,   70,   87,  105,  122,  139,  156,  174,  191,  208,  225,  242,
@@ -361,12 +366,38 @@ static void j16_avanzar(Simulador *sim, int dt)
     }
 }
 
+/* AUTÓNOMO V2: azar propio (determinista por corrida) para el jitter de comandos y los giros por tiempo. */
+static int v2_entre(Simulador *sim, int minimo, int maximo)
+{
+    sim->v2_azar = sim->v2_azar * 1664525u + 1013904223u;
+    return minimo + (int)((sim->v2_azar >> 8) % (unsigned)(maximo - minimo + 1));
+}
+
 /* El comando que de verdad ejecuta el carro: el del navegador de hace j16_latencia_cmd_ticks ticks. */
 static ComandoNav j16_comando_fisico(Simulador *sim, ComandoNav comando)
 {
     int i, n = sim->j16_latencia_cmd_ticks;
     ComandoNav sale;
 
+    if (sim->j16_activo && sim->v2_jitter_cmd_pct > 0) {   /* V2: cada comando nuevo viaja con el retraso habitual, un tick menos o un tick más */
+        if (comando != sim->v2_ultimo_nav || sim->v2_n_cmd == 0) {
+            int tiro = v2_entre(sim, 0, 199), extra = 0;
+
+            if (tiro < sim->v2_jitter_cmd_pct) {
+                extra = -1;
+            } else if (tiro < 2 * sim->v2_jitter_cmd_pct) {
+                extra = 1;
+            }
+            sim->v2_retraso = n + extra;
+            if (sim->v2_retraso < 0) sim->v2_retraso = 0;
+            if (sim->v2_retraso > 7) sim->v2_retraso = 7;
+            sim->v2_ultimo_nav = comando;
+        }
+        sim->v2_hist_cmd[sim->v2_n_cmd & 15] = comando;
+        sale = (sim->v2_n_cmd >= sim->v2_retraso) ? sim->v2_hist_cmd[(sim->v2_n_cmd - sim->v2_retraso) & 15] : NAV_CMD_STOP;
+        sim->v2_n_cmd++;
+        return sale;
+    }
     if (!sim->j16_activo || n <= 0) {
         return comando;
     }
@@ -431,6 +462,11 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
 {
     int i;
 
+    if (sim->vision_externa != NULL) {
+        *cuadro = *sim->vision_externa;
+        return;
+    }
+
     memset(cuadro, 0, sizeof *cuadro);
     for (i = 0; i < sim->n_eventos; i++) {
         EventoObstaculo *e = &sim->eventos[i];
@@ -445,6 +481,9 @@ static void armar_cuadro(Simulador *sim, uint32_t t_ms, ResultadoObstaculos *cua
             }
             celdas += (int)((sim->recorrido_cmm - e->base_recorrido_cmm) * e->crece_por_10cm / 10000);   /* un obstáculo real crece al acercarse */
             cuadro->zona[e->zona].hay_obstaculo = 1;
+#ifndef SIM_SIN_FUENTES   /* al compilar este simulador contra el núcleo de v1.1 (sin procedencia por zona) se define SIM_SIN_FUENTES */
+            cuadro->fuentes_vision[e->zona] = 3; /* evento sintético observado por color y red */
+#endif
             if (celdas > cuadro->zona[e->zona].celdas) {
                 cuadro->zona[e->zona].celdas = celdas;
             }
@@ -471,16 +510,28 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
         sim->x_cmm += seno(rumbo) * distancia / 1000;
         sim->y_cmm -= coseno(rumbo) * distancia / 1000;
         break;
-    case NAV_CMD_LEFT:
-        desplazar_al_girar(sim, CAL_LADO_IZQUIERDA, (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100);
-        sim->rumbo_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
-        sim->giro_desde_cuadro_cgrados -= (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+    case NAV_CMD_LEFT: {
+        long cola = (long)sim->real.frenado_grados_izq_x10 * 10 * sim->pct_giro / 100;
+
+        if (sim->v2_giro_tiempo_real) {   /* V2: el pivote va a plena potencia y STOP es rueda libre: sigue girando varios grados (SUPUESTO: 3 a 12) */
+            cola = (cola > 600 ? cola : 600) * sim->v2_frenado_giro_pct / 100;
+        }
+        desplazar_al_girar(sim, CAL_LADO_IZQUIERDA, cola);
+        sim->rumbo_cgrados -= cola;
+        sim->giro_desde_cuadro_cgrados -= cola;
         break;
-    case NAV_CMD_RIGHT:
-        desplazar_al_girar(sim, CAL_LADO_DERECHA, (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100);
-        sim->rumbo_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
-        sim->giro_desde_cuadro_cgrados += (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+    }
+    case NAV_CMD_RIGHT: {
+        long cola = (long)sim->real.frenado_grados_der_x10 * 10 * sim->pct_giro / 100;
+
+        if (sim->v2_giro_tiempo_real) {
+            cola = (cola > 600 ? cola : 600) * sim->v2_frenado_giro_pct / 100;
+        }
+        desplazar_al_girar(sim, CAL_LADO_DERECHA, cola);
+        sim->rumbo_cgrados += cola;
+        sim->giro_desde_cuadro_cgrados += cola;
         break;
+    }
     default:
         break;
     }
@@ -489,6 +540,14 @@ static void deslizar_al_frenar(Simulador *sim, ComandoNav comando)
 /* ── Firmware simulado: giro por ángulo y láser (J11) ─────────────────────────────────────────────── */
 
 static unsigned azar_fw = 12345u;
+
+/* V2: el ruido del giroscopio simulado sale de un generador que NO se reinicia entre corridas (así lo usan los Monte Carlo heredados, y cambiarlo movería sus
+ * números). El banco nuevo lo siembra en cada corrida para que una corrida suelta («depurar») repita exactamente la de la tanda. */
+void sim_sembrar_azar_fw(uint32_t semilla)
+{
+    azar_fw = (unsigned)semilla * 2654435761u + 12345u;
+}
+
 static int azar_fw_entre(int minimo, int maximo)
 {
     azar_fw = azar_fw * 1664525u + 1013904223u;
@@ -700,11 +759,16 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         if (sim->j16_activo) {   /* J16: el sesgo del giroscopio se acumula y se guarda el ángulo medido de este tick (SENS llega atrasado) */
             sim->j16_sesgo_acum_udeg += (long)sim->j16_sesgo_mdps * NAV_TICK_MS;
             sim->j16_hist_angulo[sim->j16_n_ticks & 15] = angulo_medido_x10(sim);
+            if (sim->v2_sens_coherente) {   /* V2: también la distancia del láser de este tick */
+                sim->v2_hist_laser[sim->j16_n_ticks & 15] = sim->tof_activo ? laser_ve(sim) : 1200;
+                sim->v2_hist_laser_ok[sim->j16_n_ticks & 15] = !sim->tof_sin_eco;
+            }
             sim->j16_n_ticks++;
         }
         if ((sim->tof_activo || sim->fw_giroscopio) && !sim->sens_apagado && sim->t_ms >= sim->proximo_sens_ms) {   /* SENS cada 100 ms (ángulo del giroscopio y láser); el láser mira lo que había en el cuadro anterior */
             int mm = sim->tof_activo ? laser_ve(sim) : 1200;
             int angulo = angulo_fw_x10(sim);
+            int laser_ok = !sim->tof_sin_eco;
 
             if (sim->j16_activo) {
                 int atraso = (sim->j16_latencia_sens_ms + NAV_TICK_MS / 2) / NAV_TICK_MS;
@@ -716,11 +780,24 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
                     atraso = sim->j16_n_ticks - 1;
                 }
                 angulo = sim->j16_hist_angulo[(sim->j16_n_ticks - 1 - atraso) & 15];
+                if (sim->v2_sens_coherente && sim->tof_activo) {
+                    int viejo = atraso + 1;   /* la mediana de 3 lecturas del firmware es ~50 ms más vieja que el ángulo */
+
+                    if (viejo > sim->j16_n_ticks - 1) {
+                        viejo = sim->j16_n_ticks - 1;
+                    }
+                    if (viejo > 15) {
+                        viejo = 15;
+                    }
+                    mm = sim->v2_hist_laser[(sim->j16_n_ticks - 1 - viejo) & 15];
+                    laser_ok = sim->v2_hist_laser_ok[(sim->j16_n_ticks - 1 - viejo) & 15];
+                }
             }
             sim->proximo_sens_ms = sim->t_ms + 100;
-            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0, sim->tof_activo && mm < 1200, angulo, sim->t_ms);
+            navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0,
+                                 sim->tof_activo && laser_ok && mm > 0, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {
-                sim->tof_cerca_seguidas = (mm < 120) ? sim->tof_cerca_seguidas + 1 : 0;
+                sim->tof_cerca_seguidas = (mm < SIM_TOF_PARO_MM) ? sim->tof_cerca_seguidas + 1 : 0;
                 if (sim->tof_cerca_seguidas >= 2) {   /* parada de emergencia del firmware: solo avanzando */
                     sim->tof_parado = 1;
                     sim->tof_paro_hecho++;
@@ -794,6 +871,10 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             }
             sim->cmd_previo = fisico;
             sim->ms_en_comando = 0;
+            if (sim->v2_giro_tiempo_real && (fisico == NAV_CMD_LEFT || fisico == NAV_CMD_RIGHT)) {   /* V2: retardo de arranque y cola de ESTE giro por tiempo */
+                sim->v2_arranque_giro_ms = sim->real.arranque_ms * v2_entre(sim, 40, 110) / 100;
+                sim->v2_frenado_giro_pct = v2_entre(sim, 50, 200);
+            }
             sim->giro_h0_cgrados = sim->rumbo_cgrados;   /* un comando nuevo: el giro (y su desplazamiento) se cuentan desde cero */
             sim->giro_acum_cgrados = 0;
             sim->desp_x_cmm = 0;
@@ -802,7 +883,8 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
         {
             int antes = sim->ms_en_comando;
             int despues = antes + NAV_TICK_MS;
-            int desde = (antes > sim->real.arranque_ms) ? antes : sim->real.arranque_ms;
+            int arranque = (sim->v2_giro_tiempo_real && (fisico == NAV_CMD_LEFT || fisico == NAV_CMD_RIGHT)) ? sim->v2_arranque_giro_ms : sim->real.arranque_ms;
+            int desde = (antes > arranque) ? antes : arranque;
             int efectivo = (despues > desde) ? despues - desde : 0;
 
             if (nav->giro_fw) {

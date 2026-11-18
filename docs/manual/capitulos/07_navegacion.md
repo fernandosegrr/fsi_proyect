@@ -1,5 +1,7 @@
 # 7. Núcleo de navegación en C
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo explica la arquitectura matemática del núcleo de navegación escrito en estándar `C99` (`nucleo_c`), que se compila tanto dentro de la aplicación Android (vía `JNI`) como en computadora personal para las suites de pruebas y el simulador Monte Carlo. Describe el modelo de cuadrícula, las ecuaciones de calibración longitudinal y angular, la máquina de estados del navegador y las mejoras introducidas en los cierres **J15** y **J16**: integración de pose en décimas de grado (`rumbo_x10`), guiado continuo por punto de mira (`RUMBO`), geometría de esquive con margen longitudinal de `150 mm`, corrección de `override_largo_mm` y protección ante caída a giro por tiempo (`descartar_dt`).
 
 ## 7.1 Por qué se navega por tiempo con giroscopio y cómo funciona la cuadrícula
@@ -52,11 +54,11 @@ El módulo `navegador.c` gobierna la ejecución de la ruta mediante siete estado
 |---|---|---|
 | `NAV_ESPERANDO` | `STOP` | Estado inicial o tras cancelar; espera `navegador_comenzar`. |
 | `NAV_SIGUIENDO` | `FORWARD` / `LEFT` / `RIGHT` + `RUMBO` | Ejecuta la secuencia de pasos (`PASO_GIRAR` y `PASO_AVANZAR`) hacia el siguiente nodo de la ruta. |
-| `NAV_DETENIDO_OBSTACULO` | `STOP` | Pausa de confirmación (`300 ms`) al detectar un obstáculo dentro del corredor frontal antes de decidir esquivar. |
-| `NAV_ESQUIVANDO` | Giros y avances de desvío | Ejecuta el rodeo lateral (`400 mm` a izquierda o derecha) y el avance paralelo para rebasar la caja. |
-| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Regresa desde el carril paralelo hacia un punto situado `300 mm` por delante del obstáculo sobre la línea original. |
+| `NAV_DETENIDO_OBSTACULO` | `STOP` | Confirmación láser o coincidencia color/red; pausa de 500 ms y cuadro nuevo antes de planear por el lado libre. |
+| `NAV_ESQUIVANDO` | Giros y avances de desvío | Rodeo lateral de 400 mm inicial, hasta 700 mm en reintentos, y exploración paralela por tramos. |
+| `NAV_REINCORPORANDO` | Giro y avance hacia la ruta | Retorno casi transversal; si sigue el objeto, amplía y reintenta. Comprueba avance y frente antes del cierre. |
 | `NAV_AYUDA` | Manual del operador | Cede el mando al usuario cuando ambos lados están bloqueados o se activa un paro de supervisión; espera hasta `3 min` a que pulse `Continuar`. |
-| `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin exitoso del último paso de la ruta o aborto por fallo irrecuperable. |
+| `NAV_TERMINADO` / `NAV_ERROR` | `STOP` | Fin solo tras comprobar rebase y frente libre con lecturas nuevas; o aborto por fallo irrecuperable. |
 
 ### Integración de pose en décimas de grado (`rumbo_x10` — Cierres J15 y J16)
 
@@ -77,16 +79,58 @@ Incluso si el controlador `PI` del firmware mantiene un ángulo constante, un pe
 3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_MAX_CORR_X10 = 120`) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
 4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8.0°`** (`NAV_GIRO_EN_MARCHA_MAX_X10 = 80`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
 
-## 7.4 Geometría de esquive en tres tramos y margen J16 de `150 mm`
+## 7.4 Esquive iterativo (revisión de autonomía del 12-nov)
 
-Cuando el vehículo avanza en `NAV_SIGUIENDO` y el subsistema de percepción confirma durante `300 ms` un obstáculo dentro del corredor frontal a una distancia estimada $d_{\text{obs}}$ (acotada al rango `[150, 700] mm`), el navegador construye una maniobra de rodeo y reincorporación en tres tramos:
+La revisión anterior exigía láser para todo esquive y pedía AYUDA al ver el costado durante el retorno. Era una regresión: v1.1 pasaba el banquito simulado con dos esquives. Se reemplaza por confirmación láser cercana o coincidencia de color y red en la misma zona. Con láser libre y una fuente visual aislada se continúa. Sin eco y una fuente sola se avanza con precaución; sin eco y coincidencia se puede esquivar.
 
-[FIGURA:esquive|Geometría de la maniobra de esquive en tres tramos con margen longitudinal J16 de 150 mm y estado validado físicamente en el carro (escenario B6).]
+[FIGURA:esquive|Esquema histórico J16 (v1.1). La revisión actual cambia confirmación, exploración del fondo y reintentos; sigue NO MEDIDA en el carro.]
 
-1. **Tramo 1 — Desvío lateral (`NAV_TRAMO_ESQUIVAR_CM = 40 cm` = `400 mm`):** el navegador consulta qué costado tiene más espacio libre en la imagen (`lado_libre`: izquierda `+1` o derecha `-1`). Gira `90°` hacia ese lado, avanza `400 mm` para salir de la línea del obstáculo y gira `-90°` para quedar nuevamente paralelo a la ruta original.
-2. **Tramo 2 — Avance paralelo de rebase con margen J16 (`NAV_PASO_MARGEN_MM = 150 mm`):** para rebasar por completo el cuerpo del obstáculo (cuya profundidad supuesta es `NAV_PROFUNDIDAD_OBS_MM = 250 mm`), el carro avanza en paralelo una distancia:
-   $$d_{\text{paso}} = \text{clamp}_{[400, 1100]}\left(d_{\text{obs}} + 250\text{ mm} + 150\text{ mm}\right)$$
-   En el cierre **J16** se amplió este margen de seguridad de `100 mm` a **`150 mm`** (`+5 cm` adicionales) porque cuando la distancia longitudinal se estima por tiempo con baterías parcialmente descargadas, un margen corto hacía que el vehículo iniciara el regreso diagonal rozando la esquina trasera de la caja.
-3. **Tramo 3 — Reincorporación calculada desde la pose integrada (`NAV_REINC_ADELANTE_CM = 30 cm` = `300 mm`):** al concluir el rebase paralelo, en lugar de ejecutar un regreso ciego de `-90°` y `400 mm` (que ignoraba cualquier desviación sufrida durante el rodeo), `iniciar_reincorporacion` toma la pose real integrada $(x_{\text{actual}}, y_{\text{actual}}, \text{rumbo\_x10})$ y calcula el vector directo $(\Delta x, \Delta y)$ hacia un punto de reincorporación situado sobre la línea original **`300 mm` por delante** del borde trasero del obstáculo (o hacia el destino final de la ruta si está más cerca). A partir de $(\Delta x, \Delta y)$ genera un giro hacia $\text{atan2}(-\Delta x, \Delta y)$, el avance por la hipotenusa $\sqrt{\Delta x^2 + \Delta y^2}$ y la alineación final con la ruta.
+Tras STOP, 500 ms y un cuadro nuevo, se elige lado libre. El plan registra la distancia láser cercana; sin ella estima la cara con la banda visual (300/500 mm). Añade 120 mm sensor-centro, un primer tramo exploratorio de 200 mm y margen de 150 mm. Se elimina la profundidad fija de 250 mm.
 
-Dónde está en el código: `navegador.h`, `navegador.c`, `trayectoria.h`, `trayectoria.c`, `calibracion.h`, `calibracion.c`, `calgiro.h`, `calgiro.c`, `ruta_editor.c`, `simulador_navegador.c`.
+Si el costado sigue presente al volver, extiende el paralelo 200 mm y aumenta el desvío lateral 100 mm (400 inicial, máximo 700). Máximo seis intentos. La última recta puede prolongarse hasta 2 m; nunca se recorta el rebase para declarar éxito. Los movimientos siguen siendo por tiempo calibrado, y el fondo observado no es una medición completa del contorno.
+
+## 7.5 Cierre, ayuda y evidencia
+
+La reincorporación exige alcanzar el avance planeado. El cierre añade STOP y 300 ms de asentamiento: tres lecturas nuevas válidas >800 mm sin consenso visual pendiente, o cinco cuadros nuevos sin coincidencia cuando hay reporte sin eco o láser deshabilitado. Un SENS vencido no es un reporte sin eco. Si falta evidencia, reintenta antes de pedir AYUDA.
+
+Ambos lados bloqueados requieren 4000 ms y agotar el retroceso conocido: 150 mm solo si se conservan 180 mm del tramo recto recién recorrido. No existe sensor trasero; ese supuesto no cubre objetos que aparezcan por detrás. Se conservan frenos por sensores perdidos, intentos agotados y pose incoherente. El firmware mantiene TOF_PARO a 120 mm.
+
+SIMULADO: caja 20×20 termina con un intento; banquito 35×45 con tres; objeto de 90 cm de fondo con seis. Cero contactos en estos mundos. Banquito y arreglo **NO MEDIDOS**: primero repetir con caja de 20×20 cm, previa autorización. Poses, Monte Carlo contra v1.1 y códigos: `docs/diagnostico_esquive_20261111.md` y `docs/limites_conocidos.md`. No se declara v1.2 ni validación física.
+
+## 7.6 Autónomo v2: rodeo medido, mirada y vistazo (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. Todo lo de esta sección salió del banco `nucleo_c/pruebas_autonomo_v2.c`; **nada está validado en el carro**. Detalle y parámetros en `docs/autonomo_v2_diseno.md`.
+
+El carro gira sobre un costado: el pivote derecho queda a 157 mm del centro y la esquina más lejana del chasis barre hasta 285 mm. Casi todos los contactos del banco con la rama anterior salían de un giro hecho junto a algo que no se había visto. El rodeo nuevo no gira hacia nada que no haya medido o mirado antes:
+
+1. **Barrido.** Durante el primer giro, cada `SENS` da el ángulo y la distancia del láser: con eso se mide el ancho del obstáculo hacia ese lado y si hay una pared. El desvío lateral es el ancho más 240 mm (entre 400 y 800).
+2. **Cambio de lado.** Si ese lado está cerrado, el carro sigue girando en el mismo sentido y barre el otro. Esa vuelta completa barre hasta ~44 cm de la línea, así que solo se da si lo que midió el láser queda fuera, si la cámara veía libre el otro lado y si el carro venía de avanzar en recta. Con los dos lados cerrados, o si la vuelta no es segura, pide ayuda con la causa 16, sin haberse acercado.
+3. **Paso en paralelo.** Avanza una pista calculada con el campo de la cámara después del último punto en que el costado pudo verse, sosteniendo el carril con el control de rumbo. Si asoma otro objeto, la pista se alarga. No sigue más allá de una esquina.
+4. **Mirada.** Tras el primer giro del regreso el carro se queda mirando hacia donde va a entrar. Si ve algo, avanza un paso más y vuelve a mirar. Si la entrada se ocupa a medio camino, deshace la diagonal en reversa.
+5. **Vistazo.** Lo que solo ve el color a un lado (una caja corrida, una pata) se mira con el láser torciendo el rumbo 10–16° en marcha. Dos ecos válidos confirman: el carro se detiene, retrocede por donde vino y rodea por el otro lado.
+6. **Guardia del giro.** Si durante el primer giro del rodeo (o la vuelta del cambio de lado) el láser ve algo dentro del arco que barre el chasis, el carro deja de girar y pide ayuda con la causa 18.
+
+La guardia y las condiciones de la vuelta salieron de una revisión independiente del código (14-nov), que también encontró que el paso en paralelo podía seguir de frente más allá de una esquina; todo quedó corregido y con pruebas.
+
+Además: los giros menores que el mínimo del firmware ya no se hacen por tiempo; parado tras un avance, el rumbo sigue al giroscopio; y «Terminado» sin rodeo abierto se acepta al llegar aunque el láser vea una pared más allá del destino.
+
+## 7.7 Autónomo v3: memoria del eco, retroceso y láser caído (`SIMULADO`)
+
+Rama `feat/autonomo-v3`. Todo lo de esta sección salió del banco; **nada está validado en el carro**. Detalle en `docs/investigacion_autonomo/90_hallazgos.md`.
+
+- **Memoria del eco.** Si un eco válido y cercano (400 mm o menos, de hace 800 ms o menos) participó en una parada, el obstáculo queda confirmado como con `TOF_PARO`: la cámara no lo «libera» y la falta de eco después no cuenta como libre. Antes, un «sin eco» seguido de una cámara vacía hacía reanudar la marcha contra una pata que el láser acababa de ver.
+- **Retroceso antes de girar.** Con ese eco a 350 mm o menos y camino recién pisado detrás, el carro retrocede (nunca más de 25 cm ni más de lo que avanzó) antes de girar para rodear. Banderas: `navegador_poner_memoria_eco` y `navegador_poner_eco_retroceder` (0 lo apaga).
+- **Láser caído a mitad de ruta.** Si el láser vivía al empezar y deja de vivir 600 ms con la ruta en marcha, el carro hace STOP y pide ayuda con la causa 19. Una ruta que sale sin láser no se detiene por eso (la app ya avisa «Percepción incompleta» al iniciar). Bandera: `navegador_poner_laser_caido_para`.
+- **Giros chicos por tiempo.** Sin giroscopio sano, un giro de menos de 10° no se hace (una medición puntual: 4° dio 18°; el umbral es un SUPUESTO).
+
+**Resultado SIMULADO (1000 corridas por escenario, semillas fijas):**
+
+| Escenario | v1.1 | v2 | v3 |
+|---|---|---|---|
+| Banquito 35 × 45 | 245 ok, 596 contactos | 765 ok, 79 contactos, 112 por debajo, 44 ayudas | **849 ok, 43 contactos**, 75 por debajo, 33 ayudas |
+| Silla con patas | 161 ok, 524 contactos | 316 ok, 34 contactos, 618 por debajo, 32 ayudas | **435 ok, 21 contactos**, 529 por debajo, 15 ayudas |
+| Caja corrida de lado | 991 ok, 3 contactos | 998 ok, 2 contactos | 999 ok, 0 contactos, 1 ayuda |
+| Objeto bajo | 960 ok, 25 contactos | 997 ok, 1 contacto, 2 ayudas | 1000 ok |
+| Objeto bajo que solo ve el color | 967 ok, 22 contactos | 986 ok, 14 contactos | 1000 ok |
+
+Los muebles con patas **siguen sin llegar al 99 %**: más de la mitad de las corridas con silla pasan entre las patas sin tocar (`bajo_mueble`) y la ayuda (causas 16 y 18) sigue siendo la respuesta cuando el giro no cabe. Un modelo alterno del láser que promedia el cono (SUPUESTO) da los mismos contactos y más ayudas (23 y 14 contra 7 y 4 en 300 corridas): el resultado no depende de un láser simulado demasiado optimista.

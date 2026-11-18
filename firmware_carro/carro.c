@@ -60,6 +60,8 @@ static uint32_t rumbo_muestra       = 0;              /* la muestra del giroscop
 static char     respuesta_rumbo[48];                  /* el texto de la respuesta a RUMBO:ON, RUMBO:OFF y RUMBO? */
 static volatile int rumbo_apagar_al_conectar = 0;    /* 1 = el siguiente __STOP_AUTO viene de una conexión o desconexión y apaga RUMBO */
 static uint32_t frenos_watchdog     = 0;              /* J16: cuántas veces frenó el watchdog desde el encendido (sensores.c lo avisa a la app: WD:<n>) */
+static uint32_t n_avances           = 0;              /* SEG=2: avances (FORWARD que energizó los motores) desde el encendido */
+static uint32_t n_desconocidos      = 0;              /* SEG=2: textos desconocidos recibidos (no mueven nada ni renuevan el watchdog) */
 
 void carro_poner_bloqueo(carro_bloqueo_fn bloquear, carro_bloqueo_fn desbloquear)
 {
@@ -126,6 +128,7 @@ static void poner_motores(int izq_a, int izq_b, int der_a, int der_b)
  * derecho por su pin A (cableado probado en hardware; ver config.h). */
 static void avanzar(void)
 {
+    n_avances++;
     if (ARRANQUE_ESCALONADO_MS > 0u) {
         poner_motores(0, VELOCIDAD, 0, 0);       /* escalonado: primero solo el motor izquierdo; el derecho entra después (carro_vigilar_comunicacion) */
         escalon_modo = 1;
@@ -213,6 +216,33 @@ int carro_motores_en_marcha(void)
 uint32_t carro_frenos_watchdog(void)
 {
     return frenos_watchdog;
+}
+
+uint32_t carro_avances(void)
+{
+    return n_avances;
+}
+
+uint32_t carro_desconocidos(void)
+{
+    return n_desconocidos;
+}
+
+static int leer_mensaje_balance(const char *texto, int *perfil, int *valor, int *valido);
+
+/* SEG=2: ¿este texto es una orden que el carro entiende y que debe mantenerlo en marcha? Los movimientos, STOP/EBRAKE, los cambios de perfil, los mensajes de balance
+ * (como hasta ahora) y GIRAR. Un texto DESCONOCIDO (un comando de una app más nueva, basura, una cadena vacía) no: antes renovaba el reloj del watchdog y además
+ * quedaba como «comando actual», con lo que el carro seguía avanzando sin latido, el freno láser dejaba de verlo «avanzando» y el control de rumbo se soltaba. */
+static int renueva_watchdog(const char *texto)
+{
+    int perfil_balance, valor_balance, balance_valido;
+
+    if (strcmp(texto, "FORWARD") == 0 || strcmp(texto, "REVERSE") == 0 || strcmp(texto, "LEFT") == 0 || strcmp(texto, "RIGHT") == 0 ||
+        strcmp(texto, "STOP") == 0 || strcmp(texto, "EBRAKE") == 0 || strcmp(texto, "MODO_MANUAL") == 0 || strcmp(texto, "MODO_AUTO") == 0 ||
+        strcmp(texto, "BAL?") == 0 || strncmp(texto, "GIRAR:", 6) == 0) {
+        return 1;
+    }
+    return leer_mensaje_balance(texto, &perfil_balance, &valor_balance, &balance_valido);
 }
 
 /* Cuántos ms lleva el carro con los motores apagados (0 si se mueve; un número enorme si no se ha movido desde el arranque). */
@@ -409,6 +439,14 @@ static void ejecutar_comando(const char *texto)
     }
 
     if (strcmp(texto, "FORWARD") == 0) {
+        if (sensores_frente_bloqueado() > 0) {
+            /* SEG=2: el láser tiene algo confirmado a menos de TOF_BLOQUEO_MM: el avance no arranca (ya se avisó TOF_PARO). Tampoco queda como comando actual,
+             * así el siguiente FORWARD se vuelve a evaluar. Los motores quedan como estaban (parados, o girando si venía de un pivote que giro_abortar ya cortó). */
+            if (motores_en_marcha) {
+                carro_detener();
+            }
+            return;
+        }
         avanzar();
     } else if (strcmp(texto, "REVERSE") == 0) {
         retroceder();
@@ -421,12 +459,14 @@ static void ejecutar_comando(const char *texto)
         return;
     } else if (strcmp(texto, "PING") == 0) {
         return;            /* solo mantiene viva la conexión; no cambia nada */
+    } else {
+        /* SEG=2: un texto desconocido no mueve los motores, NO se guarda como comando actual y NO renovó el watchdog (carro_recibir_comando). Antes sí: un cliente
+         * que probara un comando nuevo contra este firmware dejaba el carro avanzando sin latido y sin freno láser. Se cuenta para el diagnóstico. */
+        if (n_desconocidos < 0xFFFFFFFFu) {
+            n_desconocidos++;
+        }
+        return;
     }
-    /* OJO: pendiente — un comando desconocido no mueve los motores, pero
-     * igual llega hasta aquí: renueva el reloj del watchdog (en
-     * carro_recibir_comando) y se guarda como comando actual. Es el
-     * comportamiento del código original; se deja igual a propósito.
-     * Ver docs/pendientes_firmware.md. */
     guardar_comando_actual(texto);
 }
 
@@ -451,6 +491,8 @@ void carro_iniciar(void)
     rumbo_apagar_al_conectar = 0;
     rumbo_muestra = 0;
     frenos_watchdog = 0;
+    n_avances = 0;
+    n_desconocidos = 0;
     balance_mil[PERFIL_MANUAL] = PERFIL_MANUAL_BALANCE_DEFECTO;   /* el balance guardado en la memoria no volátil, si es válido; si no, el de siempre */
     balance_mil[PERFIL_AUTO] = PERFIL_AUTO_BALANCE_DEFECTO;
     for (int p = 0; p < 2; p++) {
@@ -618,9 +660,9 @@ void carro_recibir_comando(const char *texto)
         carro_desbloquear();
         return;
     }
-    /* Las consultas de sensores (CAPS?, IMU?...) no cuentan como orden de movimiento: no renuevan el watchdog. GIRAR sí. */
+    /* Las consultas de sensores (CAPS?, IMU?...) no cuentan como orden de movimiento: no renuevan el watchdog. GIRAR sí. SEG=2: un texto desconocido tampoco. */
     if (strcmp(texto, "PING") != 0 && strcmp(texto, "__STOP_AUTO") != 0 && !es_mensaje_rumbo(texto) &&
-        (!sensores_es_comando(texto) || strncmp(texto, "GIRAR:", 6) == 0)) {
+        (!sensores_es_comando(texto) || strncmp(texto, "GIRAR:", 6) == 0) && renueva_watchdog(texto)) {
         ultimo_comando_ms = hw_millis();
     }
     ejecutar_comando(texto);

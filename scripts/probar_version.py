@@ -134,6 +134,30 @@ class Versiones(unittest.TestCase):
         with patch("sys.argv", ["verificar_version.py", "--solo-archivo"]), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(v.main(), 2)
 
+    @patch.object(v, "coincide_revision", return_value=True)
+    @patch.object(v, "ejecutar", return_value="")
+    @patch.object(v, "consultar_caps", return_value="CAPS:IMU=1,TOF=1,SEG=3,TUSO=1,TOFP=150,FW:123abcd-20261116")
+    def test_solo_fw_no_toca_el_telefono(self, caps, ejecutar, revision):
+        salida = io.StringIO()
+        with patch("sys.argv", ["verificar_version.py", "--puerto", "COM6", "--solo-fw"]), contextlib.redirect_stdout(salida):
+            self.assertEqual(v.main(), 0)
+        caps.assert_called_once_with("COM6")
+        for llamada in ejecutar.call_args_list:
+            self.assertNotIn("adb", " ".join(map(str, llamada.args[0])))   # v3: sin teléfono
+        self.assertIn("PASA", salida.getvalue())
+        revision.assert_called_once_with("123abcd", "HEAD")
+
+    @patch.object(v, "coincide_revision", return_value=False)
+    @patch.object(v, "ejecutar", return_value="")
+    @patch.object(v, "consultar_caps", return_value="CAPS:IMU=1,TOF=1,FW:123abcd-20261116")
+    def test_solo_fw_rechaza_revision_distinta(self, caps, ejecutar, revision):
+        with patch("sys.argv", ["verificar_version.py", "--puerto", "COM6", "--solo-fw"]), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(v.main(), 1)
+
+    def test_solo_fw_sin_puerto_no_pasa(self):
+        with patch("sys.argv", ["verificar_version.py", "--solo-apk", "--solo-fw"]), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(v.main(), 2)
+
     def test_solo_apk_y_puerto_son_excluyentes(self):
         with patch("sys.argv", ["verificar_version.py", "--solo-apk", "--puerto", "COM6"]), contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):

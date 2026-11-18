@@ -12,5 +12,6 @@ class AppCarro : Application() {
     override fun onCreate() {
         super.onCreate()
         Diseno.aplicarTema(this)
+        CajaNegra.iniciar(this)   // autónomo v2: dónde se guarda el archivo de cada corrida
     }
 }

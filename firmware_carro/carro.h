@@ -97,6 +97,10 @@ int      carro_motores_en_marcha(void);
 uint32_t carro_quieto_ms(void);
 /* J16: cuántas veces frenó el watchdog de 1 s desde el encendido (carro_iniciar lo pone en 0). sensores.c lo avisa a la app como WD:<n>. Solo desde loop(). */
 uint32_t carro_frenos_watchdog(void);
+/* Autónomo v2 (SEG=2): cuántos avances (FORWARD que energizó los motores) van desde el encendido, y cuántos textos desconocidos se han recibido (no mueven nada,
+ * no renuevan el watchdog y no quedan como comando actual). */
+uint32_t carro_avances(void);
+uint32_t carro_desconocidos(void);
 
 /* Cola de comandos entre la tarea del WebSocket (async_tcp) y loop(), para que
  * solo loop() modifique pleno_modo, comando_actual y motores. */

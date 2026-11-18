@@ -18,6 +18,8 @@
 - **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
 - **Artefactos listos para instalar (`dist/`):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
+- **Rama `feat/autonomo-v2` (14-nov-2026, sin fusionar; no es v1.2; SIMULADO, NO MEDIDO en el carro):** [estado](docs/estado_20261113.md), [auditoría](docs/auditoria_autonomo_v2.md), [diseño y resultados](docs/autonomo_v2_diseno.md), [protocolo de prueba física](docs/protocolo_prueba_fisica_autonomo_v2.md) y [plantilla CSV](docs/pruebas_fisicas_plantilla.csv)
+- **Rama `feat/autonomo-v3` (16-nov-2026, sin fusionar; no es v1.2; SIMULADO, NO MEDIDO en el carro; firmware y app solo compilados):** [estado](docs/estado_20261116.md), [investigación (11 áreas, fuentes con confianza)](docs/investigacion_autonomo/00_mapa.md), [hallazgos de la revisión](docs/investigacion_autonomo/90_hallazgos.md), [límites](docs/limites_conocidos.md) y [bloque de mediciones baratas M1–M10](docs/protocolo_prueba_fisica_autonomo_v2.md#10-bloque-m--mediciones-baratas-v3).
 
 ---
 
@@ -116,3 +118,4 @@ python docs\manual\generar_manual.py
 ## 6. Licencia
 
 Este proyecto se distribuye bajo la **Licencia MIT** (2026). Consulte el archivo [LICENSE](LICENSE) para el texto legal íntegro.
+[Estado de v3 pendiente de pruebas físicas](docs/estado_v3_pendiente_pruebas.md).

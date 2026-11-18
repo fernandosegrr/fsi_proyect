@@ -1,5 +1,7 @@
 # 13. Límites y trabajo futuro
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo analiza con rigor las limitaciones físicas, sensoriales y algorítmicas inherentes al diseño actual del vehículo **LIDIA**, explica por qué ocurren y propone las líneas de trabajo futuro (`PENDIENTE`) para evoluciones posteriores del proyecto. Reconocer explícitamente estos límites impide extrapolar los resultados fuera de las condiciones reales en que fueron obtenidos.
 
 ## 13.1 Límites estructurales de locomoción y odometría
@@ -23,8 +25,8 @@ Para evitar que el controlador `GIRO:<grados>` del firmware oscile dentro de su 
 
 | Límite identificado en el código / hardware | Valor o condición actual | Consecuencia operativa y mitigación vigente |
 |---|---|---|
-| **Profundidad fija supuesta del obstáculo (`NAV_PROFUNDIDAD_OBS_MM`)** | `250 mm` (`25 cm`) y desvío lateral fijo de `400 mm` (`40 cm`) | Diseñado para cajas estándar de `20×20 cm`. Ante un obstáculo mucho más profundo (> `40 cm`) o más ancho (`40×20 cm`, `NO MEDIDO`), el rebase de un solo tramo puede ser insuficiente y requerir un segundo esquive o entrar en `AYUDA`. |
-| **Objetos del mismo color que el piso y no reconocidos por `COCO`** | Clasificador `YCbCr` + `EfficientDet-Lite0` | Si un obstáculo tiene exactamente la misma crominancia que la baldosa y no pertenece a una clase reconocible por la red neuronal, la cámara puede no marcarlo; la defensa es habilitar `usar_tof_en_ruta` (esquive láser a `400 mm`) y el freno local `TOF_PARO` a `120 mm`. |
+| **Rebase iterativo, sin fondo fijo** | Tramos de 200 mm, lateral 400 a 700 mm, seis intentos | Puede ampliar la recta final hasta 2 m. Si no cabe o agota intentos pide AYUDA. El modelo 35×45 y el de fondo 90 cm terminan sin contacto; solo SIMULADO. |
+| **Objetos del mismo color que el piso y no reconocidos por `COCO`** | Clasificador de color (distancia RGB + crominancia normalizada, hasta 4 grupos de piso) + `EfficientDet-Lite0` | Si un obstáculo tiene exactamente la misma crominancia que la baldosa y no pertenece a una clase reconocible por la red neuronal, la cámara puede no marcarlo; la defensa es habilitar `usar_tof_en_ruta` (esquive láser a `400 mm`) y el freno local `TOF_PARO` a `120 mm`. |
 | **Geometría puntual del láser `VL53L0X`** | Cono frontal de `~25°` a la altura del borde delantero | Objetos muy bajos (< `4 cm`, por debajo del haz) o muy estrechos desplazados hacia una rueda pueden no reflejar el pulso láser. |
 | **Límite de 6 dígitos en el comando `RUMBO:<décimas>`** | Máximo `±99999` décimas (`~±10,000°` $\approx 27.7$ vueltas completas) | En cualquier ruta normal o cuadrado los ángulos se mantienen dentro de `±360°`; solo una rotación continua en espiral de más de 27 vueltas sin recalibrar `CAL_IMU` excedería el formato de 6 caracteres. |
 | **Transición a `AYUDA` en 1 de 6 corridas físicas B6** | Corrida 5 (`J16_B6_r5`, paso `4/10`) | El vehículo se detuvo de forma segura sin tocar la caja pero solicitó ayuda teniendo espacio físico. Para diagnosticar su causa exacta se requiere un registrador persistente de telemetría por corrida. |
@@ -45,3 +47,31 @@ Para orientar a futuros equipos o siguientes iteraciones del proyecto, las mejor
    - Caracterizar con amperímetro el perfil de corriente en arranque (`250 ms` a `PWM 255`), avance continuo y bloqueo, así como verificar en banco el circuito externo de `GPIO 2`.
 
 Dónde está en el código: `limites_conocidos.md`, `estado_20261110.md`, `reporte_J16.md`, `navegador.h`, `config.h`.
+
+## 13.4 Consenso y alcance de la revisión de autonomía
+
+El láser cercano o la coincidencia color/red por zona confirman obstáculo. Con láser libre, una sola fuente no frena. Sin eco se decide por visión; el cierre necesita varios cuadros sin coincidencia y rebase cumplido. No hay fondo fijo de 250 mm: se explora y reintenta. El supuesto sensor-centro de 120 mm y las bandas visuales siguen pendientes de medición.
+
+Banquito 35×45 y arreglo **NO MEDIDOS** hasta repetir primero con caja de 20×20 cm, previa autorización. La app exige Aprender piso, pero no identifica automáticamente todos los cambios de iluminación. El modelo no cubre todos los objetos ni acredita espacio trasero dinámico. Códigos y presupuestos: `docs/limites_conocidos.md`. No se instaló APK, grabó firmware ni declaró v1.2.
+
+## 13.5 Autónomo v2: límites que quedan (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v2`. La lista completa y vigente está en `docs/limites_conocidos.md`.
+
+- **Muebles con patas** (banquito, silla): el láser pasa entre las patas y la visión las ve tarde. En el banco no se llega al 99 %.
+- **Objeto bajo que solo ve una fuente:** con el láser sin eco no se distingue de una mancha. Se eligió no detener al carro por una sola fuente.
+- **Punto ciego junto al carro** al girar hacia la línea: lo cubre una segunda mirada, no un sensor.
+- **Sin sensor trasero:** las reversas recorren solo camino recién pisado.
+- **Pared pegada a un lado:** si la cámara no la distingue del piso, el carro puede elegir ese lado; el láser la descubre al girar y el carro se detiene y pide ayuda (causa 18 o 16). Muy cerca (menos de ~27 cm) puede alcanzar a tocarla.
+- **Rodeo más largo:** el carro vuelve a la línea unos 60 cm después de una caja de 20 cm.
+- **Supuestos sin medir:** pivote izquierdo, campo y altura de la cámara, alcance del láser contra una pared de lado, respuesta del control de rumbo en el vistazo.
+
+## 13.6 Autónomo v3: límites y lo que sigue sin medirse (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v3`. La lista completa y vigente está en `docs/limites_conocidos.md` y los hallazgos con su gravedad en `docs/investigacion_autonomo/90_hallazgos.md`.
+
+- **El carro no se movió** en toda esta rama; el firmware (`SEG=3`) y la app solo se compilaron.
+- **Muebles con patas:** mejoran (banquito 765 → 849 ok; silla 316 → 435 en el banco) pero no llegan al 99 %.
+- **NO MEDIDO que cambia conclusiones:** si el láser ve patas reales y qué lectura da (el sensor promedia su cono); distancia del sensor al frente (`e`) y distancia de frenado real; deriva del giroscopio en reposo y en marcha; campo, altura e inclinación de la cámara (en HQVGA solo se usa ~75 % del ancho del sensor, el 56° supuesto no sirve a la vez para HQVGA y QVGA); deriva de la exposición entre sol y sombra; velocidad real en AUTO (19.3 cm/s puede estar obsoleto); latencia de extremo a extremo.
+- **No se hizo (diseño, no código):** leer el estado de la medición del VL53L0X, recuperación del bus I²C (9 pulsos de SCL), tope global de continuaciones tras ayuda, detección de atasco, bloqueo de exposición de la cámara.
+- Mediciones baratas para cerrar lo anterior: bloque M del [protocolo](../../protocolo_prueba_fisica_autonomo_v2.md) (M1 a M10).

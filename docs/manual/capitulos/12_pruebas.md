@@ -1,5 +1,7 @@
 # 12. Pruebas y resultados
 
+**Revisión del 11-nov-2026:** rama `fix/navegacion-esquive-confirmado`, basada en v1.1. El arreglo y la prueba con banquito de 35×45 cm están **NO MEDIDOS**: primero debe repetirse con caja de 20×20 cm, previa autorización. Los resultados físicos J16 de abajo son históricos y no validan esta rama. No se instala APK, graba firmware ni declara v1.2.
+
 Este capítulo presenta de manera íntegra y separada por nivel de evidencia todos los resultados de verificación del sistema hasta el cierre **J16** (10 de noviembre de 2026). De acuerdo con la convención establecida en el Capítulo 1, se distinguen en secciones independientes: (12.1) lo **`VALIDADO EN EL CARRO`** mediante corridas físicas sobre el vehículo real, (12.2) las suites deterministas de software ejecutadas en computadora personal, (12.3) los resultados **`SIMULADOS`** en el experimento Monte Carlo de 50,000 corridas y (12.4) el listado explícito de escenarios que permanecen **`NO MEDIDOS`** en el carro físico.
 
 ## 12.1 Resultados VALIDADO EN EL CARRO
@@ -89,3 +91,47 @@ Con el mismo rigor, la siguiente tabla enumera los escenarios que cuentan con im
 | **Circuito `GPIO 2` y consumo eléctrico en amperios** | Configurado en `config.h` | **`NO MEDIDO`** | Sin instrumentación de corriente ni resistor externo verificado en `GPIO 2`. |
 
 Dónde está en el código: `pruebas_fisicas_20261110.csv`, `estado_20261110.md`, `monte_carlo_1000.txt`, `calibracion_j14.txt`, `pruebas_precision_j16.c`, `pruebas_rumbo.c`.
+
+## 12.5 Autonomía del 12-nov-2026: resultados solo de software
+
+La primera corrección (458d5b3) mandaba a AYUDA el banquito que v1.1 superaba en el simulador. Se reemplazó por consenso por zona y rebase iterativo. Ahora la caja 20×20, el banquito 35×45 y el objeto de 90 cm de fondo terminan después del objeto, con 1, 3 y 6 intentos respectivamente y cero contactos. El banquito termina en (1001,-17,0°), a los 32,10 s; su cola supera el objeto por 527 mm.
+
+Los falsos de solo color, solo red y las tres zonas de solo color continúan sin STOP intermedio con láser libre. La coincidencia color/red permite esquive con láser libre o sin eco; una fuente sin eco continúa con precaución. La ruta corta se prolonga para completar el rebase, sin falso Terminado.
+
+Monte Carlo pareado contra bd1727b: 1000 corridas por escenario y configuración. Sin RUMBO, media/p95 lateral de caja pasan de 33/78 a 32/76 mm; ancho, de 33/79 a 32/77 mm. Con RUMBO, caja pasa de 17/40 a 17/37; ancho, de 17/40 a 16/38. Con escala calibrada, caja pasa de 17/40 a 16/37; ancho, de 17/39 a 16/38. Las seis comparaciones conservan 1000 llegadas y cero contactos, sin tolerancia a empeorar. No son medidas físicas ni precisión longitudinal.
+
+Pruebas y registros reproducibles: `docs/diagnostico_esquive_20261111.md` y `scripts/comparar_esquives.py`. **Banquito: NO MEDIDA. Arreglo: NO MEDIDO en el carro.** Primero repetir con caja de 20×20 cm y telemetría, previa autorización; la validación B6 histórica no se transfiere a esta rama. APK y firmware no compilados ni instalados en esta revisión.
+
+## 12.6 Autónomo v2: banco realista y compuertas (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. El banco `nucleo_c/pruebas_autonomo_v2.c` corre el navegador, el detector de color y la fusión reales contra un mundo sintético (`mundo_v2.c`): objetos con volumen, baldosas con juntas, manchas de sol, sombras, reflejos, cámara con exposición automática, láser con su cono y una red neuronal estadística. **Ninguno de estos números se midió en el carro.**
+
+`python scripts/compuertas_autonomo.py --corridas 1000` compila tres versiones del núcleo (v1.1, `6bea71e` y la actual) contra el mismo banco y deja los resultados en `docs/precision/autonomo_v2_*.txt`.
+
+| Escenario (1000 corridas) | v1.1 | `6bea71e` | Autónomo v2 |
+|---|---|---|---|
+| Caja 20 × 20 | 629 ok, 2 contactos | 1000 ok | 1000 ok |
+| Caja corrida de lado | 991 ok, 3 contactos | 663 ok, 337 contactos | 998 ok, 2 contactos |
+| Banquito 35 × 45 | 245 ok, 596 contactos | 17 ok, 133 contactos | 765 ok, 79 contactos |
+| Objeto de 90 cm | 4 ok, 535 contactos | 85 ok, 898 contactos | 1000 ok |
+| Silla con patas | 161 ok, 524 contactos | 39 ok, 12 contactos | 316 ok, 34 contactos |
+| Dos obstáculos | 359 ok, 67 contactos | 19 ok, 110 contactos | 1000 ok |
+| Objeto bajo | 960 ok, 25 contactos | 990 ok, 4 contactos | 997 ok, 1 contacto |
+| Caja antes de una esquina | 586 ok, 2 contactos | 999 ok | 1000 ok |
+| Caja con pared pegada a un lado | 470 ok, 79 contactos | 632 ok, 216 contactos | 615 ok, 2 contactos, 385 ayudas |
+| Pared al frente | 1000 contactos | 480 contactos | 0 contactos, ayuda con causa 16 |
+| Mancha de sol | 179 ok, 792 ayudas | 996 ok, 4 esquives | 1000 ok, 0 esquives |
+
+Dieciséis de los 23 escenarios quedan en 1000 de 1000 sin contactos. Las compuertas del encargo **no se cumplen todas** (19 en rojo): muebles con patas, 2 contactos de 1000 con la caja corrida y 1 con el objeto bajo, la caja con una pared pegada (el carro pide ayuda en vez de tocarla), paradas momentáneas en 8–13 % de las corridas con manchas de color, y 1 mm más de error lateral medio en el Monte Carlo heredado. El detalle y las razones están en `docs/autonomo_v2_diseno.md` y `docs/limites_conocidos.md`.
+
+Los dos últimos escenarios de la tabla y varias correcciones salieron de una revisión independiente del código hecha el 14-nov (sin hallazgos críticos, dos altos, tres medios y tres bajos, todos corregidos).
+
+Pruebas de software de la rama: `make -C nucleo_c test` 1884 casos; `make -C pruebas_firmware test` 564 casos; servidor falso 60 casos; todos sin fallos.
+
+## 12.7 Autónomo v3 (`SIMULADO`; firmware y app solo compilados)
+
+Rama `feat/autonomo-v3`. Las columnas del banco ahora son **excluyentes y suman las corridas**: `ok`, `contacto`, `bajo_mueble` (pasó entre las patas sin tocar), `ayuda`, `error`, `sin_terminar`, `falso_fin`, `esquive_falso` y `otro`, en ese orden de prioridad. El script `scripts/compuertas_autonomo.py --corridas 1000` compara cuatro versiones (v1.1, `6bea71e`, v2 y la actual) y deja los resultados en `docs/precision/autonomo_v3_*.txt` (los de v2 no se tocan).
+
+Verificación de software de la rama: `make -C nucleo_c test` 1901 casos y `make -C pruebas_firmware test` sin fallos, el núcleo también con `-ftrapv` (desbordes enteros) y el analizador estático de GCC sin avisos; servidor falso 60 casos; `scripts/probar_version.py` 21 casos; la app y los dos firmwares compilan (no se instalaron ni se grabaron). **No se pudieron correr ASan, UBSan ni TSan** (el compilador de Windows de este equipo no trae sus bibliotecas y no hay WSL). Revisión independiente de seguridad (un subagente que no vio cómo se hizo el cambio): sin hallazgos críticos ni altos; dos medios y cuatro menores, corregidos o documentados.
+
+Compuertas del encargo contra el banco: **siguen rojas** (23 líneas; v2 tenía 19): muebles con patas, paradas momentáneas con sol, sombra y reflejo (8–13 % de las corridas), la caja con pared a un lado (613 ok, 387 ayudas) y, por comparar contra v2, una ayuda de más en la caja corrida de lado, una en el banquito y nueve en la silla (las ayudas «finales» bajan: 44 → 33 y 32 → 15, y los contactos se reducen a la mitad o más). Error lateral final del Monte Carlo heredado: 18/44 mm contra 17/40 de v1.1 (SIMULADO); con un margen de paso menor (180 mm) se iguala, pero produce 2 contactos en el objeto largo: no se aplica.

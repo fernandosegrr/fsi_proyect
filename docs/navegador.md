@@ -1,5 +1,7 @@
 # Navegador del modo semiautónomo
 
+**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
+
 Código: `nucleo_c/navegador.h` y `navegador.c` (C estándar, solo enteros, sin `malloc`, sin
 recursión). Pruebas: `nucleo_c/pruebas_navegador.c` con un carro simulado
 (`simulador_navegador.c/.h`). Se usa desde la app por JNI (`puente.c`, `NavegadorNativa.kt`) y el

@@ -1,12 +1,14 @@
-# Centro de Documentación Técnica — Proyecto Carro FSI (LIDIA · Versión final 1.1)
+# Centro de Documentación Técnica — Proyecto Carro FSI (base v1.1; revisión pendiente)
+
+**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
 
 Bienvenido al centro de documentación del proyecto **LIDIA (*Carro FSI*)** de la materia **Fundamentos de los Sistemas de Información (FSI)** (Universidad de Guanajuato · DICIS, profesor **Dr. Horacio Rostro González**).
 
 ---
 
-## 1. Entregable principal: Manual Técnico en PDF (Versión final 1.1)
+## 1. Manual Técnico en PDF (revisión pendiente)
 
-- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`51` páginas, `12` figuras, `23` tablas, índice general interactivo): documento principal autocontenido y reescrito para la **Versión final 1.1** (cierre J16).
+- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`12` figuras, `23` tablas, índice general interactivo): base v1.1 y revisión de software del 11-nov-2026, pendiente de validación física.
 - **[docs/manual/README.md](manual/README.md):** instrucciones para regenerar el PDF con `python docs/manual/generar_manual.py`, diagnóstico de la versión previa ([manual/diagnostico_v1.md](manual/diagnostico_v1.md)), plan editorial ([manual/plan_final.md](manual/plan_final.md)) y auditoría de afirmaciones ([manual/auditoria_afirmaciones.md](manual/auditoria_afirmaciones.md)).
 - **[docs/figuras/README.md](figuras/README.md):** catálogo y generador reproducible (`docs/figuras/generar_figuras_v2.py`) de los diagramas y láminas del manual.
 

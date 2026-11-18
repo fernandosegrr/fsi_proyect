@@ -24,7 +24,8 @@
  *  5b. MODELO DE OBJETOS (opcional, ModeloEnHilo): si está activo, cada cuadro se le ofrece al modelo, que corre
  *     en su propio hilo a ~10 veces por segundo sin frenar al detector; después FusionNativa.decidir() une el
  *     resultado del detector con lo último del modelo (si no está caducado). El resumen para el navegador sale de
- *     la fusión; el detector de color siempre decide solo si el modelo falla o está caducado.
+ *     la fusión; color solo queda como aviso si el modelo falla o está caducado. El navegador
+ *     confirma con láser cercano o coincidencia entre color y modelo en la misma zona.
  *  6. tomarCuadroNuevo() es lo que usa el modo semiautónomo: devuelve el resumen del último
  *     cuadro solo una vez. Si el detector no pudo analizar el cuadro (error), se devuelve
  *     "todo bloqueado": ante la duda, el carro se detiene.
@@ -249,6 +250,7 @@ class CamaraObstaculos(
     fun aprenderPiso() {
         errorAprender = ""
         informePiso = null
+        pisoAprendidoMs = 0L // Un intento fallido no permite reutilizar el piso anterior.
         aprendiendoPiso = true
         pedirAprender = true
     }
@@ -356,6 +358,9 @@ class CamaraObstaculos(
 
     /** true si los cuadros salen del video del carro y no de la cámara del teléfono. */
     val esVideoCarro: Boolean get() = enSesionVideo
+
+    /** Autónomo v2: lo último que dijo la cámara del carro en /stats (reconexiones, señal, versión y telemetría fotométrica), o "" sin video del carro. Solo números. */
+    val textoCamaraCarro: String get() = videoCarro?.textoCamara ?: ""
 
     /** Empieza a leer el video de la cámara del carro (no necesita el permiso de cámara). Devuelve false si la dirección no es válida. */
     private fun abrirVideoCarro(url: String): Boolean {
@@ -1267,7 +1272,7 @@ class CamaraObstaculos(
     }
 
     /**
-     * Devuelve el resumen (10 enteros, como ObstaculosNativa.analizar) del último cuadro si es
+     * Devuelve el resumen (10 enteros de zonas + 3 mascaras de fuentes) del último cuadro si es
      * nuevo desde la última vez, o null si no hay cuadro nuevo. Si el detector no pudo analizar
      * el cuadro, devuelve "todo bloqueado" (cercanía 3 en las tres zonas) con el código del error.
      * Solo se llama desde el hilo principal.
@@ -1279,7 +1284,11 @@ class CamaraObstaculos(
         }
         ultimoTomado = cuadro.numero
         cuadroTomado = cuadro
-        val resumen = cuadro.zonas.copyOf(10)   // las zonas fusionadas si se usa el modelo
+        val resumen = cuadro.zonas.copyOf(13)   // las zonas fusionadas si se usa el modelo
+        for (zona in 0..2) {
+            resumen[10 + zona] = cuadro.fusion?.takeIf { it[0] == 0 }?.get(FusionNativa.R_FUENTES_ZONA + zona)
+                ?: if (cuadro.resultado[1 + 2 * zona] != 0) 1 else 0
+        }
         if (cuadro.resultado[ObstaculosNativa.CODIGO] != 0) {
             resumen[ObstaculosNativa.CODIGO] = cuadro.resultado[ObstaculosNativa.CODIGO]
             for (zona in 0..2) {

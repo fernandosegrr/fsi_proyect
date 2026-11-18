@@ -106,7 +106,11 @@ class Manejador(BaseHTTPRequestHandler):
         elif url.path == "/stats":
             seg = time.time() - ESTADO["inicio"]
             datos = {"fps_captura": OPCIONES.fps, "fps_envio": OPCIONES.fps, "edad_ms": 90, "edad_max_ms": 140, "reconexiones": 0, "rssi": -50, "rssi_min_10s": -55,
-                     "modo": ESTADO["modo"], "uptime_s": int(seg)}
+                     "modo": ESTADO["modo"], "uptime_s": int(seg),
+                     # Autonomo v2: como la camara real (cam-v2), claves nuevas al final: version, capacidades y telemetria fotometrica (solo numeros).
+                     "fw": "cam-v2-falsa", "caps": ["foto"],
+                     "foto": {"medidas": int(seg * 2), "hace_ms": 250, "r": 128, "g": 126, "b": 120, "r_abajo": 122, "g_abajo": 120, "b_abajo": 114,
+                              "quemados_mil": 0, "oscuros_mil": 0}}
             self._texto(200, json.dumps(datos), "application/json")
         elif url.path in ("/stream", "/raw"):
             self._stream(url.path == "/raw")

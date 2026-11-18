@@ -364,106 +364,20 @@ static void pruebas_varias(void)
 
 /* ── 6. La fusión con el color ─────────────────────────────────────────── */
 
-static ResultadoObstaculos detector_con(int hay_izq, int cerc_izq, int hay_cen, int cerc_cen, int celdas_cen)
-{
-    ResultadoObstaculos d;
 
-    memset(&d, 0, sizeof d);
-    d.zona[ZONA_IZQUIERDA].hay_obstaculo = hay_izq;
-    d.zona[ZONA_IZQUIERDA].cercania = cerc_izq;
-    d.zona[ZONA_IZQUIERDA].celdas = hay_izq ? 9 : 0;
-    d.zona[ZONA_CENTRO].hay_obstaculo = hay_cen;
-    d.zona[ZONA_CENTRO].cercania = cerc_cen;
-    d.zona[ZONA_CENTRO].celdas = celdas_cen;
-    return d;
-}
-
-static void zonas_cualquiera(ZonaObstaculo z[OBS_ZONAS], int cerc_izq, int cerc_cen, int cerc_der)
-{
-    memset(z, 0, sizeof(ZonaObstaculo) * OBS_ZONAS);
-    z[ZONA_IZQUIERDA].hay_obstaculo = cerc_izq > 0; z[ZONA_IZQUIERDA].cercania = cerc_izq;
-    z[ZONA_CENTRO].hay_obstaculo = cerc_cen > 0;    z[ZONA_CENTRO].cercania = cerc_cen;
-    z[ZONA_DERECHA].hay_obstaculo = cerc_der > 0;   z[ZONA_DERECHA].cercania = cerc_der;
-}
 
 static void pruebas_fusion(void)
 {
-    ConfigFusion f;
-    ResultadoObstaculos det;
-    ZonaObstaculo cual[OBS_ZONAS];
-    ResultadoFusion s;
-
-    fusion_config_defecto(&f);
-
-    /* a) coinciden: sube a la mayor cercania. */
-    det = detector_con(0, 0, 1, 1, 8);
-    zonas_cualquiera(cual, 0, 3, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("a) el color ve (cercania 1) y «cualquier objeto» lo ve mas cerca (3) en la misma zona: sube a 3 y la fuente es AMBOS",
-         s.zona[ZONA_CENTRO].hay_obstaculo && s.zona[ZONA_CENTRO].cercania == 3 && s.fuente == FUS_FUENTE_AMBOS && s.severidad == FUS_SEV_PARAR && s.desmentidos == 0);
-    det = detector_con(0, 0, 1, 3, 8);
-    zonas_cualquiera(cual, 0, 1, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("a) el color ve muy cerca (3) y «cualquier objeto» lejos (1): NUNCA se baja lo que ve el color", s.zona[ZONA_CENTRO].cercania == 3 && s.severidad == FUS_SEV_PARAR);
-
-    /* b) el color duda. */
-    det = detector_con(0, 0, 0, 0, 4);   /* 4 celdas: menos del minimo, duda */
-    zonas_cualquiera(cual, 0, 2, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("b) el color duda (4 celdas, menos del minimo) y «cualquier objeto» ve algo a media distancia: se sube a 2 (frenar) con fuente AMBOS",
-         s.zona[ZONA_CENTRO].hay_obstaculo && s.zona[ZONA_CENTRO].cercania == 2 && s.fuente == FUS_FUENTE_AMBOS && s.severidad == FUS_SEV_FRENAR);
-
-    /* c) solo «cualquier objeto»: aviso, nunca frena. */
-    det = detector_con(0, 0, 0, 0, 0);
-    zonas_cualquiera(cual, 0, 3, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("c) solo «cualquier objeto» ve algo (cercania 3) y el color no ve ni duda: NO frena (zona libre), solo avisa",
-         !s.zona[ZONA_CENTRO].hay_obstaculo && s.aviso == 1 && s.aviso_zona == ZONA_CENTRO && s.aviso_cercania == 3 && s.severidad == FUS_SEV_AVISO && s.fuente == FUS_FUENTE_MODELO);
-
-    /* d) desmentir. */
-    det = detector_con(0, 0, 1, 1, 8);   /* falso positivo de color lejano */
-    zonas_cualquiera(cual, 0, 0, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("d) el color ve algo LEJANO (cercania 1), «cualquier objeto» vigente no ve nada: se desmiente (zona libre, 1 desmentido)",
-         !s.zona[ZONA_CENTRO].hay_obstaculo && s.zona[ZONA_CENTRO].cercania == 0 && s.desmentidos == 1 && s.severidad == FUS_SEV_NINGUNA);
-    det = detector_con(0, 0, 1, 2, 8);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("d) con cercania 2 el color NUNCA se desmiente", s.zona[ZONA_CENTRO].hay_obstaculo && s.zona[ZONA_CENTRO].cercania == 2 && s.desmentidos == 0 && s.severidad == FUS_SEV_FRENAR);
-    det = detector_con(0, 0, 1, 3, 8);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("d) con cercania 3 el color NUNCA se desmiente", s.zona[ZONA_CENTRO].hay_obstaculo && s.zona[ZONA_CENTRO].cercania == 3 && s.desmentidos == 0 && s.severidad == FUS_SEV_PARAR);
-
-    /* e) sin resultado vigente. */
-    det = detector_con(0, 0, 1, 1, 8);
-    zonas_cualquiera(cual, 0, 0, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 0, &s);
-    caso("e) sin resultado vigente de «cualquier objeto» el falso positivo de color de cercania baja NO se desmiente", s.zona[ZONA_CENTRO].hay_obstaculo && s.desmentidos == 0 &&
-         s.fuente == FUS_FUENTE_DETECTOR && s.modelo_vigente == 0);
-
-    /* Una zona a la vez: el desmentido de una no toca las otras. */
-    det = detector_con(1, 3, 1, 1, 8);
-    zonas_cualquiera(cual, 0, 0, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("el desmentido de la zona del centro no toca la izquierda (cercania 3 del color se mantiene)", s.zona[ZONA_IZQUIERDA].hay_obstaculo && s.zona[ZONA_IZQUIERDA].cercania == 3 &&
-         !s.zona[ZONA_CENTRO].hay_obstaculo && s.desmentidos == 1);
-
-    /* Piso vacio y nada que decir. */
-    det = detector_con(0, 0, 0, 0, 0);
-    zonas_cualquiera(cual, 0, 0, 0);
-    fusion_decidir_cualquiera(&f, &det, cual, 1, &s);
-    caso("nada en ninguno: severidad ninguna y fuente nadie", s.severidad == FUS_SEV_NINGUNA && s.fuente == FUS_FUENTE_NINGUNA && s.aviso == 0);
-    caso("argumentos nulos: FUS_ERR_ARGUMENTO", fusion_decidir_cualquiera(NULL, &det, cual, 1, &s) == FUS_ERR_ARGUMENTO && fusion_decidir_cualquiera(&f, NULL, cual, 1, &s) == FUS_ERR_ARGUMENTO &&
-         fusion_decidir_cualquiera(&f, &det, NULL, 1, &s) == FUS_ERR_ARGUMENTO && fusion_decidir_cualquiera(&f, &det, cual, 1, NULL) == FUS_ERR_ARGUMENTO);
-
-    /* La regla no cambia fusion_decidir original. */
-    {
-        DeteccionesModelo m;
-        ResultadoFusion s2;
-
-        memset(&m, 0, sizeof m);
-        det = detector_con(0, 0, 1, 2, 8);
-        fusion_decidir(&f, &det, &m, 0, &s2);
-        caso("fusion_decidir (el modo de clases) sigue igual y tiene desmentidos = 0", s2.desmentidos == 0 && s2.zona[ZONA_CENTRO].cercania == 2);
+    ConfigFusion cfg; ResultadoObstaculos color; ResultadoFusion sal;
+    ZonaObstaculo red[3]; int z, banda, fuentes, vigente;
+    fusion_config_defecto(&cfg);
+    for(z=0;z<3;z++) for(banda=1;banda<=3;banda++) for(fuentes=0;fuentes<4;fuentes++) for(vigente=0;vigente<2;vigente++) {
+        memset(&color,0,sizeof color);memset(red,0,sizeof red);
+        if(fuentes&1){color.zona[z].hay_obstaculo=1;color.zona[z].cercania=banda;}
+        if(fuentes&2){red[z].hay_obstaculo=1;red[z].cercania=banda;}
+        fusion_decidir_cualquiera(&cfg,&color,red,vigente,&sal);
+        caso("color + cualquier objeto: coincide solo la misma zona y modelo vigente",
+            sal.zona[z].hay_obstaculo==(fuentes==3 && vigente) && sal.fuentes_vision[z]==((fuentes&1)|(vigente?(fuentes&2):0)));
     }
 }
 
