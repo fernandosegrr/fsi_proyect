@@ -211,3 +211,6 @@ $ python scripts/compuertas_v4.py --procesos 3 --salida <salida temporal por def
 $ python docs/manual/generar_manual.py --sin-figuras
 74 páginas, 11 figuras, 29 tablas.
 Verificación PyMuPDF del índice y de referencias /Dest en las anotaciones: 151 entradas y 222 enlaces con destino válido.
+
+$ gh run view 44391403573 (conclusiones de los trabajos)
+{"conclusion":"success","headSha":"aaadaafee1504b3ca70152275563281e6ccdbc4b","jobs":[{"conclusion":"success","name":"firmware"},{"conclusion":"success","name":"nucleo (address,undefined)"},{"conclusion":"success","name":"nucleo (thread)"}],"url":"https://github.com/fernandosegrr/fsi_proyect/actions/runs/44391403573"}
