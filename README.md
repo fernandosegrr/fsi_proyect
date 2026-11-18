@@ -118,3 +118,4 @@ python docs\manual\generar_manual.py
 ## 6. Licencia
 
 Este proyecto se distribuye bajo la **Licencia MIT** (2026). Consulte el archivo [LICENSE](LICENSE) para el texto legal íntegro.
+[Estado de v3 pendiente de pruebas físicas](docs/estado_v3_pendiente_pruebas.md).
