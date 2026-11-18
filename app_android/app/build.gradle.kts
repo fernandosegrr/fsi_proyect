@@ -47,6 +47,13 @@ android {
         // (sin coordenadas fijas ni capturas de la pantalla con cámara).
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        val guardia = providers.gradleProperty("guardiaV4").orNull == "true"
+        buildConfigField("boolean", "GUARDIA_V4", guardia.toString())
+        externalNativeBuild {
+            cmake {
+                arguments += "-DFSI_GUARDIA_V4=" + if (guardia) "ON" else "OFF"
+            }
+        }
         ndk {
             abiFilters += listOf("arm64-v8a")
         }

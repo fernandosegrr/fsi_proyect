@@ -160,6 +160,8 @@ class ControlLogica(
         private set
 
     /** Avisos de los sensores: SENS (ángulo x10, mm, banderas), respuesta de un giro (código NavegadorNativa.GIRO_*, objetivo en grados, real x10 con signo del firmware, ms) y TOF_PARO (mm). */
+    private var admiteEdad = false
+    private var consultaEdadMs: Long? = null
     var alSens: ((Int, Int, Int) -> Unit)? = null
     var alGiro: ((Int, Int, Int, Int, Int) -> Unit)? = null
     var alTofParo: ((Int) -> Unit)? = null
@@ -478,6 +480,8 @@ class ControlLogica(
         enviar(perfilDeseado.comando)    // el perfil que se quiere, antes que cualquier otro comando
         capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
         capsLaser = null
+        admiteEdad = false
+        consultaEdadMs = null
         capsRumbo = null
         ultimoRumbo = ""
         escalaImuPpm = null
@@ -546,6 +550,8 @@ class ControlLogica(
         girandoPorAngulo = false
         capsGiroscopio = null
         capsLaser = null
+        admiteEdad = false
+        consultaEdadMs = null
         capsRumbo = null
         escalaImuPpm = null
         esperandoPong = false
@@ -575,11 +581,32 @@ class ControlLogica(
                         distanciaMm = p[1].toInt()
                         banderasSens = p[2].toInt()
                         ultimoSensMs = android.os.SystemClock.elapsedRealtime()
-                        alSens?.invoke(anguloX10, distanciaMm, banderasSens)
+                        alSens?.invoke(anguloX10, distanciaMm, banderasSens and 31) // con guardia, solo aporta el ángulo IMU
+                        if (BuildConfig.GUARDIA_V4 && admiteEdad && alSens != null &&
+                            ultimoSensMs - (consultaEdadMs ?: -1000L) >= 400L) {
+                            consultaEdadMs = ultimoSensMs
+                            enviar("TED:$ultimoSensMs")
+                        }
                         alCambiar()
                     }
                 }
+                texto.startsWith("TED:") && BuildConfig.GUARDIA_V4 -> {
+                    val campos = texto.substring(4).split(",")
+                    val inicio = consultaEdadMs ?: return
+                    if (campos.size != 4 || campos[0] != inicio.toString()) return
+                    val angulo = campos[1].toIntOrNull() ?: return
+                    val mm = campos[2].toIntOrNull() ?: return
+                    val bits = campos[3].toIntOrNull() ?: return
+                    if (bits !in 0..0xffffff || bits and 32 == 0) return
+                    consultaEdadMs = null
+                    // La ida y vuelta entera incluye la espera por la cola del hilo principal.
+                    val rtt = android.os.SystemClock.elapsedRealtime() - inicio
+                    val edad = (((bits ushr 6) and 1023) + rtt).coerceAtMost(1023L).toInt()
+                    CajaNegra.linea("TED id=$inicio secuencia=${bits ushr 16} mm=$mm valido=${(bits and 4) != 0} angulo_x10=$angulo rtt_ms=$rtt edad_ms=$edad")
+                    alSens?.invoke(angulo, mm, (bits and (1023 shl 6).inv()) or (edad shl 6))
+                }
                 texto.startsWith("CAPS:") -> {
+                    admiteEdad = texto.substring(5).split(",").contains("TED=1")
                     val imu = texto.contains("IMU=1")
                     val tof = texto.contains("TOF=1")
                     capsGiroscopio = imu

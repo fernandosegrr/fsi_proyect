@@ -394,6 +394,9 @@ static Resultado correr(int e, uint32_t semilla)
     cal_poner_desplazamiento(&cal, 1, a, d);
 
     navegador_iniciar(&nav);
+#ifdef NAV_V4
+    nav.guardia_v4 = getenv("AV4_EXPERIMENTO") && strcmp(getenv("AV4_EXPERIMENTO"), "1") == 0;
+#endif
     navegador_poner_calibracion(&nav, &cal);
     navegador_poner_giroscopio(&nav, 1);
     navegador_poner_sensor_distancia(&nav, 1);
@@ -600,7 +603,8 @@ static Resultado correr(int e, uint32_t semilla)
 #ifdef AV2_FUENTES
             && !nav.fin_pendiente
 #endif
-            && (nav.estado == NAV_SIGUIENDO || nav.estado == NAV_DETENIDO_OBSTACULO)) {
+            && (nav.estado == NAV_SIGUIENDO || nav.estado == NAV_DETENIDO_OBSTACULO ||
+                (calibrado && (nav.estado == NAV_AYUDA || nav.estado == NAV_ERROR)))) {
             r.paradas++;
         }
         cmd_antes = nav.cmd_actual;
@@ -634,7 +638,16 @@ static Resultado correr(int e, uint32_t semilla)
     pose_declarada = pose_real();
     estado_fin = nav.estado;
     causa_fin = nav.error_causa;
-    sim_correr(&sim, &nav, 600);   /* que termine de frenar */
+    if (calibrado) {
+        for (int frenando = 0; frenando < 600; frenando += NAV_TICK_MS) {
+            sim_correr(&sim, &nav, NAV_TICK_MS);
+            int tipo = mv_contacto_tipo(&mundo, pose_real(), sim.t_ms, NULL);
+            if (tipo == 1) r.contacto = 1;
+            if (tipo == 2) r.bajo_mueble = 1;
+        }
+    } else {
+        sim_correr(&sim, &nav, 600);
+    }
     volcar_diag();
     {
         MvPose p = pose_real();
@@ -710,7 +723,7 @@ typedef struct {
     int n, exito, llegan, contactos, ayudas, errores, falsos_terminado, sin_terminar, esquivas, paradas, corridas_con_parada, sin_piso;
     int bajo_mueble, vistazos, vistazos_con_eco;
     int cat[CAT_N];
-    int causas[20];
+    int causas[22];
     int t_media, t_p95, lat_media, lat_p95, lon_media, lon_p95, desvio_p95, color_cuadros, coinc_cuadros;
 } Resumen;
 
@@ -745,7 +758,7 @@ static Resumen monte_carlo(int e, int n)
         s.color_cuadros += r.cuadros_color; s.coinc_cuadros += r.cuadros_coinc;
         s.bajo_mueble += r.bajo_mueble; s.vistazos += r.vistazos; s.vistazos_con_eco += r.vistazos_con_eco;
         s.cat[r.categoria]++;
-        if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 20) s.causas[r.causa]++;
+        if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 22) s.causas[r.causa]++;
         vdes[i] = r.desvio_max;
         if (r.llego) { vt[k] = r.tiempo_ms; vlat[k] = r.lateral; vlon[k] = r.longitudinal; k++; }
         if (getenv("AV2_LISTAR") && !r.exito) printf("   corrida %d: llego=%d contacto=%d bajo_mueble=%d ayuda=%d causa=%d error=%d falso_fin=%d esquivas=%d\n", i, r.llego, r.contacto, r.bajo_mueble, r.ayuda, r.causa, r.error, r.terminado_falso, r.esquivas);
@@ -771,7 +784,7 @@ static void imprimir(int e, const Resumen *s)
            ESC[e].nombre, TIPO[ESC[e].tipo], s->n, s->exito, s->contactos, s->ayudas, s->errores, s->falsos_terminado, s->sin_terminar, s->llegan, s->t_media, s->t_p95,
            s->lat_media, s->lat_p95, s->lon_media, s->lon_p95, s->desvio_p95, s->esquivas, s->paradas, s->corridas_con_parada, s->color_cuadros, s->coinc_cuadros, s->sin_piso,
            s->bajo_mueble, s->vistazos, s->vistazos_con_eco);
-    for (c = 0; c < 20; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
+    for (c = 0; c < 22; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
     printf(" | cat");
     for (c = 0; c < CAT_N; c++) printf(" %s=%d", CAT_NOMBRE[c], s->cat[c]);
     printf("\n");

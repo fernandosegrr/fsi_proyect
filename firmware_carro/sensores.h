@@ -12,6 +12,10 @@
  *   CAPS?        → CAPS:IMU=<0|1>,TOF=<0|1>       lo que funciona (se repite solo cuando cambia)
  *   IMU?         → IMU:<ángulo x10>,<sesgo x100 °/s>,<estado 0..3>,<WHO_AM_I>,<motivo>
  *   TOF?         → TOF:<mm>,<banderas: 1 = sensor vivo, 2 = medida válida>
+ *   CAPS incluye TED=1. Consulta TED:<id decimal> -> TED:<id>,<ángulo de la mediana x10>,<mm>,<bits>.
+ *   Bits 0/1/2: IMU lista en la adquisición/láser vivo/eco de esa mediana. Bit 5: metadatos.
+ *   Bits 6..15: edad de la adquisición más antigua del filtro en ms (1023 = saturada o ausente).
+ *   Bits 16..23: secuencia de adquisición, módulo 256. El cliente suma toda la ida y vuelta como cota.
  *   SENS:<ángulo x10>,<mm>,<banderas>   cada 100 ms con cliente y perfil AUTO. Banderas: 1 IMU lista, 2 láser vivo, 4 última medida válida (si no, "libre"),
  *                                       8 IMU calibrando, 16 giro en curso.
  *   GIRAR:<grados con signo>     → GIRO_OK / GIRO_TIMEOUT / GIRO_ERROR (ver giro.h)

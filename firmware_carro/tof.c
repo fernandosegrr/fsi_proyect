@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "tof.h"
+#include "imu.h"
 #include "hw_sensores.h"
 #include "config.h"
 
@@ -32,6 +33,10 @@ static int      ultimas_bloqueo[TOF_PARO_LECTURAS];
 /* Dónde se guarda la próxima lectura de cada lista. Van aparte de las cuentas de «seguidas»: esas se detienen en 1000 y, usadas como índice, dejaban de recorrer la
  * lista (tras ~33 s frente a algo, TOF_PARO:<mm> podía llevar una distancia vieja en una de las casillas). */
 static int      indice_cerca = 0, indice_bloqueo = 0;
+typedef struct { uint32_t ms; int angulo, bits; unsigned int secuencia; } Adquisicion;
+static Adquisicion muestras[3];
+static int indice_mediana;
+static unsigned int secuencia;
 static int      ventana[3];                   /* para la mediana */
 static int      ventana_n       = 0;
 static int      filtrado        = TOF_LIBRE_MM;
@@ -105,6 +110,7 @@ int tof_iniciar(void)
     ventana_n = 0;
     filtrado = TOF_LIBRE_MM;
     total_lecturas = 0;
+    secuencia = 0;
     proximo_ms = 0;
     for (intento = 0; intento < TOF_INTENTOS_INICIO && !vivo; intento++) {
         if (intento > 0) {
@@ -183,19 +189,26 @@ static void procesar(int crudo, uint32_t ahora_ms)
         }
     }
 
+    secuencia = (secuencia + 1u) & 255u;
+    Adquisicion adquisicion = { ahora_ms, (int)imu_angulo_x10(), (imu_estado() == IMU_ESTADO_LISTA ? 1 : 0) | (valida ? 4 : 0), secuencia };
     if (ventana_n < 3) {
         int i;
 
         for (i = ventana_n; i < 3; i++) {
+            muestras[i] = adquisicion;
             ventana[i] = valor;                          /* la primera lectura llena la ventana */
         }
         ventana_n = 3;
     } else {
+        muestras[0] = muestras[1];
+        muestras[1] = muestras[2];
+        muestras[2] = adquisicion;
         ventana[0] = ventana[1];
         ventana[1] = ventana[2];
         ventana[2] = valor;
     }
     filtrado = mediana3(ventana[0], ventana[1], ventana[2]);
+    indice_mediana = ventana[0] == filtrado ? 0 : (ventana[1] == filtrado ? 1 : 2);
 }
 
 void tof_probar_lectura(int mm_crudo, uint32_t ahora_ms)
@@ -272,6 +285,16 @@ void tof_actualizar(uint32_t ahora_ms, int puede_bloquear)
     }
     procesar(crudo, ahora_ms);
     proximo_ms = ahora_ms + TOF_PERIODO_MS - 8u;       /* la siguiente medida tarda ~TOF_PERIODO_MS: se empieza a preguntar un poco antes */
+}
+
+int tof_angulo_muestra(void) { return vivo && ventana_n ? muestras[indice_mediana].angulo : 0; }
+int tof_bits_muestra(void) { return vivo && ventana_n ? muestras[indice_mediana].bits | 2 : 0; }
+
+int tof_metadatos(uint32_t ahora_ms)
+{
+    uint32_t edad = vivo && ventana_n ? ahora_ms - muestras[0].ms : 1023u;
+    if (edad > 1023u) edad = 1023u;
+    return (int)((muestras[indice_mediana].secuencia << 16) | (edad << 6) | 32u);
 }
 
 int tof_vivo(void)         { return vivo; }

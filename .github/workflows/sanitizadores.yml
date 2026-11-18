@@ -7,8 +7,23 @@ on:
     paths: ['firmware_carro/**', 'pruebas_firmware/**', 'nucleo_c/**', '.github/workflows/sanitizadores.yml']
   workflow_dispatch:
 jobs:
+  nucleo:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [thread, 'address,undefined']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ejecutar núcleo y regresiones v4
+        working-directory: nucleo_c
+        run: |
+          make -B test CFLAGS="-std=c99 -g -O1 -fsanitize=${{ matrix.sanitizer }} -fno-sanitize-recover=all -fno-omit-frame-pointer"
   firmware:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - name: ThreadSanitizer (estres de 2 hilos con GIRAR mezclado con STOP)

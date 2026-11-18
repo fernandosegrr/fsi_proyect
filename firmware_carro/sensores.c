@@ -130,7 +130,7 @@ static void texto_caps(char *dest, int largo)
     /* SEG=2 (autónomo v2): un texto desconocido ya no renueva el watchdog ni queda como comando actual; un FORWARD en AUTO con el frente confirmado a menos de
      * TOF_BLOQUEO_MM no arranca (contesta TOF_PARO); el freno láser se rearma en cada avance nuevo. TUSO=<0|1>: si el freno láser está en uso (TOF_USO). Las claves
      * nuevas van ANTES de FW: y no contienen «IMU=», «TOF=» ni «RUMBO=» (la app actual busca esas subcadenas). */
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,SEG=3,TUSO=%d,TOFP=%d,%s",
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,TED=1,SEG=3,TUSO=%d,TOFP=%d,%s",
              imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), (long)imu_escala_ppm(), tof_uso ? 1 : 0, TOF_PARO_MM, FW_VERSION);
 }
 
@@ -255,17 +255,23 @@ static void revisar_watchdog(void)
     wd_avisados = n;
 }
 
-static void mandar_sens(uint32_t ahora_ms)
+static int banderas_sens(void)
 {
-    char texto[MENSAJE_SALIDA_MAX];
     int banderas = 0;
-    int cliente, perfil_auto;
 
     if (imu_estado() == IMU_ESTADO_LISTA) banderas |= 1;
     if (tof_vivo())                       banderas |= 2;
     if (tof_vivo() && tof_valida())       banderas |= 4;
     if (imu_estado() == IMU_ESTADO_CALIBRANDO) banderas |= 8;
     if (giro_ocupado())                   banderas |= 16;
+    return banderas;
+}
+
+static void mandar_sens(uint32_t ahora_ms)
+{
+    char texto[MENSAJE_SALIDA_MAX];
+    int cliente, perfil_auto;
+    int banderas = banderas_sens();
     snprintf(texto, sizeof texto, "SENS:%d,%d,%d", imu_estado() == IMU_ESTADO_LISTA ? (int)imu_angulo_x10() : 0, tof_vivo() ? tof_mm() : 0, banderas);
 
     carro_bloquear();
@@ -333,7 +339,7 @@ uint32_t sensores_bloqueos_tof(void) { return bloqueos_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:",
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "TED:", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:",
                                   "IMU_ESCALA?", "IMU_ESCALA:", NULL };
 
 int sensores_es_comando(const char *texto)
@@ -365,6 +371,16 @@ static void ejecutar(const char *texto, int donde)
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "IMU?") == 0) {
         snprintf(respuesta, sizeof respuesta, "IMU:%d,%d,%d,%d,%d", (int)imu_angulo_x10(), (int)imu_sesgo_x100(), imu_estado(), imu_quien_soy(), imu_motivo());
+        sensores_enviar(donde, respuesta);
+    } else if (strncmp(texto, "TED:", 4) == 0) {
+        const char *id = texto + 4;
+        size_t largo = strlen(id);
+        if (largo == 0 || largo > 16 || strspn(id, "0123456789") != largo) {
+            sensores_enviar(donde, "NAK_TED");
+            return;
+        }
+        snprintf(respuesta, sizeof respuesta, "TED:%s,%d,%d,%d", id,
+                 tof_angulo_muestra(), tof_vivo() ? tof_mm() : 0, tof_bits_muestra() | tof_metadatos(hw_millis()));
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "TOF?") == 0) {
         snprintf(respuesta, sizeof respuesta, "TOF:%d,%d", tof_vivo() ? tof_mm() : 0, (tof_vivo() ? 1 : 0) | (tof_vivo() && tof_valida() ? 2 : 0));

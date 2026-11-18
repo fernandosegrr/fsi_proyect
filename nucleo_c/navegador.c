@@ -1177,7 +1177,11 @@ static int rumbo_instantaneo_x10(const Navegador *nav, uint32_t ahora_ms)
 
         /* La distancia de SENS es la mediana de las 3 últimas lecturas del láser (una cada 33 ms): es unos 50 ms más vieja que el ángulo del mismo mensaje. Se usa el
          * ángulo de hace medio periodo de SENS (a 130 grados por segundo son ~6 grados). */
-        girado -= diferencia_x10(nav->sens_angulo_previo_x10, nav->sens_angulo_x10) / 2;
+        if (nav->guardia_v4 && nav->secuencia_tof >= 0) {
+            girado = diferencia_x10(nav->giro_fw_ang_ini_x10, nav->angulo_muestra_x10);
+        } else {
+            girado -= diferencia_x10(nav->sens_angulo_previo_x10, nav->sens_angulo_x10) / 2;
+        }
         return nav->base_rumbo_x10 - girado;   /* el navegador cuenta + a la derecha */
     }
     return nav->rumbo_x10;
@@ -1315,7 +1319,7 @@ static int verificar_frente(Navegador *nav, uint32_t ahora_ms, int causa)
         nav->tof_cerca_lecturas = 0;
         nav->vision_sin_coincidencia = 0;
     }
-    if (ahora_ms - nav->verificar_frente_ms < NAV_PAUSA_ASENTAR_MS) {
+    if (ahora_ms - nav->verificar_frente_ms < (uint32_t)(NAV_PAUSA_ASENTAR_MS + (nav->guardia_v4 ? nav->latencia_visual_ms : 0))) {
         nav->tof_libre_lecturas = 0;
         nav->tof_despejado_lecturas = 0;
         nav->vision_sin_coincidencia = 0;
@@ -1323,6 +1327,9 @@ static int verificar_frente(Navegador *nav, uint32_t ahora_ms, int causa)
     }
     /* V2: para cerrar un rodeo basta que el láser mida, con tres lecturas nuevas, que no hay nada a NAV_FIN_HOLGURA_MM o menos (antes exigía más de 800 mm: una pared o
      * un segundo obstáculo a 60 cm hacían «esquivar» algo que no estorba). Sin eco sigue sin contar como libre: ahí deciden cinco cuadros nuevos sin coincidencia. */
+    if (nav->guardia_v4 && (int32_t)(nav->tof_t_ms - (nav->verificar_frente_ms + NAV_PAUSA_ASENTAR_MS)) < 0) {
+        nav->tof_cerca_lecturas = nav->tof_despejado_lecturas = nav->vision_sin_coincidencia = 0;
+    }
     if ((tof_fresco(nav, ahora_ms) && nav->tof_despejado_lecturas >= NAV_TOF_LIBRE_LECTURAS && (!nav->usa_camara || nav->vision_sin_coincidencia > 0)) ||
         ((!nav->usa_tof || (tof_fresco(nav, ahora_ms) && (!nav->tof_valida || nav->tof_mm <= 0))) &&
          nav->usa_camara && ahora_ms - nav->t_ultimo_cuadro_ms <= NAV_MAX_HUECO_VIDEO_MS &&
@@ -2001,6 +2008,10 @@ void navegador_iniciar(Navegador *nav)
     nav->memoria_eco = 1;                    /* v3: ver NAV_V3 */
     nav->tof_visto_vivo = 0;
     nav->tof_caido_desde_ms = 0;
+    nav->guardia_v4 = NAV_V4_GUARDIA;
+    nav->inicio_guardia_ms = 0;
+    nav->cuadros_flanco[0] = nav->cuadros_flanco[1] = 0;
+    nav->secuencia_tof = -1;
     nav->laser_caido_para = 1;
     nav->eco_retroceder_mm = NAV_ECO_RETROCEDE_MM;
     nav->eco_retroceder = 0;
@@ -2198,6 +2209,9 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->modelo_visto = nav->modelo_vigente = 0;
     nav->modelo_t_ok_ms = 0;
     nav->reinc_deshacer_mm = 0;
+    nav->cuadros_flanco[0] = nav->cuadros_flanco[1] = 0;
+    nav->secuencia_tof = -1;
+    nav->inicio_guardia_ms = ahora_ms;
     nav->tof_visto_vivo = nav->tof_vivo ? 1 : 0;   /* v3: el láser cuenta como «visto vivo» solo si vive al empezar la ruta */
     nav->tof_caido_desde_ms = 0;
     nav->eco_retroceder = 0;                       /* v3 (revisión): lo de una ruta o una parada anterior no vale */
@@ -2693,6 +2707,12 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                 una = 1;                                   /* solo la red (una caja suya en ese lado, sin celdas de color): también merece el vistazo */
                 nav->vistazo_solo_red[lado_i] = 1;
                 if (nav->vistazo_cerc[lado_i] < nav->color_cercania[zl]) nav->vistazo_cerc[lado_i] = nav->color_cercania[zl];
+            }
+            if (una && !nav->vistazo_solo_red[lado_i] && nav->vistazo_cerc[lado_i] >= 2 &&
+                nav->vistazo_lateral_mm[lado_i] <= 100) {
+                if (nav->cuadros_flanco[lado_i] < NAV_VISTAZO_CUADROS) nav->cuadros_flanco[lado_i]++;
+            } else {
+                nav->cuadros_flanco[lado_i] = 0;
             }
             if (una) {
                 nav->vistazo_cuadros[lado_i]++;
@@ -5677,14 +5697,42 @@ void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida,
 
 void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, int imu_lista, uint32_t ahora_ms)
 {
+    navegador_aporte_sens_muestra(nav, mm, tof_vivo, tof_valida, angulo_x10_fw, imu_lista, ahora_ms, 0);
+}
+
+void navegador_aporte_sens_muestra(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw,
+                                   int imu_lista, uint32_t ahora_ms, int metadatos)
+{
+    uint32_t muestra_ms = ahora_ms;
     if (nav == NULL) {
         return;
     }
-    nav->sens_angulo_previo_x10 = nav->sens_angulo_ok ? nav->sens_angulo_x10 : angulo_x10_fw;
-    nav->sens_angulo_x10 = angulo_x10_fw;
-    nav->sens_angulo_t_ms = ahora_ms;
-    nav->sens_angulo_ok = imu_lista ? 1 : 0;
-    if (!imu_lista) nav->avance_imu_ref_ok = 0;
+    if (!nav->guardia_v4 || !(metadatos & 32)) {
+        nav->sens_angulo_previo_x10 = nav->sens_angulo_ok ? nav->sens_angulo_x10 : angulo_x10_fw;
+        nav->sens_angulo_x10 = angulo_x10_fw;
+        nav->sens_angulo_t_ms = ahora_ms;
+        nav->sens_angulo_ok = imu_lista ? 1 : 0;
+        if (!imu_lista) nav->avance_imu_ref_ok = 0;
+    }
+    if (nav->guardia_v4 && (metadatos & 32)) {
+        uint32_t edad = ((unsigned)metadatos >> 6) & 1023u;
+        int secuencia = (metadatos >> 16) & 255;
+        if (edad > NAV_TOF_FRESCO_MS || !tof_vivo) {
+            nav->secuencia_tof = secuencia;
+            nav->tof_vivo = nav->tof_valida = 0;
+            nav->tof_libre_lecturas = nav->tof_cerca_lecturas = nav->tof_despejado_lecturas = 0;
+            return;
+        }
+        if (nav->secuencia_tof >= 0) {
+            unsigned salto = (unsigned)(secuencia - nav->secuencia_tof) & 255u;
+            if (!salto || salto >= 128u) return;  /* mismo eco o mediana que volvió a uno anterior */
+        }
+        nav->secuencia_tof = secuencia;
+        nav->angulo_muestra_x10 = angulo_x10_fw;
+        muestra_ms -= edad;
+    } else {
+        if (nav->guardia_v4) return;  /* Un SENS antiguo no sustituye la consulta TED pendiente. */
+    }
     if ((uint32_t)(ahora_ms - nav->tof_t_ms) > NAV_TOF_FRESCO_MS) {
         nav->tof_libre_lecturas = nav->tof_cerca_lecturas = nav->tof_despejado_lecturas = 0;
     }
@@ -5700,24 +5748,30 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
     nav->tof_vivo = tof_vivo ? 1 : 0;
     nav->tof_mm = mm;
     nav->tof_valida = tof_valida ? 1 : 0;
-    nav->tof_t_ms = ahora_ms;
+    nav->tof_t_ms = muestra_ms;
+    if (nav->guardia_v4 && nav->verificando_frente &&
+        (int32_t)(muestra_ms - (nav->verificar_frente_ms + NAV_PAUSA_ASENTAR_MS)) < 0) {
+        nav->tof_libre_lecturas = nav->tof_cerca_lecturas = nav->tof_despejado_lecturas = 0;
+        return;
+    }
     if (nav->tof_vivo && nav->tof_valida && mm > 0 && mm <= OBSTACULO_LASER_MM) {
         nav->eco_ultimo_mm = mm;      /* v3 (revisión): se recuerda el último eco cercano */
-        nav->eco_ultimo_t_ms = ahora_ms ? ahora_ms : 1;
+        nav->eco_ultimo_t_ms = muestra_ms ? muestra_ms : 1;
     }
     if (!nav->tof_vivo || !nav->tof_valida || mm <= 0) {
         nav->tof_libre_lecturas = 0;
         nav->tof_cerca_lecturas = 0;
         nav->tof_despejado_lecturas = 0;
         if (nav->usa_tof && nav->tof_vivo && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && !nav->deshacer_giro && nav->giro_fw &&
-            nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista) {
+            nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista &&
+            (!nav->guardia_v4 || (int32_t)(muestra_ms - nav->giro_fw_t_ms) >= 0)) {
             escaneo_muestra(nav, ahora_ms, 0, 0);   /* V2: una lectura sin eco del barrido también cuenta: ahí no hay nada al alcance */
         }
         return;
     }
     nav->tof_despejado_lecturas = (mm > NAV_FIN_HOLGURA_MM) ? nav->tof_despejado_lecturas + 1 : 0;
     limitar_contador(&nav->tof_despejado_lecturas);
-    if (nav->vistazo_lado != 0 && nav->usa_tof && mm <= NAV_VISTAZO_ALCANCE_MM && (uint32_t)(ahora_ms - nav->vistazo_t_ms) >= (uint32_t)NAV_VISTAZO_GIRO_MIN_MS &&
+    if (nav->vistazo_lado != 0 && nav->usa_tof && mm <= NAV_VISTAZO_ALCANCE_MM && (int32_t)(muestra_ms - nav->vistazo_t_ms) >= NAV_VISTAZO_GIRO_MIN_MS &&
         !laser_tras_el_destino(nav, mm)) {   /* lo que queda más allá del destino (una pared al fondo) no es un obstáculo de la ruta */
         nav->vistazo_ecos++;           /* V2: el láser, torcido hacia lo que vio la cámara, tiene eco válido y cercano */
         if (nav->vistazo_mm == 0 || mm < nav->vistazo_mm) {
@@ -5725,7 +5779,8 @@ void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_val
         }
     }
     if (nav->usa_tof && nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->cambio_lado != 1 && !nav->deshacer_giro && nav->giro_fw &&
-        nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista) {
+        nav->giro_fw_estado == 0 && nav->giro_fw_ang_ini_ok && imu_lista &&
+            (!nav->guardia_v4 || (int32_t)(muestra_ms - nav->giro_fw_t_ms) >= 0)) {
         escaneo_muestra(nav, ahora_ms, mm, mm < TOF_ALCANCE_ESCANEO_MM);   /* V2: el primer giro del rodeo mide el ancho del obstáculo */
     }
     if (mm > NAV_TOF_LIBRE_MM) {
@@ -5796,6 +5851,12 @@ void navegador_aporte_tof_paro(Navegador *nav, int mm, uint32_t ahora_ms)
     }
 }
 
+static int ayuda_requiere_cancelar(const Navegador *nav)
+{
+    return nav->guardia_v4 && (nav->error_causa == NAV_CAUSA_FLANCO_INCIERTO ||
+                               nav->error_causa == NAV_CAUSA_MUESTRA_VIEJA);
+}
+
 int navegador_ayuda_comando(Navegador *nav, ComandoNav comando)
 {
     if (nav == NULL || (int)comando < (int)NAV_CMD_STOP || (int)comando > (int)NAV_CMD_RIGHT) {
@@ -5804,8 +5865,19 @@ int navegador_ayuda_comando(Navegador *nav, ComandoNav comando)
     if (nav->estado != NAV_AYUDA) {
         return NAV_ERR_ESTADO;
     }
+    if (comando != NAV_CMD_STOP && ayuda_requiere_cancelar(nav)) {
+        nav->ayuda_cmd = NAV_CMD_STOP;
+        return NAV_ERR_ESTADO;
+    }
     nav->ayuda_cmd = comando;
     return NAV_OK;
+}
+
+/* El borde interior proyectado invade la franja de 100 mm a cada lado del eje.
+ * Los cuadros, la cercanía y la máscara proceden del clasificador, incluso sin caja de la red. */
+static int flanco_incierto(const Navegador *nav)
+{
+    return nav->cuadros_flanco[0] >= NAV_VISTAZO_CUADROS || nav->cuadros_flanco[1] >= NAV_VISTAZO_CUADROS;
 }
 
 int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
@@ -5817,6 +5889,10 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
         return NAV_ERR_ESTADO;
     }
     nav->ayuda_cmd = NAV_CMD_STOP;
+    if (ayuda_requiere_cancelar(nav)) {
+        /* Un cuadro vacío posterior o pulsar Continuar no demuestra que se despejó la huella. */
+        return NAV_ERR_ESTADO;
+    }
     nav->verificando_frente = nav->fin_pendiente = 0;
     nav->esquivadas = 0;          /* tras la ayuda se vuelve a poder esquivar */
     nav->esquivadas_obstaculo = 0;
@@ -5930,6 +6006,25 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         return NAV_CMD_STOP;
     }
 
+    if (nav->guardia_v4 &&
+        (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO ||
+         nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO)) {
+        int causa = 0;
+        if (nav->secuencia_tof < 0 && ahora_ms - nav->inicio_guardia_ms < NAV_TOF_FRESCO_MS) {
+            cambiar_comando(nav, NAV_CMD_STOP);
+            return NAV_CMD_STOP;
+        }
+        if (nav->secuencia_tof < 0 || !tof_fresco(nav, ahora_ms)) causa = NAV_CAUSA_MUESTRA_VIEJA;
+        else if ((nav->estado == NAV_SIGUIENDO || nav->cmd_actual == NAV_CMD_FORWARD) && !nav->tof_paro_activo &&
+                 !tof_dice_cerca(nav, ahora_ms) && flanco_incierto(nav)) causa = NAV_CAUSA_FLANCO_INCIERTO;
+        if (causa) {
+            cambiar_comando(nav, NAV_CMD_STOP);
+            nav->fin_pendiente = nav->verificando_frente = 0;
+            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, causa);
+            return NAV_CMD_STOP;
+        }
+    }
+
     /* V3: el láser estaba vivo y dejó de funcionar a mitad de ruta (cause 19). */
     if (nav->usa_tof && nav->laser_caido_para && nav->tof_visto_vivo && nav->tof_caido_desde_ms != 0 && !nav->tof_vivo &&
         (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) &&
@@ -5980,7 +6075,7 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
         ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo, &s, &desvio);
         if (nav->obstaculo_pendiente && s < nav->fin_obstaculo_mm) {
             extender_rebase(nav, ahora_ms);
-        } else if (nav->obstaculo_pendiente) {
+        } else if (nav->obstaculo_pendiente || nav->guardia_v4) {
             nav->estado = NAV_SIGUIENDO;   /* cerrando un rodeo: Terminado solo con el frente inmediato comprobado */
             nav->fin_pendiente = 1;
             nav->verificando_frente = 0;
@@ -6042,6 +6137,12 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
     }
     texto[0] = '\0';
     switch (nav->error_causa) {
+    case NAV_CAUSA_FLANCO_INCIERTO:
+        n = snprintf(texto, (size_t)capacidad, "estructura lateral en la huella sin paso confirmado. Cancela la ruta y revisa el espacio");
+        break;
+    case NAV_CAUSA_MUESTRA_VIEJA:
+        n = snprintf(texto, (size_t)capacidad, "medida del laser vencida. Cancela y verifica el sensor con el carro quieto");
+        break;
     case NAV_CAUSA_SIN_CONFIRMACION:
         n = snprintf(texto, (size_t)capacidad, "codigo historico: falta confirmacion (ya no se emite por desacuerdo visual)");
         break;

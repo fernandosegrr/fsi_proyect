@@ -32,6 +32,11 @@ int  tof_reintentos(void);
  * (*empaquetado: un dígito hexadecimal por arranque, el más nuevo a la derecha; 15 = 15 o más). */
 void tof_historial(int *n, int *con_reintentos, int *empaquetado);
 
+/* Extensión aditiva de SENS: bit 5 presente, bits 6..15 edad en ms del dato más
+ * antiguo de la mediana (1023 = caducado/sin dato), bits 16..23 secuencia de adquisición. */
+int tof_angulo_muestra(void);
+int tof_bits_muestra(void);
+int tof_metadatos(uint32_t ahora_ms);
 int  tof_vivo(void);            /* 1 si el sensor funciona */
 int  tof_mm(void);              /* distancia filtrada en mm; nunca más de TOF_LIBRE_MM (ese valor = libre) */
 int  tof_valida(void);          /* 1 si la última lectura fue una medida real, 0 si fue "libre" (sin eco o más lejos de TOF_LIBRE_MM) */

@@ -458,6 +458,59 @@ static void probar_v3_revision(void) {
     caso("v3 revision: una parada solo por camara no hereda un eco_retroceder viejo",nav.estado==NAV_DETENIDO_OBSTACULO && nav.eco_retroceder==0);
 }
 
+#ifdef NAV_V4
+static void probar_guardia_v4(void)
+{
+    ResultadoObstaculos cuadro;
+    int t;
+    preparar_politica();
+    caso("v4: experimento apagado por defecto", nav.guardia_v4 == NAV_V4_GUARDIA);
+    nav.guardia_v4 = 1;
+    memset(&cuadro, 0, sizeof cuadro);
+    cuadro.filas = 17;
+    cuadro.columnas = 24;
+    cuadro.fila_minima_usada = 7;
+    for (int f = 9; f <= 14; f++) cuadro.no_piso[f][7] = 1;
+    for (t = 0; t < NAV_VISTAZO_CUADROS; t++) {
+        navegador_aporte_sens_muestra(&nav, 1200, 1, 0, 0, 1, 50u * t, 32 | (t << 16));
+        navegador_tick(&nav, 50u * t, &cuadro);
+    }
+    caso("v4: raya lateral persistente en la huella provoca STOP y causa 20",
+         nav.cmd_actual == NAV_CMD_STOP && nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_FLANCO_INCIERTO);
+    caso("v4: continuar no borra la incertidumbre", navegador_ayuda_continuar(&nav, 200) == NAV_ERR_ESTADO);
+    preparar_politica();
+    nav.guardia_v4 = 1;
+    navegador_aporte_sens(&nav, 1000, 1, 1, 10, 50);
+    caso("v4: SENS legado no permite el primer movimiento sin TED",
+         navegador_tick(&nav, 50, NULL) == NAV_CMD_STOP && nav.secuencia_tof < 0);
+    caso("v4: agotado el plazo inicial avisa y no avanza",
+         navegador_tick(&nav, 450, NULL) == NAV_CMD_STOP && nav.error_causa == NAV_CAUSA_MUESTRA_VIEJA);
+    preparar_politica();
+    nav.guardia_v4 = 1;
+    int meta = 32 | (110 << 6) | (255 << 16);
+    navegador_aporte_sens_muestra(&nav, 900, 1, 1, 22, 1, 150, meta);
+    navegador_aporte_sens(&nav, 900, 1, 1, 25, 250);
+    navegador_aporte_sens_muestra(&nav, 900, 1, 1, 25, 1, 250, meta);
+    caso("v4: repetir la misma muestra no refresca el laser ni duplica el eco, el giro si es reciente",
+         nav.tof_t_ms == 40 && nav.tof_libre_lecturas == 1 && nav.sens_angulo_t_ms == 250);
+    navegador_aporte_sens_muestra(&nav, 900, 1, 1, 25, 1, 300, 32 | (100 << 6));
+    caso("v4: secuencia 255 a 0 admite una nueva muestra", nav.tof_t_ms == 200 && nav.tof_libre_lecturas == 2);
+    nav.verificando_frente = 1;
+    nav.verificar_frente_ms = 300;
+    navegador_aporte_sens_muestra(&nav, 900, 1, 1, 25, 1, 620, 32 | (200 << 6) | (1 << 16));
+    caso("v4: mediana anterior al asentamiento no confirma el frente", nav.tof_despejado_lecturas == 0);
+    nav.fin_pendiente = 1;
+    navegador_aporte_sens_muestra(&nav, 900, 1, 1, 25, 1, 650, 32 | (405 << 6));
+    caso("v4: SENS recien llegado con medida vieja no cierra Terminado",
+         navegador_tick(&nav, 650, NULL) == NAV_CMD_STOP && nav.estado == NAV_AYUDA && nav.error_causa == NAV_CAUSA_MUESTRA_VIEJA);
+    for (int cmd = NAV_CMD_FORWARD; cmd <= NAV_CMD_RIGHT; cmd++) {
+        caso("v4: la cruceta tampoco rearma motores", navegador_ayuda_comando(&nav, (ComandoNav)cmd) == NAV_ERR_ESTADO &&
+             navegador_tick(&nav, 660, NULL) == NAV_CMD_STOP);
+    }
+    caso("v4: dato vencido no autoriza continuar", navegador_ayuda_continuar(&nav, 660) == NAV_ERR_ESTADO);
+}
+#endif
+
 static void probar_v3(void) {
     probar_v3_laser_caido();
     probar_v3_revision();
@@ -481,6 +534,9 @@ int main(int argc,char **argv) {
     if(!informe){probar_politica();probar_revision();
 #ifdef NAV_V3
         probar_v3();
+#ifdef NAV_V4
+        probar_guardia_v4();
+#endif
 #endif
     }
 #endif

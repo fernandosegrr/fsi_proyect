@@ -488,6 +488,11 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         tarjetaAyuda.visibility = if (enAyuda) View.VISIBLE else View.GONE
         if (enAyuda) {
             // Autónomo v2: siempre con el código de la causa delante («Causa 16: ...») para poder anotarlo y buscarlo en el manual.
+            val requiereCancelar = NavegadorNativa.causa() in 20..21
+            for (id in listOf(R.id.ej_ayuda_continuar, R.id.ej_ayuda_adelante, R.id.ej_ayuda_atras,
+                R.id.ej_ayuda_izquierda, R.id.ej_ayuda_derecha)) {
+                view?.findViewById<View>(id)?.isEnabled = !requiereCancelar
+            }
             textoAyudaCausa.text = "Causa ${NavegadorNativa.causa()}: " + NavegadorNativa.textoError().replaceFirstChar { it.uppercase() }
             if (!ayudaAvisada) {
                 ayudaAvisada = true

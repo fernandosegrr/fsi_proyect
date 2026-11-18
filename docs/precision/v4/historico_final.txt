@@ -1,0 +1,65 @@
+Simulando 23 escenarios x 1000 corridas en 3 procesos...
+SIMULADO / NO MEDIDO en el carro. Banco nucleo_c/pruebas_autonomo_v2.c; 1000 corridas por escenario; semillas 170000 + indice * 10007 + corrida.
+Columnas EXCLUYENTES (suman las corridas): ok | contacto | bajo_mueble | ayuda | error | sin_terminar | falso_fin | esquive_falso | otro (ver la cabecera de scripts/compuertas_autonomo.py).
+Después, aparte: esquives (total) | paradas (corridas con parada) | tiempo medio (s) | lateral p95 (mm) | vistazos (con eco) | causas de AYUDA/ERROR
+
+libre_limpio  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   34 | vistazos   163 (   0) | causas
+falso_juntas  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   33 | vistazos   137 (   0) | causas
+falso_sol  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas    96 (  93) | t  10.6 s | lat p95   35 | vistazos  1658 (   0) | causas
+falso_sombra  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas    92 (  82) | t  10.6 s | lat p95   36 | vistazos  1729 (   0) | causas
+falso_reflejo  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas   152 ( 126) | t  10.6 s | lat p95   37 | vistazos   730 (   0) | causas
+falso_exposicion  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   34 | vistazos   149 (   0) | causas
+falso_detector  [falso]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.6 s | lat p95   42 | vistazos  2927 (   0) | causas
+caja20  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1007 (1000) | t  17.8 s | lat p95   52 | vistazos    60 (   6) | causas
+caja20_lateral  [obstaculo]
+   actual   ok=999 contacto=0 bajo_mueble=0 ayuda=1 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1001 | paradas  1021 (1000) | t  19.6 s | lat p95   46 | vistazos   672 ( 535) | causas 16:1
+banquito35x45  [obstaculo]
+   actual   ok=849 contacto=43 bajo_mueble=75 ayuda=33 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   945 | paradas  1131 ( 981) | t  20.1 s | lat p95   56 | vistazos  1581 ( 425) | causas 16:22 18:37
+objeto_largo90  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1036 | paradas  1046 (1000) | t  21.8 s | lat p95   61 | vistazos   184 (  57) | causas
+silla_patas  [obstaculo]
+   actual   ok=435 contacto=21 bajo_mueble=529 ayuda=15 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   524 | paradas   776 ( 695) | t  15.6 s | lat p95   48 | vistazos  2028 ( 175) | causas 2:1 16:20 18:52
+pared_tras_el_final  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t   7.4 s | lat p95   26 | vistazos   102 (   0) | causas
+dos_obstaculos  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1361 | paradas  1006 (1000) | t  23.6 s | lat p95   63 | vistazos    47 (   5) | causas
+pasillo  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1007 (1000) | t  17.6 s | lat p95   53 | vistazos    70 (   5) | causas
+aparece_de_repente  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1000 (1000) | t  18.3 s | lat p95   52 | vistazos    79 (   9) | causas
+objeto_bajo  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  2025 (1000) | t  21.2 s | lat p95   51 | vistazos  1007 (   3) | causas
+caja20_con_sol  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1051 (1000) | t  17.9 s | lat p95   53 | vistazos   283 (  40) | causas
+bateria_baja  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1009 (1000) | t  17.8 s | lat p95   55 | vistazos    66 (  10) | causas
+pared_al_frente  [imposible]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1009 | paradas  1009 (1000) | t   0.0 s | lat p95    0 | vistazos    22 (  10) | causas 16:1000
+bajo_solo_color  [limite]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1034 (1000) | t  20.6 s | lat p95   48 | vistazos  1023 (  10) | causas
+caja_y_pared_al_lado  [obstaculo]
+   actual   ok=613 contacto=1 bajo_mueble=0 ayuda=386 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1276 | paradas  1014 (1000) | t  21.3 s | lat p95  116 | vistazos    67 (  10) | causas 16:72 18:315
+caja_antes_de_esquina  [obstaculo]
+   actual   ok=1000 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives  1000 | paradas  1061 (1000) | t  20.4 s | lat p95   96 | vistazos    84 (   8) | causas
+
+COMPUERTAS de la versión actual: 12 fallos
+   FALLO falso_sol: el carro se detuvo en 93/1000 corridas, 96 paradas (meta: sin detenerse)
+   FALLO falso_sombra: el carro se detuvo en 82/1000 corridas, 92 paradas (meta: sin detenerse)
+   FALLO falso_reflejo: el carro se detuvo en 126/1000 corridas, 152 paradas (meta: sin detenerse)
+   FALLO banquito35x45: 43 contactos (meta 0)
+   FALLO banquito35x45: éxito 849/1000 (meta >= 99 %)
+   FALLO banquito35x45: AYUDA 59/1000 (meta < 1 %)
+   FALLO silla_patas: 21 contactos (meta 0)
+   FALLO silla_patas: éxito 435/1000 (meta >= 99 %)
+   FALLO silla_patas: AYUDA 73/1000 (meta < 1 %)
+   FALLO caja_y_pared_al_lado: 1 contactos (meta 0)
+   FALLO caja_y_pared_al_lado: éxito 613/1000 (meta >= 99 %)
+   FALLO caja_y_pared_al_lado: AYUDA 387/1000 (meta < 1 %)

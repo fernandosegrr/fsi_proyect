@@ -900,7 +900,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=3, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=3, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,TED=1,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1562,13 +1562,13 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,TED=1,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,TED=1,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
     caso("SEG=3: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
          m != NULL && strstr(m, "SEG=3,TUSO=1,TOFP=150,FW:") != NULL && strstr(strstr(m, "SEG=3"), "IMU=") == NULL && strstr(strstr(m, "SEG=3"), "TOF=") == NULL &&
          strstr(strstr(m, "SEG=3"), "RUMBO=") == NULL);
@@ -1637,6 +1637,14 @@ static void prueba_mensajes(void)
     m = ultimo_mensaje("SENS:");
     caso("formato SENS:<angulo x10>,<mm>,<banderas>: IMU lista + laser vivo + medida valida = 7", m != NULL && sscanf(m, "SENS:%d,%d,%d", &a, &b, &c) == 3 && c == 7 && b == 400);
     caso("los SENS van solo al WebSocket", donde_msg[n_msg - 1] == SENSORES_DESTINO_WS);
+    orden("TED:123");
+    avanzar_ms(10);
+    m = ultimo_mensaje("TED:123,");
+    caso("TED responde al identificador con edad y la misma medida que SENS",
+         m && sscanf(m,"TED:123,%d,%d,%d",&a,&b,&c) == 3 && b == 400 && (c & 32) && ((c >> 6) & 1023) < 200);
+    orden("TED:x");
+    avanzar_ms(10);
+    caso("TED rechaza identificador invalido", ultimo_mensaje("NAK_TED") != NULL);
     falso_tof_mm = 8190;
     avanzar_ms(300);
     m = ultimo_mensaje("SENS:");
@@ -1936,6 +1944,31 @@ int main(void)
     prueba_laser_fallos();
     prueba_no_bloquea();
     prueba_mensajes();
+    /* Paso por cero del reloj, basura reiterada y caducidad de la mediana. */
+    arrancar(0, 0);
+    tof_iniciar();
+    caso("TED sin primera muestra", ((tof_metadatos(0) >> 6) & 1023) == 1023);
+    tof_probar_lectura(400, UINT32_MAX - 49u);
+    tof_probar_lectura(410, 0u);
+    tof_probar_lectura(420, 50u);
+    {
+        int antes = tof_metadatos(50u);
+        tof_probar_lectura(0, 100u);
+        caso("TED la mediana usa la marca mas antigua incluso al envolver millis", ((antes >> 6) & 1023) == 100);
+        caso("TED basura no renueva secuencia ni edad", (tof_metadatos(450) >> 16) == (antes >> 16) &&
+             ((tof_metadatos(450) >> 6) & 1023) == 500);
+        caso("TED edad saturada sin desbordar otras banderas", ((tof_metadatos(5000) >> 6) & 1023) == 1023);
+        tof_probar_lectura(8190, 5010);
+        tof_probar_lectura(8190, 5050);
+        caso("TED sin eco es adquisicion distinta", (tof_metadatos(5010) >> 16) != (antes >> 16));
+    }
+    tof_probar_lectura(500, 5100);
+    tof_probar_lectura(800, 5150);
+    tof_probar_lectura(700, 5200);
+    int id_eco = tof_metadatos(5200) >> 16;
+    tof_probar_lectura(650, 5250);
+    tof_probar_lectura(750, 5300);
+    caso("TED tres ventanas con el mismo eco conservan su identidad", (tof_metadatos(5300) >> 16) == id_eco);
     prueba_escala_imu();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);

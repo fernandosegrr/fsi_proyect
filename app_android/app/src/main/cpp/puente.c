@@ -2479,7 +2479,7 @@ Java_com_fsi_carro_NavegadorNativa_ponerLargoRectaMm(JNIEnv *env, jobject objeto
 
 JNIEXPORT jint JNICALL
 Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora_ms,
-                                         jboolean hay_cuadro, jintArray obs)
+                                         jboolean hay_cuadro, jintArray obs, jintArray detalle)
 {
     ResultadoObstaculos resultado;
     jint datos[ENTEROS_RESULTADO_OBSTACULOS];
@@ -2501,17 +2501,37 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
             resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
         }
-        pthread_mutex_lock(&candado_vision);
-        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
-            resultado.filas = ultimo_filas;
-            resultado.columnas = ultimo_columnas;
-            resultado.fila_minima_usada = ultimo_fila_minima;
-            resultado.franja_contaminada = ultimo_franja_contaminada;
-            resultado.franja_ignorada = ultimo_franja_ignorada;
-            resultado.franja_tapada_pct = ultimo_franja_pct;
-            memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
+        if (obtener_navegador()->guardia_v4) {
+            if (detalle && (*env)->GetArrayLength(env, detalle) >= ENTEROS_ENCABEZADO_DETALLE) {
+                jint cab[ENTEROS_ENCABEZADO_DETALLE];
+                (*env)->GetIntArrayRegion(env, detalle, 0, ENTEROS_ENCABEZADO_DETALLE, cab);
+                if (cab[0] == OBS_OK && cab[10] >= OBS_MIN_COLUMNAS && cab[10] <= OBS_MAX_COLUMNAS &&
+                    cab[11] >= OBS_MIN_FILAS && cab[11] <= OBS_MAX_FILAS && cab[12] >= 0 && cab[12] < cab[11] &&
+                    (*env)->GetArrayLength(env, detalle) >= ENTEROS_ENCABEZADO_DETALLE + cab[10] * cab[11]) {
+                    resultado.columnas = cab[10];
+                    resultado.filas = cab[11];
+                    resultado.fila_minima_usada = cab[12];
+                    resultado.franja_contaminada = cab[19];
+                    for (int fila = 0; fila < resultado.filas; fila++) {
+                        jint celdas[OBS_MAX_COLUMNAS];
+                        (*env)->GetIntArrayRegion(env, detalle, ENTEROS_ENCABEZADO_DETALLE + fila * resultado.columnas, resultado.columnas, celdas);
+                        for (int col = 0; col < resultado.columnas; col++) resultado.no_piso[fila][col] = celdas[col] != 0;
+                    }
+                }
+            }
+        } else {
+            pthread_mutex_lock(&candado_vision);
+            if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
+                resultado.filas = ultimo_filas;
+                resultado.columnas = ultimo_columnas;
+                resultado.fila_minima_usada = ultimo_fila_minima;
+                resultado.franja_contaminada = ultimo_franja_contaminada;
+                resultado.franja_ignorada = ultimo_franja_ignorada;
+                resultado.franja_tapada_pct = ultimo_franja_pct;
+                memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
+            }
+            pthread_mutex_unlock(&candado_vision);
         }
-        pthread_mutex_unlock(&candado_vision);
         cuadro = &resultado;
     }
     return (jint)navegador_tick(obtener_navegador(), (uint32_t)ahora_ms, cuadro);
@@ -2661,11 +2681,11 @@ Java_com_fsi_carro_NavegadorNativa_aporteGiro(JNIEnv *env, jobject objeto, jint 
 
 /* Llegó un SENS del firmware. */
 JNIEXPORT void JNICALL
-Java_com_fsi_carro_NavegadorNativa_aporteSens(JNIEnv *env, jobject objeto, jint mm, jboolean tof_vivo, jboolean tof_valida, jint angulo_x10, jlong ahora_ms, jboolean imu_lista)
+Java_com_fsi_carro_NavegadorNativa_aporteSens(JNIEnv *env, jobject objeto, jint mm, jboolean tof_vivo, jboolean tof_valida, jint angulo_x10, jlong ahora_ms, jboolean imu_lista, jint banderas)
 {
     (void)env;
     (void)objeto;
-    navegador_aporte_sens_imu(obtener_navegador(), (int)mm, tof_vivo ? 1 : 0, tof_valida ? 1 : 0, (int)angulo_x10, imu_lista ? 1 : 0, (uint32_t)ahora_ms);
+    navegador_aporte_sens_muestra(obtener_navegador(), (int)mm, tof_vivo ? 1 : 0, tof_valida ? 1 : 0, (int)angulo_x10, imu_lista ? 1 : 0, (uint32_t)ahora_ms, (int)banderas);
 }
 
 /* J12: 1 (una sola vez) si el navegador pide que se mande IMU? (se perdió la respuesta de un giro por ángulo). */

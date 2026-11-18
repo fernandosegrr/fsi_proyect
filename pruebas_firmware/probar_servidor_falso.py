@@ -120,7 +120,7 @@ async def probar_sensores():
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
             caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=3, TUSO, TOFP (autonomo v2/v3) y version simulada",
-                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150,FW:simulado")
+                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,TED=1,SEG=3,TUSO=1,TOFP=150,FW:simulado")
             await ws.send("RUMBO:ON")
             caso("sensores: RUMBO:ON -> ACK_RUMBO:1", await siguiente(ws, "ACK_RUMBO:") == "ACK_RUMBO:1")
             await ws.send("RUMBO:-125")
@@ -150,6 +150,12 @@ async def probar_sensores():
             caso("sensores: ANT? informa los cuatro valores", await siguiente(ws, "ANT:") == "ANT:100,100,20,20")
             sens = [m for m in [await siguiente(ws, "SENS:", 0.4) for _ in range(8)] if m]
             caso("sensores: SENS llega solo, cada ~100 ms, con perfil AUTO (8 en menos de 3.2 s)", len(sens) == 8 and sens[-1].count(",") == 2)
+            await ws.send("TED:1234")
+            muestra = await siguiente(ws, "TED:1234,")
+            caso("TED devuelve identificador y edad de la mediana", muestra is not None and
+                 ((int(muestra.split(",")[3]) >> 6) & 1023) == 100)
+            await ws.send("TED:no")
+            caso("TED rechaza identificadores no decimales", await siguiente(ws, "NAK_TED") == "NAK_TED")
             await ws.send("GIRAR:90")
             ok = await siguiente(ws, "GIRO_", 3)
             caso("sensores: GIRAR:90 incluye angulo, duracion y ANT", ok is not None and ok.startswith("GIRO_OK:90:") and len(ok.split(":")) == 5 and ok.endswith(":100") and 880 <= int(ok.split(":")[2]) <= 930)

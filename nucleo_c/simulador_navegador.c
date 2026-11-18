@@ -769,6 +769,9 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
             int mm = sim->tof_activo ? laser_ve(sim) : 1200;
             int angulo = angulo_fw_x10(sim);
             int laser_ok = !sim->tof_sin_eco;
+#ifdef NAV_V4
+            int angulo_muestra = angulo;
+#endif
 
             if (sim->j16_activo) {
                 int atraso = (sim->j16_latencia_sens_ms + NAV_TICK_MS / 2) / NAV_TICK_MS;
@@ -789,11 +792,23 @@ ComandoNav sim_correr(Simulador *sim, Navegador *nav, uint32_t duracion_ms)
                     if (viejo > 15) {
                         viejo = 15;
                     }
+#ifdef NAV_V4
+                    angulo_muestra = sim->j16_hist_angulo[(sim->j16_n_ticks - 1 - viejo) & 15];
+#endif
                     mm = sim->v2_hist_laser[(sim->j16_n_ticks - 1 - viejo) & 15];
                     laser_ok = sim->v2_hist_laser_ok[(sim->j16_n_ticks - 1 - viejo) & 15];
                 }
             }
             sim->proximo_sens_ms = sim->t_ms + 100;
+#ifdef NAV_V4
+            if (nav->guardia_v4 && sim->v2_sens_coherente) {
+                /* Dos periodos cubren la mediana. La red se simula aparte en el historial. */
+                int meta = 32 | ((100 + 2 * sim->j16_latencia_sens_ms) << 6) | ((sim->j16_n_ticks & 255) << 16);
+                navegador_aporte_sens(nav, mm, sim->tof_activo, laser_ok, angulo, sim->t_ms);
+                navegador_aporte_sens_muestra(nav, mm, sim->tof_activo && !sim->tof_perdido,
+                                              sim->tof_activo && laser_ok && mm > 0, angulo_muestra, 1, sim->t_ms, meta);
+            } else
+#endif
             navegador_aporte_sens(nav, mm, (sim->tof_activo && !sim->tof_perdido) ? 1 : 0,
                                  sim->tof_activo && laser_ok && mm > 0, angulo, sim->t_ms);
             if (sim->tof_activo && !sim->tof_perdido && sim->cmd_previo == NAV_CMD_FORWARD && !sim->tof_parado) {

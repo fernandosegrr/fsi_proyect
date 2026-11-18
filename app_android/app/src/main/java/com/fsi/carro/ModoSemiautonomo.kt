@@ -205,7 +205,7 @@ class ModoSemiautonomo(
         NavegadorNativa.ponerAutoridadLaser(if (logica.autoridadLaser) 1 else 0)
         Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo}")
         logica.alGiro = { codigo, _, real, ms, ant -> NavegadorNativa.aporteGiro(codigo, real, ms, ant, SystemClock.elapsedRealtime()) }
-        logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime(), banderas and 1 != 0 && banderas and 8 == 0) }
+        logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime(), banderas and 1 != 0 && banderas and 8 == 0, banderas) }
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
         logica.alTofParo = { mm ->
             CajaNegra.linea("EV TOF_PARO mm=$mm")
@@ -411,7 +411,7 @@ class ModoSemiautonomo(
             }
             NavegadorNativa.aporteModelo(requerido, modeloVigente, ahora)
         }
-        val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
+        val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10), fuente?.cuadroTomado?.resultado)
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
         // Autónomo v2, caja negra: el estado de este tick, lo que mandó el carro y, si hubo cuadro nuevo, los números de la visión.
         CajaNegra.linea(NavegadorNativa.cajaNegra(ahora) + " ang=${logica.anguloX10} mm=${logica.distanciaMm} bs=${logica.banderasSens}")

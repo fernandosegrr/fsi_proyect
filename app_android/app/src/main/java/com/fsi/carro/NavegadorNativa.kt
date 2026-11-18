@@ -65,7 +65,7 @@ object NavegadorNativa {
      * (10 enteros; se usan hay/cercanía de izquierda, centro y derecha) y solo se mira si
      * `hayCuadro` es verdadero. Devuelve el comando (CMD_*).
      */
-    external fun tick(ahoraMs: Long, hayCuadro: Boolean, obstaculos: IntArray): Int
+    external fun tick(ahoraMs: Long, hayCuadro: Boolean, obstaculos: IntArray, detalle: IntArray?): Int
 
     /**
      * Dice cuánto se atrasa la cámara en ms (0 con la cámara del teléfono; ~300 con la del carro por WiFi). Los cuadros que todavía
@@ -125,7 +125,7 @@ object NavegadorNativa {
     external fun aporteGiro(codigo: Int, realX10Fw: Int, ms: Int, ant: Int, ahoraMs: Long)
 
     /** SENS: láser y ángulo (+ izquierda). imuLista excluye IMU caída o calibrando de la pose. */
-    external fun aporteSens(mm: Int, tofVivo: Boolean, tofValida: Boolean, anguloX10: Int, ahoraMs: Long, imuLista: Boolean)
+    external fun aporteSens(mm: Int, tofVivo: Boolean, tofValida: Boolean, anguloX10: Int, ahoraMs: Long, imuLista: Boolean, banderas: Int)
 
     /** 1 (una sola vez) si el navegador pide que se mande IMU?: se perdió la respuesta de un giro por ángulo y hay que saber cuánto giró antes de repetirlo. */
     external fun tomarConsultaImu(): Int

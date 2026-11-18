@@ -46,5 +46,10 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/vision_tele.c
 )
 
+option(FSI_GUARDIA_V4 "Parada experimental ante percepción incierta" OFF)
+if(FSI_GUARDIA_V4)
+    target_compile_definitions(carro_nativo PRIVATE NAV_V4_GUARDIA=1)
+endif()
+
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})
 target_compile_options(carro_nativo PRIVATE -Wall -Wextra)

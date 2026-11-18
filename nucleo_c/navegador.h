@@ -396,8 +396,10 @@ typedef enum {
 #define NAV_CAUSA_FRENTE_ANCHO          16   /* V2: pared u objeto más ancho que el rodeo máximo (medido con el láser al girar): no hay por dónde */
 #define NAV_CAUSA_SIN_PERCEPCION        17   /* V2: la red neuronal dejó de dar resultados vigentes: no se puede confirmar nada por visión */
 #define NAV_CAUSA_GIRO_BLOQUEADO        18   /* V2 (revisión): el láser vio algo DENTRO del arco que barre el chasis al girar para rodear: el carro dejó de girar */
+#define NAV_CAUSA_FLANCO_INCIERTO       20
+#define NAV_CAUSA_MUESTRA_VIEJA         21
 #define NAV_CAUSA_SIN_LASER             19   /* V3: la ruta cuenta con el láser y este dejó de contestar NAV_TOF_CAIDO_MS a mitad de ruta: sin el sensor fiable no se sigue */
-#define NAV_CAUSAS                      20   /* cuántos códigos hay (para tablas) */
+#define NAV_CAUSAS                      22   /* cuántos códigos hay (para tablas) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -727,6 +729,11 @@ typedef struct {
     int      eco_retroceder;         /* v3: el paro lo confirmó un eco a menos de NAV_ECO_RETROCEDE_MM: antes de girar se retrocede (si hay camino recién pisado) */
     int      tof_visto_vivo;         /* v3: el láser estuvo vivo en esta ruta */
     uint32_t tof_caido_desde_ms;     /* v3: desde cuándo el SENS dice que el láser no vive (0 = vive) */
+    int      guardia_v4;
+    int      cuadros_flanco[2];
+    uint32_t inicio_guardia_ms;
+    int      angulo_muestra_x10;
+    int      secuencia_tof;          /* -1 sin metadatos de adquisición */
     int      laser_caido_para;       /* v3: 1 = detener la ruta si el láser cae (por defecto) */
     int      memoria_eco;            /* v3: 1 = un eco válido y cercano del láser que detuvo al carro no se borra porque luego el láser pierda el eco (ver NAV_V3) */
     int      tof_pendiente;          /* 1 = TOF_PARO llegó mientras esquivaba o volvía a la línea: lo atiende el siguiente tick */
@@ -875,6 +882,10 @@ int navegador_poner_precaucion(Navegador *nav, int modo);
  *  - MEMORIA DEL ECO: si el carro se detuvo con un eco válido, fresco y cercano del láser (<= OBSTACULO_LASER_MM) y que no queda más allá del destino, el obstáculo queda
  *    confirmado como con TOF_PARO: la cámara no lo puede «liberar» y la ausencia de eco después no cuenta como libre. Una pata delgada de un mueble da eco a ratos
  *    (el haz la roza); antes el siguiente cuadro sin eco, con el lado visto solo por el color, reanudaba la marcha hacia ella. 1 = activa (por defecto), 0 = como v2. */
+#ifndef NAV_V4_GUARDIA
+#define NAV_V4_GUARDIA 0            /* experimento de percepción incierta, apagado en la APK normal */
+#endif
+#define NAV_V4 1
 #define NAV_V3                      1
 #define NAV_ECO_MEMORIA_MS         800    /* v3 (revisión): un eco válido y cercano de hace tanto o menos todavía confirma la parada (una pata da eco a ratos) */
 #define NAV_ECO_RETROCEDE_MM      350
@@ -892,6 +903,8 @@ int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);
 void navegador_aporte_sens(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, uint32_t ahora_ms);
 /* Igual, pero con el bit IMU lista de SENS: nunca integra un ángulo de IMU caída/calibrando. */
+void navegador_aporte_sens_muestra(Navegador *nav, int mm, int vivo, int valida, int angulo, int imu_lista,
+                                   uint32_t llegada_ms, int metadatos);
 void navegador_aporte_sens_imu(Navegador *nav, int mm, int tof_vivo, int tof_valida, int angulo_x10_fw, int imu_lista, uint32_t ahora_ms);
 
 /* MENSAJE DE GIRO PERDIDO (J12): si pasa la espera máxima sin GIRO_OK ni GIRO_TIMEOUT, antes de repetir el giro por tiempo el navegador pide IMU? (navegador_tomar_consulta_imu devuelve 1 una vez
