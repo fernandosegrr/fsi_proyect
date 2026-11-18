@@ -112,7 +112,7 @@ def fig_arquitectura():
           "Teléfono Android\nApp LIDIA (Kotlin + JNI)\n• Núcleo de navegación C99\n• Visión RGB+croma + TFLite\n• Supervisión activa J16",
           AZUL_CLARO, AZUL, fs=8.0, bold=True)
     _caja(ax, 37, 60, 26, 34,
-          "ESP32 DevKit (Carro)\nAP WiFi CarroFSI\n192.168.4.1 (:80 /ws)\n• Cola 32 órdenes + WDT\n• Lazo PI RUMBO y GIRO",
+          "ESP32 DevKit (Carro)\nAP WiFi AP del vehículo\n192.168.4.1 (:80 /ws)\n• Cola 32 órdenes + WDT\n• Lazo PI RUMBO y GIRO",
           VERDE_CLARO, VERDE, fs=8.0, bold=True)
     _caja(ax, 71, 60, 27, 34,
           "Freenove ESP32-WROVER\nCámara GC0308 (STA)\n192.168.4.2\n• HQVGA 240×176 @ 20 MHz\n• HTTP :80/:81 y UDP :4210",
@@ -122,7 +122,7 @@ def fig_arquitectura():
     _flecha(ax, (29.8, 80), (36.2, 80), AZUL, lw=1.8, estilo="<|-|>")
     _etiqueta(ax, 33, 88, "WebSocket /ws\nÓrdenes + SENS (10 Hz)", AZUL, fs=7.4, bold=True)
     _flecha(ax, (70.2, 76), (63.8, 76), AMBAR, lw=1.6, estilo="<|-|>", ls="--")
-    _etiqueta(ax, 67, 84, "Se une a AP\nCarroFSI", AMBAR, fs=7.4)
+    _etiqueta(ax, 67, 84, "Se une a AP\nAP del vehículo", AMBAR, fs=7.4)
     _flecha(ax, (70.5, 62), (29.5, 62), VERDE, lw=1.7, rad=0.14)
     _etiqueta(ax, 50, 50.5, "Flujo de video directo a la app (/stream MJPEG, /raw RGB565 o UDP :4210 celdas)", VERDE, fs=7.6, bold=True)
 
@@ -155,7 +155,7 @@ def fig_alimentacion():
     fig, ax = _lienzo(11.2, 5.3)
     # Circuito 1: Lógica y sensores
     _caja(ax, 2, 72, 24, 21, "Powerbank USB #1\nSalida 5 V por cable USB\n(electrónica de control)", VERDE_CLARO, VERDE, fs=7.9, bold=True)
-    _caja(ax, 35, 72, 26, 21, "ESP32 DevKit\nRegulador interno 3.3 V\nControl y red CarroFSI", AZUL_CLARO, AZUL, fs=7.9, bold=True)
+    _caja(ax, 35, 72, 26, 21, "ESP32 DevKit\nRegulador interno 3.3 V\nControl y red AP del vehículo", AZUL_CLARO, AZUL, fs=7.9, bold=True)
     _caja(ax, 70, 72, 28, 21, "Sensores I2C (3.3 V)\nMPU6050 (0x68) + VL53L0X (0x29)\nSDA=GPIO 21 · SCL=GPIO 22", BOSQUE_CLARO, BOSQUE, fs=7.8)
     _flecha(ax, (26.6, 82.5), (34.4, 82.5), VERDE, lw=1.8)
     _etiqueta(ax, 30.5, 87.5, "5 V USB", VERDE, fs=7.4, bold=True)
@@ -365,7 +365,7 @@ def fig_pantallas():
           AZUL_CLARO, AZUL, fs=8.2, bold=True)
 
     tabs = [
-        (2, "Pestaña 1: Inicio", "Estado de red CarroFSI,\nvideo MJPEG, resumen\nde sensores y batería"),
+        (2, "Pestaña 1: Inicio", "Estado de red AP del vehículo,\nvideo MJPEG, resumen\nde sensores y batería"),
         (27, "Pestaña 2: Manual", "Cruceta de mando,\nperfiles MANUAL/AUTO,\ngiro por ángulo y PARO"),
         (52, "Pestaña 3: Rutas", "Cuadrícula 20 cm, aviso\nde calibración (J16),\nejecutar y simular"),
         (77, "Pestaña 4: Más", "Ajustes, acceso a las\n5 pantallas completas,\nayuda y versión"),
@@ -392,7 +392,7 @@ def fig_desarrollo():
     fig, ax = _lienzo(11.2, 4.7)
     etapas = [
         (2, "Etapa 1\nControl WiFi\ny seguridad",
-         "AP CarroFSI,\ncola 32 órdenes,\nwatchdog 1 s",
+         "AP AP del vehículo,\ncola 32 órdenes,\nwatchdog 1 s",
          AZUL_CLARO, AZUL),
         (22, "Etapa 2\nNúcleo C99\ny puente JNI",
          "Cuadrícula 20 cm,\ncalibración y\nsuite en PC",
@@ -448,7 +448,7 @@ def lamina_carro():
 
 def lamina_app():
     capturas = [
-        (IMAGENES / "foto_10_app_conexion.png", "(a) Pestaña Inicio:\nConectado a CarroFSI"),
+        (IMAGENES / "foto_10_app_conexion.png", "(a) Pestaña Inicio:\nConectado a AP del vehículo"),
         (IMAGENES / "foto_12_app_editor_rutas.png", "(b) Pestaña Rutas:\nReconectando fuera de la red"),
         (IMAGENES / "foto_17_app_ajustes_red.png", "(c) Pantalla Ajustes:\nEstado sin conexión activa"),
     ]

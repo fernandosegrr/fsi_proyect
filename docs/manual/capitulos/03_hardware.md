@@ -22,7 +22,7 @@ El inventario electrónico embarcado sobre el chasis consta de cinco módulos pr
 
 | Componente | Modelo / Especificación | Interfaz y dirección / pines | Función en el vehículo | Estado de evidencia |
 |---|---|---|---|---|
-| **Microcontrolador principal** | `ESP32 DevKit V1` (`ESP-WROOM-32`, 240 MHz, WiFi 2.4 GHz) | `PWM`: `GPIO 27, 26, 25, 33`<br>`I2C`: `GPIO 21 (SDA), 22 (SCL)` | Punto de acceso `CarroFSI` (`192.168.4.1`), control de tracción, lectura de sensores y seguridad local. | `VALIDADO EN EL CARRO` |
+| **Microcontrolador principal** | `ESP32 DevKit V1` (`ESP-WROOM-32`, 240 MHz, WiFi 2.4 GHz) | `PWM`: `GPIO 27, 26, 25, 33`<br>`I2C`: `GPIO 21 (SDA), 22 (SCL)` | Punto de acceso `AP del vehículo` (`192.168.4.1`), control de tracción, lectura de sensores y seguridad local. | `VALIDADO EN EL CARRO` |
 | **Driver de motores** | Puente H doble `TC1508A` (reemplazo funcional de `L298N` en baja tensión) | `IN1=27`, `IN2=26` (izq.)<br>`IN3=25`, `IN4=33` (der.)<br>`VDD` a `4×AA`; `GND` común | Conmuta la corriente del portapilas `4×AA` hacia los 4 motores `TT` con modulación `PWM` a `1,000 Hz` (8 bits, `0..255`). | `VALIDADO EN EL CARRO` |
 | **Giroscopio MEMS** | `MPU6050` (6 ejes; se emplea el eje $Z$ de velocidad angular $\omega_z$) | Bus `I2C` a `400 kHz`<br>Dirección `0x68`<br>Alimentación `3.3 V` | Mide velocidad de guiñada en el rango de `±500 °/s` (`65.5 LSB/(°/s)`), muestreado a `200 Hz` para giros y rumbo. | `VALIDADO EN EL CARRO` |
 | **Sensor de distancia** | Láser de tiempo de vuelo (*ToF*) `VL53L0X` (`940 nm`) | Bus `I2C` a `400 kHz`<br>Dirección `0x29`<br>Alimentación `3.3 V` | Mide distancia frontal en milímetros (ventana válida `20..2000 mm`) cada `20 ms`; dispara `TOF_PARO` bajo `120 mm`. | `VALIDADO EN EL CARRO` |

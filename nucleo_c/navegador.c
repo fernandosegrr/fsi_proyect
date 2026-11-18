@@ -1415,6 +1415,12 @@ static void ubicar_en_linea(const Navegador *nav, long x, long y, int *tramo, lo
     int desde = k0 - 1, hasta = k0 + NAV_VENTANA_TRAMOS, k;
     long mejor_desvio = -1;
 
+    *tramo = 0;
+    *s_mm = 0;
+    *desvio_mm = 0;
+    if (nav->n_puntos < 2) {
+        return;  /* no hay segmento sobre el que proyectar la pose */
+    }
     if (desde < 0) {
         desde = 0;
     }
@@ -1424,9 +1430,7 @@ static void ubicar_en_linea(const Navegador *nav, long x, long y, int *tramo, lo
     if (desde > hasta) {
         desde = hasta;
     }
-    *tramo = (hasta < 0) ? 0 : desde;
-    *s_mm = 0;
-    *desvio_mm = 0;
+    *tramo = desde;
     for (k = desde; k <= hasta; k++) {
         long ax = punto_ruta_x(nav, k), ay = punto_ruta_y(nav, k);
         long vx = punto_ruta_x(nav, k + 1) - ax, vy = punto_ruta_y(nav, k + 1) - ay;
@@ -2303,6 +2307,7 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
 
     if (nav->indice_objetivo >= nav->n_puntos) {
         nav->estado = NAV_TERMINADO;   /* ruta de un solo punto: ya está en el destino */
+        nav->fin_verificado = 1;       /* no hay tramo ni obstáculo que rebasar */
         return NAV_OK;
     }
     if (planificar(nav) != NAV_OK) {

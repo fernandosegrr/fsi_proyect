@@ -14,14 +14,14 @@ Antes de conectar cualquier cable USB o accionar el interruptor del portapilas, 
 
 ## 11.2 Secuencia de encendido y calibración en reposo
 
-El orden de encendido es importante porque el firmware de la `ESP32 DevKit` calibra el sesgo en reposo (`bias`) del giroscopio `MPU6050` durante el primer medio segundo tras recibir energía (`100` muestras a `200 Hz`), y porque la cámara `Freenove` necesita que el punto de acceso `CarroFSI` ya exista para asociarse a él:
+El orden de encendido es importante porque el firmware de la `ESP32 DevKit` calibra el sesgo en reposo (`bias`) del giroscopio `MPU6050` durante el primer medio segundo tras recibir energía (`100` muestras a `200 Hz`), y porque la cámara `Freenove` necesita que el punto de acceso `AP del vehículo` ya exista para asociarse a él:
 
 | Paso | Acción del operador | Resultado esperado y verificación |
 |---|---|---|
 | **1. Mantener motores apagados** | Colocar el interruptor del portapilas `4×AA` en **`OFF`** y apoyar el carro inmóvil sobre el piso plano. | Los motores no pueden moverse mientras el microcontrolador arranca y calibra el giroscopio. |
-| **2. Energizar `ESP32 DevKit`** | Conectar la **Powerbank USB #1** a la placa `ESP32 DevKit` sin tocar ni mover el chasis durante `2 segundos`. | La placa crea la red `CarroFSI` (`192.168.4.1`) y completa la calibración inicial de `MPU6050` (`imu_calibrada = 1`). |
-| **3. Energizar cámara `Freenove`** | Conectar la **Powerbank USB #2** (propia de la cámara) a la placa `Freenove ESP32-WROVER`. | La cámara se une como cliente a `CarroFSI` con la IP `192.168.4.2` y activa `/stream` (`:81`) y `UDP :4210`. |
-| **4. Conectar el teléfono Android** | Unir el teléfono a la red WiFi `CarroFSI` (desactivando el cambio automático a datos móviles) y abrir la app **`LIDIA`**. | La pestaña `Inicio` muestra estado `Conectado`, imagen en vivo de la cámara y versión `FW:6d1b213-20261110`. |
+| **2. Energizar `ESP32 DevKit`** | Conectar la **Powerbank USB #1** a la placa `ESP32 DevKit` sin tocar ni mover el chasis durante `2 segundos`. | La placa crea la red `AP del vehículo` (`192.168.4.1`) y completa la calibración inicial de `MPU6050` (`imu_calibrada = 1`). |
+| **3. Energizar cámara `Freenove`** | Conectar la **Powerbank USB #2** (propia de la cámara) a la placa `Freenove ESP32-WROVER`. | La cámara se une como cliente a `AP del vehículo` con la IP `192.168.4.2` y activa `/stream` (`:81`) y `UDP :4210`. |
+| **4. Conectar el teléfono Android** | Unir el teléfono a la red WiFi `AP del vehículo` (desactivando el cambio automático a datos móviles) y abrir la app **`LIDIA`**. | La pestaña `Inicio` muestra estado `Conectado`, imagen en vivo de la cámara y versión `FW:6d1b213-20261110`. |
 | **5. Verificar `Sensores`** | Abrir `Más → Sensores` y revisar ángulo, distancia láser y banderas (`flags = 7`). Si el carro se movió al conectarlo, pulsar `Calibrar IMU` (`CAL_IMU`). | El ángulo marca `0.0°` estable en reposo, el láser mide la distancia real en milímetros y `RUMBO` aparece habilitado (`ON`). |
 | **6. Energizar tracción (`4×AA`)** | Pasar el interruptor del portapilas `4×AA` a **`ON`**. | El puente H `TC1508A` recibe potencia y el vehículo queda listo para moverse. |
 

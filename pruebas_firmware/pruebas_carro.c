@@ -918,12 +918,12 @@ static void prueba_direcciones(void)
 #define ESTRES_N_COMANDOS 100000
 
 typedef struct {
-    volatile int      productor_terminado;
+    int               productor_terminado; /* compartido bajo el mismo mutex que la cola */
     volatile int      stops_enviados;
     volatile int      cola_coherente;
     volatile int      giros_naturales;   /* giros que terminaron solos (GIRO_OK o GIRO_TIMEOUT): cada uno apaga los motores sin que nadie mande STOP */
     volatile int      giros_pedidos;
-    volatile int      vueltas;        /* vueltas de loop() completas del consumidor (con los mensajes ya leídos) */
+    int               vueltas;        /* vueltas completas, compartidas bajo el mutex de la cola */
     const char       *ultimo_movimiento;
     const char       *comando_cierre;
     const char * const *mezcla;       /* los 8 comandos entre los que sortea el productor */
@@ -977,15 +977,18 @@ static void *hilo_productor_estres(void *arg)
             sched_yield();
         }
         if (ctx->paso_a_paso) {
-            int v0 = ctx->vueltas;
+            int v0;
+            carro_bloquear();
+            v0 = ctx->vueltas;
+            carro_desbloquear();
 
             for (;;) {
-                int q;
+                int listo;
 
                 carro_bloquear();
-                q = carro_cola_cantidad();
+                listo = carro_cola_cantidad() == 0 && ctx->vueltas - v0 >= 2;
                 carro_desbloquear();
-                if (q == 0 && ctx->vueltas - v0 >= 2) {   /* la vuelta que la ejecutó terminó y hubo otra entera después (sus mensajes ya se leyeron) */
+                if (listo) {   /* la vuelta que la ejecutó terminó y hubo otra entera después (sus mensajes ya se leyeron) */
                     break;
                 }
                 sched_yield();
@@ -1000,7 +1003,9 @@ static void *hilo_productor_estres(void *arg)
             for (k = 0; k < espera * 25u; k++) {}
         }
     }
+    carro_bloquear();
     ctx->productor_terminado = 1;
+    carro_desbloquear();
     return NULL;
 }
 
@@ -1029,7 +1034,9 @@ static void vuelta_loop_estres(ContextoEstres *ctx, int hay_orden)
             ctx->giros_naturales++;
         }
     }
+    carro_bloquear();
     ctx->vueltas++;
+    carro_desbloquear();
 }
 
 static void *hilo_consumidor_estres(void *arg)

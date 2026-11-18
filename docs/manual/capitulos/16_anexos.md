@@ -40,7 +40,7 @@ Este capítulo reúne las referencias de consulta rápida del proyecto: (16.1) e
 | **Motor derecho (`IN3`, `IN4`)** | `GPIO 25`, `GPIO 33` | Canal 2 del puente H `TC1508A` | `PWM` `1000 Hz`, 8 bits (`MANUAL=255`, `AUTO=210`). |
 | **Bus `I2C` (`SDA`, `SCL`)** | `GPIO 21`, `GPIO 22` | `MPU6050` (`0x68`) y `VL53L0X` (`0x29`) | Reloj `400 kHz`, alimentación `3.3 V`. |
 | **Carga de *powerbank*** | `GPIO 2` | Pulso de `200 ms` cada `8,000 ms` | Declarado en `config.h`; efecto físico `NO MEDIDO`. |
-| **Red `CarroFSI` (carro / cámara)** | `192.168.4.1` / `192.168.4.2` | Control `:80/ws`; video `:81/stream`, `:80/raw`, `UDP :4210` | Un cliente de video simultáneo; paquetes `CEL1` de `1,244 B`. |
+| **Red `AP del vehículo` (carro / cámara)** | `192.168.4.1` / `192.168.4.2` | Control `:80/ws`; video `:81/stream`, `:80/raw`, `UDP :4210` | Un cliente de video simultáneo; paquetes `CEL1` de `1,244 B`. |
 
 ## 16.3 Correspondencia entre capítulos y archivos del repositorio
 

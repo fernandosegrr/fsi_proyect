@@ -134,3 +134,6 @@ Rama `feat/autonomo-v3`. Todo lo de esta sección salió del banco; **nada está
 | Objeto bajo que solo ve el color | 967 ok, 22 contactos | 986 ok, 14 contactos | 1000 ok |
 
 Los muebles con patas **siguen sin llegar al 99 %**: más de la mitad de las corridas con silla pasan entre las patas sin tocar (`bajo_mueble`) y la ayuda (causas 16 y 18) sigue siendo la respuesta cuando el giro no cabe. Un modelo alterno del láser que promedia el cono (SUPUESTO) da los mismos contactos y más ayudas (23 y 14 contra 7 y 4 en 300 corridas): el resultado no depende de un láser simulado demasiado optimista.
+
+## Guardia experimental de v4
+SIMULADO. Con la bandera de compilación guardiaV4, el carro espera una medida verificable antes de arrancar. Tres cuadros consecutivos con evidencia lateral próxima dentro de la franja de 100 mm por lado pueden provocar STOP y causa 20. El vencimiento de la medida provoca causa 21. Ambas requieren cancelar la ruta y revisar el espacio o el sensor. El cierre espera el asentamiento y datos posteriores. El carro carece de medición de posición absoluta. La bandera viene apagada y las compuertas siguen rojas.

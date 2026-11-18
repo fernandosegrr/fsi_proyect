@@ -113,3 +113,6 @@ No hay encoders: la distancia se estima por tiempo. El pivote es **asimétrico**
 ## Pendiente de medición física
 
 Todo. Orden propuesto en el [protocolo](protocolo_prueba_fisica_autonomo_v2.md): rectas sin obstáculos, caja de 20 × 20, caja corrida, banquito, objeto largo, caja con pared a un lado, falsos positivos provocados, cortes y rutas con giros (con una caja antes de la esquina). Los datos del [10-nov](estado_20261110.md) y el [CSV físico](pruebas_fisicas_20261110.csv) son históricos y no validan esta rama.
+
+## Rama experimental v4 · 18 de noviembre
+VALIDADO EN EL CARRO con software anterior: cuatro rectas con cinta dieron 25.7–29.4 cm/s de viaje. SIMULADO: persisten impactos con muebles y sólidos sin eco. La instrumentación TED acota la antigüedad desde la lectura en I2C e incluye la ida y vuelta, pero el instante óptico dentro de la integración es NO MEDIDO. El umbral de 400 ms llega a representar 12 cm de viaje a 30 cm/s. El banco usa un tick de 50 ms y aproximaciones al filtro y al freno del microcontrolador. PENDIENTE: medir frenado, retardo, huella y tasa de detección por material antes de mover un carro con esta política. [Protocolo físico v4](protocolo_prueba_fisica_v4.md).

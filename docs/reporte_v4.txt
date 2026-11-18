@@ -1,0 +1,29 @@
+Carro FSI · Decisión para la exposición · 18 de noviembre de 2026
+
+Conservar v3 para la exposición. La guardia v4 reduce los contactos simulados, pero sigue tocando sólidos y detiene demasiadas rutas que v3 resuelve. La rama se entrega con guardiaV4 apagada. Con ese valor el banco reproduce exactamente las 98 filas de v3, incluidos sus fallos.
+
+VALIDADO EN EL CARRO con la versión anterior. De siete rectas registradas, seis llegaron y una se interrumpió al perder video. Hubo cero contactos y dos pausas sin motivo anotado. Cuatro rectas con cinta dieron 25.7–29.4 cm/s de viaje frente a los 19.3 cm/s del modelo anterior. Se usaron esas medidas para calibrar el banco. Ninguna de esas siete corridas probó la guardia v4 ni el paso entre patas.
+
+SIMULADO. Cada banco pareado comprende 11 760 corridas entre v1.1, v3 y el candidato. Se congelaron las semillas antes de modificar el navegador. Cada escena tiene 40 repeticiones por versión y perfil. Las parejas siguientes dan primero el láser normal y después el pesimista. AYUDA total incluye las detenciones posteriores a un contacto o a una entrada bajo un mueble.
+
+1. Cero contactos sólidos — NO CUMPLE. En DESARROLLO, la guardia dio 0/560 y 2/560, frente a 1/560 y 53/560 en v3. En RESERVADO dio 3/600 y 5/600, frente a 41/600 y 82/600. Con v1.1 fueron 68 y 80 en desarrollo, 77 y 82 en reservado. El bloque reservado sin eco aún recibió 2 contactos de 40 en cada perfil de v4.
+
+2. Menos contactos y menos AYUDA con patas — NO CUMPLE. En el banquito, los contactos bajaron de 12/24 a 2/9 en DESARROLLO y de 9/15 a 4/8 en RESERVADO. Sus AYUDA subieron de 9/11 a 39/37 y de 7/11 a 38/39. En silla, los contactos bajaron de 5/6 a 2/0 y de 6/6 a 1/1. Sus AYUDA subieron de 4/1 a 34/36 y de 9/3 a 39/36. Cada cifra corresponde a 40 corridas. También quedaron entradas bajo mueble en ambos conjuntos.
+
+3. AYUDA solo sin salida — NO CUMPLE. Con caja y pared lateral, las AYUDA de v3 y v4 fueron respectivamente 18/15 y 39/39 en DESARROLLO, 16/15 y 37/37 en RESERVADO. En desarrollo normal, hasta en ruta libre y limpia hubo 31 AYUDA de 40 con v4. La causa 20 indica flanco incierto y la 21 indica falta de una adquisición láser vigente. Estas causas permiten investigar la intervención.
+
+4. Falsos positivos sin esquives ni ayudas y con menos paradas — NO CUMPLE. En sol, sombra, reflejo y cambio de exposición (160 corridas por conjunto y perfil), v4 dio 87 esquives, 133 AYUDA y 75 corridas con parada en DESARROLLO. Dio 65, 137 y 73 en RESERVADO. Ambos perfiles de láser coincidieron. V3 dio cero esquives y cero AYUDA, con 8 y 9 corridas con parada, respectivamente. Los esquives son eventos y una corrida puede contener varios.
+
+5. Terminado con el obstáculo ya atrás — CUMPLE EN LA MUESTRA SIMULADA. Hubo cero falsos finales en 153 llegadas con láser normal y 130 con pesimista en DESARROLLO. En RESERVADO hubo cero en 153 y 145 llegadas. V3 también dio cero entre 848/852 y 905/915 llegadas. El banco comprueba la esquina trasera contra la cara lejana al declarar el fin. La fuerte caída de llegadas limita el alcance del resultado. NO MEDIDO en el carro.
+
+6. Ninguna métrica peor que v3 ni v1.1 — NO CUMPLE. La guardia dejó 94 de 98 combinaciones con alguna compuerta roja. Con la bandera apagada quedaron 86 de 98. En la comparación heredada de precisión (sin guardia) fallaron 4 de 6 comparaciones con v1.1. En la caja 20 × 20 con RUMBO, el error medio/p95 pasó de 17/40 a 18/44 mm.
+
+Implementado y probado en PC. El firmware del carro anuncia TED=1 y devuelve el identificador de consulta, distancia, ángulo y validez de la muestra seleccionada por la mediana, secuencia y edad conservadora de la ventana. Android suma la ida y vuelta, registra la telemetría y el núcleo descarta muestras repetidas, antiguas o fuera de orden. La guardia exige evidencia reciente antes de mover y al cerrar, y detiene la ruta por flanco cercano persistente. Las causas 20 y 21 requieren cancelar la ruta. La APK normal conserva el protocolo anterior. Para probar la guardia completa hacen falta la APK experimental y firmware nuevo del carro. La placa de cámara conserva su firmware.
+
+La verificación con sanitizadores descubrió una lectura fuera de los límites al proyectar una ruta sin tramo. Se corrigió el caso de un solo punto para que permanezca en STOP. También se sincronizaron dos campos compartidos en la prueba de estrés del firmware en PC.
+
+Solo diseño o descartado. Quedaron en diseño la velocidad en línea, el barrido de patas, el diagnóstico de atasco, el estado completo del láser y la recuperación del bus. Se descartaron para esta entrega el retroceso automático junto a pared y el reaprendizaje de piso en marcha por falta de evidencia de espacio libre. El banco aproxima la mediana, el transporte y el freno local. El muestreo de contacto cada 50 ms puede omitir un roce más breve. El sensor frontal carece de cobertura completa del chasis.
+
+PENDIENTE / NO MEDIDO. Faltan M1–M10, la distancia física de frenado desde el pulso de arranque, los arcos bajo carga, el retorno de patas, la edad extremo a extremo y la separación de la cola al terminar. Las seis metas siguen NO MEDIDAS para v4 en el carro. La primera prueba del protocolo es inmóvil, con potencia de motores desconectada. La Fase 4 requiere autorización propia.
+
+Evidencia reproducible en los archivos fase2_defecto.txt, fase2.txt y fase3.txt de docs/precision/v4/. Cada fila contiene desenlaces excluyentes y banderas totales. Los resultados de comandos, las limitaciones y los ensayos físicos propuestos están en docs/progreso_v4.md y docs/protocolo_prueba_fisica_v4.md.

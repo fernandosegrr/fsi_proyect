@@ -8,7 +8,7 @@ La interfaz de usuario se hospeda en `MainActivity`, que presenta una cabecera p
 
 | Pantalla / Componente | Clase en Kotlin | Propósito dentro de la operación |
 |---|---|---|
-| **Pestaña 1 — `Inicio`** | `InicioFragment.kt` | Resumen del estado del enlace (`CarroFSI`), vista rápida del flujo de cámara, lecturas actuales de sensores (`SENS`), versión verificada y acceso al asistente. |
+| **Pestaña 1 — `Inicio`** | `InicioFragment.kt` | Resumen del estado del enlace (`AP del vehículo`), vista rápida del flujo de cámara, lecturas actuales de sensores (`SENS`), versión verificada y acceso al asistente. |
 | **Pestaña 2 — `Manual`** | `ManualFragment.kt` | Cruceta de conducción manual con latido cada `250 ms`, conmutador de perfil (`MANUAL` / `AUTO`), botones de giro rápido (`±90°`), video en vivo y botón rojo permanente `PARO`. |
 | **Pestaña 3 — `Rutas`** | `RutasFragment.kt` + `EjecutarRutaFragment.kt` | Editor interactivo sobre cuadrícula de `20 cm` (`EditorRutaView`), catálogo de rutas predefinidas (`RutasPredefinidas`), simulador en pantalla, validación de calibración (J16) y panel de ejecución semiautónoma. |
 | **Pestaña 4 — `Más`** | `MasFragment.kt` + `AjustesFragment.kt` | Configuración de direcciones IP (`192.168.4.1` y `192.168.4.2`), modo de cámara (`JPEG`, `RAW`, `CELDAS`), acceso a las cinco actividades completas, ayuda (`AyudaFragment`) e información de compilación (`AcercaFragment`). |
@@ -31,11 +31,10 @@ Si cada pestaña o actividad abriera su propio `WebSocket` hacia `192.168.4.1` y
 
 En la cabecera y tarjetas de estado de la interfaz, la aplicación distingue tres situaciones operativas claramente diferenciadas para que el usuario nunca confunda una pantalla cargada en el teléfono con un vehículo realmente enlazado:
 
-1. **Conectado (`En línea`):** el teléfono está asociado al punto de acceso `CarroFSI`, el `WebSocket` en `192.168.4.1/ws` responde `PONG` y se reciben tramas `CAPS` y `SENS`.
-2. **Reconectando (`Fuera de CarroFSI` o caída temporal):** el usuario abrió la pantalla (por ejemplo, el editor de `Rutas` para planificar o simular en seco), pero el teléfono está conectado a otra red doméstica o el carro está apagado; `Enlace.kt` reintenta la conexión periódicamente y muestra el aviso de reconexión sin bloquear la edición ni el simulador local.
+1. **Conectado (`En línea`):** el teléfono está asociado al punto de acceso `AP del vehículo`, el `WebSocket` en `192.168.4.1/ws` responde `PONG` y se reciben tramas `CAPS` y `SENS`.
+2. **Reconectando (`Fuera de AP del vehículo` o caída temporal):** el usuario abrió la pantalla (por ejemplo, el editor de `Rutas` para planificar o simular en seco), pero el teléfono está conectado a otra red doméstica o el carro está apagado; `Enlace.kt` reintenta la conexión periódicamente y muestra el aviso de reconexión sin bloquear la edición ni el simulador local.
 3. **Sin conexión activa (configuración en `Ajustes`):** pantalla de inspección o cambio de parámetros (`IP`, modo de cámara, preferencias) cuando aún no se ha iniciado sesión con el hardware.
 
-[FIGURA:lamina_app|Tres capturas reales de la aplicación Android que ilustran los tres estados de enlace: (a) conectado en Inicio, (b) reconectando fuera de la red en Rutas y (c) sin conexión en Ajustes.]
 
 ## 9.3 Supervisión de seguridad y controles J16 en la aplicación
 

@@ -152,6 +152,14 @@ static void pruebas_rutas_raras(void)
          nav.estado == NAV_TERMINADO && sim_x_mm(&sim) == x0 && sim_y_mm(&sim) == y0 &&
          sim_contar_cambios_a(&sim, NAV_CMD_FORWARD) == 0);
 
+    preparar(UN_PUNTO, N(UN_PUNTO));
+    nav.guardia_v4 = 1;
+    nav.usa_tof = 1;
+    correr(3000);
+    caso("ruta sin tramo con guardia: queda en STOP sin iniciar un rodeo en la meta",
+         nav.estado == NAV_TERMINADO && nav.fin_verificado &&
+         sim.n_cambios == 1 && sim.cambios[0].comando == NAV_CMD_STOP);
+
     /* ESPERANDO (ruta cargada pero sin comenzar): nunca hay movimiento. */
     navegador_iniciar(&nav);
     navegador_cargar_ruta(&nav, RECTA, N(RECTA));

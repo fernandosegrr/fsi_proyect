@@ -32,7 +32,7 @@ Además, el servidor de video continuo (`:81/stream`) acepta deliberadamente **u
 
 ## 5.3 Endpoints HTTP y protocolo UDP de celdas (`1,244` bytes)
 
-La cámara se conecta como estación (`STA`) a la red `CarroFSI` solicitando la dirección IP estática **`192.168.4.2`** y expone cinco servicios de red:
+La cámara se conecta como estación (`STA`) a la red `AP del vehículo` solicitando la dirección IP estática **`192.168.4.2`** y expone cinco servicios de red:
 
 | Servicio / Endpoint | Protocolo y puerto | Formato de salida | Tamaño por entrega | Uso dentro del sistema |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@ De este modo, en lugar de transmitir `84,480` bytes crudos o `~4,837` bytes comp
 
 Dado que la cámara opera con su propia batería portátil y sobre un enlace `WiFi` sujeto a interferencias, el firmware incluye el módulo en `C99` `recuperacion.c` (verificado en computadora dentro de `pruebas_firmware`), que supervisa tres contadores de salud y aplica acciones escalonadas sin intervención humana:
 
-1. **Pérdida de asociación `WiFi`:** si la cámara pierde conexión con el punto de acceso `CarroFSI`, intenta reconectar cada **`2,000 ms`** (`RECUP_WIFI_REINTENTO_MS`). Si acumula **`15` intentos fallidos** (`~30 s` sin red), solicita un reinicio limpio del microcontrolador (`RECUP_REINICIAR_ESP`).
+1. **Pérdida de asociación `WiFi`:** si la cámara pierde conexión con el punto de acceso `AP del vehículo`, intenta reconectar cada **`2,000 ms`** (`RECUP_WIFI_REINTENTO_MS`). Si acumula **`15` intentos fallidos** (`~30 s` sin red), solicita un reinicio limpio del microcontrolador (`RECUP_REINICIAR_ESP`).
 2. **Fallos consecutivos del sensor `GC0308`:** si `esp_camera_fb_get()` devuelve `NULL` en **`5` lecturas seguidas** (`RECUP_FALLOS_CAM_REINICIO`), el módulo ejecuta una reinicialización en caliente del periférico de cámara (`RECUP_REINICIAR_CAMARA`). Si aun así alcanza **`20` fallos consecutivos** (`RECUP_FALLOS_CAM_ESP`), reinicia la placa completa.
 3. **Inactividad prolongada sin producir cuadros:** si transcurren **`10,000 ms`** (`RECUP_SIN_CUADRO_MS`) sin que la tarea de captura logre actualizar el buzón, dispara un reinicio completo para destrabar el bus `I2S/DMA` de la cámara.
 

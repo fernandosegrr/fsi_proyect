@@ -465,7 +465,7 @@ def construir_portada(story):
         )
     )
     story.append(Paragraph("Base v1.1 · revisión pendiente", STYLES["cover_ver"]))
-    story.append(Paragraph("16-nov-2026: autónomo v3 (investigación, revisión y endurecimiento), SIMULADO; NO MEDIDO en el carro.<br/>No constituye una publicación v1.2.", STYLES["cover_sub"]))
+    story.append(Paragraph("Autónomo v4 experimental · 18 de noviembre de 2026<br/>SIMULADO · Validación física PENDIENTE", STYLES["cover_sub"]))
     linea_inf = Table([[""]], colWidths=[ANCHO_UTIL * 0.55], rowHeights=[1.5])
     linea_inf.setStyle(
         TableStyle([("BACKGROUND", (0, 0), (-1, -1), VERDE), ("ALIGN", (0, 0), (-1, -1), "CENTER")])
@@ -508,9 +508,8 @@ def construir_portada(story):
         [
             Paragraph("<b>Revisión del repositorio:</b>", STYLES["td"]),
             Paragraph(
-                '<font name="DejaVuMono" size="8.2">Base v1.1: bd1727b; autónomo v2 del 14-nov-2026; v3 del 16-nov-2026</font><br/>'
-                f"{html.escape(rama)}, contenido del commit {html.escape(git('rev-parse', '--short', 'HEAD'))} "
-                "(SIMULADO; pendiente de validación física)",
+                '<font name="DejaVuMono" size="8.2">Base v1.1 bd1727b</font><br/>'
+                f"Rama {html.escape(rama)} · código revisado {html.escape(git('rev-parse', '--short', 'HEAD'))}",
                 STYLES["td"],
             ),
         ],

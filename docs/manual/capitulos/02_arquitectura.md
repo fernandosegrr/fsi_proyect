@@ -4,12 +4,12 @@ Este capítulo explica cómo se divide el sistema en tres nodos físicos indepen
 
 ## 2.1 Topología de tres nodos y reparto de responsabilidades
 
-El vehículo opera mediante la cooperación de tres nodos que se comunican sobre una red inalámbrica local (`SSID: CarroFSI`) creada por la placa principal del chasis. Ningún nodo depende de internet ni de servidores externos.
+El vehículo opera mediante la cooperación de tres nodos que se comunican sobre una red inalámbrica local (`SSID: AP del vehículo`) creada por la placa principal del chasis. Ningún nodo depende de internet ni de servidores externos.
 
 | Nodo del sistema | Dirección IP y rol de red | Responsabilidad técnica principal | Fuente de energía dedicada |
 |---|---|---|---|
 | **ESP32 DevKit (control y sensores)** | `192.168.4.1` — Punto de acceso (`AP`), servidor `HTTP :80` y `WebSocket /ws` | Cola determinista de comandos, PWM de motores (`1 kHz`), lectura `I2C` a `400 kHz` (`MPU6050` y `VL53L0X`), lazo `PI` de rumbo en rectas (`RUMBO`), giro cerrado (`GIRO`), freno láser local (`120 mm`) y *watchdogs* (`1000 ms` / `5000 ms`). | **Powerbank USB #1** (`5 V` por puerto micro-USB; alimenta también el bus `I2C` a `3.3 V`). |
-| **Freenove ESP32-WROVER (cámara `GC0308`)** | `192.168.4.2` — Cliente (`STA`) unido a `CarroFSI`; servidores `HTTP :80/:81` y `UDP :4210` | Captura continua en resolución `HQVGA` (`240×176` píxeles, `RGB565` a `20 MHz`), compresión `JPEG` por software (calidad `50`), buzón de último cuadro y envío de paquetes de celdas (`1,244 B`). | **Powerbank USB #2** (`5 V` exclusiva para la cámara; aislada galvánicamente del chasis). |
+| **Freenove ESP32-WROVER (cámara `GC0308`)** | `192.168.4.2` — Cliente (`STA`) unido a `AP del vehículo`; servidores `HTTP :80/:81` y `UDP :4210` | Captura continua en resolución `HQVGA` (`240×176` píxeles, `RGB565` a `20 MHz`), compresión `JPEG` por software (calidad `50`), buzón de último cuadro y envío de paquetes de celdas (`1,244 B`). | **Powerbank USB #2** (`5 V` exclusiva para la cámara; aislada galvánicamente del chasis). |
 | **Teléfono Android (`APP:0.4-6d1b213`)** | `192.168.4.x` — Cliente (`STA`) con sesiones persistentes `SesionCarro` y `SesionVideo` | Interfaz de usuario, ejecución nativa `JNI` del núcleo en `C99` (planificación en cuadrícula de `20 cm`, integración de pose en décimas de grado, clasificador cromático (distancia RGB y crominancia normalizada), inferencia `EfficientDet-Lite0`, fusión bajo mutex) y supervisión activa de seguridad. | Batería interna del teléfono móvil. |
 
 *(En el cuadro de tracción, los cuatro motores DC de caja reductora `TT` y la etapa de potencia del puente H `TC1508A` reciben energía de un **portapilas independiente de 4 pilas AA** con interruptor físico, unido por tierra común `GND` a la `ESP32 DevKit`).*

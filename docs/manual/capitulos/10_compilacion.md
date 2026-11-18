@@ -15,7 +15,7 @@ El repositorio está preparado para compilarse y probarse en Windows (con `Power
 
 ### Configuración de credenciales WiFi sin exponer secretos en Git
 
-Por seguridad, el repositorio **nunca almacena contraseñas reales**. En `firmware_carro/` y en `camara_prueba/` se distribuyen únicamente las plantillas `secretos.ejemplo.h`. Antes de compilar por primera vez en una máquina nueva, el desarrollador copia `secretos.ejemplo.h` a `secretos.h` (archivo ignorado por `.gitignore`) y define allí la clave de al menos 8 caracteres de la red `CarroFSI`.
+Por seguridad, el repositorio **nunca almacena contraseñas reales**. En `firmware_carro/` y en `camara_prueba/` se distribuyen únicamente las plantillas `secretos.ejemplo.h`. Antes de compilar por primera vez en una máquina nueva, el desarrollador copia `secretos.ejemplo.h` a `secretos.h` (archivo ignorado por `.gitignore`) y define allí la clave de al menos 8 caracteres de la red `AP del vehículo`.
 
 ### Uso de `scripts/cargar.ps1` y precaución crítica sobre la sonda de placas
 

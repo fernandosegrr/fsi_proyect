@@ -118,3 +118,6 @@ python docs\manual\generar_manual.py
 ## 6. Licencia
 
 Este proyecto se distribuye bajo la **Licencia MIT** (2026). Consulte el archivo [LICENSE](LICENSE) para el texto legal íntegro.
+
+## Ensayos de navegación v4
+La rama experimental añade una parada ante una estructura lateral persistente y una consulta de frescura del láser. La guardia viene apagada. El banco calibrado sigue registrando contactos y la validación física de v4 está pendiente. [Estado y decisión](docs/estado_20261118.md) · [protocolo de piso](docs/protocolo_prueba_fisica_v4.md) · [resultados y fallos por fase](docs/progreso_v4.md).
