@@ -58,6 +58,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compilar_app.ps1
 | v6 reduce contactos con muebles de patas finas y con objetos oscuros sin eco frente a `v3` | `SIMULADO` | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
 | v6 evita el contacto extra de `pared_al_frente` con láser pesimista | `SIMULADO` | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
 | v6 no frena ni esquiva de más que `v3` en piso limpio con ruido realista | **NO CUMPLE en la simulación** (esquives por encima de `v3`); es la pregunta principal de esta prueba | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
+| En semillas nuevas (evaluación ciega, 3 semillas) v6 repite lo de desarrollo: gana contra `v3` en sin eco, muebles y `pared_al_frente` con láser pesimista, y no cumple las compuertas estrictas de piso limpio | `SIMULADO` | [evaluacion_ciega_resultados_v6.txt](evaluacion_ciega_resultados_v6.txt), [autonomo_v6_diseno.md](autonomo_v6_diseno.md), §9 |
 | Cualquier número de contactos, esquives o paradas de `v6` en el carro | `NO MEDIDO` | esta prueba |
 | Velocidad real, pivotes, distancias de frenado con `v6` | `NO MEDIDO` | esta prueba |
 

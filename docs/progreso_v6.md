@@ -77,7 +77,11 @@ Después de cada etapa: pruebas del núcleo y del firmware en verde, equivalenci
 
 ## 5. Fase 4 — congelamiento y evaluación ciega
 
-(se completa al congelar)
+- **Datos físicos nuevos (búsqueda repetida justo antes de congelar, 24-nov, antes de las 16:50):** **no hay ninguno.** Lo más nuevo siguen siendo las 7 cajas negras del 15-nov (`cajas_negras/`) y `docs/pruebas_fisicas_20261114.csv`; las demás `pruebas_fisicas_*` son plantillas. No hay `cn_2026*.txt` ni `pruebas_fisicas_2026*.csv` posteriores al 15-nov 17:00 en el repositorio, `Descargas`, `Escritorio` ni `Documentos`; lo único que apareció fue una copia del CSV del 10-nov en `Documentos/fsi-v4-recuperacion` (datos viejos, ya incluidos). La calibración del banco sigue siendo la de esas 7 corridas.
+- **Congelamiento:** árbol limpio, etiqueta anotada `freeze/v6` (objeto `5cccfbca3da806123b74c09747b40808d26fc7d7`) sobre el commit `b6ccbce33eefd9cd7284bbaf3fa85a080069108f`, publicada. Desde ahí el código no cambió; solo se agregaron documentos.
+- **Semillas nuevas** (generadas después del tag y antes de correr; publicadas antes de la primera corrida): [evaluacion_ciega_semillas_v6.txt](evaluacion_ciega_semillas_v6.txt). A = 1795560573 (marca de tiempo Unix, 16:49:33 hora local), B = 4967971899 (A + 3172411326, de `bd1727be`), C = 14219044177587 (A × 7919).
+- **Una ronda ciega** con `scripts/evaluacion_ciega.ps1` (`v3`, `v5-carbon-fix`, v6; 120 corridas por escenario; ruido 0 y 1; láser normal y pesimista): [evaluacion_ciega_resultados_v6.txt](evaluacion_ciega_resultados_v6.txt) (salida cruda sin editar). Inicio 16:50:00, fin 17:03:52. No se hizo segunda ronda.
+- **Resultado (SIMULADO):** G1 `NO CUMPLE` 12/12; G2 `NO CUMPLE` 9/12; G3 `AVISO` 12/12; G4 `AVISO` 11/12 y `NO CUMPLE` 1; G5 `NO CUMPLE` 9/12; G6 `NO CUMPLE` 8/12; G7 `NO CUMPLE` 12/12. Ganancia limpia: `pared_al_frente` con láser pesimista (contactos 7, 9 y **0** con ruido 0; 2, 3 y **0** con ruido 1, para `v3`, `v5-fix` y v6). Piso limpio con ruido calibrado: mejor que `v5-fix`, peor que `v3` (`libre_limpio` 2 `AYUDA` en 360 corridas contra 0 de `v3`). El hueco de esquives contra `v3` es **mayor** que en `DESARROLLO` y `RESERVADO` (señal de sobreajuste moderado). Detalle, explicaciones corrida por corrida y lista de dónde v6 es peor: [autonomo_v6_diseno.md](autonomo_v6_diseno.md), §9.
 
 ## 6. Lo que falló o no se pudo hacer (sin adornos)
 
@@ -85,6 +89,8 @@ Después de cada etapa: pruebas del núcleo y del firmware en verde, equivalenci
 - v6 **no iguala a v3 en piso limpio** con ruido realista (más esquives y más `AYUDA` en sol, sombra y reflejo; en manchas oscuras duras también sin ruido): es la compensación inevitable por cubrir los objetos oscuros sin eco y los muebles de patas.
 - `terminado_falso` de `silla_patas`: sigue (límite heredado de detección).
 - El contacto residual de `pared_al_frente` con láser pesimista: **3 en 7680 corridas** (`v3` 68, `v5-fix` 59), los tres en RESERVADO con ruido 0; la guardia llegó una lectura de láser (150 ms) tarde. No se subió su margen (60 mm) porque cuesta `AYUDA` en `G5` ([precision/v6/pared_al_frente_n960.txt](precision/v6/pared_al_frente_n960.txt), [precision/v6/margen_guardia_l0.txt](precision/v6/margen_guardia_l0.txt)).
+- **Evaluación ciega (§9 del diseño):** no cumple las compuertas estrictas (G1 y G7 `NO CUMPLE` en las 12 matrices); el hueco de esquives en piso limpio contra `v3` es mayor en las semillas ciegas que en `DESARROLLO` y `RESERVADO`; v6 pide `AYUDA` en `libre_limpio` con ruido calibrado (2 en 360 corridas; `v3` 0).
+- **Un `git push` falló una vez** (el de las semillas, error de red sin más detalle) y se repitió sin cambios antes de correr los escenarios; las semillas quedaron publicadas antes de la primera corrida.
 - **v6 con las tres banderas tiene más contactos que `v5-fix`** (91 contra 75 en `DESARROLLO` y 143 contra 112 en `RESERVADO`, ruido 1, láser normal): ver [autonomo_v6_diseno.md](autonomo_v6_diseno.md), §4.4.
 - La `AYUDA` de las guardias es una pausa: «Continuar» sin mover el carro puede acabar en choque (F3, no corregido; regla 3 del protocolo).
 - **Nada de lo anterior está medido en el carro.** La calibración del banco cubre el ruido de la visión (7 cajas negras de v3, piso limpio); no cubre sol, sombras, reflejos, objetos ni muebles reales.

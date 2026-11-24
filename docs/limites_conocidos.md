@@ -20,6 +20,7 @@
 - **`terminado_falso`:** `silla_patas` lo conserva con las tres versiones (1 de 120 en `RESERVADO` sin ruido); `v6` suma casos sueltos en `dos_muebles`, `banquito35x45` y `caja20_con_sol`.
 - **`pared_al_frente`, residual:** 3 contactos en 7680 (RESERVADO, ruido 0, láser pesimista): la guardia llegó una lectura de láser (150 ms) tarde; subir el margen cuesta `AYUDA` en `caja_y_pared_al_lado` y pasillos.
 - **`caja_y_pared_al_lado`:** `AYUDA` igual o 3 más que `v3` en las celdas del banco.
+- **Evaluación ciega (`freeze/v6`, tres semillas nuevas, [resultados crudos](evaluacion_ciega_resultados_v6.txt)):** mismas ganancias y costos que `DESARROLLO` y `RESERVADO` (ganancia limpia: `pared_al_frente` con láser pesimista, 0 contactos contra 7 y 9 con ruido 0 y 2 y 3 con ruido 1), pero G1 y G7 `NO CUMPLE` en las 12 matrices y un hueco de esquives en piso limpio **mayor** que el de los conjuntos de ajuste (+105 contra +67 y +49 cada 960 corridas). `libre_limpio` con ruido calibrado: 2 `AYUDA` en 360 corridas (`v3` 0). Detalle en [autonomo_v6_diseno.md](autonomo_v6_diseno.md), §9.
 
 **Avisos para quien maneje el carro:**
 
