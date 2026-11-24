@@ -78,10 +78,16 @@ class Ajustes(contexto: Context) {
         get() = preferencias.getBoolean("autoridad_laser", true)
         set(valor) = preferencias.edit().putBoolean("autoridad_laser", valor).apply()
 
-    /** v5-carbon: mejoras de navegación y visión activas por defecto; apagarlo reproduce exactamente v3 para pruebas A/B en campo. */
+    /** v5-carbon (referencia): APAGADO por defecto = comportamiento v3. La clave es nueva a propósito: un valor guardado por una versión anterior (que traía v5 encendido) se ignora,
+     *  así que tras instalar esta versión el carro arranca como v3 hasta que alguien encienda algo a mano. */
     var autonomoV5: Boolean
-        get() = preferencias.getBoolean("autonomo_v5", true)
-        set(valor) = preferencias.edit().putBoolean("autonomo_v5", valor).apply()
+        get() = preferencias.getBoolean("autonomo_v5_seguro", false)
+        set(valor) = preferencias.edit().putBoolean("autonomo_v5_seguro", valor).apply()
+
+    /** v6 (candidato para la exposición): APAGADO por defecto. Encendido incluye v5 y sus mejoras; se enciende de un toque para comparar A/B contra v3 en campo. */
+    var autonomoV6: Boolean
+        get() = preferencias.getBoolean("autonomo_v6", false)
+        set(valor) = preferencias.edit().putBoolean("autonomo_v6", valor).apply()
 
     var vibracion: Boolean
         get() = preferencias.getBoolean("vibracion", true)

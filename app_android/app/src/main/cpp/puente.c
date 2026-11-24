@@ -192,14 +192,26 @@ static volatile int aprendiendo_piso = 0;       /* 1 mientras cada cuadro analiz
 static int modelo_inicializado = 0;
 static volatile int reiniciar_modelo = 0;
 static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
-static int v5_activo_global = 1;                /* Autonomo v5-carbon: 1 por defecto (protegido por candado_vision) */
+static int v5_activo_global = 0;                /* Autonomo v5-carbon: 0 por defecto = comportamiento v3 (protegido por candado_vision) */
+static int v6_activo_global = 0;                /* Autonomo v6: 0 por defecto (protegido por candado_vision); v6 incluye v5 */
 
+/* v5 efectivo: v6 es v5-fix mas sus mejoras, asi que encender v6 enciende tambien v5. */
 static int leer_v5_activo(void)
 {
     int activo;
 
     pthread_mutex_lock(&candado_vision);
-    activo = v5_activo_global ? 1 : 0;
+    activo = (v5_activo_global || v6_activo_global) ? 1 : 0;
+    pthread_mutex_unlock(&candado_vision);
+    return activo;
+}
+
+static int leer_v6_activo(void)
+{
+    int activo;
+
+    pthread_mutex_lock(&candado_vision);
+    activo = v6_activo_global ? 1 : 0;
     pthread_mutex_unlock(&candado_vision);
     return activo;
 }
@@ -2269,10 +2281,12 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     memset(ultimo_racha_vertical, 0, sizeof ultimo_racha_vertical);
     memset(ultimo_cercania_color, 0, sizeof ultimo_cercania_color);
     {
-        int v5_on = v5_activo_global ? 1 : 0;
+        int v6_on = v6_activo_global ? 1 : 0;
+        int v5_on = (v5_activo_global || v6_on) ? 1 : 0;
 
         pthread_mutex_unlock(&candado_vision);
         navegador_poner_v5(&navegador_global, v5_on);
+        navegador_poner_v6(&navegador_global, v6_on);
     }
     navegador_poner_rumbo_fw(&navegador_global, rumbo_fw_global);
     navegador_poner_largo_recta_mm(&navegador_global, largo_recta_global);   /* J16: después de navegador_iniciar (que lo pone en 0); antes se perdía y la «Recta 150 cm» hacía 160 */
@@ -2525,7 +2539,25 @@ Java_com_fsi_carro_NavegadorNativa_ponerV5(JNIEnv *env, jobject objeto, jint act
     pthread_mutex_lock(&candado_vision);
     v5_activo_global = (int)activo;
     pthread_mutex_unlock(&candado_vision);
-    return (jint)navegador_poner_v5(obtener_navegador(), (int)activo);
+    /* v6 incluye v5: apagar v5 con v6 encendido no lo apaga (el orden de las llamadas no importa) */
+    return (jint)navegador_poner_v5(obtener_navegador(), (leer_v5_activo() != 0) ? 1 : 0);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerV6(JNIEnv *env, jobject objeto, jint activo)
+{
+    int v5_on, v6_on;
+
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) return NAV_ERR_ARGUMENTO;
+    pthread_mutex_lock(&candado_vision);
+    v6_activo_global = (int)activo;
+    pthread_mutex_unlock(&candado_vision);
+    v5_on = leer_v5_activo();
+    v6_on = leer_v6_activo();
+    navegador_poner_v5(obtener_navegador(), v5_on);
+    return (jint)navegador_poner_v6(obtener_navegador(), v6_on);
 }
 
 JNIEXPORT void JNICALL

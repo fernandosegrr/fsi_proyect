@@ -116,7 +116,8 @@ class ControlLogica(
     var versionFirmware = "sin versión (firmware anterior)"
         private set
     var autoridadLaser = true   // J14: el dueño decidió dejar siempre encendida la Autoridad del láser
-    var autonomoV5 = true       // v5-carbon: mejoras encendidas por defecto; apagarlo reproduce exactamente v3 en campo
+    var autonomoV5 = false      // v5-carbon (referencia): apagado por defecto = comportamiento v3
+    var autonomoV6 = false      // v6 (candidato): apagado por defecto; encendido incluye v5
 
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true

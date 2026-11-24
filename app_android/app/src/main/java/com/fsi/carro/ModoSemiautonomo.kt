@@ -204,7 +204,8 @@ class ModoSemiautonomo(
         NavegadorNativa.ponerSensorDistancia(if (logica.laserActivo) 1 else 0)
         NavegadorNativa.ponerAutoridadLaser(if (logica.autoridadLaser) 1 else 0)
         NavegadorNativa.ponerV5(if (logica.autonomoV5) 1 else 0)
-        Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo} v5=${logica.autonomoV5}")
+        NavegadorNativa.ponerV6(if (logica.autonomoV6) 1 else 0)
+        Log.i("SENS_DIAG", "ruta: giroscopio=${logica.giroscopioActivo} sensor_distancia=${logica.laserActivo} v5=${logica.autonomoV5} v6=${logica.autonomoV6}")
         logica.alGiro = { codigo, _, real, ms, ant -> NavegadorNativa.aporteGiro(codigo, real, ms, ant, SystemClock.elapsedRealtime()) }
         logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime(), banderas and 1 != 0 && banderas and 8 == 0) }
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
@@ -247,7 +248,7 @@ class ModoSemiautonomo(
         // Autónomo v2: la caja negra de esta corrida (solo números y palabras, ninguna imagen).
         CajaNegra.abrir(listOf(
             "ruta=${nombre.ifEmpty { "sin_nombre" }} puntos=${ruta.size / 2} celdas=${ruta.joinToString(",")}",
-            "firmware=${logica.versionFirmware} giroscopio=${logica.giroscopioActivo} laser=${logica.laserActivo} autoridad_laser=${logica.autoridadLaser} v5=${if (logica.autonomoV5) 1 else 0}",
+            "firmware=${logica.versionFirmware} giroscopio=${logica.giroscopioActivo} laser=${logica.laserActivo} autoridad_laser=${logica.autoridadLaser} v5=${if (logica.autonomoV5) 1 else 0} v6=${if (logica.autonomoV6) 1 else 0}",
             "camara=${if (fuente == null) "ninguna" else if (fuente.esVideoCarro) "video_carro" else "telefono"} latencia_visual_ms=${fuente?.latenciaVisualMs ?: 0} " +
                 "detector_objetos=${fuente?.modelo != null}",
             "config_vision=${fuente?.cuadroTomado?.config?.joinToString(",") ?: ""}",
