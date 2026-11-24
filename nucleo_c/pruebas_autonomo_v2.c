@@ -76,8 +76,8 @@ static uint64_t op_ciega_semilla = 0ULL;
 static int op_v5_apagado = 0;     /* 1 = AV5_APAGADO=1 (reproduce v3) */
 static int op_ruido = 0;          /* v6: 1 = AV6_RUIDO=1 (ruido perceptivo calibrado con las cajas negras reales) */
 static int op_familia = 0;        /* v6: 1 = AV6_FAMILIA=1 (solo la familia sin eco, DESARROLLO), 2 = RESERVADO */
-static int op_v6_master = 0;      /* v6: AV6_BITS=master = el paquete v6 tal como lo enciende la app (navegador_poner_v6 + obstaculos_config_v6); es lo que se evalua como «v6» */
-static unsigned op_v6_bits = 0;   /* v6: AV6_BITS = banderas de v6 que se ENCIENDEN (0 = v5-fix exacto; "all" = todas): 1 masa solo oscura, 2 masa solo central, 4 rachas delgadas; desde el 8 las banderas NAV_V6_F_* (8 = la primera) */
+static int op_v6_master = 0;      /* v6: AV6_BITS=master = el paquete v6 tal como lo enciende la app (navegador_poner_v6(1)); es lo que se evalua como «v6» */
+static unsigned op_v6_bits = 0;   /* v6: AV6_BITS = banderas NAV_V6_F_* que se ENCIENDEN (0 = v5-fix exacto): 1 guardia del giro de regreso, 2 racha estricta, 4 masa lateral persistente */
 static char op_esc[1024];         /* v6: AV6_ESC=nombre1,nombre2 corre SOLO esos escenarios (para explorar rapido); vacio = todos */
 static int op_corridas = 0;       /* v6: AV6_CORRIDAS=1 imprime una linea RUN por corrida (para comparar versiones corrida a corrida con la misma semilla) */
 static int op_v5_bits = 127;      /* v6 (ablacion): AV6_V5_BITS = mascara de las partes de v5 que quedan ENCENDIDAS: 1 coincidencia estable, 2 masa sin eco, 4 patas delgadas,
@@ -896,8 +896,8 @@ static Resultado correr(int e, uint32_t semilla)
     }
 #endif
 #ifdef NAV_V6
-    /* AV6_BITS: los bits 0, 1 y 2 son del color (obstaculos); de ahi en adelante cada bit es una bandera NAV_V6_F_* (bit 3 = la primera). */
-    if (!op_v5_apagado && !op_v6_master) navegador_poner_v6_flags(&nav, (op_v6_bits >> 3) & NAV_V6_F_TODAS);
+    /* AV6_BITS = mascara de banderas NAV_V6_F_* (1 guardia del giro de regreso, 2 racha estricta, 4 masa lateral persistente) o «master». */
+    if (!op_v5_apagado && !op_v6_master) navegador_poner_v6_flags(&nav, op_v6_bits & NAV_V6_F_TODAS);
 #endif
 #ifdef NAV_PRECAUCION_NUNCA
     if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
@@ -991,17 +991,6 @@ static Resultado correr(int e, uint32_t semilla)
         cfg_color.v5_rachas = (op_v5_bits & 64) != 0;
     }
 #endif
-#ifdef OBS_V6
-    if (!op_v5_apagado) {
-        if (op_v6_master) {
-            obstaculos_config_v6(&cfg_color, 1);
-        } else {
-            cfg_color.v6_solo_oscuras = (op_v6_bits & 1u) != 0;
-            cfg_color.v6_solo_central = (op_v6_bits & 2u) != 0;
-            cfg_color.v6_rachas_delgadas = (op_v6_bits & 4u) != 0;
-        }
-    }
-#endif
     fusion_config_defecto(&cfg_fusion);
     obstaculos_modelo_iniciar(&piso);
     {
@@ -1084,6 +1073,47 @@ static Resultado correr(int e, uint32_t semilla)
             }
             if (obstaculos_analizar_modelo_celdas(&cfg_color, &piso, llega->celdas, MV_COLUMNAS, MV_FILAS, nav.cmd_actual == NAV_CMD_FORWARD, (unsigned int)t, &color) == OBS_OK) {
                 fusion_decidir(&cfg_fusion, &color, hay_det ? &det_listo : NULL, (unsigned int)t, &fusion);
+#ifdef OBS_V5
+                if (getenv("AV6_MASA") != NULL) {   /* v6 (estudio): rasgos de las masas solidas que caen en un tercio lateral, para ver que las separa de un objeto en el carril */
+                    int zz;
+
+                    for (zz = 0; zz < OBS_ZONAS; zz += 2) {
+                        if (color.masa_solida[zz]) {
+                            int fmin = 99, fmax = -1, cmin = 99, cmax = -1, n = 0, ncen = 0, f2, c2;
+                            long sr = 0, sg = 0, sb = 0, pr = 0, pg = 0, pb = 0, npiso = 0;
+
+                            for (f2 = color.fila_minima_usada; f2 < color.filas; f2++) {
+                                for (c2 = 0; c2 < color.columnas; c2++) {
+                                    if (color.no_piso[f2][c2]) {
+                                        int zc = c2 * OBS_ZONAS / color.columnas;
+
+                                        if (zc == zz) {
+                                            sr += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3];
+                                            sg += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3 + 1];
+                                            sb += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3 + 2];
+                                            n++;
+                                            if (f2 < fmin) fmin = f2;
+                                            if (f2 > fmax) fmax = f2;
+                                            if (c2 < cmin) cmin = c2;
+                                            if (c2 > cmax) cmax = c2;
+                                        } else if (zc == 1) {
+                                            ncen++;
+                                        }
+                                    } else {
+                                        pr += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3];
+                                        pg += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3 + 1];
+                                        pb += llega->celdas[(f2 * MV_COLUMNAS + c2) * 3 + 2];
+                                        npiso++;
+                                    }
+                                }
+                            }
+                            printf("MASA esc=%s sem=%u t=%d z=%d cerc=%d n=%d f=%d-%d c=%d-%d ncen=%d fv=%d red=%d masa_rgb=%ld,%ld,%ld piso_rgb=%ld,%ld,%ld\n", ESC[e].nombre, (unsigned)semilla, t, zz, color.cercania_color[zz], n, fmin, fmax, cmin, cmax,
+                                   ncen, (int)fusion.fuentes_vision[zz], hay_det ? det_listo.n : -1, n ? sr / n : 0, n ? sg / n : 0, n ? sb / n : 0,
+                                   npiso ? pr / npiso : 0, npiso ? pg / npiso : 0, npiso ? pb / npiso : 0);
+                        }
+                    }
+                }
+#endif
                 cuadro = color;
                 for (z = 0; z < OBS_ZONAS; z++) {
                     int celdas_color = color.zona[z].celdas;
@@ -1397,7 +1427,7 @@ int main(int argc, char **argv)
     if ((env = getenv("AV6_ESC")) != NULL && strlen(env) < 1000) snprintf(op_esc, sizeof op_esc, ",%s,", env);
     if ((env = getenv("AV6_BITS")) != NULL) {
         if (strcmp(env, "master") == 0) op_v6_master = 1;
-        else op_v6_bits = (strcmp(env, "all") == 0) ? 0x7FFFu : (unsigned)strtoul(env, NULL, 10);
+        else op_v6_bits = (unsigned)strtoul(env, NULL, 10);
     }
 
     n_esc = op_ciega ? N_ESC : (op_conjunto == 2 ? N_ESC_BASE : (op_conjunto == 1 ? N_ESC_DESARROLLO : N_ESC_LEGACY));

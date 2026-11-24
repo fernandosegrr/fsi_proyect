@@ -2263,6 +2263,27 @@ static void pruebas_v5_etapa1_etapa2(void)
          nav.v5_fallo_seguro == 0 && navegador_poner_v5(&nav, 1) == NAV_OK &&
          nav.v5_fallo_seguro == 1 && nav.v5_pasillo_pared == 1);
 
+    /* v6: las banderas del navegador. Apagado (por defecto) es v5-fix exacto; encendido incluye v5 completo; v5 apagado apaga tambien v6. */
+    navegador_iniciar(&nav);
+    caso("v6 apagado por defecto: ninguna bandera v6 y v5 completo (v5-fix exacto)",
+         nav.v6_flags == 0 && navegador_v6_flags(&nav) == 0 && nav.v5_activo == 1 && nav.v5_masa_sin_eco == 1);
+    caso("navegador_poner_v6(1) enciende todas las banderas v6 y deja v5 completo",
+         navegador_poner_v6(&nav, 1) == NAV_OK && nav.v6_flags == NAV_V6_F_TODAS && nav.v5_activo == 1 &&
+         nav.v5_coincidencia_estable == 1 && nav.v5_patas_delgadas == 1 && nav.v5_fallo_seguro == 1);
+    caso("navegador_poner_v6(0) apaga v6 y deja v5 como estaba",
+         navegador_poner_v6(&nav, 0) == NAV_OK && nav.v6_flags == 0 && nav.v5_activo == 1);
+    navegador_poner_v6(&nav, 1);
+    navegador_poner_v5(&nav, 0);
+    caso("v5 apagado apaga tambien v6 (v5 apagado es v3 exacto)",
+         nav.v5_activo == 0 && nav.v6_flags == 0 && nav.v5_masa_sin_eco == 0);
+    navegador_poner_v6(&nav, 0);
+    caso("navegador_poner_v6_flags recorta a las banderas que existen",
+         navegador_poner_v6_flags(&nav, 0xFFFFu) == NAV_OK && nav.v6_flags == NAV_V6_F_TODAS &&
+         navegador_poner_v6_flags(&nav, NAV_V6_F_GUARDIA_VOLVER) == NAV_OK && navegador_v6_flags(&nav) == NAV_V6_F_GUARDIA_VOLVER);
+    caso("navegador_poner_v6 con NULL: argumento invalido y sin caerse",
+         navegador_poner_v6(NULL, 1) == NAV_ERR_ARGUMENTO && navegador_poner_v6_flags(NULL, 1u) == NAV_ERR_ARGUMENTO &&
+         navegador_v6_flags(NULL) == 0);
+
     /* Ruta de un solo punto con usa_tof=1: ubicar_en_linea no debe acceder fuera de rango. */
     navegador_iniciar(&nav);
     navegador_poner_sensor_distancia(&nav, 1);
@@ -2370,6 +2391,90 @@ static void pruebas_v5_etapa1_etapa2(void)
          nav.estado == NAV_SIGUIENDO && nav.esquivadas == 0);
 }
 
+/* v6, percepcion. Corre un navegador nuevo con las banderas v6 dadas: 1,3 s de cuadros vacios (SIGUIENDO) y luego `cuadros` cuadros iguales; devuelve zona_hay[zona].
+ * modo 0: masa solida de color en `zona` (cercania 3, 30 celdas, sin red); modo 1: racha vertical en la zona IZQUIERDA con la red solo ahi (la del centro no);
+ * modo 2: racha vertical en el CENTRO con la red en el centro; modo 3: racha vertical a izquierda y derecha (sin red). */
+static int v6_zona_hay(unsigned banderas, int zona, int modo, int cuadros)
+{
+    static const Punto RECTA_10[] = {
+        {2, 10}, {2, 9}, {2, 8}, {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0}
+    };
+    ResultadoObstaculos obs;
+    uint32_t t;
+    int i;
+
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    navegador_iniciar(&nav);
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_poner_v6_flags(&nav, banderas);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 1200; t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    if (modo == 0) {
+        obs.masa_solida[zona] = 1;
+        obs.cercania_color[zona] = 3;
+        obs.zona[zona].cercania = 3;
+        obs.zona[zona].celdas = 30;
+        obs.fuentes_vision[zona] = 1;
+    } else if (modo == 1) {
+        obs.fuentes_vision[ZONA_IZQUIERDA] = 2;
+        obs.racha_vertical[ZONA_IZQUIERDA] = 1;
+        obs.cercania_color[ZONA_IZQUIERDA] = 2;
+    } else if (modo == 2) {
+        obs.fuentes_vision[ZONA_CENTRO] = 2;
+        obs.racha_vertical[ZONA_CENTRO] = 1;
+        obs.cercania_color[ZONA_CENTRO] = 2;
+    } else {
+        obs.racha_vertical[ZONA_IZQUIERDA] = 1;
+        obs.racha_vertical[ZONA_DERECHA] = 1;
+        obs.cercania_color[ZONA_IZQUIERDA] = 2;
+        obs.cercania_color[ZONA_DERECHA] = 2;
+    }
+    for (i = 0, t = 1300; i < cuadros; i++, t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    return nav.zona_hay[zona];
+}
+
+static void pruebas_v6_percepcion(void)
+{
+    int cuadros, lateral_ok = 1;
+
+    /* MASA LATERAL PERSISTENTE: a un lado una masa solida necesita NAV_V6_LATERAL_CUADROS cuadros seguidos; apagada la bandera bastan 2 (v5-fix exacto). */
+    caso("v6 apagado: una masa solida a la izquierda actua con 2 cuadros seguidos (v5-fix exacto)",
+         v6_zona_hay(0, ZONA_IZQUIERDA, 0, 1) == 0 && v6_zona_hay(0, ZONA_IZQUIERDA, 0, 2) == 1);
+    for (cuadros = 1; cuadros < NAV_V6_LATERAL_CUADROS; cuadros++) {
+        if (v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_IZQUIERDA, 0, cuadros) != 0 ||
+            v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_DERECHA, 0, cuadros) != 0) {
+            lateral_ok = 0;
+        }
+    }
+    caso("v6 masa lateral persistente: a los lados no actua antes de NAV_V6_LATERAL_CUADROS cuadros seguidos",
+         lateral_ok);
+    caso("v6 masa lateral persistente: a los lados actua al llegar a NAV_V6_LATERAL_CUADROS cuadros (izquierda y derecha)",
+         v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_IZQUIERDA, 0, NAV_V6_LATERAL_CUADROS) == 1 &&
+         v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_DERECHA, 0, NAV_V6_LATERAL_CUADROS) == 1);
+    caso("v6 masa lateral persistente: la zona central NO cambia (actua con 2 cuadros, con y sin la bandera)",
+         v6_zona_hay(0, ZONA_CENTRO, 0, 2) == 1 && v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_CENTRO, 0, 2) == 1);
+    caso("v6: las otras banderas no tocan la masa lateral (con guardia y racha estricta sigue actuando con 2 cuadros)",
+         v6_zona_hay(NAV_V6_F_GUARDIA_VOLVER | NAV_V6_F_RACHA_ESTRICTA, ZONA_IZQUIERDA, 0, 2) == 1);
+
+    /* RACHA ESTRICTA: la racha vertical de UN lado con la red en otra zona ya no vale como racha del centro. */
+    caso("v6 apagado: racha vertical a un lado y red en esa zona cuentan como racha del centro (v5-fix exacto)",
+         v6_zona_hay(0, ZONA_CENTRO, 1, 3) == 1);
+    caso("v6 racha estricta: la racha de un lado con la red en otra zona ya no activa el centro",
+         v6_zona_hay(NAV_V6_F_RACHA_ESTRICTA, ZONA_CENTRO, 1, 3) == 0);
+    caso("v6 racha estricta: la racha del propio centro con la red del centro sigue actuando",
+         v6_zona_hay(0, ZONA_CENTRO, 2, 3) == 1 && v6_zona_hay(NAV_V6_F_RACHA_ESTRICTA, ZONA_CENTRO, 2, 3) == 1);
+    caso("v6 racha estricta: rachas a la izquierda Y a la derecha siguen actuando en el centro",
+         v6_zona_hay(0, ZONA_CENTRO, 3, 3) == 1 && v6_zona_hay(NAV_V6_F_RACHA_ESTRICTA, ZONA_CENTRO, 3, 3) == 1);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -2394,6 +2499,7 @@ int main(void)
     pruebas_j11_monte_carlo();
     pruebas_j14_recta_predefinida();
     pruebas_v5_etapa1_etapa2();
+    pruebas_v6_percepcion();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

@@ -352,6 +352,56 @@ static void probar_revision(void) {
     navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
     caso("revision: guardia del giro a la izquierda con 10 cm",nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO);
 
+    /* v6: la guardia del giro tambien en el REGRESO (VOLVER) y no avanzar en paralelo con el frente pegado (PAUSA_PASAR). Con la bandera apagada no existen (v5-fix exacto). */
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 apagado: el giro de regreso con algo a 10 cm sigue como antes (sin guardia)",nav.estado==NAV_ESQUIVANDO && nav.error_causa==0);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: algo a 10 cm durante el giro de regreso a la izquierda lo detiene y pide ayuda (causa 18)",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO && nav.cmd_actual==NAV_CMD_STOP);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=-1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_RIGHT;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: lo mismo girando a la derecha (disco mayor)",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO && nav.cmd_actual==NAV_CMD_STOP);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,400,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: con el frente a 40 cm el giro de regreso sigue",nav.estado==NAV_ESQUIVANDO && nav.error_causa==0);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,100,0,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: una lectura NO valida (sin eco) no la dispara",nav.estado==NAV_ESQUIVANDO && nav.error_causa==0);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    navegador_aporte_sens(&nav,100,1,1,0,1000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: una lectura vieja (mas de NAV_TOF_FRESCO_MS) no la dispara",nav.estado==NAV_ESQUIVANDO && nav.error_causa==0);
+
+    /* PAUSA_PASAR: tras enderezarse, con el frente a 20 cm no se avanza en paralelo (se pide ayuda); a 40 cm si. */
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;
+    navegador_aporte_sens(&nav,200,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 apagado: tras enderezarse con el frente a 20 cm avanza en paralelo como antes",nav.estado==NAV_ESQUIVANDO && nav.fase==NAV_FASE_PARALELO);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;
+    navegador_aporte_sens(&nav,200,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: con el frente a 20 cm NO avanza en paralelo: ayuda (causa 16, frente ancho)",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO && nav.cmd_actual==NAV_CMD_STOP);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;
+    navegador_aporte_sens(&nav,400,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: con el frente a 40 cm avanza en paralelo como siempre",nav.estado==NAV_ESQUIVANDO && nav.fase==NAV_FASE_PARALELO);
+
     /* BAJO 6: continuar tras la ayuda no arrastra lo que el láser confirmó antes. */
     preparar_politica();
     nav.estado=NAV_AYUDA;nav.tof_paro_activo=1;nav.vistazo_confirmado=1;nav.vistazo_retrocedio=1;nav.cambio_lado=1;nav.esquive_decidido=1;

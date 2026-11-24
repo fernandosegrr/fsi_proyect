@@ -2019,6 +2019,7 @@ void navegador_iniciar(Navegador *nav)
     nav->v5_patas_delgadas = 1;
     nav->v5_pasillo_pared = 1;
     nav->v5_fallo_seguro = 1;
+    nav->v6_flags = 0;
     nav->v5_atasco_t0_ms = 0;
     nav->v5_atasco_ultima_tof_ms = 0;
     nav->v5_atasco_mm0 = 0;
@@ -2466,8 +2467,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                                 (uint32_t)(ahora_ms - nav->eco_ultimo_t_ms) <= (uint32_t)NAV_ECO_MEMORIA_MS);
             int racha_en_z = obs->racha_vertical[z] ||
                              (z == ZONA_CENTRO && ((obs->racha_vertical[ZONA_IZQUIERDA] && obs->racha_vertical[ZONA_DERECHA]) ||
-                                                   (nn_cuadro && ((obs->racha_vertical[ZONA_IZQUIERDA] && !obs->zona[ZONA_IZQUIERDA].fuera_corredor) ||
-                                                                  (obs->racha_vertical[ZONA_DERECHA] && !obs->zona[ZONA_DERECHA].fuera_corredor)))));
+                                                   (!(nav->v6_flags & NAV_V6_F_RACHA_ESTRICTA) && nn_cuadro &&
+                                                    ((obs->racha_vertical[ZONA_IZQUIERDA] && !obs->zona[ZONA_IZQUIERDA].fuera_corredor) ||
+                                                     (obs->racha_vertical[ZONA_DERECHA] && !obs->zona[ZONA_DERECHA].fuera_corredor)))));
+            /* v6: la red de la zona central (y no la de cualquier zona: el ruido de la red cae en todas) acompaña a la racha del centro. */
+            int nn_para_racha = (nav->v6_flags & NAV_V6_F_RACHA_ESTRICTA) ? ((obs->fuentes_vision[ZONA_CENTRO] & 2) != 0) : nn_cuadro;
 
             if (nav->v5_activo && nav->v5_patas_delgadas && !obs->zona[z].fuera_corredor && !cerca_meta && racha_en_z) {
                 nav->v5_racha_seguidas[z]++;
@@ -2478,7 +2482,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             if (nav->v5_activo && nav->v5_patas_delgadas && z == ZONA_CENTRO && !obs->zona[z].fuera_corredor && !cerca_meta) {
                 int req_r = (nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) ? 1 : 2;
 
-                if (nav->v5_racha_seguidas[z] >= req_r && (nn_cuadro || rachas_cuadro >= 2 || eco_reciente)) {
+                if (nav->v5_racha_seguidas[z] >= req_r && (nn_para_racha || rachas_cuadro >= 2 || eco_reciente)) {
                     solido_ok = 1;
                     nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_PATAS_RETENCION_MS;
                     if (nav->v5_coinc_cercania[z] < 2) nav->v5_coinc_cercania[z] = 2;
@@ -2494,6 +2498,10 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             if (nav->v5_activo && nav->v5_masa_sin_eco && !obs->zona[z].fuera_corredor && !cerca_meta) {
                 int req = (nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) ? 1 : 2;
 
+                /* v6: una masa a un lado (ruido de la imagen, una estructura junto a la ruta) tiene que persistir mas cuadros que una del carril antes de actuar. */
+                if (z != ZONA_CENTRO && (nav->v6_flags & NAV_V6_F_LATERAL_PERSISTENTE) && req < NAV_V6_LATERAL_CUADROS) {
+                    req = NAV_V6_LATERAL_CUADROS;
+                }
                 if (nav->v5_solido_seguidas[z] >= req) {
                     solido_ok = 1;
                     if (z == ZONA_CENTRO || nav->estado == NAV_SIGUIENDO) {
@@ -4776,6 +4784,21 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             return NAV_CMD_STOP;
         }
     }
+    if ((nav->v6_flags & NAV_V6_F_GUARDIA_VOLVER) && nav->fase == NAV_FASE_VOLVER && nav->usa_tof && nav->cmd_actual == comando_de_fase(nav) &&
+        (nav->cmd_actual == NAV_CMD_LEFT || nav->cmd_actual == NAV_CMD_RIGHT) && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0) {
+        /* v6: la guardia del giro tambien vale en el giro de REGRESO (VOLVER). Tras rodear por el lado que el barrido dio por libre (con un laser que pierde ecos lejanos puede
+         * estar mal: una pared larga parece terminar), el regreso apunta de nuevo al frente: si el haz ya ve algo dentro del arco, deja de girar y pide ayuda. */
+        int lado_giro = (nav->cmd_actual == NAV_CMD_RIGHT) ? 1 : -1;
+        int guardia = guardia_giro_mm(nav, lado_giro);
+
+        if (guardia > 0 && nav->tof_mm <= guardia + NAV_V6_GUARDIA_EXTRA_MM) {
+            diag_escribir(nav, "ESQUIVE_DIAG guardia_volver lado=%d laser_mm=%d guardia_mm=%d: algo dentro del arco del giro de regreso, deja de girar", lado_giro, nav->tof_mm, guardia);
+            cerrar_giro_interrumpido(nav, ahora_ms);
+            cambiar_comando(nav, NAV_CMD_STOP);
+            ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
+            return NAV_CMD_STOP;
+        }
+    }
     if (nav->fase == NAV_FASE_GIRAR && nav->reintentos == 0 && nav->usa_tof && nav->cmd_actual == comando_de_fase(nav) &&
         (nav->cmd_actual == NAV_CMD_LEFT || nav->cmd_actual == NAV_CMD_RIGHT) && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0) {
         /* (revisión) GUARDIA DEL GIRO (ver navegador.h): en el primer giro del rodeo y en la vuelta del cambio de lado, una lectura así de corta es algo dentro del
@@ -4865,6 +4888,12 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
                       nav->salida_x_mm, nav->salida_y_mm, nav->salida_cercania);
         if (nav->paralelo_mm <= 0) {
             entrar_reincorporando(nav, ahora_ms);
+            return NAV_CMD_STOP;
+        }
+        if ((nav->v6_flags & NAV_V6_F_GUARDIA_VOLVER) && nav->usa_tof && tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm <= NAV_V6_PASAR_MIN_MM) {
+            /* v6: el rodeo termino con una pared o un objeto pegado al frente (el laser lo ve a menos de lo que se frena): avanzar en paralelo seria tocarlo. */
+            diag_escribir(nav, "REINC_DIAG pasar_bloqueado laser_mm=%d minimo_mm=%d: frente pegado, no se avanza en paralelo", nav->tof_mm, NAV_V6_PASAR_MIN_MM);
+            ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_FRENTE_ANCHO);
             return NAV_CMD_STOP;
         }
         nav->fase = NAV_FASE_PARALELO;
@@ -5549,6 +5578,9 @@ int navegador_poner_v5(Navegador *nav, int activo)
     nav->v5_patas_delgadas = on;
     nav->v5_pasillo_pared = on;
     nav->v5_fallo_seguro = on;
+    if (!on) {
+        nav->v6_flags = 0;   /* v6 incluye v5: sin v5 no hay v6, asi que v5 apagado es v3 exacto sin importar el orden de las llamadas */
+    }
     return NAV_OK;
 }
 
@@ -5585,6 +5617,30 @@ int navegador_poner_fallo_seguro(Navegador *nav, int activo)
     if (nav == NULL) return NAV_ERR_ARGUMENTO;
     nav->v5_fallo_seguro = activo ? 1 : 0;
     return NAV_OK;
+}
+
+int navegador_poner_v6(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    if (activo) {
+        navegador_poner_v5(nav, 1);   /* v6 es v5-fix mas sus mejoras */
+        nav->v6_flags = NAV_V6_F_TODAS;
+    } else {
+        nav->v6_flags = 0;
+    }
+    return NAV_OK;
+}
+
+int navegador_poner_v6_flags(Navegador *nav, unsigned flags)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v6_flags = flags & NAV_V6_F_TODAS;
+    return NAV_OK;
+}
+
+unsigned navegador_v6_flags(const Navegador *nav)
+{
+    return nav == NULL ? 0u : nav->v6_flags;
 }
 
 int navegador_poner_precaucion(Navegador *nav, int modo)
