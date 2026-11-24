@@ -677,6 +677,9 @@ static Resultado correr(int e, uint32_t semilla)
     if (getenv("AV3_MEMORIA_ECO")) navegador_poner_memoria_eco(&nav, atoi(getenv("AV3_MEMORIA_ECO")));   /* 1 por defecto; 0 = como v2 */
     if (getenv("AV3_ECO_RETROCEDE")) navegador_poner_eco_retroceder(&nav, atoi(getenv("AV3_ECO_RETROCEDE")));
 #endif
+#ifdef NAV_V5
+    if (op_v5_apagado) navegador_poner_v5(&nav, 0);
+#endif
 #ifdef NAV_PRECAUCION_NUNCA
     if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
     if (getenv("AV2_VISTAZO")) navegador_poner_vistazo(&nav, atoi(getenv("AV2_VISTAZO")));           /* 0 no, 1 lejos, 2 lejos y medio, 3 todos */

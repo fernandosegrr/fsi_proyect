@@ -760,6 +760,16 @@ typedef struct {
     int  diag_escritas, diag_leidas;
     int  diag_firma;             /* resumen de la última línea ESQUIVE_DIAG (para no repetirla en cada cuadro) */
     uint32_t diag_t_ms;
+
+    /* AUTONOMO V5 (feat/autonomo-v5-carbon): mejoras detras de banderas individuales + interruptor maestro. */
+    int      v5_activo;
+    int      v5_coincidencia_estable;
+    int      v5_masa_sin_eco;
+    int      v5_patas_delgadas;
+    int      v5_pasillo_pared;
+    int      v5_fallo_seguro;
+    uint32_t v5_coinc_hasta_ms[OBS_ZONAS];
+    int      v5_coinc_cercania[OBS_ZONAS];
 } Navegador;
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
@@ -887,6 +897,12 @@ int navegador_poner_precaucion(Navegador *nav, int modo);
 int navegador_poner_memoria_eco(Navegador *nav, int activa);
 int navegador_poner_laser_caido_para(Navegador *nav, int activo);   /* v3: 1 (por defecto) = el láser caído a mitad de ruta detiene la ruta (causa 19) */
 int navegador_poner_eco_retroceder(Navegador *nav, int mm);
+
+/* AUTONOMO V5-CARBON (feat/autonomo-v5-carbon). SIMULADO / NO MEDIDO salvo validacion fisica. */
+#define NAV_V5                     1
+#define NAV_V5_RETENCION_MS      500
+int navegador_poner_v5(Navegador *nav, int activo);
+int navegador_poner_coincidencia_estable(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);

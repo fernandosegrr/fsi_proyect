@@ -20,4 +20,18 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
 - Documentado el diseno completo por etapas 1–5 en `docs/autonomo_v5_diseno.md` con respaldo bibliografico primario auditado en `docs/investigacion_autonomo/`.
 
 ### Siguiente
-- **Fase 2, Etapa 1 (`v5_coincidencia_estable`)**: retencion breve de coincidencia con presencia de color, bloqueo de reanudacion falsa detenido y retroceso recto previo al giro cuando no hay distancia ToF.
+- **Fase 2, Etapa 1 (`v5_coincidencia_estable`)**: Completada en el siguiente bloque.
+
+## Fase 2 — Implementacion gradual por etapas
+
+### Etapa 1: `v5_coincidencia_estable` (SIMULADO)
+- **Que se hizo**:
+  - Agregada la estructura de banderas v5 en `nucleo_c/navegador.h` y `nucleo_c/navegador.c` (`v5_activo`, `v5_coincidencia_estable`, `v5_masa_sin_eco`, `v5_patas_delgadas`, `v5_pasillo_pared`, `v5_fallo_seguro`) con control maestro `navegador_poner_v5()` y `navegador_poner_coincidencia_estable()`.
+  - En `DETENIDO_OBSTACULO`, si `fuentes == 3` ya confirmo obstaculo en `ZONA_CENTRO` y el color cercano (`cercania >= 2`) persiste dentro del corredor sin bloquear flancos, se retiene `hay = 1` en centro hasta 500 ms (`NAV_V5_RETENCION_MS`) ante parpadeos de 1 cuadro de la red neuronal; se limpia `v5_coinc_hasta_ms` al escapar, reanudar o iniciar esquive.
+  - Desempate en `elegir_lado` cuando al menos un flanco tiene `cercania <= 1` (usando `-vistazo_confirmado` o menor conteo de celdas, preservando el caso `LADOS_BLOQUEADOS` de `cercania = 3`).
+  - Banco `pruebas_autonomo_v2.c`: soporte de seleccion de banderas y comprobacion exacta con `AV5_APAGADO=1`.
+- **Resultados verificados (SIMULADO, 40 corridas)**:
+  - `make -C nucleo_c test`: 0 fallos en toda la suite.
+  - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
+  - `docs/precision/v5/etapa1.txt`: G1 `CUMPLE`, G7 `CUMPLE` (0 paradas/esquives/AYUDA nuevos en piso limpio en `DESARROLLO` y `RESERVADO`). En `objeto_bajo` pesimista los contactos bajaron de 19 a 13 (`DESARROLLO`) y de 14 a 10 (`RESERVADO`) con `ayuda=0`; `bloque_sin_eco` normal paso de 40 a 39 en `DESARROLLO`.
+- **Siguiente**: Etapa 2 (`v5_masa_sin_eco` + `cfg_color.v5_solido`).

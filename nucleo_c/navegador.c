@@ -2004,6 +2004,14 @@ void navegador_iniciar(Navegador *nav)
     nav->laser_caido_para = 1;
     nav->eco_retroceder_mm = NAV_ECO_RETROCEDE_MM;
     nav->eco_retroceder = 0;
+    nav->v5_activo = 1;
+    nav->v5_coincidencia_estable = 1;
+    nav->v5_masa_sin_eco = 0;
+    nav->v5_patas_delgadas = 0;
+    nav->v5_pasillo_pared = 0;
+    nav->v5_fallo_seguro = 0;
+    memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
+    memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     nav->giro_fw_fallos = 0;
     nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = nav->ancho_rodeo_mm = 0;
     nav->lados_probados = nav->cambio_lado = 0;
@@ -2203,6 +2211,8 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->eco_retroceder = 0;                       /* v3 (revisión): lo de una ruta o una parada anterior no vale */
     nav->eco_ultimo_mm = 0;
     nav->eco_ultimo_t_ms = 0;
+    memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
+    memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
     nav->vistazo_lado = nav->vistazo_ecos = nav->vistazo_mm = nav->vistazo_confirmado = nav->vistazos = nav->vistazos_con_eco = nav->giro_extra_grados = 0;
@@ -2420,6 +2430,16 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         hay = fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || (z == ZONA_CENTRO && obs->zona[z].cercania >= 3) || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
                                nav->estado == NAV_DETENIDO_OBSTACULO);
         coincidencia |= hay;
+        if (fuentes == 3) {
+            nav->v5_coinc_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
+            nav->v5_coinc_cercania[z] = obs->zona[z].cercania;
+        } else if (nav->v5_activo && nav->v5_coincidencia_estable && z == ZONA_CENTRO && nav->estado == NAV_DETENIDO_OBSTACULO &&
+                   (fuentes & 1) && !obs->zona[z].fuera_corredor && nav->v5_coinc_hasta_ms[z] != 0 &&
+                   (obs->zona[z].cercania >= 2 || nav->v5_coinc_cercania[z] >= 2) &&
+                   (uint32_t)(nav->v5_coinc_hasta_ms[z] - ahora_ms) < 0x80000000u && nav->v5_coinc_hasta_ms[z] != ahora_ms) {
+            /* Etapa 1 v5: detenido por coincidencia real y el color persiste cerca en el centro -> no soltar freno si la red parpadea un cuadro (sin bloquear flancos). */
+            hay = 1;
+        }
         /* PRECAUCIÓN (avanzar a ratos). V2: una sola fuente a un LADO ya no la pide si hay vistazo (lo resuelve el láser sin frenar), y en el CENTRO solo cuando lo
          * visto está cerca (cercanía 2 o 3): ahí el láser ya está mirando y no ve nada, así que puede ser algo bajo y conviene dar tiempo a la otra fuente. */
         if (fuentes == 3 && (!autoridad || nav->tof_mm > NAV_TOF_LIBRE_MM)) {
@@ -2457,7 +2477,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
         nav->zona_hay[z] = hay;
-        nav->zona_cercania[z] = hay ? ((laser_cerca && z == ZONA_CENTRO) ? 3 : obs->zona[z].cercania) : 0;
+        {
+            int cerc_z = obs->zona[z].cercania;
+            if (hay && fuentes != 3 && nav->v5_coinc_cercania[z] > cerc_z) cerc_z = nav->v5_coinc_cercania[z];
+            nav->zona_cercania[z] = hay ? ((laser_cerca && z == ZONA_CENTRO) ? 3 : cerc_z) : 0;
+        }
         nav->zona_celdas[z] = celdas;
         firma |= (hay ? (nav->zona_cercania[z] & 3) : 0) << (2 * z);
         /* Corredor (corredor.h): un obstáculo FUERA del corredor se sigue viendo (zona_hay, para elegir lado) pero no frena. */
@@ -4176,7 +4200,17 @@ static int elegir_lado(const Navegador *nav)
     if (izquierda_libre) {
         return -1;
     }
-    return derecha_libre ? 1 : 0;
+    if (derecha_libre) {
+        return 1;
+    }
+    if (nav->v5_activo && nav->v5_coincidencia_estable &&
+        (nav->zona_cercania[ZONA_IZQUIERDA] <= 1 || nav->zona_cercania[ZONA_DERECHA] <= 1)) {
+        if (nav->vistazo_confirmado != 0) {
+            return -nav->vistazo_confirmado;
+        }
+        return (nav->zona_celdas[ZONA_DERECHA] < nav->zona_celdas[ZONA_IZQUIERDA]) ? 1 : -1;
+    }
+    return 0;
 }
 
 /* Retrocede solamente por el tramo recto que acaba de recorrer. No hay sensor
@@ -4238,6 +4272,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         if (nav->cmd_actual != NAV_CMD_REVERSE || nav->seg_ms < ms_escape) return NAV_CMD_REVERSE;
         cambiar_comando(nav, NAV_CMD_STOP);
         nav->escape_atras = 0;
+        memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
+        memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
         if (nav->tof_dist_mm > 0) {
             nav->tof_dist_mm += nav->retroceso_mm;   /* V2: la distancia medida era de antes de retroceder (con TOF_PARO o un vistazo no se vuelve a medir) */
         }
@@ -4252,6 +4288,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         if (libre_confirmado(nav, ahora_ms)) {
             nav->estado = NAV_SIGUIENDO;
             nav->tof_paro_activo = 0;
+            memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
+            memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
             return tick_siguiendo(nav, ahora_ms);
         }
         return NAV_CMD_STOP;
@@ -4411,6 +4449,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             nav->flanco_otro = 0;
             nav->esquive_decidido = 0;
             nav->estado = NAV_ESQUIVANDO;
+            memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
+            memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
             esq_iniciar_giro(nav, ahora_ms);
             return comando_de_fase(nav);
         }
@@ -5307,6 +5347,28 @@ int navegador_poner_memoria_eco(Navegador *nav, int activa)
         return NAV_ERR_ARGUMENTO;
     }
     nav->memoria_eco = activa ? 1 : 0;
+    return NAV_OK;
+}
+
+int navegador_poner_v5(Navegador *nav, int activo)
+{
+    int on;
+
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    on = activo ? 1 : 0;
+    nav->v5_activo = on;
+    nav->v5_coincidencia_estable = on;
+    nav->v5_masa_sin_eco = 0;
+    nav->v5_patas_delgadas = 0;
+    nav->v5_pasillo_pared = 0;
+    nav->v5_fallo_seguro = 0;
+    return NAV_OK;
+}
+
+int navegador_poner_coincidencia_estable(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v5_coincidencia_estable = activo ? 1 : 0;
     return NAV_OK;
 }
 
