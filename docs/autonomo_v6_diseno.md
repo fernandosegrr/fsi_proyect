@@ -64,6 +64,14 @@ El criterio estricto de G1 marca `falso_sombra` en `DESARROLLO` con ruido 0 (120
 
 Son frenos de precaución momentáneos del estado `SIGUIENDO` ante un cuadro aislado que marca una sombra; el carro reanuda solo. La diferencia (3 sobre ~50; z ≈ 0.3 si se tratan como conteos independientes) cae dentro del ruido: el simulador sortea la percepción con una semilla por corrida y cualquier cambio que adelanta o atrasa un cuadro (aquí, la supresión del vistazo de v5) cambia el resto del hilo aleatorio, así que corridas individuales divergen aunque el mecanismo sea el mismo. **No hay un mecanismo que corregir y no se tocó**, pero el criterio estricto sigue marcando `G1 NO CUMPLE` en esas celdas (§6): una parada de más en 120 corridas, explicada, no corregida.
 
+### 3.6 Dónde ocurren los contactos que quedan (censo; explica por qué G2 no llega a cero)
+
+[precision/v6/censo_contactos_g2_v6.txt](precision/v6/censo_contactos_g2_v6.txt) lista, con el código final de `v6`, el estado del navegador y el comando en cada contacto de los 11 escenarios de sólidos (120 corridas por escenario, 8 celdas):
+
+- **Con ruido 0** quedan pocos: 2 (`DESARROLLO`, láser normal) y 1 (`RESERVADO`), casi siempre un giro de regreso (`REINCORPORANDO`) pegado al final de `objeto_largo90`; con láser pesimista 11 y 10, **19 de los 21 en el primer giro del rodeo** de `objeto_bajo` y `bajo_solo_color` (objetos bajos que solo ve el color y que el láser pesimista pierde; los otros 2 son `objeto_largo90`).
+- **Con ruido 1** el total sube a 31–54 y la mayoría ocurre **fuera del rodeo**: `SIGUIENDO` con un giro de la ruta hacia el objeto (6 y 26 con láser normal, 17 y 26 con pesimista; `DESARROLLO` y `RESERVADO`) y `REINCORPORANDO` (11, 6, 11 y 6). Un ejemplo trazado (`objeto_largo90`, `RESERVADO`, ruido 1, corrida 36, `depurar 10 36`): el rodeo se interrumpe en el paso en paralelo (`BLOQUEA_se_detiene`), el navegador vuelve a `SIGUIENDO` y la ruta pide un giro de 135° a la derecha con el objeto a 27 cm; la esquina del chasis lo toca a medio giro.
+- **Por qué `v6` no lo corrige:** la guardia del giro (láser dentro del arco que barre el chasis) solo existe en el primer giro del rodeo y, con `GUARDIA_VOLVER`, en el giro de regreso del rodeo; no cubre los giros de la ruta ni los de `REINCORPORANDO`. Extenderla sería **una guardia nueva**, fuera del alcance acordado para v6, y el láser apunta al frente: ve la esquina que barre un objeto lateral una lectura tarde (§3.1). Queda como propuesta (§7), **sin implementar ni probar**.
+
 ---
 
 ## 4. Diseño de cada bandera: beneficio, riesgo y cómo se verifica
@@ -100,6 +108,7 @@ Todo con el banco calibrado (`AV6_RUIDO=1`), láser normal, `DESARROLLO` y `RESE
 | Masa solo en el tercio central (`solo_central` / `masa_en_carril`) | Pierde el banquito (que cae casi entero en los tercios laterales: la cámara está a 115 mm y las tercias son más angostas que el carril cerca); no aporta nada sobre la persistencia. |
 | Rachas delgadas (`rachas_delgadas`) | Sin efecto medible. |
 | Retención lateral (`RETENCION_LATERAL`) | Sin ganancia más allá de la persistencia. |
+| Persistencia también en el **centro** (3, 4 y 5 cuadros seguidos para la masa del carril, solo mientras sigue la ruta; [precision/v6/exp_persistencia_centro_n120.txt](precision/v6/exp_persistencia_centro_n120.txt)) | No mejora el piso limpio (`DESARROLLO`, ruido 1: −1 `AYUDA` y −2 esquives; `RESERVADO`: nada: los esquives de más ya no vienen de la masa del centro) y cuesta cobertura (`bloque_sin_eco` con ruido 0: 25 → 27, 36 y 36 contactos; familia sin eco hasta +13). Descartado, no está en el código. |
 | Quitar cada sub-bandera de v5 | Pierde más cobertura de la que gana en piso limpio; solo apagar `coincidencia_estable` ayuda a piso limpio, pero cuesta paradas y G2: se dejó. |
 | Subir el margen de la guardia del regreso para el contacto residual | Más `AYUDA` en rodeos que v3 completaba. |
 
@@ -273,6 +282,7 @@ v6 no cambia el firmware. Lo que sigue son ideas para atacar el hueco de raíz, 
 1. **Publicar el estado y la intensidad de la señal del láser en cada lectura** (el `VL53L0X` distingue «sin blanco en el alcance» de «blanco con señal débil»; la telemetría `TOFE?` de `SEG=4` ya expone parte). Con eso la app podría tratar «señal débil a corta distancia» como evidencia de un objeto oscuro y mate, que es justo lo que hoy no separa el láser (sin eco = libre). **La respuesta real del `VL53L0X` a superficies oscuras NO ESTÁ MEDIDA**; sin esa medición es una hipótesis, no una mejora.
 2. **Segunda lectura del láser a otra altura o inclinada hacia el piso** (hardware, no solo firmware): permitiría separar una mancha plana en el piso de un objeto de 3 cm, que hoy se ven igual. No se midió ni se simuló.
 3. **Registrar en la caja negra cada lectura cruda del láser con su estado** durante las pruebas físicas del protocolo, para calibrar el simulador contra el láser real (hoy solo se calibró la visión).
+4. **(Navegador, no firmware) Extender la guardia del giro a los giros de la ruta y de `REINCORPORANDO`** (censo de §3.6: la mayoría de los contactos que quedan con ruido 1 ocurren ahí). Es una guardia nueva, así que no entra en v6; como el láser mira al frente, probablemente exigiría además un margen mayor o un sensor lateral (hardware). **No implementada, no probada.**
 
 ---
 

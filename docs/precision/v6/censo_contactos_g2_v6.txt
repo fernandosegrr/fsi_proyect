@@ -1,0 +1,293 @@
+# Censo de los contactos que quedan con v6 (codigo FINAL, HEAD d8877ab, AV6_BITS=master): en que ESTADO del navegador y con que COMANDO ocurre cada contacto de los 11 escenarios de solidos (G2 amplio), 120 corridas por escenario.
+# SIMULADO / NO MEDIDO EN EL CARRO. Salida de 'depurar <escenario> <corrida>' (linea CONTACTO). conj 1 = DESARROLLO, 2 = RESERVADO; ruido 0 = heredado, 1 = calibrado; laser 0 = normal, 1 = pesimista.
+# fase: 0 = primer giro del rodeo, 4 = retroceso, 5 = pausa, 7 = fuera del rodeo. estado SIGUIENDO con cmd RIGHT/LEFT = giro de la RUTA tras un rodeo interrumpido; REINCORPORANDO = giro o avance de regreso a la linea.
+
+######## conj=1 ruido=0 laser=0
+objeto_largo90         run  53  t=13000  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20_con_sol         run  90  t=11400  estado=SIGUIENDO fase=7 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  REINCORPORANDO   fase=7   cmd=RIGHT    1
+  SIGUIENDO        fase=7   cmd=RIGHT    1
+total 2
+
+######## conj=2 ruido=0 laser=0
+objeto_largo90         run  64  t=12350  estado=REINCORPORANDO fase=7 cmd=FORWARD
+--- resumen (estado, fase, cmd): contactos
+  REINCORPORANDO   fase=7   cmd=FORWARD  1
+total 1
+
+######## conj=2 ruido=0 laser=1
+objeto_largo90         run  22  t=12550  estado=REINCORPORANDO fase=7 cmd=LEFT
+objeto_largo90         run  28  t=15300  estado=REINCORPORANDO fase=7 cmd=LEFT
+objeto_bajo            run   8  t=4900  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  10  t=4600  estado=ESQUIVANDO fase=0 cmd=LEFT
+objeto_bajo            run  41  t=4150  estado=ESQUIVANDO fase=0 cmd=LEFT
+objeto_bajo            run  85  t=4600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  89  t=3950  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  43  t=3400  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  54  t=3400  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  98  t=4600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  ESQUIVANDO       fase=0   cmd=RIGHT    6
+  REINCORPORANDO   fase=7   cmd=LEFT     2
+  ESQUIVANDO       fase=0   cmd=LEFT     2
+total 10
+
+######## conj=1 ruido=1 laser=0
+caja20                 run  52  t=12850  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20_lateral         run   3  t=20500  estado=DETENIDO_OBSTACULO fase=7 cmd=STOP
+caja20_lateral         run  15  t=15500  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_lateral         run  41  t=15450  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_largo90         run   9  t=10700  estado=REINCORPORANDO fase=7 cmd=FORWARD
+objeto_largo90         run  10  t=9200  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  37  t=12950  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_largo90         run 118  t=14400  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  37  t=11500  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  61  t=16050  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_bajo            run  12  t=12900  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  41  t=14600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  78  t=12300  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  79  t=12950  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  92  t=10700  estado=ESQUIVANDO fase=0 cmd=RIGHT
+caja20_con_sol         run   4  t=20450  estado=DETENIDO_OBSTACULO fase=7 cmd=STOP
+bateria_baja           run   7  t=12300  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bateria_baja           run  30  t=13100  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run   3  t=55450  estado=ESQUIVANDO fase=2 cmd=RIGHT
+bajo_solo_color        run   8  t=13300  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  13  t=13650  estado=ESQUIVANDO fase=4 cmd=REVERSE
+bajo_solo_color        run  20  t=23000  estado=ESQUIVANDO fase=5 cmd=STOP
+bajo_solo_color        run  61  t=12700  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  74  t=12950  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  75  t=19550  estado=ESQUIVANDO fase=7 cmd=FORWARD
+bajo_solo_color        run  93  t=15300  estado=ESQUIVANDO fase=4 cmd=REVERSE
+bajo_solo_color        run 114  t=21800  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja_antes_de_esquina  run  19  t=25750  estado=ESQUIVANDO fase=2 cmd=RIGHT
+caja_antes_de_esquina  run  41  t=11750  estado=SIGUIENDO fase=7 cmd=FORWARD
+caja_antes_de_esquina  run 102  t=11600  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run 110  t=9350  estado=SIGUIENDO fase=7 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  REINCORPORANDO   fase=7   cmd=RIGHT    10
+  ESQUIVANDO       fase=7   cmd=FORWARD  5
+  SIGUIENDO        fase=7   cmd=RIGHT    5
+  DETENIDO_OBSTACULO fase=7   cmd=STOP     2
+  ESQUIVANDO       fase=0   cmd=RIGHT    2
+  ESQUIVANDO       fase=2   cmd=RIGHT    2
+  ESQUIVANDO       fase=4   cmd=REVERSE  2
+  REINCORPORANDO   fase=7   cmd=FORWARD  1
+  ESQUIVANDO       fase=5   cmd=STOP     1
+  SIGUIENDO        fase=7   cmd=FORWARD  1
+total 31
+
+######## conj=2 ruido=1 laser=0
+caja20                 run  12  t=13050  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20                 run  18  t=18800  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20                 run  28  t=23800  estado=SIGUIENDO fase=7 cmd=FORWARD
+caja20                 run  36  t=19200  estado=ESQUIVANDO fase=0 cmd=RIGHT
+caja20                 run  96  t=13000  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20_lateral         run   9  t=17550  estado=SIGUIENDO fase=7 cmd=LEFT
+caja20_lateral         run  23  t=13200  estado=SIGUIENDO fase=7 cmd=FORWARD
+caja20_lateral         run  49  t=9850  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_lateral         run  90  t=20400  estado=ESQUIVANDO fase=5 cmd=STOP
+caja20_lateral         run 113  t=9850  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  15  t=11400  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_largo90         run  36  t=8400  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  55  t=8800  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  78  t=10100  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run 111  t=14200  estado=ESQUIVANDO fase=0 cmd=RIGHT
+dos_obstaculos         run   1  t=16100  estado=ESQUIVANDO fase=7 cmd=FORWARD
+dos_obstaculos         run  19  t=15650  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  68  t=16650  estado=REINCORPORANDO fase=7 cmd=RIGHT
+dos_obstaculos         run  80  t=14950  estado=SIGUIENDO fase=7 cmd=FORWARD
+dos_obstaculos         run  95  t=13250  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run   9  t=12050  estado=ESQUIVANDO fase=0 cmd=RIGHT
+aparece_de_repente     run  48  t=9450  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  66  t=29550  estado=ESQUIVANDO fase=0 cmd=RIGHT
+aparece_de_repente     run  75  t=31650  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  89  t=18950  estado=ESQUIVANDO fase=0 cmd=RIGHT
+aparece_de_repente     run 100  t=14500  estado=ESQUIVANDO fase=7 cmd=FORWARD
+aparece_de_repente     run 118  t=11600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+aparece_de_repente     run 119  t=14250  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_bajo            run  44  t=12350  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  95  t=21750  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_con_sol         run  40  t=9700  estado=REINCORPORANDO fase=7 cmd=LEFT
+caja20_con_sol         run  42  t=30900  estado=ESQUIVANDO fase=0 cmd=RIGHT
+caja20_con_sol         run  50  t=26650  estado=ESQUIVANDO fase=0 cmd=LEFT
+caja20_con_sol         run  71  t=15100  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_con_sol         run  74  t=30500  estado=SIGUIENDO fase=7 cmd=LEFT
+caja20_con_sol         run  99  t=20200  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_con_sol         run 102  t=10300  estado=ESQUIVANDO fase=0 cmd=LEFT
+bateria_baja           run   2  t=17950  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run  12  t=9550  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run  54  t=8300  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run  67  t=15900  estado=SIGUIENDO fase=7 cmd=RIGHT
+bajo_solo_color        run  52  t=53050  estado=ESQUIVANDO fase=5 cmd=STOP
+bajo_solo_color        run  57  t=13700  estado=SIGUIENDO fase=7 cmd=RIGHT
+bajo_solo_color        run  80  t=26550  estado=SIGUIENDO fase=7 cmd=RIGHT
+bajo_solo_color        run 116  t=24200  estado=ESQUIVANDO fase=5 cmd=STOP
+bajo_solo_color        run 117  t=13350  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run  75  t=12850  estado=SIGUIENDO fase=7 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  SIGUIENDO        fase=7   cmd=RIGHT    21
+  ESQUIVANDO       fase=0   cmd=RIGHT    8
+  REINCORPORANDO   fase=7   cmd=RIGHT    5
+  SIGUIENDO        fase=7   cmd=FORWARD  3
+  ESQUIVANDO       fase=5   cmd=STOP     3
+  SIGUIENDO        fase=7   cmd=LEFT     2
+  ESQUIVANDO       fase=7   cmd=FORWARD  2
+  ESQUIVANDO       fase=0   cmd=LEFT     2
+  REINCORPORANDO   fase=7   cmd=LEFT     1
+total 47
+
+######## conj=1 ruido=1 laser=1
+caja20                 run  42  t=16250  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20                 run  52  t=13000  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20                 run  72  t=27850  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20                 run  99  t=13400  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20                 run 103  t=21000  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_lateral         run  20  t=10450  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_lateral         run  60  t=11400  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_lateral         run  82  t=3550  estado=DETENIDO_OBSTACULO fase=0 cmd=STOP
+caja20_lateral         run  86  t=15850  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_lateral         run 112  t=9850  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_largo90         run  17  t=12600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_largo90         run  18  t=21700  estado=ESQUIVANDO fase=5 cmd=STOP
+objeto_largo90         run  49  t=10850  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_largo90         run  52  t=11950  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  77  t=8950  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_largo90         run  94  t=13700  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  37  t=12450  estado=ESQUIVANDO fase=1 cmd=FORWARD
+dos_obstaculos         run  79  t=9200  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run 110  t=13500  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  10  t=15800  estado=ESQUIVANDO fase=7 cmd=FORWARD
+aparece_de_repente     run  13  t=15150  estado=ESQUIVANDO fase=1 cmd=FORWARD
+aparece_de_repente     run  24  t=17650  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  55  t=20500  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  90  t=16550  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_bajo            run  12  t=12900  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  39  t=13850  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_bajo            run  41  t=14600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  43  t=14650  estado=ESQUIVANDO fase=4 cmd=REVERSE
+objeto_bajo            run  78  t=12750  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  79  t=12950  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  92  t=16800  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_bajo            run 118  t=21250  estado=SIGUIENDO fase=7 cmd=FORWARD
+caja20_con_sol         run   3  t=9950  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20_con_sol         run   4  t=16500  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_con_sol         run  11  t=15550  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_con_sol         run 101  t=8400  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run  45  t=12150  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bateria_baja           run  49  t=13850  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bateria_baja           run  84  t=46900  estado=ESQUIVANDO fase=2 cmd=RIGHT
+bateria_baja           run 103  t=30900  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run 108  t=13000  estado=SIGUIENDO fase=7 cmd=FORWARD
+bajo_solo_color        run   2  t=3650  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run   8  t=13300  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  15  t=11850  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  20  t=7850  estado=ESQUIVANDO fase=4 cmd=REVERSE
+bajo_solo_color        run  41  t=11950  estado=SIGUIENDO fase=7 cmd=RIGHT
+bajo_solo_color        run  42  t=18800  estado=ESQUIVANDO fase=7 cmd=FORWARD
+bajo_solo_color        run  61  t=12700  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  67  t=4050  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  74  t=13350  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bajo_solo_color        run  75  t=19550  estado=ESQUIVANDO fase=7 cmd=FORWARD
+bajo_solo_color        run 114  t=21800  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja_antes_de_esquina  run 105  t=10250  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run 113  t=16100  estado=ESQUIVANDO fase=7 cmd=FORWARD
+--- resumen (estado, fase, cmd): contactos
+  SIGUIENDO        fase=7   cmd=RIGHT    15
+  ESQUIVANDO       fase=7   cmd=FORWARD  13
+  REINCORPORANDO   fase=7   cmd=RIGHT    11
+  ESQUIVANDO       fase=0   cmd=RIGHT    6
+  ESQUIVANDO       fase=1   cmd=FORWARD  2
+  ESQUIVANDO       fase=4   cmd=REVERSE  2
+  SIGUIENDO        fase=7   cmd=FORWARD  2
+  DETENIDO_OBSTACULO fase=0   cmd=STOP     1
+  ESQUIVANDO       fase=5   cmd=STOP     1
+  ESQUIVANDO       fase=2   cmd=RIGHT    1
+total 54
+
+######## conj=2 ruido=1 laser=1
+caja20                 run   3  t=9800  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20                 run  40  t=10400  estado=ESQUIVANDO fase=0 cmd=RIGHT
+caja20                 run  71  t=12700  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20                 run  82  t=8250  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_lateral         run  36  t=10450  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_lateral         run  50  t=39700  estado=ESQUIVANDO fase=7 cmd=FORWARD
+caja20_lateral         run  55  t=13300  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja20_lateral         run  61  t=15200  estado=ESQUIVANDO fase=1 cmd=FORWARD
+caja20_lateral         run  72  t=12900  estado=ESQUIVANDO fase=2 cmd=LEFT
+objeto_largo90         run   1  t=11700  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  38  t=10100  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  50  t=11150  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  95  t=14300  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_largo90         run  98  t=10850  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run   2  t=15350  estado=SIGUIENDO fase=7 cmd=FORWARD
+dos_obstaculos         run  19  t=18250  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  22  t=17700  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  26  t=8850  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  42  t=11650  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  78  t=9200  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run  80  t=14100  estado=ESQUIVANDO fase=7 cmd=FORWARD
+dos_obstaculos         run  90  t=15850  estado=SIGUIENDO fase=7 cmd=RIGHT
+dos_obstaculos         run 119  t=15850  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  20  t=12800  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run  76  t=10000  estado=SIGUIENDO fase=7 cmd=RIGHT
+aparece_de_repente     run 100  t=14550  estado=ESQUIVANDO fase=7 cmd=FORWARD
+objeto_bajo            run  17  t=26600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  18  t=20700  estado=ESQUIVANDO fase=5 cmd=STOP
+objeto_bajo            run  36  t=34000  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_bajo            run  37  t=4000  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  44  t=12350  estado=REINCORPORANDO fase=7 cmd=RIGHT
+objeto_bajo            run  51  t=10150  estado=SIGUIENDO fase=7 cmd=RIGHT
+objeto_bajo            run 112  t=11200  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run 117  t=8750  estado=ESQUIVANDO fase=4 cmd=REVERSE
+objeto_bajo            run 118  t=37550  estado=ESQUIVANDO fase=4 cmd=REVERSE
+caja20_con_sol         run  40  t=9700  estado=REINCORPORANDO fase=7 cmd=LEFT
+caja20_con_sol         run  74  t=43900  estado=ESQUIVANDO fase=0 cmd=RIGHT
+caja20_con_sol         run  79  t=16850  estado=ESQUIVANDO fase=1 cmd=FORWARD
+caja20_con_sol         run 105  t=13150  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja20_con_sol         run 118  t=17100  estado=SIGUIENDO fase=7 cmd=LEFT
+bateria_baja           run  14  t=15000  estado=ESQUIVANDO fase=7 cmd=FORWARD
+bateria_baja           run  19  t=18950  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run  28  t=12600  estado=REINCORPORANDO fase=7 cmd=RIGHT
+bateria_baja           run  30  t=16000  estado=ESQUIVANDO fase=7 cmd=FORWARD
+bateria_baja           run  68  t=10350  estado=SIGUIENDO fase=7 cmd=RIGHT
+bateria_baja           run 103  t=10200  estado=SIGUIENDO fase=7 cmd=RIGHT
+bajo_solo_color        run  24  t=14800  estado=ESQUIVANDO fase=0 cmd=LEFT
+bajo_solo_color        run  98  t=15600  estado=ESQUIVANDO fase=2 cmd=LEFT
+bajo_solo_color        run 107  t=25050  estado=ESQUIVANDO fase=0 cmd=LEFT
+bajo_solo_color        run 117  t=13350  estado=REINCORPORANDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run  42  t=9500  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run  52  t=22200  estado=SIGUIENDO fase=7 cmd=RIGHT
+caja_antes_de_esquina  run 103  t=18350  estado=ESQUIVANDO fase=0 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  SIGUIENDO        fase=7   cmd=RIGHT    24
+  ESQUIVANDO       fase=0   cmd=RIGHT    6
+  ESQUIVANDO       fase=7   cmd=FORWARD  6
+  REINCORPORANDO   fase=7   cmd=RIGHT    5
+  ESQUIVANDO       fase=1   cmd=FORWARD  2
+  ESQUIVANDO       fase=2   cmd=LEFT     2
+  ESQUIVANDO       fase=4   cmd=REVERSE  2
+  ESQUIVANDO       fase=0   cmd=LEFT     2
+  SIGUIENDO        fase=7   cmd=FORWARD  1
+  ESQUIVANDO       fase=5   cmd=STOP     1
+  REINCORPORANDO   fase=7   cmd=LEFT     1
+  SIGUIENDO        fase=7   cmd=LEFT     1
+total 53
+
+######## conj=1 ruido=0 laser=1
+objeto_bajo            run  30  t=4050  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  33  t=3900  estado=ESQUIVANDO fase=0 cmd=RIGHT
+objeto_bajo            run  74  t=4150  estado=ESQUIVANDO fase=0 cmd=LEFT
+objeto_bajo            run 108  t=4550  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run   5  t=3600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  13  t=4200  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  15  t=5050  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  20  t=4100  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  34  t=3950  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  47  t=4000  estado=ESQUIVANDO fase=0 cmd=RIGHT
+bajo_solo_color        run  58  t=3600  estado=ESQUIVANDO fase=0 cmd=RIGHT
+--- resumen (estado, fase, cmd): contactos
+  ESQUIVANDO       fase=0   cmd=RIGHT    10
+  ESQUIVANDO       fase=0   cmd=LEFT     1
+total 11

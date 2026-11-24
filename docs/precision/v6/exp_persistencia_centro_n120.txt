@@ -1,0 +1,42 @@
+# Intento DESCARTADO: persistencia tambien en el CENTRO (la misma exigencia de cuadros seguidos de LATERAL_PERSISTENTE, pero para la masa solida de la zona central, solo mientras sigue la ruta).
+# Se probo en una copia temporal de navegador.c con una condicion extra (if (z == ZONA_CENTRO && LATERAL_PERSISTENTE && estado == SIGUIENDO && req < K) req = K;), K = 3, 4 y 5 cuadros (cexpK); NO esta en el codigo final. v6 = codigo final (K = 2 en el centro).
+# SIMULADO / NO MEDIDO EN EL CARRO. 120 corridas por escenario, laser normal, v6 completo (AV6_BITS=master). d/r = DESARROLLO/RESERVADO, f/g = familia sin eco (dev/reservada); 0 = ruido heredado, 1 = calibrado. Celda: exito/contactos/ayuda e=esquivas p=paradas.
+# Resultado: no mejora el piso limpio (G1 DESARROLLO ruido 1: -1 AYUDA, -2 esquives; RESERVADO: nada) y cuesta cobertura (bloque_sin_eco con ruido 0: 25 -> 27, 36, 36 contactos; familia sin eco +1 a +13).
+
+##### matriz=d1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          798/  0/ 101 e 440 p1089 | v6          795/  0/ 111 e 507 p 820 | cexp3:v6_m  795/  0/ 110 e 505 p 821 | cexp4:v6_m  795/  0/ 110 e 505 p 821 | cexp5:v6_m  795/  0/ 110 e 505 p 822
+G2   (11 esc,  1320 corr) | v3          813/ 82/ 591 e2827 p2400 | v6          790/ 31/ 643 e3101 p1988 | cexp3:v6_m  790/ 31/ 643 e3101 p1988 | cexp4:v6_m  790/ 31/ 643 e3101 p1988 | cexp5:v6_m  790/ 31/ 643 e3101 p1988
+G4   ( 2 esc,   240 corr) | v3           56/ 58/  90 e 354 p 351 | v6           55/ 32/ 111 e 411 p 283 | cexp3:v6_m   55/ 32/ 112 e 410 p 284 | cexp4:v6_m   55/ 32/ 112 e 410 p 284 | cexp5:v6_m   55/ 32/ 112 e 410 p 284
+G5   ( 2 esc,   240 corr) | v3           72/  5/ 167 e 377 p 323 | v6           79/  9/ 158 e 444 p 311 | cexp3:v6_m   79/  9/ 158 e 444 p 311 | cexp4:v6_m   79/  9/ 158 e 444 p 311 | cexp5:v6_m   79/  9/ 158 e 444 p 311
+G3p  ( 1 esc,   120 corr) | v3           37/ 63/  22 e 149 p 227 | v6           61/ 19/  43 e 304 p 221 | cexp3:v6_m   61/ 21/  41 e 302 p 221 | cexp4:v6_m   60/ 23/  40 e 297 p 220 | cexp5:v6_m   60/ 23/  40 e 297 p 220
+
+##### matriz=r1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          788/  0/ 105 e 430 p 976 | v6          788/  0/ 100 e 479 p 828 | cexp3:v6_m  788/  0/ 100 e 479 p 828 | cexp4:v6_m  788/  0/ 100 e 479 p 828 | cexp5:v6_m  788/  0/ 100 e 479 p 828
+G2   (11 esc,  1320 corr) | v3          824/ 82/ 593 e2893 p2393 | v6          788/ 47/ 645 e3088 p2061 | cexp3:v6_m  788/ 47/ 645 e3088 p2061 | cexp4:v6_m  788/ 47/ 645 e3088 p2061 | cexp5:v6_m  788/ 47/ 645 e3088 p2061
+G4   ( 4 esc,   480 corr) | v3          125/108/ 243 e 773 p 729 | v6          139/ 73/ 257 e 874 p 670 | cexp3:v6_m  139/ 73/ 257 e 874 p 670 | cexp4:v6_m  139/ 73/ 257 e 874 p 670 | cexp5:v6_m  139/ 73/ 257 e 874 p 670
+G5   ( 3 esc,   360 corr) | v3          155/ 11/ 204 e 624 p 512 | v6          167/  5/ 192 e 723 p 475 | cexp3:v6_m  167/  5/ 192 e 723 p 475 | cexp4:v6_m  167/  5/ 192 e 723 p 475 | cexp5:v6_m  167/  5/ 192 e 723 p 475
+G3p  ( 1 esc,   120 corr) | v3           31/ 70/  43 e 211 p 369 | v6           56/ 18/  49 e 306 p 228 | cexp3:v6_m   56/ 18/  49 e 306 p 228 | cexp4:v6_m   55/ 19/  49 e 306 p 228 | cexp5:v6_m   55/ 19/  49 e 306 p 228
+
+##### matriz=f1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G3p  ( 7 esc,   840 corr) | v3          273/407/ 246 e1361 p1920 | v6          422/107/ 352 e2108 p1442 | cexp3:v6_m  424/108/ 349 e2109 p1441 | cexp4:v6_m  416/120/ 344 e2087 p1445 | cexp5:v6_m  416/120/ 344 e2087 p1445
+G3n  ( 3 esc,   360 corr) | v3          219/  0/  62 e 360 p 641 | v6          163/  0/  96 e 578 p 533 | cexp3:v6_m  163/  0/  96 e 579 p 537 | cexp4:v6_m  163/  0/  97 e 580 p 537 | cexp5:v6_m  163/  0/  97 e 580 p 537
+LIM  ( 2 esc,   240 corr) | v3           10/223/  38 e 187 p 258 | v6            7/223/  45 e 193 p 206 | cexp3:v6_m    7/223/  45 e 193 p 206 | cexp4:v6_m    7/223/  45 e 193 p 206 | cexp5:v6_m    7/223/  45 e 193 p 206
+
+##### matriz=g1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G3p  ( 7 esc,   840 corr) | v3          271/420/ 243 e1311 p1945 | v6          451/ 77/ 345 e2181 p1490 | cexp3:v6_m  451/ 79/ 343 e2174 p1492 | cexp4:v6_m  446/ 88/ 339 e2162 p1506 | cexp5:v6_m  446/ 88/ 339 e2162 p1506
+G3n  ( 3 esc,   360 corr) | v3          221/  0/  66 e 349 p 682 | v6          161/  0/  94 e 579 p 509 | cexp3:v6_m  162/  0/  92 e 574 p 508 | cexp4:v6_m  162/  0/  91 e 574 p 514 | cexp5:v6_m  162/  0/  91 e 574 p 514
+LIM  ( 2 esc,   240 corr) | v3            4/231/  45 e 166 p 190 | v6            7/231/  48 e 174 p 167 | cexp3:v6_m    7/231/  48 e 174 p 167 | cexp4:v6_m    7/231/  48 e 174 p 167 | cexp5:v6_m    7/231/  48 e 174 p 167
+
+##### matriz=d0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  27 | v6          960/  0/   0 e   0 p  27 | cexp3:v6_m  960/  0/   0 e   0 p  27 | cexp4:v6_m  960/  0/   0 e   0 p  27 | cexp5:v6_m  960/  0/   0 e   0 p  27
+G2   (11 esc,  1320 corr) | v3         1314/  2/ 125 e1448 p1404 | v6         1313/  2/ 126 e1450 p1402 | cexp3:v6_m 1313/  2/ 126 e1450 p1402 | cexp4:v6_m 1313/  2/ 126 e1450 p1402 | cexp5:v6_m 1313/  2/ 126 e1450 p1402
+G4   ( 2 esc,   240 corr) | v3          100/ 48/  39 e 178 p 207 | v6           98/ 36/  42 e 177 p 215 | cexp3:v6_m   98/ 36/  42 e 177 p 215 | cexp4:v6_m   98/ 36/  42 e 177 p 215 | cexp5:v6_m   98/ 36/  42 e 177 p 215
+G5   ( 2 esc,   240 corr) | v3          139/  1/ 100 e 266 p 241 | v6          158/  1/  82 e 278 p 242 | cexp3:v6_m  158/  1/  82 e 278 p 242 | cexp4:v6_m  158/  1/  82 e 278 p 242 | cexp5:v6_m  158/  1/  82 e 278 p 242
+G3p  ( 1 esc,   120 corr) | v3            0/120/   0 e   0 p  23 | v6           95/ 25/   0 e 107 p 111 | cexp3:v6_m   93/ 27/   0 e 105 p 109 | cexp4:v6_m   84/ 36/   0 e  93 p 107 | cexp5:v6_m   84/ 36/   0 e  93 p 107
+
+##### matriz=r0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  24 | v6          960/  0/   0 e   0 p  24 | cexp3:v6_m  960/  0/   0 e   0 p  24 | cexp4:v6_m  960/  0/   0 e   0 p  24 | cexp5:v6_m  960/  0/   0 e   0 p  24
+G2   (11 esc,  1320 corr) | v3         1314/  3/ 123 e1482 p1418 | v6         1316/  1/ 123 e1483 p1418 | cexp3:v6_m 1316/  1/ 123 e1483 p1418 | cexp4:v6_m 1316/  1/ 123 e1483 p1418 | cexp5:v6_m 1316/  1/ 123 e1483 p1418
+G4   ( 4 esc,   480 corr) | v3          204/105/ 122 e 395 p 439 | v6          208/ 71/ 133 e 410 p 444 | cexp3:v6_m  208/ 71/ 133 e 410 p 444 | cexp4:v6_m  208/ 71/ 133 e 410 p 444 | cexp5:v6_m  208/ 71/ 133 e 410 p 444
+G5   ( 3 esc,   360 corr) | v3          268/  0/  92 e 397 p 362 | v6          305/  0/  55 e 414 p 361 | cexp3:v6_m  305/  0/  55 e 414 p 361 | cexp4:v6_m  305/  0/  55 e 414 p 361 | cexp5:v6_m  305/  0/  55 e 414 p 361
+G3p  ( 1 esc,   120 corr) | v3            1/119/   7 e 110 p 131 | v6           85/ 35/   2 e 123 p 135 | cexp3:v6_m   85/ 35/   2 e 123 p 135 | cexp4:v6_m   76/ 44/   3 e 118 p 142 | cexp5:v6_m   76/ 44/   3 e 118 p 142
