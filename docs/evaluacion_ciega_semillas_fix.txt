@@ -1,0 +1,16 @@
+# Semillas externas NUEVAS para evaluacion ciega post-congelamiento de feat/autonomo-v5-carbon-fix (Fase 4.4)
+# SIMULADO / NO MEDIDO EN EL CARRO.
+# Generado DESPUES de crear y publicar el tag freeze/v5-carbon-fix, ANTES de correr los escenarios.
+
+hora_local = 2026-11-24 00:13:45
+hora_utc   = 2026-11-24T06:13:45Z
+rama       = feat/autonomo-v5-carbon-fix
+tag        = freeze/v5-carbon-fix
+tag_objeto = 3b9ff392b1f18ae1ad67ba7cdd2a5cfa95fc6fdf
+commit_congelado = 606c9f98f6342f32723cdc96f7a0749c5a3c968a
+origin_main      = bd1727beb0fc3412eced5fa71cba9442758e85b4
+origin_main_hex8 = bd1727be (entero = 3172411326)
+
+semilla_A2 = 1795500825
+semilla_B2 = 4967912151
+semilla_C2 = 14218571033175
