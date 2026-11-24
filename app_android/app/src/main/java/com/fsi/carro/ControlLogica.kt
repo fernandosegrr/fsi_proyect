@@ -119,6 +119,10 @@ class ControlLogica(
     var autonomoV5 = false      // v5-carbon (referencia): apagado por defecto = comportamiento v3
     var autonomoV6 = false      // v6 (candidato): apagado por defecto; encendido incluye v5
 
+    /** La versión que de verdad corre (v6 incluye v5): v3 con los dos interruptores apagados, v5 con solo el de v5 y v6 con el de v6. Se anota en la caja negra de cada corrida. */
+    val versionAutonomo: String
+        get() = if (autonomoV6) "v6" else if (autonomoV5) "v5" else "v3"
+
     /** Los interruptores de la app (Calibración → Sensores). Encendidos por defecto; solo valen si el firmware avisa que el sensor funciona. */
     var usarGiroscopio = true
     var usarSensorDistancia = true
