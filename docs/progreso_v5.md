@@ -43,4 +43,14 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
   - `make -C nucleo_c test`: 0 fallos en toda la suite (incluyendo `pruebas_v5_masa_solida` y `pruebas_v5_etapa1_etapa2`).
   - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
   - `docs/precision/v5/etapa2.txt`: **G1 `CUMPLE`**, **G7 `CUMPLE`** (0 paradas/esquives/AYUDA nuevos en piso limpio en ambas matrices y modelos laser); `objeto_bajo` pesimista bajo a **0/40** contactos en `DESARROLLO` y `RESERVADO` (`v3`: 19 y 14); `bajo_solo_color` pesimista bajo a **3/40** y **2/40** (`v3`: 23 y 17); `bloque_sin_eco` bajo de **40/40** en `v3` a **14/40** (`DESARROLLO`) y **13/40** (`RESERVADO`), quedando los contactos restantes ligados al giro derecho sin retroceso previo en seco.
-- **Siguiente**: Etapa 3 (`v5_patas_delgadas` + `cfg_color.v5_rachas` + retroceso previo seguro + margen de cola `terminado_falso = 0`).
+
+### Etapa 3: `v5_patas_delgadas` + `cfg_color.v5_rachas` + margen de cola (SIMULADO)
+- **Que se hizo**:
+  - `obstaculos.c`: unificacion en `es_celda_contraste_fisico` + `es_trazo_horizontal_delgado` + `clasificar_rachas_verticales` (`v5_rachas = 1` por defecto) para conservar rachas verticales delgadas (`>= 3` filas en `<= 3` cols) de patas finas sin disparar en juntas ni sombras suaves; ajuste global al `< 96 %` de celdas activas para no perder `bloque_sin_eco` a corta distancia.
+  - `navegador.h/.c`: activada `v5_patas_delgadas = 1`; confirmacion en `ZONA_CENTRO` con racha vertical + caja neuronal / par bilateral / eco ToF reciente sin bloquear flancos; bloqueo de `vistazo` cercano (`vistazo_cerc >= 2`) tambien para solo red; reversa recta previa al pivote en paradas muy cercanas o sin eco (`cercania >= 3`); ancho minimo conservador (`210` mm) solo cuando `tof_dist_mm == 0 && !rodeo_por_vistazo && scan_muestras <= 2`; margen de cola en recta final y paso minimo `520` mm en `PAUSA_PASAR` para cubrir las 4 esquinas a velocidad real.
+  - Pruebas unitarias nuevas en `pruebas_obstaculos.c` (`pruebas_v5_rachas_verticales`) y `pruebas_navegador.c` (`v5_patas_delgadas`).
+- **Resultados verificados (SIMULADO, 40 corridas)**:
+  - `make -C nucleo_c test`: 0 fallos en toda la suite.
+  - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
+  - `docs/precision/v5/etapa3.txt`: **G1 `CUMPLE`**, **G3 `CUMPLE`**, **G7 `CUMPLE`**, **G6 `terminado_falso = 0` en `DESARROLLO`** (`1` residual en `RESERVADO` `silla_patas`). `bloque_sin_eco` bajo a **7/40** contactos en `DESARROLLO` y **9/40** en `RESERVADO` (`v3`: 40); `banquito35x45` pesimista bajo de **25 a 6** contactos (`DESARROLLO`) y **11 a 1** (`RESERVADO`, `bm`: 21->9); `dos_muebles` pesimista bajo de **13 a 5** (`bm`: 20->7); `mueble_con_pared` pesimista bajo de **21 a 1** contacto.
+- **Siguiente**: Etapa 4 (`v5_pasillo_pared` para causas 16/18 en `pasillo`, `pasillo_angosto`, `caja_y_pared_al_lado` y muebles con pared).

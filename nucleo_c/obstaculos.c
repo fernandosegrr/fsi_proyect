@@ -797,6 +797,70 @@ static void resumir_zonas(MapaCeldas confirmadas, const Rejilla *rejilla, int mi
     }
 }
 
+/* v5: indica si una celda marcada "no piso" tiene contraste fisico de objeto (croma fuerte o sombra muy profunda no-resalte). */
+static int es_celda_contraste_fisico(const int color[3], const GruposPiso *piso, int umbral_color,
+                                     int brillo_min, int brillo_max, int es_pata_delgada)
+{
+    int b = brillo(color);
+    int max_rgb = color[0];
+    int dcol, dcroma = 0, hay_croma = 0, g;
+    int croma_fuerte, oscuridad_profunda;
+
+    if (color[1] > max_rgb) max_rgb = color[1];
+    if (color[2] > max_rgb) max_rgb = color[2];
+    if (max_rgb >= 235 && b >= brillo_min) {
+        return 0;
+    }
+    dcol = distancia_al_piso(piso, color);
+    for (g = 0; g < piso->grupos; g++) {
+        if (brillo(piso->color[g]) >= SUMA_MIN_CROMA && b >= SUMA_MIN_CROMA) {
+            int dc = distancia_croma(color, piso->color[g]);
+
+            if (!hay_croma || dc < dcroma) {
+                dcroma = dc;
+                hay_croma = 1;
+            }
+        }
+    }
+    if (b > brillo_max * 102 / 100 && (!hay_croma || dcroma < 42)) {
+        return 0;
+    }
+    croma_fuerte = (b >= SUMA_MIN_CROMA && max_rgb < 235 && hay_croma && dcroma >= 34 && dcol >= umbral_color + 18);
+    oscuridad_profunda = (b * 100 <= brillo_min * 36 && dcol >= umbral_color + 24 &&
+                          (!hay_croma || dcroma >= 22 || b * 100 <= brillo_min * 16));
+    if (croma_fuerte || oscuridad_profunda) {
+        return 1;
+    }
+    if (es_pata_delgada && dcol >= umbral_color + 14) {
+        if ((hay_croma && dcroma >= 22 && b * 100 <= brillo_max * 85) ||
+            (b * 100 <= brillo_min * 46 && dcol >= umbral_color + 20)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Devuelve 1 si en (fila, col) la mancha horizontal de candidatas es delgada (<= 3 columnas) con piso limpio cercano. */
+static int es_trazo_horizontal_delgado(MapaCeldas candidatas, const Rejilla *rejilla, int fila, int col)
+{
+    int izq = col, der = col, limpio_cerca = 0, d;
+
+    while (izq > 0 && candidatas[fila][izq - 1] && col - (izq - 1) <= 3) izq--;
+    while (der + 1 < rejilla->columnas && candidatas[fila][der + 1] && (der + 1) - col <= 3) der++;
+    if (der - izq + 1 > 3) {
+        return 0;
+    }
+    for (d = -2; d <= 2; d++) {
+        int c = col + d;
+
+        if (c >= 0 && c < rejilla->columnas && !candidatas[fila][c]) {
+            limpio_cerca = 1;
+            break;
+        }
+    }
+    return limpio_cerca;
+}
+
 /* v5: clasifica masa compacta de alto contraste excluyendo resaltes solares/especulares, sombras suaves y saltos globales de exposicion. */
 static void clasificar_masa_solida(MapaColores celdas, const Rejilla *rejilla, const GruposPiso *piso,
                                    int umbral_color, int fila_minima, ResultadoObstaculos *resultado)
@@ -822,8 +886,7 @@ static void clasificar_masa_solida(MapaColores celdas, const Rejilla *rejilla, c
     memset(solida, 0, sizeof solida);
     for (fila = fila_minima; fila < rejilla->filas; fila++) {
         for (col = 0; col < rejilla->columnas; col++) {
-            int color[3], b, max_rgb, dcol, dcroma = 0, hay_croma = 0;
-            int croma_fuerte, oscuridad_profunda;
+            int color[3];
 
             if (!resultado->no_piso[fila][col]) {
                 continue;
@@ -832,34 +895,10 @@ static void clasificar_masa_solida(MapaColores celdas, const Rejilla *rejilla, c
             color[0] = celdas[fila][col][0];
             color[1] = celdas[fila][col][1];
             color[2] = celdas[fila][col][2];
-            b = brillo(color);
-            max_rgb = color[0];
-            if (color[1] > max_rgb) max_rgb = color[1];
-            if (color[2] > max_rgb) max_rgb = color[2];
-            dcol = distancia_al_piso(piso, color);
-            for (g = 0; g < piso->grupos; g++) {
-                if (brillo(piso->color[g]) >= SUMA_MIN_CROMA && b >= SUMA_MIN_CROMA) {
-                    int dc = distancia_croma(color, piso->color[g]);
-
-                    if (!hay_croma || dc < dcroma) {
-                        dcroma = dc;
-                        hay_croma = 1;
-                    }
-                }
-            }
-            if (max_rgb >= 235 && b >= brillo_min) {
-                continue;
-            }
-            if (b > brillo_max * 102 / 100 && (!hay_croma || dcroma < 42)) {
-                continue;
-            }
-            croma_fuerte = (b >= SUMA_MIN_CROMA && max_rgb < 235 && hay_croma && dcroma >= 34 && dcol >= umbral_color + 18);
-            oscuridad_profunda = (b * 100 <= brillo_min * 36 && dcol >= umbral_color + 24 &&
-                                  (!hay_croma || dcroma >= 22 || b * 100 <= brillo_min * 16));
-            solida[fila][col] = (croma_fuerte || oscuridad_profunda) ? 1 : 0;
+            solida[fila][col] = (unsigned char)es_celda_contraste_fisico(color, piso, umbral_color, brillo_min, brillo_max, 0);
         }
     }
-    if (marcadas >= total_activas * 68 / 100) {
+    if (marcadas >= total_activas * 96 / 100) {
         return;
     }
     for (z = 0; z < OBS_ZONAS; z++) {
@@ -883,6 +922,75 @@ static void clasificar_masa_solida(MapaColores celdas, const Rejilla *rejilla, c
                 resultado->masa_solida[z] = 1;
                 if (cerc > resultado->cercania_color[z]) {
                     resultado->cercania_color[z] = cerc;
+                }
+            }
+        }
+    }
+}
+
+/* v5 etapa 3: conserva rachas verticales delgadas (>= 3 filas) de patas finas de muebles sin disparar en juntas horizontales ni sombras/resaltes. */
+static void clasificar_rachas_verticales(MapaColores celdas, MapaCeldas candidatas, const Rejilla *rejilla, const GruposPiso *piso,
+                                         int umbral_color, int fila_minima, ResultadoObstaculos *resultado)
+{
+    MapaCeldas vcand;
+    int fila, col, z, g;
+    int total_activas = (rejilla->filas - fila_minima) * rejilla->columnas;
+    int cand_activas = 0;
+    int brillo_min = 765, brillo_max = 0;
+
+    for (z = 0; z < OBS_ZONAS; z++) {
+        resultado->racha_vertical[z] = 0;
+    }
+    if (total_activas <= 0 || piso->grupos <= 0) {
+        return;
+    }
+    for (g = 0; g < piso->grupos; g++) {
+        int bg = brillo(piso->color[g]);
+
+        if (bg < brillo_min) brillo_min = bg;
+        if (bg > brillo_max) brillo_max = bg;
+    }
+    memset(vcand, 0, sizeof vcand);
+    for (fila = fila_minima; fila < rejilla->filas; fila++) {
+        for (col = 0; col < rejilla->columnas; col++) {
+            if (candidatas[fila][col]) {
+                int color[3];
+
+                cand_activas++;
+                color[0] = celdas[fila][col][0];
+                color[1] = celdas[fila][col][1];
+                color[2] = celdas[fila][col][2];
+                vcand[fila][col] = (unsigned char)es_celda_contraste_fisico(color, piso, umbral_color, brillo_min, brillo_max,
+                                                                           es_trazo_horizontal_delgado(candidatas, rejilla, fila, col));
+            }
+        }
+    }
+    if (cand_activas >= total_activas * 96 / 100) {
+        return;
+    }
+    for (col = 0; col < rejilla->columnas; col++) {
+        int f = fila_minima;
+
+        while (f < rejilla->filas) {
+            int inicio, fin, k;
+
+            while (f < rejilla->filas && !vcand[f][col]) f++;
+            inicio = f;
+            while (f < rejilla->filas && vcand[f][col]) f++;
+            fin = f - 1;
+            if (fin - inicio + 1 >= 3) {
+                int cerc = cercania_por_fila(rejilla, fin);
+
+                for (k = inicio; k <= fin; k++) {
+                    resultado->no_piso[k][col] = 1;
+                }
+                if (cerc >= 2) {
+                    int zona = col * OBS_ZONAS / rejilla->columnas;
+
+                    resultado->racha_vertical[zona] = 1;
+                    if (cerc > resultado->cercania_color[zona]) {
+                        resultado->cercania_color[zona] = cerc;
+                    }
                 }
             }
         }
@@ -1047,7 +1155,7 @@ void obstaculos_config_defecto(ConfigObstaculos *config)
     config->mascara_activa = 0;
     memset(config->mascara, 0, sizeof config->mascara);
     config->v5_solido = 1;
-    config->v5_rachas = 0;
+    config->v5_rachas = 1;
 }
 
 /* La configuración es válida si los umbrales y las proporciones están en rango. */
@@ -1269,6 +1377,9 @@ static int analizar_celdas_modelo(const ConfigObstaculos *config, ModeloPiso *mo
     resumir_zonas(resultado->no_piso, &rejilla, config->min_celdas, fila_minima, resultado);
     if (config->v5_solido) {
         clasificar_masa_solida(celdas, &rejilla, &piso, config->umbral_color, fila_minima, resultado);
+    }
+    if (config->v5_rachas) {
+        clasificar_rachas_verticales(celdas, candidatas, &rejilla, &piso, config->umbral_color, fila_minima, resultado);
     }
     hay_obstaculo = resultado->zona[0].hay_obstaculo || resultado->zona[1].hay_obstaculo || resultado->zona[2].hay_obstaculo;
 

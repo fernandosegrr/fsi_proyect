@@ -801,6 +801,38 @@ static void pruebas_v5_masa_solida(void)
          r.masa_solida[ZONA_CENTRO] == 0);
 }
 
+static void pruebas_v5_rachas_verticales(void)
+{
+    static const unsigned char PISO_CLARO[3] = { 165, 160, 150 };
+    static const unsigned char PATA_SILLA[3] = { 60, 60, 70 };
+    static const unsigned char JUNTA_SUA[3]  = { 95, 92, 86 };
+    ConfigObstaculos cfg;
+    ResultadoObstaculos r;
+
+    g_ancho = OBS_ANCHO;
+    g_alto = OBS_ALTO;
+    obstaculos_config_defecto(&cfg);
+
+    rellenar(PISO_CLARO);
+    rectangulo_celdas(15, 12, 15, 17, PATA_SILLA);
+    caso("v5 racha_vertical: pata fina de 1 columna x 6 filas se detecta en centro",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.racha_vertical[ZONA_CENTRO] == 1 && r.cercania_color[ZONA_CENTRO] >= 2);
+
+    cfg.v5_rachas = 0;
+    caso("v5 racha_vertical apagado: racha_vertical queda en 0",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.racha_vertical[ZONA_CENTRO] == 0);
+    cfg.v5_rachas = 1;
+
+    rellenar(PISO_CLARO);
+    rectangulo_celdas(4, 15, 26, 15, JUNTA_SUA);
+    caso("v5 racha_vertical: junta horizontal de piso no dispara racha vertical",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.racha_vertical[ZONA_IZQUIERDA] == 0 && r.racha_vertical[ZONA_CENTRO] == 0 &&
+         r.racha_vertical[ZONA_DERECHA] == 0);
+}
+
 int main(void)
 {
     pruebas_piso_libre();
@@ -816,6 +848,7 @@ int main(void)
     pruebas_tamano(160, 120, 1);
     pruebas_tamanos_raros();
     pruebas_v5_masa_solida();
+    pruebas_v5_rachas_verticales();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

@@ -2007,13 +2007,15 @@ void navegador_iniciar(Navegador *nav)
     nav->v5_activo = 1;
     nav->v5_coincidencia_estable = 1;
     nav->v5_masa_sin_eco = 1;
-    nav->v5_patas_delgadas = 0;
+    nav->v5_patas_delgadas = 1;
     nav->v5_pasillo_pared = 0;
     nav->v5_fallo_seguro = 0;
     memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
     memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+    memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
+    memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
     memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
     memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
     nav->giro_fw_fallos = 0;
@@ -2219,6 +2221,7 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
     memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+    memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
     nav->vistazo_lado = nav->vistazo_ecos = nav->vistazo_mm = nav->vistazo_confirmado = nav->vistazos = nav->vistazos_con_eco = nav->giro_extra_grados = 0;
@@ -2439,6 +2442,30 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             long resto_fin = resto_de_recta_final(nav);
             int cerca_meta = (resto_fin >= 0 && resto_fin <= 350);
             int solido_ok = 0;
+            int nn_cuadro = ((obs->fuentes_vision[0] | obs->fuentes_vision[1] | obs->fuentes_vision[2]) & 2) != 0;
+            int rachas_cuadro = (obs->racha_vertical[0] ? 1 : 0) + (obs->racha_vertical[1] ? 1 : 0) + (obs->racha_vertical[2] ? 1 : 0);
+            int eco_reciente = (nav->usa_tof && nav->tof_vivo && nav->eco_ultimo_t_ms != 0 &&
+                                (uint32_t)(ahora_ms - nav->eco_ultimo_t_ms) <= (uint32_t)NAV_ECO_MEMORIA_MS);
+            int racha_en_z = obs->racha_vertical[z] ||
+                             (z == ZONA_CENTRO && ((obs->racha_vertical[ZONA_IZQUIERDA] && obs->racha_vertical[ZONA_DERECHA]) ||
+                                                   (nn_cuadro && ((obs->racha_vertical[ZONA_IZQUIERDA] && !obs->zona[ZONA_IZQUIERDA].fuera_corredor) ||
+                                                                  (obs->racha_vertical[ZONA_DERECHA] && !obs->zona[ZONA_DERECHA].fuera_corredor)))));
+
+            if (nav->v5_activo && nav->v5_patas_delgadas && !obs->zona[z].fuera_corredor && !cerca_meta && racha_en_z) {
+                nav->v5_racha_seguidas[z]++;
+                limitar_contador(&nav->v5_racha_seguidas[z]);
+            } else {
+                nav->v5_racha_seguidas[z] = 0;
+            }
+            if (nav->v5_activo && nav->v5_patas_delgadas && z == ZONA_CENTRO && !obs->zona[z].fuera_corredor && !cerca_meta) {
+                int req_r = (nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) ? 1 : 2;
+
+                if (nav->v5_racha_seguidas[z] >= req_r && (nn_cuadro || rachas_cuadro >= 2 || eco_reciente)) {
+                    solido_ok = 1;
+                    nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
+                    if (nav->v5_coinc_cercania[z] < 2) nav->v5_coinc_cercania[z] = 2;
+                }
+            }
 
             if (nav->v5_activo && nav->v5_masa_sin_eco && !obs->zona[z].fuera_corredor && !cerca_meta && obs->masa_solida[z]) {
                 nav->v5_solido_seguidas[z]++;
@@ -2451,12 +2478,12 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
 
                 if (nav->v5_solido_seguidas[z] >= req) {
                     solido_ok = 1;
-                    if (z == ZONA_CENTRO) {
+                    if (z == ZONA_CENTRO || nav->estado == NAV_SIGUIENDO) {
                         int c_sol = (obs->cercania_color[z] >= 2) ? obs->cercania_color[z] : ((obs->zona[z].cercania >= 2) ? obs->zona[z].cercania : 2);
 
-                        nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_SOLIDO_RETENCION_MS;
-                        if (c_sol > nav->v5_coinc_cercania[z]) {
-                            nav->v5_coinc_cercania[z] = c_sol;
+                        nav->v5_solido_hasta_ms[ZONA_CENTRO] = ahora_ms + (uint32_t)NAV_V5_SOLIDO_RETENCION_MS;
+                        if (c_sol > nav->v5_coinc_cercania[ZONA_CENTRO]) {
+                            nav->v5_coinc_cercania[ZONA_CENTRO] = c_sol;
                         }
                     }
                 } else if (z == ZONA_CENTRO && nav->estado == NAV_DETENIDO_OBSTACULO && nav->v5_solido_hasta_ms[z] != 0 &&
@@ -2464,7 +2491,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                     solido_ok = 1;
                 }
             }
-            if (solido_ok) {
+            if (solido_ok && (z == ZONA_CENTRO || nav->estado != NAV_DETENIDO_OBSTACULO)) {
                 hay = 1;
             }
         }
@@ -3990,6 +4017,16 @@ static long calcular_fin_obstaculo(Navegador *nav, int cercania)
         k++;   /* los tramos siguientes con el mismo rumbo son la misma recta */
     }
     limite = distancia_hasta_tramo(nav, k + 1);
+    if (nav->v5_activo && nav->v5_patas_delgadas && !nav->sin_margen_paso_j16) {
+        if (k + 1 >= nav->n_puntos - 1) {
+            long holg_final = (nav->ruta_largo_original_mm + NAV_EXTENSION_RUTA_MM - 500) - hasta;
+            long extra = (nav->tof_dist_mm == 0 || nav->scan_muestras <= 2) ? 260 : 140;
+            if (holg_final > 0) hasta += (extra < holg_final) ? extra : holg_final;
+        } else if (hasta < limite) {
+            long holg = limite - hasta;
+            hasta += (holg < 100) ? holg : 100;
+        }
+    }
     if (k + 1 >= nav->n_puntos - 1) {
         limite -= NAV_PARALELO_FIN_MM;
     }
@@ -4290,6 +4327,9 @@ static int esquive_sigue_decidido(const Navegador *nav)
     if (!nav->esquive_decidido) {
         return 0;
     }
+    if (nav->v5_activo && nav->v5_patas_delgadas && nav->vistazo_retrocedio) {
+        return 1;
+    }
     for (z = 0; z < OBS_ZONAS; z++) {
         if (nav->fuentes_vision[z] != 0) {
             return 1;
@@ -4316,6 +4356,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
         memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
         memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+        memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
         if (nav->tof_dist_mm > 0) {
             nav->tof_dist_mm += nav->retroceso_mm;   /* V2: la distancia medida era de antes de retroceder (con TOF_PARO o un vistazo no se vuelve a medir) */
         }
@@ -4334,6 +4375,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
             memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
             memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+            memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
             return tick_siguiendo(nav, ahora_ms);
         }
         return NAV_CMD_STOP;
@@ -4412,10 +4454,14 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
                  * registro. Un obstáculo de frente sigue con la cuenta de siempre (arco_cabe). (revisión: el comentario decía que dependía del arco; nunca dependió.) */
                 int barrido = ((nav->lado > 0) ? NAV_BARRIDO_DER_MM : NAV_BARRIDO_IZQ_MM) + NAV_BARRIDO_HOLGURA_MM;
                 int cara = libre_hasta_obstaculo_mm(nav) + NAV_ARCO_MARGEN_MM;
+                int v5_reversa_previa = nav->v5_activo && nav->v5_patas_delgadas && nav->usa_tof && !nav->sin_margen_paso_j16 &&
+                                        ((nav->tof_dist_mm == 0 && nav->salida_cercania >= 3) || (nav->tof_dist_mm > 0 && nav->tof_dist_mm <= 170));
 
-                if ((nav->vistazo_confirmado != 0 || nav->eco_retroceder) && !nav->vistazo_retrocedio && nav->atras_conocido_mm >= NAV_RETROCESO_CM * 10 + 30) {
+                if ((nav->vistazo_confirmado != 0 || nav->eco_retroceder || v5_reversa_previa) &&
+                    !nav->vistazo_retrocedio && nav->atras_conocido_mm >= NAV_RETROCESO_CM * 10 + 30) {
                     nav->eco_retroceder = 0;
                     nav->vistazo_retrocedio = 1;
+                    nav->esquive_decidido = 1;
                     nav->arco_adelante_mm = NAV_RETROCESO_MAX_MM;
                     nav->arco_libre_mm = 30;             /* intentar_escape_atras retrocede (adelante - libre + 30): aquí, el máximo */
                     diag_escribir(nav, "ESQUIVE_DIAG plan vistazo lado=%d eco_mm=%d barrido_mm=%d: retrocede antes de girar", nav->lado, cara, barrido);
@@ -4497,6 +4543,7 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
             memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
             memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+            memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
             esq_iniciar_giro(nav, ahora_ms);
             return comando_de_fase(nav);
         }
@@ -4565,6 +4612,10 @@ static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
             nav->scan_corte = 0;
         }
         ancho = nav->scan_ext_mm > 0 ? nav->scan_ext_mm + NAV_ESCANEO_RELLENO_MM : 0;
+        if (nav->v5_activo && nav->v5_patas_delgadas && !nav->sin_margen_paso_j16 && !nav->scan_corte &&
+            nav->tof_dist_mm == 0 && !nav->rodeo_por_vistazo && nav->scan_muestras <= 2 && ancho < 210) {
+            ancho = 210;
+        }
         if (ancho + NAV_ESQ_HOLGURA_VOLVER_MM > lateral) {
             lateral = ancho + NAV_ESQ_HOLGURA_VOLVER_MM;
         }
@@ -4729,6 +4780,11 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
 
             ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo_v2, &s_v2, &desvio_v2);
             nav->flanco_s_mm = s_v2;
+            if (nav->v5_activo && nav->v5_patas_delgadas && !nav->sin_margen_paso_j16 &&
+                nav->scan_muestras <= 2 && !nav->rodeo_por_vistazo && pista < 520 &&
+                s_v2 + 520 <= nav->ruta_largo_original_mm + NAV_EXTENSION_RUTA_MM - 500) {
+                pista = 520;
+            }
             if (nav->paralelo_mm < pista && tramo_paralelo_al_carro(nav, tramo_v2)) {
                 int ultima;
                 long hasta_v2 = s_v2 + pista;
@@ -5405,7 +5461,7 @@ int navegador_poner_v5(Navegador *nav, int activo)
     nav->v5_activo = on;
     nav->v5_coincidencia_estable = on;
     nav->v5_masa_sin_eco = on;
-    nav->v5_patas_delgadas = 0;
+    nav->v5_patas_delgadas = on;
     nav->v5_pasillo_pared = 0;
     nav->v5_fallo_seguro = 0;
     return NAV_OK;
@@ -5422,6 +5478,13 @@ int navegador_poner_masa_sin_eco(Navegador *nav, int activo)
 {
     if (nav == NULL) return NAV_ERR_ARGUMENTO;
     nav->v5_masa_sin_eco = activo ? 1 : 0;
+    return NAV_OK;
+}
+
+int navegador_poner_patas_delgadas(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v5_patas_delgadas = activo ? 1 : 0;
     return NAV_OK;
 }
 
@@ -5671,6 +5734,9 @@ static ComandoNav vistazo_tick(Navegador *nav, uint32_t ahora_ms, ComandoNav com
         }
         if (modo_vistazo == NAV_VISTAZO_NO) {
             continue;
+        }
+        if (nav->v5_activo && nav->v5_patas_delgadas && nav->vistazo_cerc[i] >= 2) {
+            continue;   /* v5 etapa 3: no torcer hacia el mueble/objeto a cercania >= 2 (aplica tambien a solo red) */
         }
         if (nav->vistazo_solo_red[i]) {
             if (nav->vistazo_red_hecho[i]) {

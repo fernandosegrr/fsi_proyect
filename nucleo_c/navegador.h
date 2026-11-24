@@ -772,6 +772,7 @@ typedef struct {
     int      v5_coinc_cercania[OBS_ZONAS];
     int      v5_solido_seguidas[OBS_ZONAS];
     uint32_t v5_solido_hasta_ms[OBS_ZONAS];
+    int      v5_racha_seguidas[OBS_ZONAS];
 } Navegador;
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
@@ -904,9 +905,11 @@ int navegador_poner_eco_retroceder(Navegador *nav, int mm);
 #define NAV_V5                     1
 #define NAV_V5_RETENCION_MS      500
 #define NAV_V5_SOLIDO_RETENCION_MS 1800
+#define NAV_V5_MARGEN_COLA_MM    180
 int navegador_poner_v5(Navegador *nav, int activo);
 int navegador_poner_coincidencia_estable(Navegador *nav, int activo);
 int navegador_poner_masa_sin_eco(Navegador *nav, int activo);
+int navegador_poner_patas_delgadas(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);

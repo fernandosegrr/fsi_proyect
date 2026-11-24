@@ -2192,6 +2192,35 @@ static void pruebas_v5_etapa1_etapa2(void)
     }
     caso("v5 masa_sin_eco detiene ante masa solida sin red ni laser",
          nav.estado == NAV_DETENIDO_OBSTACULO && cmd == NAV_CMD_STOP);
+
+    navegador_iniciar(&nav);
+    caso("v5 patas_delgadas activo por defecto y controlable",
+         nav.v5_patas_delgadas == 1 && navegador_poner_patas_delgadas(&nav, 0) == NAV_OK &&
+         nav.v5_patas_delgadas == 0 && navegador_poner_patas_delgadas(&nav, 1) == NAV_OK &&
+         nav.v5_patas_delgadas == 1);
+
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    navegador_iniciar(&nav);
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 1200; t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    obs.fuentes_vision[ZONA_CENTRO] = 2;   /* caja neuronal de silla */
+    obs.racha_vertical[ZONA_IZQUIERDA] = 1;
+    obs.cercania_color[ZONA_IZQUIERDA] = 2;
+    obs.cercania_color[ZONA_CENTRO] = 2;
+    cmd = NAV_CMD_FORWARD;
+    for (; t <= 1900; t += 100) {
+        cmd = navegador_tick(&nav, t, &obs);
+        if (nav.estado == NAV_DETENIDO_OBSTACULO) break;
+    }
+    caso("v5 patas_delgadas detiene con racha vertical + detector neuronal sin eco ToF",
+         nav.estado == NAV_DETENIDO_OBSTACULO && cmd == NAV_CMD_STOP);
 }
 
 int main(void)
