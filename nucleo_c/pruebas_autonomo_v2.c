@@ -763,6 +763,10 @@ static Resultado correr(int e, uint32_t semilla)
     cfg_color.ref_ancho_mil = 600;
     if (op_umbral > 0) cfg_color.umbral_color = op_umbral;
     if (op_celdas > 0) cfg_color.min_celdas = op_celdas;
+    if (op_v5_apagado) {
+        cfg_color.v5_solido = 0;
+        cfg_color.v5_rachas = 0;
+    }
     fusion_config_defecto(&cfg_fusion);
     obstaculos_modelo_iniciar(&piso);
     {

@@ -763,6 +763,44 @@ static void pruebas_tamanos_raros(void)
     g_alto = OBS_ALTO;
 }
 
+static void pruebas_v5_masa_solida(void)
+{
+    static const unsigned char PISO_CLARO[3]  = { 160, 155, 145 };
+    static const unsigned char BLOQUE_OSC[3]  = { 55, 60, 75 };
+    static const unsigned char SOMBRA_SUA[3]  = { 80, 77, 72 };
+    static const unsigned char RESALTE_SOL[3] = { 250, 248, 245 };
+    ConfigObstaculos cfg;
+    ResultadoObstaculos r;
+
+    g_ancho = OBS_ANCHO;
+    g_alto = OBS_ALTO;
+    obstaculos_config_defecto(&cfg);
+
+    rellenar(PISO_CLARO);
+    rectangulo_celdas(12, 14, 19, 19, BLOQUE_OSC);
+    caso("v5 masa_solida: bloque oscuro cromático en centro se marca",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.masa_solida[ZONA_CENTRO] == 1 && r.cercania_color[ZONA_CENTRO] >= 2);
+
+    cfg.v5_solido = 0;
+    caso("v5 masa_solida apagado: masa_solida permanece en 0",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.masa_solida[ZONA_CENTRO] == 0);
+    cfg.v5_solido = 1;
+
+    rellenar(PISO_CLARO);
+    rectangulo_celdas(12, 14, 19, 19, SOMBRA_SUA);
+    caso("v5 masa_solida: sombra suave (~50%% mismo tono) no se marca",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.masa_solida[ZONA_CENTRO] == 0);
+
+    rellenar(PISO_CLARO);
+    rectangulo_celdas(12, 14, 19, 19, RESALTE_SOL);
+    caso("v5 masa_solida: resalte o sol saturado no se marca",
+         obstaculos_analizar_con(&cfg, imagen, g_ancho, g_alto, &r) == OBS_OK &&
+         r.masa_solida[ZONA_CENTRO] == 0);
+}
+
 int main(void)
 {
     pruebas_piso_libre();
@@ -777,6 +815,7 @@ int main(void)
     pruebas_tamano(240, 176, 0);
     pruebas_tamano(160, 120, 1);
     pruebas_tamanos_raros();
+    pruebas_v5_masa_solida();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);
     return fallos == 0 ? 0 : 1;

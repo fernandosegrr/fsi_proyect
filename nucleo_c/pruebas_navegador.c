@@ -2136,6 +2136,64 @@ static void pruebas_j14_recta_predefinida(void)
     caso("J14: la distancia recorrida es ~150 cm", nav.recorrido_mm >= 1480 && nav.recorrido_mm <= 1520);
 }
 
+static void pruebas_v5_etapa1_etapa2(void)
+{
+    static const Punto RECTA_10[] = {
+        {2, 10}, {2, 9}, {2, 8}, {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0}
+    };
+    ResultadoObstaculos obs;
+    uint32_t t;
+    ComandoNav cmd;
+
+    navegador_iniciar(&nav);
+    caso("v5 iniciado por defecto con etapa 1 y 2 activas",
+         nav.v5_activo == 1 && nav.v5_coincidencia_estable == 1 && nav.v5_masa_sin_eco == 1);
+    navegador_poner_v5(&nav, 0);
+    caso("navegador_poner_v5(0) apaga las banderas",
+         nav.v5_activo == 0 && nav.v5_coincidencia_estable == 0 && nav.v5_masa_sin_eco == 0);
+    navegador_poner_v5(&nav, 1);
+    navegador_poner_masa_sin_eco(&nav, 0);
+    caso("navegador_poner_masa_sin_eco(0) permite control fino",
+         nav.v5_activo == 1 && nav.v5_masa_sin_eco == 0);
+    navegador_poner_masa_sin_eco(&nav, 1);
+
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    obs.zona[ZONA_CENTRO].hay_obstaculo = 0;   /* fusion sin red neuronal */
+    obs.zona[ZONA_CENTRO].cercania = 2;
+    obs.zona[ZONA_CENTRO].celdas = 32;
+    obs.fuentes_vision[ZONA_CENTRO] = 1;       /* solo color */
+    obs.masa_solida[ZONA_CENTRO] = 1;
+    obs.cercania_color[ZONA_CENTRO] = 3;
+
+    navegador_iniciar(&nav);
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    obs.masa_solida[ZONA_CENTRO] = 0;
+    obs.zona[ZONA_CENTRO].cercania = 0;
+    obs.zona[ZONA_CENTRO].celdas = 0;
+    obs.fuentes_vision[ZONA_CENTRO] = 0;
+    obs.cercania_color[ZONA_CENTRO] = 0;
+    for (t = 0; t <= 1500; t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    obs.zona[ZONA_CENTRO].cercania = 3;
+    obs.zona[ZONA_CENTRO].celdas = 32;
+    obs.fuentes_vision[ZONA_CENTRO] = 1;
+    obs.masa_solida[ZONA_CENTRO] = 1;
+    obs.cercania_color[ZONA_CENTRO] = 3;
+    cmd = NAV_CMD_FORWARD;
+    for (; t <= 2200; t += 100) {
+        cmd = navegador_tick(&nav, t, &obs);
+        if (nav.estado == NAV_DETENIDO_OBSTACULO) break;
+    }
+    caso("v5 masa_sin_eco detiene ante masa solida sin red ni laser",
+         nav.estado == NAV_DETENIDO_OBSTACULO && cmd == NAV_CMD_STOP);
+}
+
 int main(void)
 {
     pruebas_ruta_derecha_40cm();
@@ -2159,6 +2217,7 @@ int main(void)
     pruebas_j11_giroscopio();
     pruebas_j11_monte_carlo();
     pruebas_j14_recta_predefinida();
+    pruebas_v5_etapa1_etapa2();
 
     caso("en TODAS las pruebas nunca hubo movimiento en ESPERANDO, TERMINADO o ERROR", violaciones_totales == 0);
 

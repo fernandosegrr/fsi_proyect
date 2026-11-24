@@ -34,4 +34,13 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
   - `make -C nucleo_c test`: 0 fallos en toda la suite.
   - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
   - `docs/precision/v5/etapa1.txt`: G1 `CUMPLE`, G7 `CUMPLE` (0 paradas/esquives/AYUDA nuevos en piso limpio en `DESARROLLO` y `RESERVADO`). En `objeto_bajo` pesimista los contactos bajaron de 19 a 13 (`DESARROLLO`) y de 14 a 10 (`RESERVADO`) con `ayuda=0`; `bloque_sin_eco` normal paso de 40 a 39 en `DESARROLLO`.
-- **Siguiente**: Etapa 2 (`v5_masa_sin_eco` + `cfg_color.v5_solido`).
+
+### Etapa 2: `v5_masa_sin_eco` + `cfg_color.v5_solido` (SIMULADO)
+- **Que se hizo**:
+  - `obstaculos.h/.c`: agregados `v5_solido`, `v5_rachas`, `masa_solida[OBS_ZONAS]`, `racha_vertical[OBS_ZONAS]` y `cercania_color[OBS_ZONAS]`. `clasificar_masa_solida` detecta masa compacta de alto contraste o profundidad oscura con cambio cromatico (`dcroma >= 22`, excluyendo resaltes `max_rgb >= 235`, sombras suaves y piso no iluminado tras parches de sol) y tope global `< 68 %`.
+  - `navegador.h/.c`, `puente.c`, `pruebas_autonomo_v2.c`: activada bandera `v5_masa_sin_eco`, confirmacion con 2 cuadros seguidos en corredor (respetando fin de ruta), retencion hasta 1800 ms en centro ante lavado AEC en `DETENIDO_OBSTACULO`, bloqueo de `vistazo` hacia zona solida y pruebas unitarias en `pruebas_obstaculos.c` / `pruebas_navegador.c`.
+- **Resultados verificados (SIMULADO, 40 corridas)**:
+  - `make -C nucleo_c test`: 0 fallos en toda la suite (incluyendo `pruebas_v5_masa_solida` y `pruebas_v5_etapa1_etapa2`).
+  - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
+  - `docs/precision/v5/etapa2.txt`: **G1 `CUMPLE`**, **G7 `CUMPLE`** (0 paradas/esquives/AYUDA nuevos en piso limpio en ambas matrices y modelos laser); `objeto_bajo` pesimista bajo a **0/40** contactos en `DESARROLLO` y `RESERVADO` (`v3`: 19 y 14); `bajo_solo_color` pesimista bajo a **3/40** y **2/40** (`v3`: 23 y 17); `bloque_sin_eco` bajo de **40/40** en `v3` a **14/40** (`DESARROLLO`) y **13/40** (`RESERVADO`), quedando los contactos restantes ligados al giro derecho sin retroceso previo en seco.
+- **Siguiente**: Etapa 3 (`v5_patas_delgadas` + `cfg_color.v5_rachas` + retroceso previo seguro + margen de cola `terminado_falso = 0`).

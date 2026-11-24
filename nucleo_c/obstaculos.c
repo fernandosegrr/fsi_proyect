@@ -793,6 +793,99 @@ static void resumir_zonas(MapaCeldas confirmadas, const Rejilla *rejilla, int mi
             resultado->zona[zona].hay_obstaculo = 1;
             resultado->zona[zona].cercania = cercania_por_fila(rejilla, fila_mas_baja[zona]);
         }
+        resultado->cercania_color[zona] = resultado->zona[zona].cercania;
+    }
+}
+
+/* v5: clasifica masa compacta de alto contraste excluyendo resaltes solares/especulares, sombras suaves y saltos globales de exposicion. */
+static void clasificar_masa_solida(MapaColores celdas, const Rejilla *rejilla, const GruposPiso *piso,
+                                   int umbral_color, int fila_minima, ResultadoObstaculos *resultado)
+{
+    MapaCeldas solida;
+    int fila, col, z, g;
+    int total_activas = (rejilla->filas - fila_minima) * rejilla->columnas;
+    int marcadas = 0;
+    int brillo_min = 765, brillo_max = 0;
+
+    for (z = 0; z < OBS_ZONAS; z++) {
+        resultado->masa_solida[z] = 0;
+    }
+    if (total_activas <= 0 || piso->grupos <= 0) {
+        return;
+    }
+    for (g = 0; g < piso->grupos; g++) {
+        int bg = brillo(piso->color[g]);
+
+        if (bg < brillo_min) brillo_min = bg;
+        if (bg > brillo_max) brillo_max = bg;
+    }
+    memset(solida, 0, sizeof solida);
+    for (fila = fila_minima; fila < rejilla->filas; fila++) {
+        for (col = 0; col < rejilla->columnas; col++) {
+            int color[3], b, max_rgb, dcol, dcroma = 0, hay_croma = 0;
+            int croma_fuerte, oscuridad_profunda;
+
+            if (!resultado->no_piso[fila][col]) {
+                continue;
+            }
+            marcadas++;
+            color[0] = celdas[fila][col][0];
+            color[1] = celdas[fila][col][1];
+            color[2] = celdas[fila][col][2];
+            b = brillo(color);
+            max_rgb = color[0];
+            if (color[1] > max_rgb) max_rgb = color[1];
+            if (color[2] > max_rgb) max_rgb = color[2];
+            dcol = distancia_al_piso(piso, color);
+            for (g = 0; g < piso->grupos; g++) {
+                if (brillo(piso->color[g]) >= SUMA_MIN_CROMA && b >= SUMA_MIN_CROMA) {
+                    int dc = distancia_croma(color, piso->color[g]);
+
+                    if (!hay_croma || dc < dcroma) {
+                        dcroma = dc;
+                        hay_croma = 1;
+                    }
+                }
+            }
+            if (max_rgb >= 235 && b >= brillo_min) {
+                continue;
+            }
+            if (b > brillo_max * 102 / 100 && (!hay_croma || dcroma < 42)) {
+                continue;
+            }
+            croma_fuerte = (b >= SUMA_MIN_CROMA && max_rgb < 235 && hay_croma && dcroma >= 34 && dcol >= umbral_color + 18);
+            oscuridad_profunda = (b * 100 <= brillo_min * 36 && dcol >= umbral_color + 24 &&
+                                  (!hay_croma || dcroma >= 22 || b * 100 <= brillo_min * 16));
+            solida[fila][col] = (croma_fuerte || oscuridad_profunda) ? 1 : 0;
+        }
+    }
+    if (marcadas >= total_activas * 68 / 100) {
+        return;
+    }
+    for (z = 0; z < OBS_ZONAS; z++) {
+        int solidas_z = 0, nucleo_z = 0, fila_baja = -1;
+
+        for (fila = fila_minima; fila < rejilla->filas; fila++) {
+            for (col = 0; col < rejilla->columnas; col++) {
+                if ((col * OBS_ZONAS / rejilla->columnas) == z && solida[fila][col]) {
+                    solidas_z++;
+                    fila_baja = fila;
+                    if (contar_vecinas(solida, rejilla, fila, col) >= 5) {
+                        nucleo_z++;
+                    }
+                }
+            }
+        }
+        if (solidas_z >= 10 && nucleo_z >= 4 && fila_baja >= 0) {
+            int cerc = cercania_por_fila(rejilla, fila_baja);
+
+            if (cerc >= 2) {
+                resultado->masa_solida[z] = 1;
+                if (cerc > resultado->cercania_color[z]) {
+                    resultado->cercania_color[z] = cerc;
+                }
+            }
+        }
     }
 }
 
@@ -922,6 +1015,11 @@ static void limpiar_resultado(ResultadoObstaculos *resultado)
     resultado->ganancia_mil = 1000;
     resultado->celdas_marcadas = 0;
     resultado->motivo = 0;
+    for (fila = 0; fila < OBS_ZONAS; fila++) {
+        resultado->masa_solida[fila] = 0;
+        resultado->racha_vertical[fila] = 0;
+        resultado->cercania_color[fila] = 0;
+    }
     for (fila = 0; fila < OBS_MAX_FILAS; fila++) {
         for (columna = 0; columna < OBS_MAX_COLUMNAS; columna++) {
             resultado->no_piso[fila][columna] = 0;
@@ -948,6 +1046,8 @@ void obstaculos_config_defecto(ConfigObstaculos *config)
     config->piso_fijo = 0;
     config->mascara_activa = 0;
     memset(config->mascara, 0, sizeof config->mascara);
+    config->v5_solido = 1;
+    config->v5_rachas = 0;
 }
 
 /* La configuración es válida si los umbrales y las proporciones están en rango. */
@@ -965,7 +1065,9 @@ static int config_es_valida(const ConfigObstaculos *config)
            (config->usar_bordes == 0 || config->usar_bordes == 1) &&
            (config->mejoras_piso == 0 || config->mejoras_piso == 1) &&
            (config->piso_fijo == 0 || config->piso_fijo == 1) &&
-           (config->mascara_activa == 0 || config->mascara_activa == 1);
+           (config->mascara_activa == 0 || config->mascara_activa == 1) &&
+           (config->v5_solido == 0 || config->v5_solido == 1) &&
+           (config->v5_rachas == 0 || config->v5_rachas == 1);
 }
 
 /* ── Reajuste de brillo (cambio de exposición de la cámara) ────────────────
@@ -1165,6 +1267,9 @@ static int analizar_celdas_modelo(const ConfigObstaculos *config, ModeloPiso *mo
     aplicar_mascara(config, &rejilla, candidatas);
     confirmar_celdas(candidatas, &rejilla, resultado->no_piso);
     resumir_zonas(resultado->no_piso, &rejilla, config->min_celdas, fila_minima, resultado);
+    if (config->v5_solido) {
+        clasificar_masa_solida(celdas, &rejilla, &piso, config->umbral_color, fila_minima, resultado);
+    }
     hay_obstaculo = resultado->zona[0].hay_obstaculo || resultado->zona[1].hay_obstaculo || resultado->zona[2].hay_obstaculo;
 
     /* Aprendizaje: solo avanzando y sin obstáculo. */

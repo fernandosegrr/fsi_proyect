@@ -214,6 +214,9 @@ typedef struct {
     int ganancia_mil;                /* factor con que se reajustó el brillo del piso en este cuadro (1000 = no se reajustó) */
     int celdas_marcadas;             /* celdas "no piso" confirmadas en la zona de avance */
     int motivo;                      /* bits OBS_MOTIVO_* */
+    int masa_solida[OBS_ZONAS];      /* v5: 1 si la zona tiene masa compacta de alto contraste no-resalte/no-sombra */
+    int racha_vertical[OBS_ZONAS];   /* v5: 1 si la zona tiene racha vertical delgada persistente */
+    int cercania_color[OBS_ZONAS];   /* v5: cercania solo de color (0..3) para conservarla tras fusion */
     /* 1 en cada celda "no piso" confirmada (toda la imagen); sirve para depurar y dibujar */
     unsigned char no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
 } ResultadoObstaculos;
@@ -238,6 +241,8 @@ typedef struct {
     int piso_fijo;              /* 1 = durante una ruta: no se reaprende el piso ni se agregan colores nuevos (el brillo sí se reajusta) */
     int mascara_activa;         /* 1 = se ignoran las celdas gruesas de `mascara` (artefactos de la imagen; ver «Calibrar visión») */
     unsigned char mascara[OBS_MASC_FILAS][OBS_MASC_COLUMNAS];   /* 1 = celda gruesa enmascarada; la celda gruesa de una celda (f, c) es [f * 10 / filas][c * 10 / columnas] */
+    int v5_solido;              /* v5: 1 = clasificar masa solida no-piso de alto contraste */
+    int v5_rachas;              /* v5: 1 = conservar rachas verticales delgadas de >= 3 filas */
 } ConfigObstaculos;
 
 /* Códigos de retorno de obstaculos_analizar. */

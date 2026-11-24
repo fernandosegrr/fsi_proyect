@@ -2006,12 +2006,16 @@ void navegador_iniciar(Navegador *nav)
     nav->eco_retroceder = 0;
     nav->v5_activo = 1;
     nav->v5_coincidencia_estable = 1;
-    nav->v5_masa_sin_eco = 0;
+    nav->v5_masa_sin_eco = 1;
     nav->v5_patas_delgadas = 0;
     nav->v5_pasillo_pared = 0;
     nav->v5_fallo_seguro = 0;
     memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
+    memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+    memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
+    memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+    memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
     nav->giro_fw_fallos = 0;
     nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = nav->ancho_rodeo_mm = 0;
     nav->lados_probados = nav->cambio_lado = 0;
@@ -2213,6 +2217,8 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
     nav->eco_ultimo_t_ms = 0;
     memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
+    memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+    memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
     nav->vistazo_retrocedio = nav->rodeo_por_vistazo = 0;
     nav->salida_linea_rumbo = nav->salida_linea_ok = 0;
     nav->vistazo_lado = nav->vistazo_ecos = nav->vistazo_mm = nav->vistazo_confirmado = nav->vistazos = nav->vistazos_con_eco = nav->giro_extra_grados = 0;
@@ -2429,6 +2435,39 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
          * con el láser, y frenar por un cuadro lo interrumpía. Mientras el carro rodea o vuelve a la línea vale siempre desde el primero. */
         hay = fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || (z == ZONA_CENTRO && obs->zona[z].cercania >= 3) || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
                                nav->estado == NAV_DETENIDO_OBSTACULO);
+        {
+            long resto_fin = resto_de_recta_final(nav);
+            int cerca_meta = (resto_fin >= 0 && resto_fin <= 350);
+            int solido_ok = 0;
+
+            if (nav->v5_activo && nav->v5_masa_sin_eco && !obs->zona[z].fuera_corredor && !cerca_meta && obs->masa_solida[z]) {
+                nav->v5_solido_seguidas[z]++;
+                limitar_contador(&nav->v5_solido_seguidas[z]);
+            } else {
+                nav->v5_solido_seguidas[z] = 0;
+            }
+            if (nav->v5_activo && nav->v5_masa_sin_eco && !obs->zona[z].fuera_corredor && !cerca_meta) {
+                int req = (nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) ? 1 : 2;
+
+                if (nav->v5_solido_seguidas[z] >= req) {
+                    solido_ok = 1;
+                    if (z == ZONA_CENTRO) {
+                        int c_sol = (obs->cercania_color[z] >= 2) ? obs->cercania_color[z] : ((obs->zona[z].cercania >= 2) ? obs->zona[z].cercania : 2);
+
+                        nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_SOLIDO_RETENCION_MS;
+                        if (c_sol > nav->v5_coinc_cercania[z]) {
+                            nav->v5_coinc_cercania[z] = c_sol;
+                        }
+                    }
+                } else if (z == ZONA_CENTRO && nav->estado == NAV_DETENIDO_OBSTACULO && nav->v5_solido_hasta_ms[z] != 0 &&
+                           (uint32_t)(nav->v5_solido_hasta_ms[z] - ahora_ms) < 0x80000000u && nav->v5_solido_hasta_ms[z] != ahora_ms) {
+                    solido_ok = 1;
+                }
+            }
+            if (solido_ok) {
+                hay = 1;
+            }
+        }
         coincidencia |= hay;
         if (fuentes == 3) {
             nav->v5_coinc_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
@@ -2479,6 +2518,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->zona_hay[z] = hay;
         {
             int cerc_z = obs->zona[z].cercania;
+            if (hay && obs->cercania_color[z] > cerc_z) cerc_z = obs->cercania_color[z];
             if (hay && fuentes != 3 && nav->v5_coinc_cercania[z] > cerc_z) cerc_z = nav->v5_coinc_cercania[z];
             nav->zona_cercania[z] = hay ? ((laser_cerca && z == ZONA_CENTRO) ? 3 : cerc_z) : 0;
         }
@@ -2488,7 +2528,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->zona_frena[z] = hay && !obs->zona[z].fuera_corredor;
         nav->zona_en_corredor[z] = nav->zona_frena[z] && obs->zona[z].cercania_corredor > 0;   /* el corredor (activo) dice que está en el camino del carro */
         nav->zona_cerc_frena[z] = !nav->zona_frena[z] ? 0 :
-            ((obs->zona[z].cercania_corredor > 0) ? obs->zona[z].cercania_corredor : obs->zona[z].cercania);
+            ((obs->zona[z].cercania_corredor > 0) ? obs->zona[z].cercania_corredor : nav->zona_cercania[z]);
         if (laser_cerca && z == ZONA_CENTRO) {
             nav->zona_frena[z] = laser_cerca;
             nav->zona_en_corredor[z] = laser_cerca;
@@ -4274,6 +4314,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         nav->escape_atras = 0;
         memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
         memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
+        memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+        memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
         if (nav->tof_dist_mm > 0) {
             nav->tof_dist_mm += nav->retroceso_mm;   /* V2: la distancia medida era de antes de retroceder (con TOF_PARO o un vistazo no se vuelve a medir) */
         }
@@ -4290,6 +4332,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             nav->tof_paro_activo = 0;
             memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
             memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
+            memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+            memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
             return tick_siguiendo(nav, ahora_ms);
         }
         return NAV_CMD_STOP;
@@ -4451,6 +4495,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
             nav->estado = NAV_ESQUIVANDO;
             memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
             memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
+            memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
+            memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
             esq_iniciar_giro(nav, ahora_ms);
             return comando_de_fase(nav);
         }
@@ -5358,7 +5404,7 @@ int navegador_poner_v5(Navegador *nav, int activo)
     on = activo ? 1 : 0;
     nav->v5_activo = on;
     nav->v5_coincidencia_estable = on;
-    nav->v5_masa_sin_eco = 0;
+    nav->v5_masa_sin_eco = on;
     nav->v5_patas_delgadas = 0;
     nav->v5_pasillo_pared = 0;
     nav->v5_fallo_seguro = 0;
@@ -5369,6 +5415,13 @@ int navegador_poner_coincidencia_estable(Navegador *nav, int activo)
 {
     if (nav == NULL) return NAV_ERR_ARGUMENTO;
     nav->v5_coincidencia_estable = activo ? 1 : 0;
+    return NAV_OK;
+}
+
+int navegador_poner_masa_sin_eco(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v5_masa_sin_eco = activo ? 1 : 0;
     return NAV_OK;
 }
 
@@ -5608,6 +5661,11 @@ static ComandoNav vistazo_tick(Navegador *nav, uint32_t ahora_ms, ComandoNav com
         return comando;   /* todavía está volviendo del anterior */
     }
     for (i = 0; i < 2; i++) {
+        int z_lado = i ? ZONA_DERECHA : ZONA_IZQUIERDA;
+
+        if (nav->v5_activo && nav->v5_masa_sin_eco && nav->v5_solido_seguidas[z_lado] > 0) {
+            continue;
+        }
         if (nav->vistazo_cuadros[i] < NAV_VISTAZO_CUADROS || nav->vistazo_lateral_mm[i] > NAV_VISTAZO_LATERAL_MAX_MM) {
             continue;   /* nada persistente de ese lado, o queda demasiado afuera para estorbar */
         }

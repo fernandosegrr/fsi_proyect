@@ -321,6 +321,9 @@ static MascaraVision mascara_vision_global;        /* la máscara guardada (la p
 static int mascara_vision_activa = 0;              /* 0 mientras se está calibrando la visión (no debe haber máscara) o si no hay ninguna */
 /* Lo último que analizó el detector: el navegador lo usa para OBS_DIAG y también para decidir (el carril del láser, las columnas del borde al esquivar, la firma del fantasma fijo). */
 static int ultimo_filas = 0, ultimo_columnas = 0, ultimo_fila_minima = 0, ultimo_franja_contaminada = 0, ultimo_franja_pct = 0, ultimo_franja_ignorada = 0;
+static int ultimo_masa_solida[OBS_ZONAS] = { 0, 0, 0 };
+static int ultimo_racha_vertical[OBS_ZONAS] = { 0, 0, 0 };
+static int ultimo_cercania_color[OBS_ZONAS] = { 0, 0, 0 };
 static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
 /* J16: el hilo de la cámara escribe esa rejilla y lee la máscara; el ciclo de 50 ms (hilo principal) lee la rejilla y Kotlin cambia la máscara. Antes se copiaban sin protección
  * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis. */
@@ -476,6 +479,9 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         ultimo_franja_contaminada = resultado.franja_contaminada;
         ultimo_franja_ignorada = resultado.franja_ignorada;
         ultimo_franja_pct = resultado.franja_tapada_pct;
+        memcpy(ultimo_masa_solida, resultado.masa_solida, sizeof ultimo_masa_solida);
+        memcpy(ultimo_racha_vertical, resultado.racha_vertical, sizeof ultimo_racha_vertical);
+        memcpy(ultimo_cercania_color, resultado.cercania_color, sizeof ultimo_cercania_color);
         memcpy(ultimo_no_piso, resultado.no_piso, sizeof ultimo_no_piso);
         pthread_mutex_unlock(&candado_vision);
     }
@@ -2509,6 +2515,9 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.franja_contaminada = ultimo_franja_contaminada;
             resultado.franja_ignorada = ultimo_franja_ignorada;
             resultado.franja_tapada_pct = ultimo_franja_pct;
+            memcpy(resultado.masa_solida, ultimo_masa_solida, sizeof resultado.masa_solida);
+            memcpy(resultado.racha_vertical, ultimo_racha_vertical, sizeof resultado.racha_vertical);
+            memcpy(resultado.cercania_color, ultimo_cercania_color, sizeof resultado.cercania_color);
             memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
         }
         pthread_mutex_unlock(&candado_vision);
