@@ -2498,8 +2498,10 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             if (nav->v5_activo && nav->v5_masa_sin_eco && !obs->zona[z].fuera_corredor && !cerca_meta) {
                 int req = (nav->estado == NAV_DETENIDO_OBSTACULO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) ? 1 : 2;
 
-                /* v6: una masa a un lado (ruido de la imagen, una estructura junto a la ruta) tiene que persistir mas cuadros que una del carril antes de actuar. */
-                if (z != ZONA_CENTRO && (nav->v6_flags & NAV_V6_F_LATERAL_PERSISTENTE) && req < NAV_V6_LATERAL_CUADROS) {
+                /* v6: una masa a un lado (ruido de la imagen, una estructura junto a la ruta) tiene que persistir mas cuadros que una del carril antes de actuar, pero SOLO mientras
+                 * sigue la ruta: durante el rodeo, el regreso o la parada lo lateral se atiende con la rapidez de siempre (en el banco no cambia ningun numero y asi no se retrasa nada
+                 * mientras el carro maniobra junto a algo). */
+                if (z != ZONA_CENTRO && (nav->v6_flags & NAV_V6_F_LATERAL_PERSISTENTE) && nav->estado == NAV_SIGUIENDO && req < NAV_V6_LATERAL_CUADROS) {
                     req = NAV_V6_LATERAL_CUADROS;
                 }
                 if (nav->v5_solido_seguidas[z] >= req) {
@@ -4794,6 +4796,7 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
         if (guardia > 0 && nav->tof_mm <= guardia + NAV_V6_GUARDIA_EXTRA_MM) {
             diag_escribir(nav, "ESQUIVE_DIAG guardia_volver lado=%d laser_mm=%d guardia_mm=%d: algo dentro del arco del giro de regreso, deja de girar", lado_giro, nav->tof_mm, guardia);
             cerrar_giro_interrumpido(nav, ahora_ms);
+            esq_terminar_giro(nav, ahora_ms);   /* el giro termino aqui: sin esto esq_en_giro sigue en 1 y, tras «Continuar», los cuadros del centro se ignoran hasta el proximo giro */
             cambiar_comando(nav, NAV_CMD_STOP);
             ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
             return NAV_CMD_STOP;
@@ -4843,6 +4846,9 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             diag_escribir(nav, "ESQUIVE_DIAG guardia_giro lado=%d laser_mm=%d guardia_mm=%d pared_mm=%d cambio_lado=%d: algo dentro del arco del giro, deja de girar", lado_giro,
                           nav->tof_mm, guardia, pared, nav->cambio_lado);
             cerrar_giro_interrumpido(nav, ahora_ms);
+            if (nav->v6_flags & NAV_V6_F_GUARDIA_VOLVER) {
+                esq_terminar_giro(nav, ahora_ms);   /* v6: igual que en el regreso (en v3 y v5 esq_en_giro se queda en 1 tras esta guardia: se conserva para que apagado sea identico) */
+            }
             cambiar_comando(nav, NAV_CMD_STOP);
             ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
             return NAV_CMD_STOP;

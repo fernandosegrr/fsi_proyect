@@ -369,6 +369,27 @@ static void probar_revision(void) {
     navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
     caso("v6 guardia del regreso: lo mismo girando a la derecha (disco mayor)",
          nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO && nav.cmd_actual==NAV_CMD_STOP);
+    /* El giro interrumpido por la guardia queda CERRADO (esq_en_giro = 0): si no, tras Continuar los cuadros del centro se ignoran hasta el proximo giro (hallazgo de la revision independiente). */
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
+    nav.esq_en_giro=1;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 guardia del regreso: el giro interrumpido queda cerrado (esq_en_giro = 0), asi tras Continuar el frenado del centro no queda ciego",
+         nav.estado==NAV_AYUDA && nav.esq_en_giro==0);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_RIGHT;
+    nav.esq_en_giro=1;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6: la guardia del primer giro (la de siempre) tambien deja cerrado el giro interrumpido",
+         nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_GIRO_BLOQUEADO && nav.esq_en_giro==0);
+    preparar_revision();
+    nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_GIRAR;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.cmd_actual=NAV_CMD_RIGHT;
+    nav.esq_en_giro=1;
+    navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
+    caso("v6 apagado: la guardia del primer giro se queda como en v3 y v5 (esq_en_giro sigue en 1: se conserva para que apagado sea identico)",
+         nav.estado==NAV_AYUDA && nav.esq_en_giro==1);
     preparar_revision();
     navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
     nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;

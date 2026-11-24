@@ -2394,7 +2394,7 @@ static void pruebas_v5_etapa1_etapa2(void)
 /* v6, percepcion. Corre un navegador nuevo con las banderas v6 dadas: 1,3 s de cuadros vacios (SIGUIENDO) y luego `cuadros` cuadros iguales; devuelve zona_hay[zona].
  * modo 0: masa solida de color en `zona` (cercania 3, 30 celdas, sin red); modo 1: racha vertical en la zona IZQUIERDA con la red solo ahi (la del centro no);
  * modo 2: racha vertical en el CENTRO con la red en el centro; modo 3: racha vertical a izquierda y derecha (sin red). */
-static int v6_zona_hay(unsigned banderas, int zona, int modo, int cuadros)
+static int v6_zona_hay_en(unsigned banderas, int zona, int modo, int cuadros, int estado)
 {
     static const Punto RECTA_10[] = {
         {2, 10}, {2, 9}, {2, 8}, {2, 7}, {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0}
@@ -2414,6 +2414,9 @@ static int v6_zona_hay(unsigned banderas, int zona, int modo, int cuadros)
     navegador_comenzar(&nav, 0);
     for (t = 0; t <= 1200; t += 100) {
         navegador_tick(&nav, t, &obs);
+    }
+    if (estado >= 0) {
+        nav.estado = (EstadoNav)estado;   /* solo para ver que hace registrar_cuadro en ese estado */
     }
     if (modo == 0) {
         obs.masa_solida[zona] = 1;
@@ -2441,6 +2444,11 @@ static int v6_zona_hay(unsigned banderas, int zona, int modo, int cuadros)
     return nav.zona_hay[zona];
 }
 
+static int v6_zona_hay(unsigned banderas, int zona, int modo, int cuadros)
+{
+    return v6_zona_hay_en(banderas, zona, modo, cuadros, -1);
+}
+
 static void pruebas_v6_percepcion(void)
 {
     int cuadros, lateral_ok = 1;
@@ -2463,6 +2471,9 @@ static void pruebas_v6_percepcion(void)
          v6_zona_hay(0, ZONA_CENTRO, 0, 2) == 1 && v6_zona_hay(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_CENTRO, 0, 2) == 1);
     caso("v6: las otras banderas no tocan la masa lateral (con guardia y racha estricta sigue actuando con 2 cuadros)",
          v6_zona_hay(NAV_V6_F_GUARDIA_VOLVER | NAV_V6_F_RACHA_ESTRICTA, ZONA_IZQUIERDA, 0, 2) == 1);
+    caso("v6 masa lateral persistente: SOLO mientras sigue la ruta; durante el rodeo (ESQUIVANDO) lo lateral se atiende con 1 cuadro, con y sin la bandera",
+         v6_zona_hay_en(0, ZONA_IZQUIERDA, 0, 1, NAV_ESQUIVANDO) == 1 && v6_zona_hay_en(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_IZQUIERDA, 0, 1, NAV_ESQUIVANDO) == 1 &&
+         v6_zona_hay_en(NAV_V6_F_LATERAL_PERSISTENTE, ZONA_DERECHA, 0, 1, NAV_REINCORPORANDO) == 1);
 
     /* RACHA ESTRICTA: la racha vertical de UN lado con la red en otra zona ya no vale como racha del centro. */
     caso("v6 apagado: racha vertical a un lado y red en esa zona cuentan como racha del centro (v5-fix exacto)",
