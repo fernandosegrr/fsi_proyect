@@ -119,8 +119,10 @@ async def probar_sensores():
     try:
         async with connect("ws://127.0.0.1:%d/ws" % PUERTO_SENSORES) as ws:
             await ws.send("CAPS?")
-            caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=3, TUSO, TOFP (autonomo v2/v3) y version simulada",
-                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150,FW:simulado")
+            caso("sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=4, TUSO, TOFP y version simulada",
+                 await siguiente(ws, "CAPS:") == "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=4,TUSO=1,TOFP=150,FW:simulado")
+            await ws.send("TOFE?")
+            caso("sensores (SEG=4): TOFE? -> TOFE:1,0,0", await siguiente(ws, "TOFE:") == "TOFE:1,0,0")
             await ws.send("RUMBO:ON")
             caso("sensores: RUMBO:ON -> ACK_RUMBO:1", await siguiente(ws, "ACK_RUMBO:") == "ACK_RUMBO:1")
             await ws.send("RUMBO:-125")

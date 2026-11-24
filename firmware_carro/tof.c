@@ -40,6 +40,8 @@ static int      reintentos_arranque = 0;   /* reintentos de inicio en este arran
 static int      reintentos_total    = 0;   /* ...y los que se hicieron después */
 static uint32_t proximo_reintento_ms = 0;  /* cuándo toca volver a intentar si el sensor no está vivo */
 static int      hay_reintento_programado = 0;
+static int      invalidas_total = 0;
+static int      recuperaciones_i2c = 0;
 
 static void caer(void)
 {
@@ -93,6 +95,8 @@ int tof_iniciar(void)
 
     reintentos_arranque = 0;
     reintentos_total = 0;
+    invalidas_total = 0;
+    recuperaciones_i2c = 0;
     hay_reintento_programado = 0;
     vivo = 0;
     errores = 0;
@@ -133,16 +137,19 @@ static void procesar(int crudo, uint32_t ahora_ms)
 {
     int valor;
 
+    total_lecturas++;
+
+    if (crudo < TOF_MIN_VALIDO_MM) {
+        invalidas_total++;
+        valida = 0;
+        return;                                          /* basura (< 8 mm o negativo): no renueva frescura ni empuja mediana */
+    }
     ultima_lectura_ms = ahora_ms;
     hay_lectura = 1;
     errores = 0;
-    total_lecturas++;
 
-    if (crudo < TOF_MIN_VALIDO_MM && crudo >= 0) {
-        return;                                          /* basura: ni libre ni cerca */
-    }
-    if (crudo < 0 || crudo == 8190 || crudo == 65535 || crudo > TOF_LIBRE_MM) {
-        const int sin_eco = (crudo < 0 || crudo == 8190 || crudo == 65535);
+    if (crudo >= 8000 || crudo > TOF_LIBRE_MM) {
+        const int sin_eco = (crudo >= 8000);
 
         valida = 0;
         if (sin_eco) {
@@ -224,7 +231,11 @@ void tof_actualizar(uint32_t ahora_ms, int puede_bloquear)
         }
         proximo_reintento_ms = ahora_ms + TOF_REINTENTO_MS;
         if (!hw_i2c_presente(TOF_DIRECCION)) {
-            return;   /* ni contesta en el bus (cable, sin energía): no hay nada que iniciar */
+            hw_i2c_recuperar();
+            recuperaciones_i2c++;
+            if (!hw_i2c_presente(TOF_DIRECCION)) {
+                return;   /* ni contesta en el bus (cable, sin energía): no hay nada que iniciar */
+            }
         }
         reintentos_total++;
         if (hw_tof_iniciar()) {
@@ -319,4 +330,14 @@ int tof_tomar_eventos(void)
 uint32_t tof_lecturas(void)
 {
     return total_lecturas;
+}
+
+int tof_invalidas(void)
+{
+    return invalidas_total;
+}
+
+int tof_recuperaciones_i2c(void)
+{
+    return recuperaciones_i2c;
 }

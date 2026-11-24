@@ -86,6 +86,7 @@ object NavegadorNativa {
     external fun ponerCeldas(izquierda: Int, centro: Int, derecha: Int)
 
     external fun ponerAutoridadLaser(activo: Int): Int
+    external fun ponerV5(activo: Int): Int
     external fun ponerLargoRectaMm(mm: Int)
 
     /**

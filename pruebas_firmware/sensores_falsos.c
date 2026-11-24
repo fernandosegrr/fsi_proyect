@@ -19,6 +19,8 @@ int  falso_imu_loco;
 int  falso_imu_lecturas_z;
 
 int  falso_tof_presente;
+int  falso_i2c_colgado;
+int  falso_i2c_recuperaciones;
 int  falso_tof_mm;
 int  falso_tof_modo;
 int  falso_tof_lecturas;
@@ -50,6 +52,8 @@ void falso_sensores_reiniciar(void)
     falso_imu_loco = 0;
     falso_imu_lecturas_z = 0;
     falso_tof_presente = 1;
+    falso_i2c_colgado = 0;
+    falso_i2c_recuperaciones = 0;
     falso_tof_mm = 8190;
     falso_tof_modo = 0;
     falso_tof_lecturas = 0;
@@ -151,7 +155,16 @@ int hw_i2c_escribir(uint8_t dir, uint8_t reg, const uint8_t *datos, int n)
 
 int hw_i2c_presente(uint8_t dir)
 {
+    if (falso_i2c_colgado) {
+        return 0;
+    }
     return (dir == 0x68 && falso_imu_presente) || (dir == 0x29 && falso_tof_presente);
+}
+
+void hw_i2c_recuperar(void)
+{
+    falso_i2c_recuperaciones++;
+    falso_i2c_colgado = 0;
 }
 
 int  hw_ant_leer(int ranura)           { return falso_ant[ranura & 3]; }

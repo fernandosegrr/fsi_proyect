@@ -30,6 +30,8 @@
 #ifndef OBSTACULOS_H
 #define OBSTACULOS_H
 
+#define OBS_V5 1
+
 #ifdef __cplusplus
 extern "C" {   /* permite usarlo desde C++ / JNI */
 #endif

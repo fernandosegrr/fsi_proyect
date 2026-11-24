@@ -39,6 +39,8 @@ int  tof_cerca_confirmada(void);/* la lectura más grande de las últimas TOF_PA
 int  tof_bloqueo_confirmado(void);/* lo mismo con TOF_BLOQUEO_MM: el frente está demasiado cerca para ARRANCAR un avance (SEG=2); 0 si no */
 int  tof_tomar_eventos(void);
 uint32_t tof_lecturas(void);    /* cuántas lecturas se han recibido */
+int  tof_invalidas(void);       /* SEG=4: lecturas descartadas (< TOF_MIN_VALIDO_MM o negativas) */
+int  tof_recuperaciones_i2c(void); /* SEG=4: recuperaciones I2C lanzadas con el carro detenido */
 
 /* Para las pruebas: mete una lectura cruda como si la hubiera dado el sensor. Devuelve 0. */
 void tof_probar_lectura(int mm_crudo, uint32_t ahora_ms);

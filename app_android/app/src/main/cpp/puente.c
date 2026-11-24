@@ -191,6 +191,18 @@ static AcumuladorPiso acumulador_piso;          /* lo que se va acumulando mient
 static volatile int aprendiendo_piso = 0;       /* 1 mientras cada cuadro analizado también se suma al acumulador */
 static int modelo_inicializado = 0;
 static volatile int reiniciar_modelo = 0;
+static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
+static int v5_activo_global = 1;                /* Autonomo v5-carbon: 1 por defecto (protegido por candado_vision) */
+
+static int leer_v5_activo(void)
+{
+    int activo;
+
+    pthread_mutex_lock(&candado_vision);
+    activo = v5_activo_global ? 1 : 0;
+    pthread_mutex_unlock(&candado_vision);
+    return activo;
+}
 
 /* Revisa el arreglo de bytes y llama al detector con la configuración dada (NULL = por defecto). Con
  * `modelo` distinto de NULL conserva el modelo del piso entre cuadros (`avanzando` y `ahora_ms` como en
@@ -210,7 +222,11 @@ static int analizar_arreglo(JNIEnv *env, jbyteArray rgb, jint ancho, jint alto,
         return OBS_ERR_TAMANO;   /* tamaño no positivo o arreglo más chico que la imagen: no se analiza */
     }
     if (config == NULL) {
+        int v5_on = leer_v5_activo();
+
         obstaculos_config_defecto(&por_defecto);
+        por_defecto.v5_solido = v5_on;
+        por_defecto.v5_rachas = v5_on;
         config = &por_defecto;
     }
     /* Acceso directo al arreglo (sin copiarlo) mientras se analiza. */
@@ -326,8 +342,8 @@ static int ultimo_racha_vertical[OBS_ZONAS] = { 0, 0, 0 };
 static int ultimo_cercania_color[OBS_ZONAS] = { 0, 0, 0 };
 static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
 /* J16: el hilo de la cámara escribe esa rejilla y lee la máscara; el ciclo de 50 ms (hilo principal) lee la rejilla y Kotlin cambia la máscara. Antes se copiaban sin protección
- * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis. */
-static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
+ * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis.
+ * (El mutex candado_vision se declara al inicio de esta seccion.) */
 
 /* Autónomo v2: telemetría NUMÉRICA de la visión para la caja negra (vision_tele.h). Solo se calcula mientras una ruta la pide (telemetriaActiva). */
 static volatile int tele_activa = 0;
@@ -344,6 +360,7 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
     jint salida[ENTEROS_DETALLE_MAXIMO];
     jintArray arreglo;
     int codigo, i, fila, columna, largo, g;
+    int v5_on = leer_v5_activo();
 
     /* La configuración se llena campo por campo: hay que dejar en cero los que no vienen en el arreglo
      * (mascara_activa y mascara). Si no, config_es_valida() puede ver basura del stack y devolver
@@ -373,6 +390,8 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
             cfg.mejoras_piso = (int)extra[0];
             cfg.piso_fijo = (int)extra[1];
         }
+        cfg.v5_solido = v5_on;
+        cfg.v5_rachas = v5_on;
     } else {
         /* Sin configuración: se pide al detector una configuración no válida. */
         cfg.umbral_color = -1;
@@ -387,6 +406,8 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
         cfg.usar_bordes = 2;
         cfg.mejoras_piso = 1;
         cfg.piso_fijo = 0;
+        cfg.v5_solido = v5_on;
+        cfg.v5_rachas = v5_on;
     }
     pthread_mutex_lock(&candado_vision);
     if (mascara_vision_activa) {
@@ -578,6 +599,7 @@ Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject ob
     jint datos_config[ENTEROS_CONFIG_OBSTACULOS];
     jintArray arreglo;
     int codigo, i, g;
+    int v5_on = leer_v5_activo();
 
     (void)objeto;
     for (i = 0; i < 23; i++) {
@@ -585,6 +607,8 @@ Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject ob
     }
     aprendiendo_piso = 0;
     obstaculos_config_defecto(&cfg);
+    cfg.v5_solido = v5_on;
+    cfg.v5_rachas = v5_on;
     if (config != NULL && (*env)->GetArrayLength(env, config) >= ENTEROS_CONFIG_OBSTACULOS) {
         (*env)->GetIntArrayRegion(env, config, 0, ENTEROS_CONFIG_OBSTACULOS, datos_config);
         cfg.umbral_color = (int)datos_config[0];
@@ -645,7 +669,13 @@ Java_com_fsi_carro_ObstaculosNativa_configDefecto(JNIEnv *env, jobject objeto)
     jintArray arreglo;
 
     (void)objeto;
-    obstaculos_config_defecto(&cfg);
+    {
+        int v5_on = leer_v5_activo();
+
+        obstaculos_config_defecto(&cfg);
+        cfg.v5_solido = v5_on;
+        cfg.v5_rachas = v5_on;
+    }
     salida[0] = cfg.umbral_color;
     salida[1] = cfg.min_celdas;
     salida[2] = cfg.ref_ancho_mil;
@@ -2232,6 +2262,18 @@ Java_com_fsi_carro_NavegadorNativa_cargarRuta(JNIEnv *env, jobject objeto, jintA
     navegador_poner_giroscopio(&navegador_global, usa_giroscopio_global);
     navegador_poner_sensor_distancia(&navegador_global, usa_tof_global);
     navegador_poner_autoridad_laser(&navegador_global, autoridad_laser_global);
+    pthread_mutex_lock(&candado_vision);
+    ultimo_filas = 0;
+    ultimo_columnas = 0;
+    memset(ultimo_masa_solida, 0, sizeof ultimo_masa_solida);
+    memset(ultimo_racha_vertical, 0, sizeof ultimo_racha_vertical);
+    memset(ultimo_cercania_color, 0, sizeof ultimo_cercania_color);
+    {
+        int v5_on = v5_activo_global ? 1 : 0;
+
+        pthread_mutex_unlock(&candado_vision);
+        navegador_poner_v5(&navegador_global, v5_on);
+    }
     navegador_poner_rumbo_fw(&navegador_global, rumbo_fw_global);
     navegador_poner_largo_recta_mm(&navegador_global, largo_recta_global);   /* J16: después de navegador_iniciar (que lo pone en 0); antes se perdía y la «Recta 150 cm» hacía 160 */
     return navegador_cargar_ruta(&navegador_global, puntos, n_puntos);
@@ -2474,6 +2516,18 @@ Java_com_fsi_carro_NavegadorNativa_ponerAutoridadLaser(JNIEnv *env, jobject obje
     return (jint)navegador_poner_autoridad_laser(obtener_navegador(), (int)activo);
 }
 
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_ponerV5(JNIEnv *env, jobject objeto, jint activo)
+{
+    (void)env;
+    (void)objeto;
+    if (activo != 0 && activo != 1) return NAV_ERR_ARGUMENTO;
+    pthread_mutex_lock(&candado_vision);
+    v5_activo_global = (int)activo;
+    pthread_mutex_unlock(&candado_vision);
+    return (jint)navegador_poner_v5(obtener_navegador(), (int)activo);
+}
+
 JNIEXPORT void JNICALL
 Java_com_fsi_carro_NavegadorNativa_ponerLargoRectaMm(JNIEnv *env, jobject objeto, jint mm)
 {
@@ -2507,20 +2561,22 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
             resultado.zona[z].fuera_corredor = corredor_fuera_global[z];
             resultado.zona[z].cercania_corredor = corredor_cercania_global[z];
         }
-        pthread_mutex_lock(&candado_vision);
-        if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
-            resultado.filas = ultimo_filas;
-            resultado.columnas = ultimo_columnas;
-            resultado.fila_minima_usada = ultimo_fila_minima;
-            resultado.franja_contaminada = ultimo_franja_contaminada;
-            resultado.franja_ignorada = ultimo_franja_ignorada;
-            resultado.franja_tapada_pct = ultimo_franja_pct;
-            memcpy(resultado.masa_solida, ultimo_masa_solida, sizeof resultado.masa_solida);
-            memcpy(resultado.racha_vertical, ultimo_racha_vertical, sizeof resultado.racha_vertical);
-            memcpy(resultado.cercania_color, ultimo_cercania_color, sizeof resultado.cercania_color);
-            memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
+        if (celdas_zona_global[0] >= 0 && celdas_zona_global[1] >= 0 && celdas_zona_global[2] >= 0) {
+            pthread_mutex_lock(&candado_vision);
+            if (ultimo_filas >= OBS_MIN_FILAS && ultimo_columnas >= OBS_MIN_COLUMNAS) {   /* lo último que vio el detector (OBS_DIAG, carril del láser, bordes al esquivar) */
+                resultado.filas = ultimo_filas;
+                resultado.columnas = ultimo_columnas;
+                resultado.fila_minima_usada = ultimo_fila_minima;
+                resultado.franja_contaminada = ultimo_franja_contaminada;
+                resultado.franja_ignorada = ultimo_franja_ignorada;
+                resultado.franja_tapada_pct = ultimo_franja_pct;
+                memcpy(resultado.masa_solida, ultimo_masa_solida, sizeof resultado.masa_solida);
+                memcpy(resultado.racha_vertical, ultimo_racha_vertical, sizeof resultado.racha_vertical);
+                memcpy(resultado.cercania_color, ultimo_cercania_color, sizeof resultado.cercania_color);
+                memcpy(resultado.no_piso, ultimo_no_piso, sizeof resultado.no_piso);
+            }
+            pthread_mutex_unlock(&candado_vision);
         }
-        pthread_mutex_unlock(&candado_vision);
         cuadro = &resultado;
     }
     return (jint)navegador_tick(obtener_navegador(), (uint32_t)ahora_ms, cuadro);

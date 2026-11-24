@@ -50,7 +50,9 @@ object SesionCarro {
         logica.usarGiroscopio = ajustes.usarGiroscopio             // los interruptores de la pantalla Sensores (J11)
         logica.usarSensorDistancia = ajustes.usarSensorDistancia
         logica.autoridadLaser = ajustes.autoridadLaser
+        logica.autonomoV5 = ajustes.autonomoV5
         logica.usarRumbo = ajustes.usarRumbo                       // J16: rumbo sostenido por el firmware
+        NavegadorNativa.ponerV5(if (ajustes.autonomoV5) 1 else 0)
         logica.proveedorBalances = { guardada.balancesParaEnviar() }   // el balance de los lados guardado en el teléfono se le manda al carro al conectar
         semi = ModoSemiautonomo(logica) { avisar() }
         iniciada = true

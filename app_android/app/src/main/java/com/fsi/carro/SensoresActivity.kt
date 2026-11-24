@@ -47,6 +47,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var interruptorLaser: MaterialSwitch
     private lateinit var interruptorAutoridad: MaterialSwitch
     private lateinit var interruptorRumbo: MaterialSwitch
+    private lateinit var interruptorV5: MaterialSwitch
     private lateinit var chip: ChipEstado
     private lateinit var textoGiro: TextView
     private lateinit var textoLaser: TextView
@@ -133,6 +134,15 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
             Log.i(ETIQUETA, "interruptor usar_rumbo_fw=$encendido")
         }
         findViewById<View>(R.id.sens_fila_rumbo).setOnClickListener { interruptorRumbo.toggle() }
+        interruptorV5 = findViewById(R.id.sens_switch_v5)
+        interruptorV5.isChecked = ajustes.autonomoV5
+        interruptorV5.setOnCheckedChangeListener { _, encendido ->
+            ajustes.autonomoV5 = encendido
+            logica.autonomoV5 = encendido
+            NavegadorNativa.ponerV5(if (encendido) 1 else 0)
+            Log.i(ETIQUETA, "interruptor autonomo_v5=$encendido")
+        }
+        findViewById<View>(R.id.sens_fila_v5).setOnClickListener { interruptorV5.toggle() }
         grupoMetodo.check(R.id.sens_metodo_angulo)
         interruptorGiro.setOnCheckedChangeListener { _, encendido ->
             ajustes.usarGiroscopio = encendido
@@ -179,6 +189,7 @@ class SensoresActivity : androidx.appcompat.app.AppCompatActivity() {
         logica.usarGiroscopio = ajustes.usarGiroscopio
         logica.usarSensorDistancia = ajustes.usarSensorDistancia
         logica.autoridadLaser = ajustes.autoridadLaser
+        logica.autonomoV5 = ajustes.autonomoV5
         logica.usarRumbo = ajustes.usarRumbo
         SesionCarro.escuchar(alCambiar)
         SesionCarro.entrar(this, SesionNativa.USUARIO_CALIBRACION)

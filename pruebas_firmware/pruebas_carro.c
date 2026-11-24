@@ -977,15 +977,19 @@ static void *hilo_productor_estres(void *arg)
             sched_yield();
         }
         if (ctx->paso_a_paso) {
-            int v0 = ctx->vueltas;
+            int v0;
 
+            carro_bloquear();
+            v0 = ctx->vueltas;
+            carro_desbloquear();
             for (;;) {
-                int q;
+                int q, v;
 
                 carro_bloquear();
                 q = carro_cola_cantidad();
+                v = ctx->vueltas;
                 carro_desbloquear();
-                if (q == 0 && ctx->vueltas - v0 >= 2) {   /* la vuelta que la ejecutó terminó y hubo otra entera después (sus mensajes ya se leyeron) */
+                if (q == 0 && v - v0 >= 2) {   /* la vuelta que la ejecutó terminó y hubo otra entera después (sus mensajes ya se leyeron) */
                     break;
                 }
                 sched_yield();
@@ -1000,7 +1004,9 @@ static void *hilo_productor_estres(void *arg)
             for (k = 0; k < espera * 25u; k++) {}
         }
     }
+    carro_bloquear();
     ctx->productor_terminado = 1;
+    carro_desbloquear();
     return NULL;
 }
 
@@ -1029,7 +1035,9 @@ static void vuelta_loop_estres(ContextoEstres *ctx, int hay_orden)
             ctx->giros_naturales++;
         }
     }
+    carro_bloquear();
     ctx->vueltas++;
+    carro_desbloquear();
 }
 
 static void *hilo_consumidor_estres(void *arg)

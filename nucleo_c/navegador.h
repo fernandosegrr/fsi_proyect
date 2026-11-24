@@ -397,7 +397,8 @@ typedef enum {
 #define NAV_CAUSA_SIN_PERCEPCION        17   /* V2: la red neuronal dejó de dar resultados vigentes: no se puede confirmar nada por visión */
 #define NAV_CAUSA_GIRO_BLOQUEADO        18   /* V2 (revisión): el láser vio algo DENTRO del arco que barre el chasis al girar para rodear: el carro dejó de girar */
 #define NAV_CAUSA_SIN_LASER             19   /* V3: la ruta cuenta con el láser y este dejó de contestar NAV_TOF_CAIDO_MS a mitad de ruta: sin el sensor fiable no se sigue */
-#define NAV_CAUSAS                      20   /* cuántos códigos hay (para tablas) */
+#define NAV_CAUSA_ATASCO                20   /* V5: el carro mandó avanzar sin variación real del láser al frente ni avance efectivo tras ayudas */
+#define NAV_CAUSAS                      21   /* cuántos códigos hay (para tablas) */
 
 /* Fases de la maniobra de esquivar (campo `fase`). El camino normal es GIRAR → MIRAR → AVANZAR → VOLVER; si al mirar el frente sigue muy
  * cerca: MIRAR → RETROCEDER → ASENTAR → GIRAR (con ángulo extra) → MIRAR... hasta NAV_MAX_REINTENTOS. */
@@ -773,6 +774,12 @@ typedef struct {
     int      v5_solido_seguidas[OBS_ZONAS];
     uint32_t v5_solido_hasta_ms[OBS_ZONAS];
     int      v5_racha_seguidas[OBS_ZONAS];
+    uint32_t v5_atasco_t0_ms;
+    uint32_t v5_atasco_ultima_tof_ms;
+    int      v5_atasco_mm0;
+    int      v5_atasco_lecturas;
+    int      v5_ayudas_sin_avance;
+    long     v5_ayuda_ultimo_s_mm;
 } Navegador;
 
 /* ── Funciones ─────────────────────────────────────────────────────────── */
@@ -911,6 +918,7 @@ int navegador_poner_coincidencia_estable(Navegador *nav, int activo);
 int navegador_poner_masa_sin_eco(Navegador *nav, int activo);
 int navegador_poner_patas_delgadas(Navegador *nav, int activo);
 int navegador_poner_pasillo_pared(Navegador *nav, int activo);
+int navegador_poner_fallo_seguro(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);

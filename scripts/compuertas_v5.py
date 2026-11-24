@@ -232,13 +232,12 @@ def evaluar_compuertas(v3_res, act_res):
             if esc in mat["filas"] and esc in v3_res[mat_k]["filas"]:
                 a = mat["filas"][esc]
                 b = v3_res[mat_k]["filas"][esc]
-                if a["contactos"] > 0 or a["contactos"] > b["contactos"] or a["ayuda"] > b["ayuda"]:
-                    if a["contactos"] >= b["contactos"] and b["contactos"] > 0:
-                        cumple["G4"] = False
-                        detalles.append(f"G4 [{mat_k}] {esc}: cont v5={a['contactos']} v3={b['contactos']}, ay v5={a['ayuda']} v3={b['ayuda']}")
-                    elif a["ayuda"] > b["ayuda"]:
-                        cumple["G4"] = False
-                        detalles.append(f"G4 [{mat_k}] {esc}: ayuda empeora v5={a['ayuda']} > v3={b['ayuda']}")
+                if a["contactos"] > b["contactos"] or (b["contactos"] > 0 and a["contactos"] >= b["contactos"]):
+                    cumple["G4"] = False
+                    detalles.append(f"G4 [{mat_k}] {esc}: cont v5={a['contactos']} v3={b['contactos']}, ay v5={a['ayuda']} v3={b['ayuda']}")
+                elif a["ayuda"] > b["ayuda"]:
+                    cumple["G4"] = False
+                    detalles.append(f"G4 [{mat_k}] {esc}: ayuda empeora v5={a['ayuda']} > v3={b['ayuda']}")
 
     # G5: ayuda en caja_y_pared_al_lado, pasillo, pasillo_angosto
     for mat_k, mat in act_res.items():

@@ -2256,6 +2256,88 @@ static void pruebas_v5_etapa1_etapa2(void)
     }
     caso("v5 pasillo_pared elige lado contrario a pared lejana en borde_lejos",
          nav.estado == NAV_ESQUIVANDO && nav.lado == 1);
+
+    navegador_iniciar(&nav);
+    caso("v5 fallo_seguro activo por defecto y controlable",
+         nav.v5_fallo_seguro == 1 && navegador_poner_fallo_seguro(&nav, 0) == NAV_OK &&
+         nav.v5_fallo_seguro == 0 && navegador_poner_v5(&nav, 1) == NAV_OK &&
+         nav.v5_fallo_seguro == 1 && nav.v5_pasillo_pared == 1);
+
+    /* Ruta de un solo punto con usa_tof=1: ubicar_en_linea no debe acceder fuera de rango. */
+    navegador_iniciar(&nav);
+    navegador_poner_sensor_distancia(&nav, 1);
+    navegador_cargar_ruta(&nav, UN_PUNTO, N(UN_PUNTO));
+    navegador_comenzar(&nav, 0);
+    navegador_aporte_sens(&nav, 500, 1, 1, 0, 50);
+    cmd = navegador_tick(&nav, 50, NULL);
+    caso("v5 fallo_seguro ruta de 1 punto con ToF termina sin UB",
+         nav.estado == NAV_TERMINADO && cmd == NAV_CMD_STOP);
+
+    /* Atasco verificado por ToF: avanzando 2 s con distancia fija a 600 mm detiene con NAV_CAUSA_ATASCO. */
+    navegador_iniciar(&nav);
+    navegador_poner_sensor_distancia(&nav, 1);
+    navegador_poner_pedir_ayuda(&nav, 0);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 2400; t += 100) {
+        navegador_aporte_sens(&nav, 600, 1, 1, 0, t);
+        cmd = navegador_tick(&nav, t, NULL);
+        if (nav.estado == NAV_ERROR) break;
+    }
+    caso("v5 fallo_seguro detecta atasco ToF tras 1800 ms con eco estatico < 850 mm",
+         nav.estado == NAV_ERROR && nav.error_causa == NAV_CAUSA_ATASCO && cmd == NAV_CMD_STOP);
+
+    /* Sin atasco cuando el ToF decrece normalmente o esta libre. */
+    navegador_iniciar(&nav);
+    navegador_poner_sensor_distancia(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 1200; t += 100) {
+        int mm = 820 - (int)(t / 4);
+        navegador_aporte_sens(&nav, mm, 1, 1, 0, t);
+        navegador_tick(&nav, t, NULL);
+    }
+    caso("v5 fallo_seguro no dispara atasco mientras ToF se acerca normalmente",
+         nav.estado == NAV_SIGUIENDO && nav.error_causa != NAV_CAUSA_ATASCO);
+
+    /* Tope de navegador_ayuda_continuar repetido sin avanzar >= 200 mm. */
+    navegador_iniciar(&nav);
+    navegador_poner_pedir_ayuda(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    nav.estado = NAV_AYUDA;
+    navegador_ayuda_continuar(&nav, 100);
+    nav.estado = NAV_AYUDA;
+    navegador_ayuda_continuar(&nav, 500);
+    nav.estado = NAV_AYUDA;
+    navegador_ayuda_continuar(&nav, 900);
+    caso("v5 fallo_seguro pasa a ERROR al repetir ayuda 3 veces sin avanzar 200 mm",
+         nav.estado == NAV_ERROR && nav.error_causa == NAV_CAUSA_ATASCO);
+
+    /* Auditoria #3: con v5=0, coincidencia previa en flanco + vistazo_confirmado no altera zona_cercania. */
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    navegador_iniciar(&nav);
+    navegador_poner_v5(&nav, 0);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    obs.zona[ZONA_IZQUIERDA].hay_obstaculo = 1;
+    obs.zona[ZONA_IZQUIERDA].cercania = 3;
+    obs.zona[ZONA_IZQUIERDA].celdas = 12;
+    obs.fuentes_vision[ZONA_IZQUIERDA] = 3;
+    obs.cercania_color[ZONA_IZQUIERDA] = 3;
+    navegador_tick(&nav, 100, &obs);
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    nav.estado = NAV_DETENIDO_OBSTACULO;
+    nav.vistazo_confirmado = -1;
+    navegador_tick(&nav, 150, &obs);
+    caso("con v5=0, vistazo_confirmado tras coincidencia previa mantiene zona_cercania=0 (paridad v3)",
+         nav.zona_cercania[ZONA_IZQUIERDA] == 0 && nav.zona_cerc_frena[ZONA_IZQUIERDA] == 0);
 }
 
 int main(void)

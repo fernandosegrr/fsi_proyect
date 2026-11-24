@@ -130,9 +130,9 @@ async def hacer_giro(conexion, grados):
 
 def texto_caps():
     s = estado["sens"]
-    # Igual que el firmware (sensores.c): RUMBO=1 (J16) y, desde el autonomo v2, SEG=2 y desde el v3 SEG=3 con TOFP=150 (un texto desconocido no renueva el watchdog; FORWARD en AUTO con el frente a
+    # Igual que el firmware (sensores.c): RUMBO=1 (J16) y, desde el autonomo v2, SEG=2, v3 SEG=3, v5 SEG=4 con TOFP=150 (un texto desconocido no renueva el watchdog; FORWARD en AUTO con el frente a
     # menos de 150 mm no arranca y contesta TOF_PARO) y TUSO=<0|1> (si el freno del laser esta en uso). Las claves nuevas van antes de FW:.
-    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,RUMBO=1,IMUS=%d,SEG=3,TUSO=%d,TOFP=150,FW:simulado" % (
+    return "CAPS:IMU=%d,TOF=%d,TOFR=0,IMUR=0,IMUM=0,IMUE=%d,RUMBO=1,IMUS=%d,SEG=4,TUSO=%d,TOFP=150,FW:simulado" % (
         1 if s["imu"] else 0, 1 if s["tof"] else 0, 2 if s["imu"] else 3, s["escala_ppm"], 1 if s["tof_uso"] else 0)
 
 
@@ -167,6 +167,8 @@ async def procesar_sensores(conexion, mensaje):
         await mandar(conexion, "IMU:%d,%d,%d,104" % (s["angulo_x10"], s["sesgo_x100"], 2 if s["imu"] else 3))
     elif mensaje == "TOF?":
         await mandar(conexion, "TOF:%d,%d" % (s["mm"] if s["tof"] else 0, (1 if s["tof"] else 0) | (2 if s["tof"] and s["mm"] < 1200 else 0)))
+    elif mensaje == "TOFE?":
+        await mandar(conexion, "TOFE:%d,0,0" % (1 if s["tof"] else 0))
     elif mensaje == "IMU_CERO":
         s["angulo_x10"] = 0
         await mandar(conexion, "ACK_IMU_CERO")
@@ -233,7 +235,7 @@ async def procesar(conexion, mensaje):
         return
 
     intervalo = ms_desde_anterior()
-    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "IMU_CERO", "IMU_CAL", "ANT?", "ANT_BORRAR", "IMU_ESCALA?") or
+    if estado["sens"]["activo"] and (mensaje in ("CAPS?", "ARR?", "IMU?", "TOF?", "TOFE?", "IMU_CERO", "IMU_CAL", "ANT?", "ANT_BORRAR", "IMU_ESCALA?") or
                                      mensaje.startswith(("TOF_USO:", "SIM_TOF:", "GIRAR:", "IMU_ESCALA:", "SIM_ANGULO:"))):
         imprimir("%s  %s" % (intervalo, mensaje))
         await procesar_sensores(conexion, mensaje)

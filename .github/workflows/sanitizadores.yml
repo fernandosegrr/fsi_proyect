@@ -46,3 +46,16 @@ jobs:
         run: |
           gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_reincorporacion_j15_asan pruebas_reincorporacion_j15.c sim_ruta.c ruta_editor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c
           ./pruebas_reincorporacion_j15_asan | tail -8
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (fusion y obstaculos v5)
+        working-directory: nucleo_c
+        run: |
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_fusion_asan pruebas_fusion.c fusion.c corredor.c obstaculos.c mascara_vision.c -lm
+          ./pruebas_fusion_asan | tail -3
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_obstaculos_asan pruebas_obstaculos.c obstaculos.c -lm
+          ./pruebas_obstaculos_asan | tail -3
+      - name: AddressSanitizer + UndefinedBehaviorSanitizer (banco autonomo v5, 10 corridas)
+        working-directory: nucleo_c
+        run: |
+          gcc -std=c99 -g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -o pruebas_autonomo_v2_asan pruebas_autonomo_v2.c mundo_v2.c fusion.c corredor.c simulador_navegador.c navegador.c trayectoria.c obstaculos.c mascara_vision.c calibracion.c -lm
+          ./pruebas_autonomo_v2_asan 10 | tail -5
+          AV5_CONJUNTO=reservado AV5_LASER=1 ./pruebas_autonomo_v2_asan 10 | tail -5

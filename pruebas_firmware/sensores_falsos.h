@@ -27,6 +27,8 @@ extern int  falso_imu_lecturas_z;        /* cuántas veces se leyó el eje Z */
 
 /* Láser. */
 extern int  falso_tof_presente;          /* 0 = hw_tof_iniciar falla */
+extern int  falso_i2c_colgado;           /* 1 = SDA bloqueada: hardware recupera solo con hw_i2c_recuperar */
+extern int  falso_i2c_recuperaciones;    /* cuántas veces se llamó hw_i2c_recuperar */
 extern int  falso_tof_mm;                /* lo que devuelve (8190 y 65535 = sin eco) */
 extern int  falso_tof_modo;              /* 0 normal, 1 el bus falla, 2 nunca hay medida lista */
 extern int  falso_tof_lecturas;          /* cuántas medidas se leyeron */

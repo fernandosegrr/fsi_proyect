@@ -900,7 +900,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=3, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=4, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=4,TUSO=1,TOFP=150," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1208,12 +1208,63 @@ static void prueba_laser_lecturas(void)
     tof_probar_lectura(90, 43u);
     caso("SEG=3: cercana, lejana REAL, cercana: la racha se rompe al instante", tof_cerca_confirmada() == 0);
 
-    /* Lecturas basura (menos de 8 mm) se ignoran. */
+    /* Lecturas basura (menos de 8 mm) se ignoran, apagan valida y se cuentan. */
     tof_probar_lectura(300, 7u);
     tof_probar_lectura(300, 8u);
     tof_probar_lectura(300, 9u);
     tof_probar_lectura(3, 10u);
-    caso("una lectura de 3 mm es basura y se ignora (la distancia sigue en 300)", tof_mm() == 300);
+    caso("una lectura de 3 mm es basura y se ignora (la distancia sigue en 300, valida=0)", tof_mm() == 300 && !tof_valida() && tof_invalidas() >= 1);
+    tof_probar_lectura(8000, 11u);
+    caso("SEG=4: lectura >= 8000 mm se clasifica sin eco (valida=0)", !tof_valida());
+
+    /* SEG=4: recuperacion I2C guardada (solo quieto) y consulta TOFE?. */
+    reiniciar_carro_con_laser(0, 1);
+    avanzar_ms(3200);
+    falso_tof_modo = 1;
+    falso_i2c_colgado = 1;
+    avanzar_ms(600);
+    falso_tof_modo = 0;
+    {
+        int iter;
+
+        orden("FORWARD");
+        for (iter = 0; iter < 7; iter++) {
+            avanzar_ms(800);
+            orden("FORWARD");
+        }
+    }
+    caso("SEG=4: con el carro en marcha no recupera I2C", falso_i2c_recuperaciones == 0 && !tof_vivo());
+    orden("STOP");
+    avanzar_ms(1200);
+    caso("SEG=4: detenido intenta recuperar I2C y recupera el VL53L0X", falso_i2c_recuperaciones >= 1 && tof_vivo() && tof_recuperaciones_i2c() >= 1);
+    {
+        const char *m;
+        int tv = 0, trec = 0, tinv = 0;
+
+        n_msg = 0;
+        orden("TOFE?");
+        avanzar_ms(20);
+        m = ultimo_mensaje("TOFE:");
+        caso("SEG=4: TOFE? informa estado, recuperaciones I2C e invalidas",
+             m != NULL && sscanf(m, "TOFE:%d,%d,%d", &tv, &trec, &tinv) == 3 && tv == 1 && trec >= 1);
+    }
+
+    /* Auditoria #6: basura continua (< 8 mm) no renueva ultima_lectura_ms; tras TOF_SIN_DATOS_MS el sensor cae. */
+    tof_probar_lectura(300, 10000u);
+    tof_probar_lectura(3, 10200u);
+    tof_probar_lectura(2, 10400u);
+    tof_probar_lectura(5, 10600u);
+    caso("SEG=4: basura < 8 mm no renueva frescura indefinidamente",
+         !tof_valida() && tof_invalidas() >= 3);
+    /* Si hw_millis sigue avanzando > TOF_SIN_DATOS_MS con el sensor real atascado en lecturas basura, caer() apaga vivo. */
+    reiniciar_carro_con_laser(0, 1);
+    falso_tof_mm = 3;
+    avanzar_ms(600);
+    caso("SEG=4: racha continua de lecturas < 8 mm por >500 ms apaga tof_vivo",
+         !tof_vivo());
+    falso_tof_mm = 8190;
+    reiniciar_carro_con_laser(0, 1);
+    avanzar_ms(100);
 
     /* Revisión independiente: tras más de 1000 lecturas cercanas seguidas (unos 33 s frente a algo) la cuenta se detiene en 1000 y, usada como índice, dejaba una
      * casilla de «las últimas» sin renovar: la distancia confirmada podía ser una vieja. Ahora las últimas son de verdad las últimas. */
@@ -1562,16 +1613,16 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=4,TUSO=1,TOFP=150," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
-    caso("SEG=3: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
-         m != NULL && strstr(m, "SEG=3,TUSO=1,TOFP=150,FW:") != NULL && strstr(strstr(m, "SEG=3"), "IMU=") == NULL && strstr(strstr(m, "SEG=3"), "TOF=") == NULL &&
-         strstr(strstr(m, "SEG=3"), "RUMBO=") == NULL);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=4,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("SEG=4: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
+         m != NULL && strstr(m, "SEG=4,TUSO=1,TOFP=150,FW:") != NULL && strstr(strstr(m, "SEG=4"), "IMU=") == NULL && strstr(strstr(m, "SEG=4"), "TOF=") == NULL &&
+         strstr(strstr(m, "SEG=4"), "RUMBO=") == NULL);
     caso("J13: CAPS incluye la version compilada sin truncarla", m && strstr(m, FW_VERSION) && strlen(m) < MENSAJE_SALIDA_MAX);
     orden("IMU?");
     avanzar_ms(5);

@@ -1404,9 +1404,18 @@ static long distancia_hasta_tramo(const Navegador *nav, int k)
  * indice_objetivo), cuánto se ha avanzado a lo largo de la ruta (`s_mm`) y a cuánto está de la línea (`desvio_mm`). Con un solo punto no hay línea. */
 static void ubicar_en_linea(const Navegador *nav, long x, long y, int *tramo, long *s_mm, long *desvio_mm)
 {
-    int k0 = (nav->tramo_base > nav->indice_objetivo - 1) ? nav->tramo_base : nav->indice_objetivo - 1;
-    int desde = k0 - 1, hasta = k0 + NAV_VENTANA_TRAMOS, k;
+    int k0, desde, hasta, k;
     long mejor_desvio = -1;
+
+    if (nav->n_puntos < 2) {
+        *tramo = 0;
+        *s_mm = 0;
+        *desvio_mm = 0;
+        return;
+    }
+    k0 = (nav->tramo_base > nav->indice_objetivo - 1) ? nav->tramo_base : nav->indice_objetivo - 1;
+    desde = k0 - 1;
+    hasta = k0 + NAV_VENTANA_TRAMOS;
 
     if (desde < 0) {
         desde = 0;
@@ -2009,7 +2018,13 @@ void navegador_iniciar(Navegador *nav)
     nav->v5_masa_sin_eco = 1;
     nav->v5_patas_delgadas = 1;
     nav->v5_pasillo_pared = 1;
-    nav->v5_fallo_seguro = 0;
+    nav->v5_fallo_seguro = 1;
+    nav->v5_atasco_t0_ms = 0;
+    nav->v5_atasco_ultima_tof_ms = 0;
+    nav->v5_atasco_mm0 = 0;
+    nav->v5_atasco_lecturas = 0;
+    nav->v5_ayudas_sin_avance = 0;
+    nav->v5_ayuda_ultimo_s_mm = -1;
     memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
@@ -2255,6 +2270,12 @@ int navegador_comenzar(Navegador *nav, uint32_t ahora_ms)
         nav->n_giros_angulo = nav->n_giros_tiempo = 0;
         nav->giro_fw_consultando = nav->giro_fw_consulta_pedir = nav->giro_fw_ang_ini_ok = 0;
         nav->tof_paro_activo = nav->tof_pendiente = nav->tof_paros = nav->tof_dist_mm = 0;
+        nav->v5_atasco_t0_ms = 0;
+        nav->v5_atasco_ultima_tof_ms = 0;
+        nav->v5_atasco_mm0 = 0;
+        nav->v5_atasco_lecturas = 0;
+        nav->v5_ayudas_sin_avance = 0;
+        nav->v5_ayuda_ultimo_s_mm = -1;
         nav->rumbo_fw_pedir = nav->rumbo_fw_hay_enviado = 0;   /* J16 */
         nav->paso_en_linea = 0;
         nav->descartar_dt = 0;
@@ -2493,15 +2514,17 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
             }
         }
         coincidencia |= hay;
-        if (fuentes == 3) {
-            nav->v5_coinc_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
-            nav->v5_coinc_cercania[z] = obs->zona[z].cercania;
-        } else if (nav->v5_activo && nav->v5_coincidencia_estable && z == ZONA_CENTRO && nav->estado == NAV_DETENIDO_OBSTACULO &&
-                   (fuentes & 1) && !obs->zona[z].fuera_corredor && nav->v5_coinc_hasta_ms[z] != 0 &&
-                   (obs->zona[z].cercania >= 2 || nav->v5_coinc_cercania[z] >= 2) &&
-                   (uint32_t)(nav->v5_coinc_hasta_ms[z] - ahora_ms) < 0x80000000u && nav->v5_coinc_hasta_ms[z] != ahora_ms) {
-            /* Etapa 1 v5: detenido por coincidencia real y el color persiste cerca en el centro -> no soltar freno si la red parpadea un cuadro (sin bloquear flancos). */
-            hay = 1;
+        if (nav->v5_activo && nav->v5_coincidencia_estable) {
+            if (fuentes == 3) {
+                nav->v5_coinc_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
+                nav->v5_coinc_cercania[z] = obs->zona[z].cercania;
+            } else if (z == ZONA_CENTRO && nav->estado == NAV_DETENIDO_OBSTACULO &&
+                       (fuentes & 1) && !obs->zona[z].fuera_corredor && nav->v5_coinc_hasta_ms[z] != 0 &&
+                       (obs->zona[z].cercania >= 2 || nav->v5_coinc_cercania[z] >= 2) &&
+                       (uint32_t)(nav->v5_coinc_hasta_ms[z] - ahora_ms) < 0x80000000u && nav->v5_coinc_hasta_ms[z] != ahora_ms) {
+                /* Etapa 1 v5: detenido por coincidencia real y el color persiste cerca en el centro -> no soltar freno si la red parpadea un cuadro (sin bloquear flancos). */
+                hay = 1;
+            }
         }
         /* PRECAUCIÓN (avanzar a ratos). V2: una sola fuente a un LADO ya no la pide si hay vistazo (lo resuelve el láser sin frenar), y en el CENTRO solo cuando lo
          * visto está cerca (cercanía 2 o 3): ahí el láser ya está mirando y no ve nada, así que puede ser algo bajo y conviene dar tiempo a la otra fuente. */
@@ -2542,8 +2565,21 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         nav->zona_hay[z] = hay;
         {
             int cerc_z = obs->zona[z].cercania;
-            if (hay && obs->cercania_color[z] > cerc_z) cerc_z = obs->cercania_color[z];
-            if (hay && fuentes != 3 && nav->v5_coinc_cercania[z] > cerc_z) cerc_z = nav->v5_coinc_cercania[z];
+            if (nav->v5_activo) {
+                int ret_activa = (nav->v5_coinc_hasta_ms[z] != 0 &&
+                                  (uint32_t)(nav->v5_coinc_hasta_ms[z] - ahora_ms) < 0x80000000u &&
+                                  nav->v5_coinc_hasta_ms[z] != ahora_ms) ||
+                                 (nav->v5_solido_hasta_ms[z] != 0 &&
+                                  (uint32_t)(nav->v5_solido_hasta_ms[z] - ahora_ms) < 0x80000000u &&
+                                  nav->v5_solido_hasta_ms[z] != ahora_ms);
+                if (!ret_activa && fuentes != 3) {
+                    nav->v5_coinc_cercania[z] = 0;
+                }
+                if (hay && obs->cercania_color[z] > cerc_z) cerc_z = obs->cercania_color[z];
+                if (hay && z == ZONA_CENTRO && fuentes != 3 && ret_activa && nav->v5_coinc_cercania[z] > cerc_z) {
+                    cerc_z = nav->v5_coinc_cercania[z];
+                }
+            }
             nav->zona_cercania[z] = hay ? ((laser_cerca && z == ZONA_CENTRO) ? 3 : cerc_z) : 0;
         }
         nav->zona_celdas[z] = celdas;
@@ -5512,7 +5548,7 @@ int navegador_poner_v5(Navegador *nav, int activo)
     nav->v5_masa_sin_eco = on;
     nav->v5_patas_delgadas = on;
     nav->v5_pasillo_pared = on;
-    nav->v5_fallo_seguro = 0;
+    nav->v5_fallo_seguro = on;
     return NAV_OK;
 }
 
@@ -5541,6 +5577,13 @@ int navegador_poner_pasillo_pared(Navegador *nav, int activo)
 {
     if (nav == NULL) return NAV_ERR_ARGUMENTO;
     nav->v5_pasillo_pared = activo ? 1 : 0;
+    return NAV_OK;
+}
+
+int navegador_poner_fallo_seguro(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v5_fallo_seguro = activo ? 1 : 0;
     return NAV_OK;
 }
 
@@ -6082,6 +6125,26 @@ int navegador_ayuda_continuar(Navegador *nav, uint32_t ahora_ms)
     nav->error_causa = NAV_CAUSA_NINGUNA;
     nav->desde_ayuda = 1;
     nav->indice_max = nav->indice_objetivo;   /* tras tomar el control el carro pudo quedar en otro lugar: el índice parte de aquí */
+    if (nav->v5_activo && nav->v5_fallo_seguro && nav->n_puntos >= 2) {
+        int tramo_a;
+        long s_a, desv_a;
+
+        ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo_a, &s_a, &desv_a);
+        if (nav->v5_ayuda_ultimo_s_mm >= 0 && s_a < nav->v5_ayuda_ultimo_s_mm + 200) {
+            nav->v5_ayudas_sin_avance++;
+        } else {
+            nav->v5_ayudas_sin_avance = 1;
+        }
+        nav->v5_ayuda_ultimo_s_mm = s_a;
+        if (nav->v5_ayudas_sin_avance >= 3) {
+            diag_escribir(nav, "AYUDA_DIAG tope_ayudas=%d s_mm=%ld: sin avance, pasa a ERROR", nav->v5_ayudas_sin_avance, s_a);
+            nav->estado = NAV_ERROR;
+            nav->motivo_error = nav->ayuda_motivo;
+            nav->error_causa = NAV_CAUSA_ATASCO;
+            cambiar_comando(nav, NAV_CMD_STOP);
+            return NAV_OK;
+        }
+    }
     diag_escribir(nav, "AYUDA_DIAG continua pose=(%d,%d,%d)", nav->x_mm, nav->y_mm, nav->rumbo_grados);
     entrar_reincorporando(nav, ahora_ms);   /* quieto 300 ms y calcula la vuelta a la línea con la pose estimada */
     return NAV_OK;
@@ -6241,6 +6304,35 @@ ComandoNav navegador_tick(Navegador *nav, uint32_t ahora_ms, const ResultadoObst
     if (nav->estado == NAV_ESPERANDO || nav->estado == NAV_TERMINADO || nav->estado == NAV_ERROR) {
         comando = NAV_CMD_STOP;
     }
+    if (nav->v5_activo && nav->v5_fallo_seguro && nav->usa_tof && nav->arranque_ok && nav->sondeo_fase == 0 && nav->vistazo_lado == 0 &&
+        (nav->estado == NAV_SIGUIENDO || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) &&
+        !nav->precaucion_pausa_ms && comando == NAV_CMD_FORWARD && nav->cmd_actual == NAV_CMD_FORWARD &&
+        tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0 && nav->tof_mm < 850) {
+        if (nav->tof_t_ms != nav->v5_atasco_ultima_tof_ms) {
+            if (nav->v5_atasco_lecturas == 0 || valor_absoluto_int(nav->tof_mm - nav->v5_atasco_mm0) > 20) {
+                nav->v5_atasco_t0_ms = ahora_ms;
+                nav->v5_atasco_mm0 = nav->tof_mm;
+                nav->v5_atasco_lecturas = 1;
+            } else {
+                nav->v5_atasco_lecturas++;
+            }
+            nav->v5_atasco_ultima_tof_ms = nav->tof_t_ms;
+        }
+        if (nav->v5_atasco_lecturas >= 5 && (uint32_t)(ahora_ms - nav->v5_atasco_t0_ms) >= 1800u &&
+            (uint32_t)(ahora_ms - nav->v5_atasco_t0_ms) < 0x80000000u) {
+            diag_escribir(nav, "AYUDA_DIAG atasco_tof mm0=%d mm=%d lecturas=%d ms=%lu: sin avance frente al laser",
+                          nav->v5_atasco_mm0, nav->tof_mm, nav->v5_atasco_lecturas,
+                          (unsigned long)(uint32_t)(ahora_ms - nav->v5_atasco_t0_ms));
+            nav->v5_atasco_lecturas = 0;
+            comando = NAV_CMD_STOP;
+            cambiar_comando(nav, NAV_CMD_STOP);
+            ir_a_error_causa(nav, NAV_MOTIVO_ESQUIVANDO, NAV_CAUSA_ATASCO);
+            rumbo_fw_actualizar(nav, ahora_ms);
+            return NAV_CMD_STOP;
+        }
+    } else {
+        nav->v5_atasco_lecturas = 0;
+    }
     cambiar_comando(nav, comando);
     rumbo_fw_actualizar(nav, ahora_ms);   /* J16: el rumbo que el firmware debe sostener en este avance (si lo sostiene) */
     return comando;
@@ -6342,6 +6434,9 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         break;
     case NAV_CAUSA_LEJOS:
         n = snprintf(texto, (size_t)capacidad, "la posición estimada quedó a más de %d cm de la ruta", NAV_LOCURA_DESVIO_MM / 10);
+        break;
+    case NAV_CAUSA_ATASCO:
+        n = snprintf(texto, (size_t)capacidad, "atasco detectado: el carro mandó avanzar pero la distancia láser al frente no cambió");
         break;
     default:
         break;

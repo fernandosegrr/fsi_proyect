@@ -29,6 +29,9 @@ int hw_i2c_escribir(uint8_t dir, uint8_t reg, const uint8_t *datos, int n);
 /* 1 si algo contesta en la dirección dir (sirve para el escaneo del bus). */
 int hw_i2c_presente(uint8_t dir);
 
+/* Recupera el bus I2C tras un bloqueo de SDA/SCL (solo con el carro detenido). */
+void hw_i2c_recuperar(void);
+
 /* Sensor láser. hw_tof_iniciar: 1 si se inició bien. hw_tof_listo: 1 si hay una medida lista, 0 si todavía no, -1 si el bus falló.
  * hw_tof_leer: guarda en *mm el valor CRUDO del sensor (8190 o 65535 = sin eco) y devuelve 0 si salió bien. */
 int hw_tof_iniciar(void);

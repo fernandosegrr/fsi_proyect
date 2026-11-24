@@ -78,6 +78,11 @@ class Ajustes(contexto: Context) {
         get() = preferencias.getBoolean("autoridad_laser", true)
         set(valor) = preferencias.edit().putBoolean("autoridad_laser", valor).apply()
 
+    /** v5-carbon: mejoras de navegación y visión activas por defecto; apagarlo reproduce exactamente v3 para pruebas A/B en campo. */
+    var autonomoV5: Boolean
+        get() = preferencias.getBoolean("autonomo_v5", true)
+        set(valor) = preferencias.edit().putBoolean("autonomo_v5", valor).apply()
+
     var vibracion: Boolean
         get() = preferencias.getBoolean("vibracion", true)
         set(valor) = preferencias.edit().putBoolean("vibracion", valor).apply()

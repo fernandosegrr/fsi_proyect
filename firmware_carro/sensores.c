@@ -130,7 +130,7 @@ static void texto_caps(char *dest, int largo)
     /* SEG=2 (autónomo v2): un texto desconocido ya no renueva el watchdog ni queda como comando actual; un FORWARD en AUTO con el frente confirmado a menos de
      * TOF_BLOQUEO_MM no arranca (contesta TOF_PARO); el freno láser se rearma en cada avance nuevo. TUSO=<0|1>: si el freno láser está en uso (TOF_USO). Las claves
      * nuevas van ANTES de FW: y no contienen «IMU=», «TOF=» ni «RUMBO=» (la app actual busca esas subcadenas). */
-    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,SEG=3,TUSO=%d,TOFP=%d,%s",
+    snprintf(dest, (size_t)largo, "CAPS:IMU=%d,TOF=%d,TOFR=%d,IMUR=%d,IMUM=%d,IMUE=%d,RUMBO=1,IMUS=%ld,SEG=4,TUSO=%d,TOFP=%d,%s",
              imu_estado() == IMU_ESTADO_LISTA, tof_vivo(), tof_reintentos(), imu_reintentos, imu_motivo(), imu_estado(), (long)imu_escala_ppm(), tof_uso ? 1 : 0, TOF_PARO_MM, FW_VERSION);
 }
 
@@ -333,7 +333,7 @@ uint32_t sensores_bloqueos_tof(void) { return bloqueos_tof; }
 
 /* ── Mensajes ──────────────────────────────────────────────────────────── */
 
-static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:",
+static const char *PREFIJOS[] = { "CAPS?", "IMU?", "TOF?", "TOFE?", "GIRAR:", "IMU_CAL", "IMU_CERO", "LOOP?", "LOOP_CERO", "ANT?", "ANT_BORRAR", "ARR?", "SENS_SERIE:", "I2C?", "REG:", "TOF_USO:",
                                   "IMU_ESCALA?", "IMU_ESCALA:", NULL };
 
 int sensores_es_comando(const char *texto)
@@ -368,6 +368,9 @@ static void ejecutar(const char *texto, int donde)
         sensores_enviar(donde, respuesta);
     } else if (strcmp(texto, "TOF?") == 0) {
         snprintf(respuesta, sizeof respuesta, "TOF:%d,%d", tof_vivo() ? tof_mm() : 0, (tof_vivo() ? 1 : 0) | (tof_vivo() && tof_valida() ? 2 : 0));
+        sensores_enviar(donde, respuesta);
+    } else if (strcmp(texto, "TOFE?") == 0) {
+        snprintf(respuesta, sizeof respuesta, "TOFE:%d,%d,%d", tof_vivo(), tof_recuperaciones_i2c(), tof_invalidas());
         sensores_enviar(donde, respuesta);
     } else if (strncmp(texto, "GIRAR:", 6) == 0) {
         if (donde & SENSORES_DESTINO_SERIE) {

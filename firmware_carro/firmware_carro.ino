@@ -215,6 +215,22 @@ extern "C" int hw_i2c_presente(uint8_t dir)
   return Wire.endTransmission() == 0 ? 1 : 0;
 }
 
+extern "C" void hw_i2c_recuperar(void)
+{
+  Wire.end();
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  pinMode(PIN_I2C_SCL, OUTPUT);
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(PIN_I2C_SCL, LOW);
+    delayMicroseconds(5);
+    digitalWrite(PIN_I2C_SCL, HIGH);
+    delayMicroseconds(5);
+  }
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.setClock(I2C_FRECUENCIA_HZ);
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+}
+
 /* Láser: init() de Pololu espera al sensor (solo en setup). Después se mide de corrido y SIN esperar: se pregunta si hay medida lista (un registro) y solo entonces se lee. */
 extern "C" int hw_tof_iniciar(void)
 {
@@ -239,9 +255,14 @@ extern "C" int hw_tof_listo(void)
 
 extern "C" int hw_tof_leer(int *mm)
 {
+  const uint8_t rstat = (laser.readReg(VL53L0X::RESULT_RANGE_STATUS) & 0x78) >> 3;
   const uint16_t valor = laser.readRangeContinuousMillimeters();   /* ya hay medida lista: no espera */
   if (laser.last_status != 0 || laser.timeoutOccurred()) {
     return 1;
+  }
+  if (rstat == 4) {   /* phase fail del VL53L0X: se trata como sin eco */
+    *mm = 8190;
+    return 0;
   }
   *mm = (int)valor;
   return 0;
