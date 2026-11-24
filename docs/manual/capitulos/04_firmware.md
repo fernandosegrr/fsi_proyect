@@ -96,3 +96,11 @@ La seguridad local del firmware se completa con tres mecanismos deterministas:
 - **Instrumentación de tiempos de bucle (`LOOP?`):** al enviar `LOOP?`, el firmware responde `LOOP:<prom_us>,<max_us>,<lentos>`, donde `lentos` cuenta cuántas llamadas a `sensores_actualizar` superaron `5,000 us` (`5 ms`). Como se verificó en la auditoría (Capítulo 12), el promedio real ronda `~690 us`, y los ciclos que superan `5 ms` (`max_us` de `28` a `41 ms`) corresponden a las transacciones `I2C` del sensor `VL53L0X` cuando entrega una medición nueva; el integrador `imu.c` absorbe esas pausas multiplicando por el $\Delta t$ real medido con `micros()`.
 
 Dónde está en el código: `firmware_carro.ino`, `config.h`, `carro.h`, `carro.c`, `sensores.h`, `sensores.c`, `rumbo.h`, `rumbo.c`, `imu.h`, `imu.c`, `giro.h`, `giro.c`, `tof.h`, `tof.c`.
+
+## 4.6 Autónomo v5-carbon: `SEG=4` (`COMPILADO`, no grabado)
+
+Rama `feat/autonomo-v5-carbon`. Conserva intactos `TOF_PARO_MM=150`, `TOF_BLOQUEO_MM=180`, el watchdog de `1000 ms`, la prioridad absoluta de `STOP`/`EBRAKE` y los tres enteros de `SENS:`:
+
+- **Filtros de `tof.c` (`VALIDADO EN PC`, `NO MEDIDO` en el carro):** lecturas menores que `8 mm` (`TOF_MIN_VALIDO_MM`) o negativas se cuentan en `invalidas_total`, apagan `valida` y no renuevan la ventana de frescura (`TOF_SIN_DATOS_MS`) ni alimentan la mediana; lecturas `>= 8000 mm` o fallo de fase `VL53L0X` (`rstat == 4`) se normalizan como ausencia de eco (`8190`).
+- **Recuperación controlada de I²C (`hw_i2c_recuperar`):** si el `VL53L0X` cae y deja de responder al sondeo en `0x29`, emite 9 pulsos en `SCL` y reinicializa `Wire` **únicamente cuando el carro está detenido al menos 300 ms y sin giro activo**.
+- **Consulta de diagnóstico (`TOFE?`):** devuelve `TOFE:<vivo>,<recup_i2c>,<invalidas>` sin alterar la compatibilidad de la app `v1.1`. Compila en ESP32 (`1,034,982` bytes, `78 %`).

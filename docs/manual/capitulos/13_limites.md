@@ -75,3 +75,10 @@ Rama `feat/autonomo-v3`. La lista completa y vigente está en `docs/limites_cono
 - **NO MEDIDO que cambia conclusiones:** si el láser ve patas reales y qué lectura da (el sensor promedia su cono); distancia del sensor al frente (`e`) y distancia de frenado real; deriva del giroscopio en reposo y en marcha; campo, altura e inclinación de la cámara (en HQVGA solo se usa ~75 % del ancho del sensor, el 56° supuesto no sirve a la vez para HQVGA y QVGA); deriva de la exposición entre sol y sombra; velocidad real en AUTO (19.3 cm/s puede estar obsoleto); latencia de extremo a extremo.
 - **No se hizo (diseño, no código):** leer el estado de la medición del VL53L0X, recuperación del bus I²C (9 pulsos de SCL), tope global de continuaciones tras ayuda, detección de atasco, bloqueo de exposición de la cámara.
 - Mediciones baratas para cerrar lo anterior: bloque M del [protocolo](../../protocolo_prueba_fisica_autonomo_v2.md) (M1 a M10).
+
+## 13.7 Autónomo v5-carbon: lo cerrado en software y lo que sigue abierto (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v5-carbon`. El carro no se movió; todas las cifras nuevas son **`SIMULADO`** o **`NO MEDIDO`** en hardware:
+
+- **Cerrado en software (pendiente en carro):** estado `rstat` y lecturas `< 8 mm` / `>= 8000` en `SEG=4`, recuperación I²C controlada detenido, detección de atasco ToF (`Causa 20`), tope de 3 continuaciones tras `AYUDA`, fix de ruta de 1 punto, mitigación de `bloque_sin_eco` (`40/40 -> 7..9/40` en simulación) y reducción de contactos en muebles con patas y objetos bajos.
+- **Sigue abierto (`NO MEDIDO` / `NO CUMPLE` parcial en simulación):** `G2` (1 contacto residual en `objeto_bajo` pesimista y límites heredados de `pared_al_frente` / `objeto_largo90`), `G4` (sube `AYUDA` como fallo seguro ante giros entre patas), `G5` (`caja_y_pared_al_lado` empata o excede en 1 `AYUDA` en `DESARROLLO`), `G6` (`1/40` `terminado_falso` residual en `silla_patas` de `RESERVADO`), exposición automática sin bloqueo del `GC0308` y falta de sensor trasero / encoders. Protocolo físico A/B listo en [protocolo v5](../../protocolo_prueba_fisica_v5.md).

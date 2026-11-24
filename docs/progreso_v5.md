@@ -84,4 +84,11 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
   - `python scripts/compuertas_v5.py --corridas 40 --apagado`: **Igualdad exacta vs `e37f77b`: SI**.
   - `docs/precision/v5/etapa5.txt`: **G1 `CUMPLE`**, **G3 `CUMPLE`**, **G7 `CUMPLE`** (mismas cifras limpias que `etapa4.txt`, sin regresiones; `G2`, `G4`, `G5`, `G6` permanecen `NO CUMPLE` en casos puntuales documentados).
   - `scripts/evaluacion_ciega.ps1 -Semilla 1`: ejecutado **solo con semilla 1** tras correcciones para comprobar funcionamiento (`Exit 0`).
-- **Siguiente**: Fase 3 (documentacion de estado, limites, protocolo fisico A/B y manual PDF) y Fase 4 (congelamiento y evaluacion ciega con semillas externas).
+
+## Fase 3 — Documentacion, protocolo fisico A/B y manual PDF (Completada)
+- Creado `docs/estado_20261123.md` con estado técnico completo, cifras verificadas post-correccion de `d758e0f`, banderas de reversion, requisitos opcionales de firmware `SEG=4`, riesgos residuales y compuertas G1–G7 (`SIMULADO`).
+- Actualizados `docs/limites_conocidos.md` (seccion v5-carbon y `Causa 20`), `README.md` y `docs/autonomo_v5_diseno.md` (decisiones finales y variantes descartadas).
+- Creado `docs/protocolo_prueba_fisica_v5.md` y `docs/pruebas_fisicas_v5_plantilla.csv` (reglas de seguridad, `adb install -r` sin desinstalar ante fallo de firma, carga opcional de `SEG=4` no ejecutada, mediciones baratas `M-v5.1`..`M-v5.6`, bloques progresivos `P0`..`P4` y seccion A/B contra `v3`).
+- Actualizados capitulos del manual (`04_firmware.md`, `06_protocolo.md`, `07_navegacion.md`, `08_vision.md`, `09_aplicacion.md`, `12_pruebas.md`, `13_limites.md`, `15_problemas.md`) y portada en `docs/manual/generar_manual.py`.
+- Regenerado `docs/manual/Manual_Proyecto_Carro_FSI.pdf` con `--sin-figuras` (**75 paginas, 12 figuras, 30 tablas, 3,838,232 bytes / 3748.3 KB < 15 MB**; portada verificada con `pymupdf`) y validado `python docs/verificar_enlaces.py` (**160 archivos Markdown, 202 enlaces validos, 0 rotos**).
+- **Siguiente**: Fase 4 (verificacion previa, push y tag anotado `freeze/v5-carbon`, obtencion de semillas externas A/B/C y evaluacion ciega unica sobre el commit congelado).

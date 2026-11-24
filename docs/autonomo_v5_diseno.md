@@ -64,3 +64,15 @@ Todas las mejoras quedan controladas por banderas individuales y por el interrup
 | **C / Etapa 3** Patas finas, no vistazo cercano y margen de cola | `v5_patas_delgadas`, `cfg_color.v5_rachas` | `obstaculos.c/.h`, `navegador.c` | Patas borradas por erosion, `vistazo` a `cercania >= 2` hacia muebles, subestimacion de ancho en escaneo y `terminado_falso` de 4 esquinas | Reduccion drastica de contactos y `bajo_mueble` en `banquito` y `silla`; `G6`: `terminado_falso = 0` |
 | **D / Etapa 4** Deshacer giro con pared y pasillo asimetrico | `v5_pasillo_pared` | `navegador.c/.h` | `AYUDA` causas 16/18 cuando el otro lado si esta libre; preferencia pivote izq (~90 mm) y paso adaptado en `pasillo` | Reduccion clara de `AYUDA` en `pasillo` y `caja_y_pared_al_lado` sin contactos ni regresion en `G1` |
 | **E–H / Etapa 5** Fallo seguro, `SEG=4`, JNI/APK y eval ciega | `v5_fallo_seguro` | `navegador.c`, `firmware_carro/`, `app_android/`, `scripts/` | Fix UB 1 punto, atasco ToF (`NAV_CAUSA_ATASCO=20`), tope `Continuar`, rafaga TCP, `SEG=4` (`tof.c` `<8mm`/`>=8000` + I2C quieto + `TOFE?`), APK + `CAB v5=...` | Compilacion limpia APK/ESP32, pruebas nuevas pasando, `AV5_APAGADO=1 == v3`, script ciego validado con semilla 1 |
+
+---
+
+## 4. Decisiones finales tras implementacion y compuertas (`etapa5.txt`, `SIMULADO`)
+
+- **Implementado y activado por defecto (reversible con `v5=0`):** Etapas 1–5 en `nucleo_c`, `SEG=4` opcional en `firmware_carro`, interruptor **`Autónomo v5-carbon`** en `SensoresActivity` y `v5=1/0` en `CajaNegra`, flujo ASan/UBSan en `.github/workflows/sanitizadores.yml`, y evaluador ciego `scripts/evaluacion_ciega.ps1`.
+- **Descartado tras medicion en ambos conjuntos:**
+  1. **Sesgo asimetrico en `elegir_lado` (`+6` hacia derecha):** ignoraba `borde_lejos = 1` en pared izquierda (contactos laterales). Se mantuvo costo simetrico `borde_lejos * 4 + zona_celdas`.
+  2. **`deshacer_giro` agresivo (45°–95°):** introducia contactos de esquina trasera en `caja_y_pared_al_lado` (`0 -> 4..7`); se conservo `NAV_DESHACER_GIRO_MAX = 0` y solo se corrigio el calculo de `tof_dist_mm` + reversa recta de 150 mm si `!arco_cabe`.
+  3. **Ajuste ciego de registros `AEC`/`AGC` en `GC0308`:** descartado por discrepancia confirmada entre controlador y hoja de datos; se mitigaron los lavados de ganancia por cromaticidad (`dcroma`) y retencion `v5_solido`.
+  4. **Guardia de `v4` (`archive/feat-autonomo-v4-a200df4`):** nunca reutilizada por sus falsos disparos en piso limpio (`G1`).
+- **Compuertas en `docs/precision/v5/etapa5.txt` (`SIMULADO`):** **`G1`, `G3`, `G7` en verde (`CUMPLE`)**; **`G2`, `G4`, `G5`, `G6` permanecen en `NO CUMPLE`** por casos puntuales documentados en `docs/estado_20261123.md` (con reduccion de contactos de ~70–90 % en muebles y `bloque_sin_eco`).

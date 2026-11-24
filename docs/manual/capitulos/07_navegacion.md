@@ -134,3 +134,13 @@ Rama `feat/autonomo-v3`. Todo lo de esta sección salió del banco; **nada está
 | Objeto bajo que solo ve el color | 967 ok, 22 contactos | 986 ok, 14 contactos | 1000 ok |
 
 Los muebles con patas **siguen sin llegar al 99 %**: más de la mitad de las corridas con silla pasan entre las patas sin tocar (`bajo_mueble`) y la ayuda (causas 16 y 18) sigue siendo la respuesta cuando el giro no cabe. Un modelo alterno del láser que promedia el cono (SUPUESTO) da los mismos contactos y más ayudas (23 y 14 contra 7 y 4 en 300 corridas): el resultado no depende de un láser simulado demasiado optimista.
+
+## 7.8 Autónomo v5-carbon: etapas 1–5 y fallo seguro (`SIMULADO` / `NO MEDIDO`)
+
+Rama `feat/autonomo-v5-carbon`. Todas las mejoras operan detrás de banderas activas por defecto (`navegador_poner_v5(1)` en ejecución); con `navegador_poner_v5(0)` (`AV5_APAGADO=1` en banco), la simulación reproduce fila por fila la versión `v3` (`e37f77b`, verificado `SI`):
+
+1. **Coincidencia estable en centro (`v5_coincidencia_estable`):** retenida hasta `500 ms` en `NAV_DETENIDO_OBSTACULO` si el color cercano (`>= 2`) persiste dentro del corredor cuando la red neuronal parpadea un cuadro.
+2. **Masa sólida sin eco (`v5_masa_sin_eco`, `cfg.v5_solido`):** dos cuadros seguidos de masa sólida no-piso de alto contraste/croma (`dcroma >= 22`, excluyendo resaltes y sombras suaves) confirman obstáculo aunque no haya eco ToF ni caja COCO, con retención ante lavado de exposición en parada y bloqueo de `vistazo` hacia zona sólida.
+3. **Patas finas y margen de cola (`v5_patas_delgadas`, `cfg.v5_rachas`):** conserva rachas verticales delgadas de patas (`>= 3` filas en `<= 3` columnas), bloquea `vistazo` cercano (`>= 2`), aplica reversa recta antes de pivotar si no hay eco ToF y amplía `PAUSA_PASAR` hasta `560 mm` para cubrir las cuatro esquinas a velocidad real calibrada (`25.7–29.4 cm/s`).
+4. **Elección de costado y pasillo adaptado (`v5_pasillo_pared`):** desempate simétrico por costo `borde_lejos * 4 + zona_celdas`, ancho lateral adaptativo (`tope >= max(320, ancho_est + 185)`) cuando el escaneo inicial midió pared de pasillo sin corte, y corrección de `deshacer_giro` sin subdesbordamiento de distancia ToF.
+5. **Fallo seguro (`v5_fallo_seguro`):** corrección de índice fuera de límites en `ubicar_en_linea` para rutas de un punto, detección de atasco verificada por láser (`NAV_CAUSA_ATASCO = 20`: `>= 1.8 s` en `FORWARD` con `>= 5` lecturas frescas `< 850 mm` estancadas en `±20 mm`), y paso automático a `NAV_ERROR` tras 3 intentos de «Continuar» después de `AYUDA` sin avanzar `200 mm`.

@@ -62,3 +62,13 @@ Rama `feat/autonomo-v3` (`SIMULADO`; la app solo se compiló).
 | «Causa 19: el láser dejó de responder a mitad de la ruta…» | Con la ruta en marcha, el láser vivía al empezar y lleva 600 ms sin vivir | Revisar la pantalla Sensores (láser caído, cable I²C). El carro se detuvo a propósito: no avanza sin el láser. Con el láser aún muerto, continuar vuelve a pedir ayuda |
 | Con firmware `SEG=3` el carro se detiene a ~15 cm de una pared en vez de ~12 cm | `TOF_PARO_MM` pasó de 120 a 150 mm | Normal. `CAPS` trae `TOFP=150` |
 | Con firmware `SEG=3` un avance contra algo a menos de 18 cm no arranca | `TOF_BLOQUEO_MM` es 180 mm | Alejar el carro o pasar a MANUAL |
+
+## 15.6 Autónomo v5-carbon: `Causa 20`, interruptor `v5` y `SEG=4` (`SIMULADO`)
+
+Rama `feat/autonomo-v5-carbon` (`SIMULADO`; APK y firmware solo compilados).
+
+| Síntoma | Qué significa | Qué hacer |
+|---|---|---|
+| «Causa 20: el carro intentó avanzar sin variar el láser…» | Atasco detectado por `v5_fallo_seguro` (≥ 1.8 s de `FORWARD` con ToF `< 850 mm` estancado en ±20 mm) o 3 «Continuar» tras `AYUDA` sin avanzar 20 cm | Retirar obstáculo o liberar ruedas; si ocurrió 3 veces tras `AYUDA`, termina en `ERROR` para proteger el puente H `TC1508A` |
+| Se desea comparar exactamente contra `v3` en la misma APK | El interruptor **`Autónomo v5-carbon`** en `Más → Sensores` controla las banderas `v5` y registra `v5=1/0` en la caja negra | Apagarlo antes de iniciar la ruta para correr con el comportamiento `v3` (`e37f77b`) |
+| Con firmware `SEG=4`, el láser reporta `TOF:<mm>,0` sin frenar falsamente | Lectura basura (`< 8 mm`) o falla de eco (`>= 8000` / `rstat=4`) filtrada; si dura > 500 ms pasa a caído e intenta recuperar I²C solo detenido | Consultar `TOFE?` en banco serie (`vivo,recup,invalidas`) y revisar cableado SDA/SCL |

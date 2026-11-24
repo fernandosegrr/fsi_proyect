@@ -1,5 +1,19 @@
 # Límites conocidos de la navegación
 
+## Rama `feat/autonomo-v5-carbon` (23-nov-2026): lo que cambia y lo que sigue abierto
+
+**SIMULADO / NO MEDIDO en el carro.** El carro real no se movió, no se instaló la APK ni se grabó firmware (solo se compilaron). `main`, el tag `v1.1` (`bd1727b`) y `feat/autonomo-v3` (`e37f77b`) no se tocaron. Detalle en [estado_20261123.md](estado_20261123.md), diseño en [autonomo_v5_diseno.md](autonomo_v5_diseno.md) y protocolo A/B en [protocolo_prueba_fisica_v5.md](protocolo_prueba_fisica_v5.md).
+
+Resultados calibrados (`DESARROLLO` 24 escenarios y `RESERVADO` 27 escenarios × 40 corridas × laser normal/pesimista, velocidad real `25.7–29.4 cm/s`, **SIMULADO**, ver [etapa5.txt](precision/v5/etapa5.txt)):
+
+- **Piso limpio (`G1: CUMPLE`):** `40/40 ok`, `0` contactos, `0` AYUDA y `0` esquives nuevos en las 4 matrices; paradas idénticas a `v3` en sol/sombra/reflejo. Con el interruptor **`Autónomo v5-carbon`** apagado (`v5=0` / `AV5_APAGADO=1`), la simulación reproduce **exactamente** a `v3` (`SI`).
+- **Hueco sin eco (`G3: CUMPLE`) y objetos bajos:** `bloque_sin_eco` baja de **40/40** contactos en `v3` a **7/40** (`DESARROLLO`) y **9/40** (`RESERVADO`) en ambos láseres mediante clasificación de masa sólida no-piso de alto contraste/croma (`v5_solido`) y retención ante lavado AEC; `objeto_bajo` pesimista baja de `19/14` a `1/1` contactos y `bajo_solo_color` pesimista de `23/17` a `3/0`.
+- **Muebles de patas (`G4: NO CUMPLE` en criterio estricto de AYUDA):** contactos bajan fuerte (`banquito35x45`: 15→4 / 25→6 `DESARROLLO` y 7→2 / 11→1 `RESERVADO`; `silla_patas`: 4→2 / 4→3 y 9→4 / 12→4; `mueble_con_pared`: 11→1 / 21→1), a cambio de más `AYUDA` segura al no girar sin espacio. Queda `1/40` `terminado_falso` en `silla_patas` de `RESERVADO` (`G6: NO CUMPLE`).
+- **Pasillos y pared lateral (`G5: NO CUMPLE`):** `pasillo` mejora a `29/40` (normal) y `32/40` (pesimista) en `DESARROLLO` y `40/40` / `39/40` en `RESERVADO` con `0` contactos; `caja_y_pared_al_lado` mantiene `0` contactos en las 4 matrices pero iguala o excede por 1 la `AYUDA` en `DESARROLLO` (`16 vs 15` normal, `18 vs 18` pesimista).
+- **Límites que siguen `NO MEDIDO`:** respuesta real del VL53L0X a patas y superficies oscuras/mate, exposición automática real del `GC0308`, distancia sensor–frente `e`, detección física de atasco (`Causa 20`) y recuperación I²C de `SEG=4`.
+
+---
+
 ## Rama `feat/autonomo-v3` (16-nov-2026): lo que cambia y lo que sigue igual
 
 **SIMULADO / NO MEDIDO en el carro.** El carro no se movió, no se instaló la APK y no se grabó firmware (solo se compilaron). `main` y el tag `v1.1` (`bd1727b`) no se tocaron. No es v1.2. Detalle en [estado_20261116.md](estado_20261116.md); hallazgos y su gravedad en [investigacion_autonomo/90_hallazgos.md](investigacion_autonomo/90_hallazgos.md).
@@ -103,6 +117,7 @@ La pantalla muestra «Causa N: texto». Con AYUDA desactivada se comunica ERROR;
 | 17 | **V2.** El detector de objetos dejó de dar resultados vigentes durante 2.5 s. |
 | 18 | **V2.** El láser vio algo dentro del arco que barre el chasis al girar para rodear (una pared pegada, un objeto junto al carril): el carro dejó de girar. |
 | 19 | **V3.** El láser dejó de responder a mitad de la ruta (vivía al empezar y lleva 600 ms sin vivir): STOP y ayuda. Con el láser aún muerto, continuar vuelve a pedir ayuda. |
+| 20 | **V5.** Atasco o bucle: orden `FORWARD` sostenida >= 1.8 s con al menos 5 lecturas láser frescas y válidas (< 850 mm) estancadas en ±20 mm, o 3 intentos de «Continuar» tras `AYUDA` sin avanzar 20 cm (`NAV_ERROR` al 3.º). **SIMULADO / NO MEDIDO**. |
 
 ## Piso y precisión
 

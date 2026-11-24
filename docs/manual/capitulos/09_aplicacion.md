@@ -68,3 +68,7 @@ La pantalla `SensoresActivity` añadió en el cierre **J16** dos tarjetas intera
   3. **Paso 3:** pulsa `3. Calcular y guardar`, que lee el ángulo reportado por `SENS`, invoca `CalGiroNativa.escala` (`calgiro_escala`), suma el ajuste a la escala previa dentro de `[-50000, +50000] ppm` y envía `IMU_ESCALA:<ppm>` para persistirlo en `NVS` (además de ofrecer un botón `Restablecer a 0 ppm`).
 
 Dónde está en el código: `MainActivity.kt`, `SesionCarro.kt`, `SesionVideo.kt`, `ControlLogica.kt`, `ModoSemiautonomo.kt`, `CalibracionGuardada.kt`, `SensoresActivity.kt`, `RutasFragment.kt`, `VisionActivity.kt`.
+
+## 9.5 Interruptor `Autónomo v5-carbon` y sincronización JNI (`SOLO COMPILADO`)
+
+Rama `feat/autonomo-v5-carbon`. En `Más → Sensores`, la aplicación incorpora el interruptor maestro **`Autónomo v5-carbon`** (encendido por defecto en `Ajustes.kt`, persistido en preferencias y propagado vía `NavegadorNativa.ponerV5` a `puente.c` bajo mutex `candado_vision`). Al encender o apagar el interruptor, sincroniza tanto las cinco banderas del navegador como `v5_solido` / `v5_rachas` de visión, y escribe `v5=1` o `v5=0` en la cabecera `CAB` de cada archivo de `CajaNegra` para permitir pruebas físicas **A/B contra `v3`** con la misma APK. En modo simulado sin cámara (`ponerCeldas(-1,-1,-1)`), `puente.c` omite arreglos residuales de sesiones previas de cámara.

@@ -102,3 +102,7 @@ Rama `feat/autonomo-v3`. El firmware del carro con estos cambios **solo se compi
 **Por qué.** El pulso de arranque (255 por 250 ms, unos 9.5 cm) y la distancia del sensor al frente del carro (`e`, **NO MEDIDA**) hacen que 120 mm pueda no alcanzar si `e` pasa de unos 2 cm (modelo propio, `docs/investigacion_autonomo/10_seguridad_funcional.md`; confianza media). Más conservador, nunca menos. Volver a los valores anteriores: compilar con `-DTOF_PARO_MM=120 -DTOF_BLOQUEO_MM=150` (el compilador rechaza un bloqueo menor o igual al freno).
 
 **Compatibilidad.** `TOFP=` no contiene «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas) y la app nueva no lo necesita. `SENS` no cambia. El peor `CAPS` mide ~119 caracteres contra 128 del buffer. El servidor falso del repositorio imita `SEG=3` y las pruebas del firmware cubren los umbrales y la racha. `python scripts/verificar_version.py --puerto COM6 --solo-fw` comprueba el firmware cargado sin teléfono.
+
+## 6.7 Autónomo v5-carbon: `SEG=4` y consulta `TOFE?` (`COMPILADO`, no grabado)
+
+Rama `feat/autonomo-v5-carbon`. Actualiza `CAPS` a `SEG=4` manteniendo `TOFP=150`, los tres enteros de `SENS:%d,%d,%d` y la retrocompatibilidad completa con la app `v1.1`. Añade la consulta discreta `TOFE?`, que responde `TOFE:<tof_vivo>,<recuperaciones_i2c>,<lecturas_invalidas>` (verificada en PC con `probar_servidor_falso.py` y `pruebas_sensores.c`). La app `v5-carbon` sigue operando contra firmwares `v1.1`, `SEG=2` o `SEG=3` porque no depende de `TOFE?`.

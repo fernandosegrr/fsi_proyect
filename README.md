@@ -20,6 +20,7 @@
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
 - **Rama `feat/autonomo-v2` (14-nov-2026, sin fusionar; no es v1.2; SIMULADO, NO MEDIDO en el carro):** [estado](docs/estado_20261113.md), [auditoría](docs/auditoria_autonomo_v2.md), [diseño y resultados](docs/autonomo_v2_diseno.md), [protocolo de prueba física](docs/protocolo_prueba_fisica_autonomo_v2.md) y [plantilla CSV](docs/pruebas_fisicas_plantilla.csv)
 - **Rama `feat/autonomo-v3` (16-nov-2026, sin fusionar; no es v1.2; SIMULADO, NO MEDIDO en el carro; firmware y app solo compilados):** [estado](docs/estado_20261116.md), [investigación (11 áreas, fuentes con confianza)](docs/investigacion_autonomo/00_mapa.md), [hallazgos de la revisión](docs/investigacion_autonomo/90_hallazgos.md), [límites](docs/limites_conocidos.md) y [bloque de mediciones baratas M1–M10](docs/protocolo_prueba_fisica_autonomo_v2.md#10-bloque-m--mediciones-baratas-v3).
+- **Rama `feat/autonomo-v5-carbon` (23-nov-2026, sin fusionar; no es v1.2; SIMULADO, NO MEDIDO en el carro; firmware `SEG=4` y app solo compilados):** [estado](docs/estado_20261123.md), [diseño v5](docs/autonomo_v5_diseno.md), [bitácora de progreso](docs/progreso_v5.md), [límites conocidos](docs/limites_conocidos.md), [protocolo físico A/B contra v3](docs/protocolo_prueba_fisica_v5.md) y [plantilla CSV v5](docs/pruebas_fisicas_v5_plantilla.csv).
 
 ---
 

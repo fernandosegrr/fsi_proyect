@@ -83,3 +83,10 @@ Documentos: `docs/investigacion_autonomo/05_vision_monocular.md` y `07_detector_
 - **Constantes de geometría inconsistentes:** `corredor.h` usa 10 cm de altura, 20° de inclinación y 60° de campo; el manual, 115 mm, 12° y 56°; la altura entra en centímetros enteros. Hay que medir la cámara y unificar antes de tocar el clasificador.
 - **Detector:** la documentación habla de cajas `[top, left, right, bottom]` y el código usa `[ymin, xmin, ymax, xmax]` (puede ser el orden del modelo exacto); se propone verificarlo con una imagen **sintética**. El detector estira 240×176 a 320×320, usa NMS con IoU 0.5, máximo 25 cajas y un solo umbral de 0.6.
 - **Sombras, manchas de sol y reaprender el piso** no están medidos (M4 del protocolo); no se cambió el clasificador sin esa medición.
+
+## 8.6 Autónomo v5-carbon: masa sólida sin eco y rachas verticales (`SIMULADO`)
+
+Rama `feat/autonomo-v5-carbon`. Sin modificar los registros `AEC`/`AGC` del `GC0308` (descartado por discrepancia entre controlador y hoja de datos), `obstaculos.c` agrega dos señales controladas por bandera (`v5_solido` y `v5_rachas`, activas por defecto):
+
+- **Masa sólida no-piso (`v5_solido`):** identifica bloques compactos de alto contraste o profundidad oscura con cambio cromático (`dcroma >= 22`) descartando resaltes especulares (`max_rgb >= 235`), sombras suaves neutras y saltos globales de exposición (`>= 96 %` de celdas activas). En simulación reduce `bloque_sin_eco` de `40/40` contactos (`v3`) a `7/40` (`DESARROLLO`) y `9/40` (`RESERVADO`) con `0` disparos en piso limpio.
+- **Rachas verticales delgadas (`v5_rachas`):** preserva columnas delgadas persistentes (`>= 3` filas en `<= 3` columnas horizontales) características de patas finas de muebles sin disparar en juntas de loseta ni sombras planas. Todo permanece **`NO MEDIDO` en la cámara real**.
