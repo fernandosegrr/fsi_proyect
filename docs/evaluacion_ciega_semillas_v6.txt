@@ -1,0 +1,17 @@
+# Semillas externas NUEVAS para evaluacion ciega post-congelamiento de feat/autonomo-v6 (Fase 4)
+# SIMULADO / NO MEDIDO EN EL CARRO.
+# Generado DESPUES de crear y publicar el tag freeze/v6, ANTES de correr los escenarios.
+# A = marca de tiempo Unix al ejecutar; B = A + entero de los 8 primeros hex del ultimo commit de origin/main; C = A * 7919.
+
+hora_local = 2026-11-24 16:49:33
+hora_utc   = 2026-11-24T22:49:33Z
+rama       = feat/autonomo-v6
+tag        = freeze/v6
+tag_objeto = 5cccfbca3da806123b74c09747b40808d26fc7d7
+commit_congelado = b6ccbce33eefd9cd7284bbaf3fa85a080069108f
+origin_main      = bd1727beb0fc3412eced5fa71cba9442758e85b4
+origin_main_hex8 = bd1727be (entero = 3172411326)
+
+semilla_A = 1795560573
+semilla_B = 4967971899
+semilla_C = 14219044177587
