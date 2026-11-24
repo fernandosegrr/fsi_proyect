@@ -1,0 +1,421 @@
+
+=== MATRIZ DES ruido=2 laser=normal  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+libre_limpio           | ok=115 c=  0 ay=  2 e= 10 p= 18 er=0 tf=0 | ok=108 c=  0 ay=  4 e= 33 p= 28 er=0 tf=0 | ok=110 c=  0 ay=  3 e= 24 p= 23 er=0 tf=0
+falso_juntas           | ok=113 c=  0 ay=  1 e= 15 p= 30 er=0 tf=0 | ok=100 c=  0 ay= 10 e= 55 p= 28 er=0 tf=0 | ok=105 c=  0 ay=  6 e= 34 p= 28 er=0 tf=0
+falso_sol              | ok= 62 c=  0 ay= 31 e=145 p=333 er=0 tf=0 | ok= 49 c=  0 ay= 38 e=213 p=292 er=0 tf=0 | ok= 54 c=  0 ay= 34 e=198 p=282 er=0 tf=0
+falso_sombra           | ok= 59 c=  0 ay= 41 e=145 p=322 er=0 tf=0 | ok= 49 c=  0 ay= 44 e=183 p=295 er=0 tf=0 | ok= 55 c=  0 ay= 39 e=162 p=284 er=0 tf=0
+falso_reflejo          | ok= 77 c=  0 ay= 31 e=157 p=392 er=0 tf=0 | ok= 72 c=  0 ay= 42 e=168 p=320 er=0 tf=0 | ok= 76 c=  0 ay= 37 e=153 p=318 er=0 tf=0
+falso_exposicion       | ok=117 c=  0 ay=  1 e=  9 p= 13 er=0 tf=0 | ok=107 c=  0 ay=  9 e= 42 p= 20 er=0 tf=0 | ok=114 c=  0 ay=  4 e= 16 p= 13 er=0 tf=0
+falso_detector         | ok=115 c=  0 ay=  2 e=  8 p= 27 er=0 tf=0 | ok=105 c=  0 ay=  9 e= 40 p= 29 er=0 tf=0 | ok=110 c=  0 ay=  6 e= 25 p= 26 er=0 tf=0
+caja20                 | ok= 70 c=  7 ay= 47 e=259 p=210 er=0 tf=0 | ok= 67 c=  3 ay= 52 e=281 p=164 er=0 tf=0 | ok= 66 c=  2 ay= 54 e=279 p=166 er=0 tf=0
+caja20_lateral         | ok= 66 c= 11 ay= 45 e=273 p=196 er=0 tf=0 | ok= 67 c=  2 ay= 53 e=305 p=173 er=0 tf=0 | ok= 69 c=  4 ay= 50 e=295 p=171 er=0 tf=0
+banquito35x45          | ok= 34 c= 34 ay= 61 e=228 p=207 er=0 tf=1 | ok= 46 c= 10 ay= 70 e=282 p=158 er=0 tf=0 | ok= 39 c= 18 ay= 69 e=272 p=161 er=0 tf=0
+objeto_largo90         | ok= 63 c= 11 ay= 56 e=277 p=242 er=0 tf=0 | ok= 60 c=  4 ay= 59 e=360 p=212 er=0 tf=0 | ok= 63 c=  3 ay= 57 e=356 p=215 er=0 tf=0
+silla_patas            | ok= 15 c= 27 ay= 40 e=129 p=186 er=0 tf=0 | ok= 31 c= 14 ay= 55 e=214 p=161 er=0 tf=0 | ok= 14 c= 12 ay= 47 e=150 p=147 er=0 tf=0
+pared_tras_el_final    | ok=119 c=  0 ay=  1 e=  1 p=  5 er=0 tf=0 | ok=111 c=  1 ay=  9 e= 22 p= 24 er=0 tf=0 | ok=118 c=  0 ay=  2 e=  5 p=  9 er=0 tf=0
+dos_obstaculos         | ok= 70 c=  3 ay= 49 e=332 p=214 er=0 tf=0 | ok= 64 c=  2 ay= 55 e=345 p=183 er=0 tf=0 | ok= 63 c=  3 ay= 56 e=346 p=181 er=0 tf=0
+pasillo                | ok= 28 c=  3 ay= 91 e=198 p=172 er=0 tf=0 | ok= 36 c=  3 ay= 82 e=270 p=155 er=0 tf=0 | ok= 37 c=  5 ay= 80 e=261 p=162 er=0 tf=0
+aparece_de_repente     | ok= 72 c=  7 ay= 46 e=269 p=174 er=0 tf=0 | ok= 60 c=  2 ay= 60 e=307 p=157 er=0 tf=0 | ok= 59 c=  1 ay= 61 e=305 p=157 er=0 tf=0
+objeto_bajo            | ok= 76 c= 12 ay= 39 e=268 p=296 er=0 tf=0 | ok= 72 c=  5 ay= 47 e=302 p=239 er=0 tf=0 | ok= 74 c=  5 ay= 45 e=296 p=235 er=0 tf=0
+caja20_con_sol         | ok= 72 c=  7 ay= 45 e=260 p=250 er=0 tf=0 | ok= 63 c=  1 ay= 56 e=282 p=211 er=0 tf=1 | ok= 63 c=  1 ay= 56 e=275 p=211 er=0 tf=1
+bateria_baja           | ok= 68 c=  8 ay= 50 e=264 p=208 er=0 tf=0 | ok= 68 c=  2 ay= 51 e=318 p=162 er=0 tf=0 | ok= 69 c=  2 ay= 50 e=314 p=160 er=0 tf=0
+pared_al_frente        | ok=120 c=  0 ay=120 e=139 p=143 er=0 tf=0 | ok=120 c=  0 ay=120 e=121 p=122 er=0 tf=0 | ok=120 c=  0 ay=120 e=122 p=124 er=0 tf=0
+bajo_solo_color        | ok= 63 c= 11 ay= 50 e=270 p=291 er=0 tf=0 | ok= 62 c=  9 ay= 56 e=327 p=232 er=0 tf=0 | ok= 61 c=  9 ay= 56 e=327 p=226 er=0 tf=0
+caja_y_pared_al_lado   | ok= 43 c=  5 ay= 77 e=176 p=158 er=0 tf=0 | ok= 43 c=  6 ay= 77 e=185 p=155 er=0 tf=0 | ok= 43 c=  5 ay= 77 e=185 p=154 er=0 tf=0
+caja_antes_de_esquina  | ok= 66 c=  7 ay= 54 e=181 p=220 er=0 tf=0 | ok= 70 c=  2 ay= 50 e=198 p=195 er=0 tf=0 | ok= 69 c=  2 ay= 51 e=195 p=197 er=0 tf=0
+bloque_sin_eco         | ok= 33 c= 68 ay= 21 e=138 p=228 er=0 tf=0 | ok= 55 c= 17 ay= 50 e=317 p=234 er=0 tf=0 | ok= 52 c= 20 ay= 49 e=304 p=225 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 777 c=   0 ay= 110 e= 490 p=1140]  v5fix[ok= 701 c=   1 ay= 165 e= 756 p=1036]  v6[ok= 742 c=   0 ay= 131 e= 617 p= 983]
+  suma G2 solidos (nucleo)      v3[ok= 323 c=  21 ay= 272 e=1007 p= 809]  v5fix[ok= 311 c=   9 ay= 286 e=1107 p= 681]  v6[ok= 312 c=   8 ay= 287 e=1103 p= 686]
+  suma G3 sin eco               v3[ok=  33 c=  68 ay=  21 e= 138 p= 228]  v5fix[ok=  55 c=  17 ay=  50 e= 317 p= 234]  v6[ok=  52 c=  20 ay=  49 e= 304 p= 225]
+  suma G4 muebles               v3[ok=  49 c=  61 ay= 101 e= 357 p= 393]  v5fix[ok=  77 c=  24 ay= 125 e= 496 p= 319]  v6[ok=  53 c=  30 ay= 116 e= 422 p= 308]
+  suma G5 espacios              v3[ok=  71 c=   8 ay= 168 e= 374 p= 330]  v5fix[ok=  79 c=   9 ay= 159 e= 455 p= 310]  v6[ok=  80 c=  10 ay= 157 e= 446 p= 316]
+  veredicto: G1=NO CUMPLE  G2=NO CUMPLE  G3=AVISO  G4=AVISO  G5=NO CUMPLE  G6=NO CUMPLE  G7=NO CUMPLE
+  G1 vs v3     libre_limpio           exito 110<115; ayuda 3>2; esquivas 24>10; paradas 23>18
+  G1 vs v3     falso_juntas           exito 105<113; ayuda 6>1; esquivas 34>15
+  G1 vs v3     falso_exposicion       exito 114<117; ayuda 4>1; esquivas 16>9
+  G1 vs v3     falso_sol              exito 54<62; ayuda 34>31; esquivas 198>145
+  G1 vs v3     falso_sombra           exito 55<59; esquivas 162>145
+  G1 vs v3     falso_reflejo          exito 76<77; ayuda 37>31
+  G1 vs v3     falso_detector         exito 110<115; ayuda 6>2; esquivas 25>8
+  G1 vs v3     pared_tras_el_final    exito 118<119; ayuda 2>1; esquivas 5>1; paradas 9>5
+  G2 caja20                 contactos v3=7 v5fix=3 v6=2 (meta 0)
+  G2 objeto_largo90         contactos v3=11 v5fix=4 v6=3 (meta 0)
+  G2 dos_obstaculos         contactos v3=3 v5fix=2 v6=3 (meta 0)
+  G3 contactos v6=20 peores que v5fix=17 (v3=68)
+      bloque_sin_eco         v3=68 v5fix=17 v6=20
+  G4 banquito35x45          falla SEGURA: contactos v6=18 < v3=34 pero AYUDA v6=69 > v3=61
+  G4 silla_patas            falla SEGURA: contactos v6=12 < v3=27 pero AYUDA v6=47 > v3=40
+  G5 caja_y_pared_al_lado   AYUDA v6=77 no es menor que v3=77 (v5fix=77)
+  G5 pasillo                contactos v6=5 > v3=3
+  G6 caja20_con_sol         terminado_falso v3=0 v5fix=1 v6=1
+  G7 aparece_de_repente     v6 vs v5fix: ayuda 61>60; exito 59<60
+  G7 bajo_solo_color        v6 vs v5fix: exito 61<62
+  G7 banquito35x45          v6 vs v5fix: contactos 18>10; paradas 161>158; exito 39<46
+  G7 bloque_sin_eco         v6 vs v5fix: contactos 20>17; exito 52<55
+  G7 caja20                 v6 vs v5fix: ayuda 54>52; paradas 166>164; exito 66<67
+  G7 caja20_lateral         v6 vs v5fix: contactos 4>2
+  G7 caja_antes_de_esquina  v6 vs v5fix: ayuda 51>50; paradas 197>195; exito 69<70
+  G7 dos_obstaculos         v6 vs v5fix: contactos 3>2; ayuda 56>55; esquivas 346>345; exito 63<64
+  G7 falso_reflejo          v6 vs v5fix: esquive_falso 7>6
+  G7 objeto_largo90         v6 vs v5fix: paradas 215>212
+  G7 pared_al_frente        v6 vs v5fix: paradas 124>122; esquivas 122>121
+  G7 pasillo                v6 vs v5fix: contactos 5>3; paradas 162>155
+  G7 silla_patas            v6 vs v5fix: exito 14<31
+
+=== MATRIZ DES ruido=2 laser=pesimista  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+libre_limpio           | ok=115 c=  0 ay=  2 e= 10 p= 18 er=0 tf=0 | ok=108 c=  0 ay=  4 e= 33 p= 28 er=0 tf=0 | ok=110 c=  0 ay=  3 e= 24 p= 23 er=0 tf=0
+falso_juntas           | ok=113 c=  0 ay=  1 e= 15 p= 30 er=0 tf=0 | ok=100 c=  0 ay= 10 e= 55 p= 28 er=0 tf=0 | ok=105 c=  0 ay=  6 e= 34 p= 28 er=0 tf=0
+falso_sol              | ok= 62 c=  0 ay= 31 e=145 p=333 er=0 tf=0 | ok= 49 c=  0 ay= 38 e=213 p=292 er=0 tf=0 | ok= 54 c=  0 ay= 34 e=198 p=282 er=0 tf=0
+falso_sombra           | ok= 59 c=  0 ay= 41 e=145 p=322 er=0 tf=0 | ok= 49 c=  0 ay= 44 e=183 p=295 er=0 tf=0 | ok= 55 c=  0 ay= 39 e=162 p=284 er=0 tf=0
+falso_reflejo          | ok= 77 c=  0 ay= 31 e=157 p=392 er=0 tf=0 | ok= 72 c=  0 ay= 42 e=168 p=320 er=0 tf=0 | ok= 76 c=  0 ay= 37 e=153 p=318 er=0 tf=0
+falso_exposicion       | ok=117 c=  0 ay=  1 e=  9 p= 13 er=0 tf=0 | ok=107 c=  0 ay=  9 e= 42 p= 20 er=0 tf=0 | ok=114 c=  0 ay=  4 e= 16 p= 13 er=0 tf=0
+falso_detector         | ok=115 c=  0 ay=  2 e=  8 p= 27 er=0 tf=0 | ok=105 c=  0 ay=  9 e= 40 p= 29 er=0 tf=0 | ok=110 c=  0 ay=  6 e= 25 p= 26 er=0 tf=0
+caja20                 | ok= 72 c=  7 ay= 47 e=267 p=181 er=0 tf=0 | ok= 65 c=  4 ay= 53 e=288 p=165 er=0 tf=0 | ok= 65 c=  5 ay= 52 e=284 p=169 er=0 tf=0
+caja20_lateral         | ok= 59 c= 12 ay= 54 e=269 p=201 er=0 tf=0 | ok= 66 c=  3 ay= 52 e=292 p=180 er=0 tf=0 | ok= 68 c=  5 ay= 47 e=281 p=184 er=0 tf=0
+banquito35x45          | ok= 40 c= 39 ay= 32 e=195 p=203 er=0 tf=1 | ok= 50 c= 12 ay= 65 e=283 p=188 er=0 tf=0 | ok= 46 c= 23 ay= 59 e=266 p=196 er=0 tf=0
+objeto_largo90         | ok= 75 c= 13 ay= 43 e=275 p=277 er=0 tf=0 | ok= 70 c=  9 ay= 50 e=346 p=229 er=0 tf=0 | ok= 69 c=  8 ay= 51 e=340 p=226 er=0 tf=0
+silla_patas            | ok=  6 c= 24 ay= 20 e= 71 p=169 er=0 tf=0 | ok= 31 c= 17 ay= 50 e=195 p=155 er=0 tf=0 | ok= 13 c= 16 ay= 33 e=109 p=139 er=0 tf=0
+pared_tras_el_final    | ok=120 c=  0 ay=  0 e=  0 p=  5 er=0 tf=0 | ok=111 c=  2 ay=  9 e= 22 p= 25 er=0 tf=0 | ok=117 c=  1 ay=  2 e=  6 p= 10 er=0 tf=0
+dos_obstaculos         | ok= 66 c=  9 ay= 50 e=333 p=222 er=0 tf=0 | ok= 66 c=  4 ay= 54 e=356 p=190 er=0 tf=0 | ok= 66 c=  3 ay= 54 e=354 p=185 er=0 tf=0
+pasillo                | ok= 29 c=  3 ay= 89 e=227 p=184 er=0 tf=0 | ok= 49 c=  3 ay= 70 e=259 p=175 er=0 tf=0 | ok= 47 c=  5 ay= 72 e=252 p=187 er=0 tf=0
+aparece_de_repente     | ok= 66 c=  6 ay= 52 e=293 p=182 er=0 tf=0 | ok= 58 c=  5 ay= 61 e=311 p=167 er=0 tf=0 | ok= 55 c=  3 ay= 64 e=311 p=167 er=0 tf=0
+objeto_bajo            | ok= 60 c= 36 ay= 34 e=210 p=369 er=0 tf=0 | ok= 74 c=  7 ay= 45 e=299 p=257 er=0 tf=0 | ok= 74 c= 10 ay= 44 e=298 p=264 er=0 tf=0
+caja20_con_sol         | ok= 72 c=  6 ay= 46 e=249 p=235 er=0 tf=0 | ok= 68 c=  6 ay= 49 e=296 p=243 er=0 tf=1 | ok= 70 c=  4 ay= 48 e=283 p=241 er=0 tf=1
+bateria_baja           | ok= 66 c=  6 ay= 53 e=297 p=195 er=0 tf=0 | ok= 59 c=  4 ay= 58 e=312 p=152 er=0 tf=0 | ok= 57 c=  5 ay= 61 e=318 p=160 er=0 tf=0
+pared_al_frente        | ok=117 c=  3 ay=120 e=140 p=150 er=0 tf=0 | ok=116 c=  4 ay=120 e=128 p=135 er=0 tf=0 | ok=120 c=  0 ay=120 e=125 p=128 er=0 tf=0
+bajo_solo_color        | ok= 45 c= 43 ay= 37 e=191 p=268 er=0 tf=0 | ok= 60 c= 15 ay= 55 e=338 p=247 er=0 tf=0 | ok= 60 c= 15 ay= 54 e=334 p=231 er=0 tf=0
+caja_y_pared_al_lado   | ok= 43 c=  3 ay= 77 e=187 p=179 er=0 tf=0 | ok= 45 c=  4 ay= 75 e=181 p=157 er=0 tf=0 | ok= 45 c=  4 ay= 75 e=181 p=158 er=0 tf=0
+caja_antes_de_esquina  | ok= 72 c=  3 ay= 47 e=185 p=210 er=0 tf=0 | ok= 68 c=  1 ay= 52 e=199 p=184 er=0 tf=0 | ok= 68 c=  1 ay= 52 e=197 p=184 er=0 tf=0
+bloque_sin_eco         | ok= 33 c= 68 ay= 21 e=138 p=228 er=0 tf=0 | ok= 55 c= 17 ay= 50 e=317 p=234 er=0 tf=0 | ok= 52 c= 20 ay= 49 e=304 p=225 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 778 c=   0 ay= 109 e= 489 p=1140]  v5fix[ok= 701 c=   2 ay= 165 e= 756 p=1037]  v6[ok= 741 c=   1 ay= 131 e= 618 p= 984]
+  suma G2 solidos (nucleo)      v3[ok= 330 c=  32 ay= 260 e=1015 p= 830]  v5fix[ok= 317 c=  21 ay= 277 e=1118 p= 719]  v6[ok= 320 c=  16 ay= 277 e=1103 p= 708]
+  suma G3 sin eco               v3[ok=  33 c=  68 ay=  21 e= 138 p= 228]  v5fix[ok=  55 c=  17 ay=  50 e= 317 p= 234]  v6[ok=  52 c=  20 ay=  49 e= 304 p= 225]
+  suma G4 muebles               v3[ok=  46 c=  63 ay=  52 e= 266 p= 372]  v5fix[ok=  81 c=  29 ay= 115 e= 478 p= 343]  v6[ok=  59 c=  39 ay=  92 e= 375 p= 335]
+  suma G5 espacios              v3[ok=  72 c=   6 ay= 166 e= 414 p= 363]  v5fix[ok=  94 c=   7 ay= 145 e= 440 p= 332]  v6[ok=  92 c=   9 ay= 147 e= 433 p= 345]
+  veredicto: G1=NO CUMPLE  G2=NO CUMPLE  G3=AVISO  G4=AVISO  G5=NO CUMPLE  G6=NO CUMPLE  G7=NO CUMPLE
+  G1 vs v3     libre_limpio           exito 110<115; ayuda 3>2; esquivas 24>10; paradas 23>18
+  G1 vs v3     falso_juntas           exito 105<113; ayuda 6>1; esquivas 34>15
+  G1 vs v3     falso_exposicion       exito 114<117; ayuda 4>1; esquivas 16>9
+  G1 vs v3     falso_sol              exito 54<62; ayuda 34>31; esquivas 198>145
+  G1 vs v3     falso_sombra           exito 55<59; esquivas 162>145
+  G1 vs v3     falso_reflejo          exito 76<77; ayuda 37>31
+  G1 vs v3     falso_detector         exito 110<115; ayuda 6>2; esquivas 25>8
+  G1 vs v3     pared_tras_el_final    exito 117<120; ayuda 2>0; esquivas 6>0; paradas 10>5; contactos 1
+  G1 vs v5fix  pared_tras_el_final    contactos 1
+  G2 caja20                 contactos v3=7 v5fix=4 v6=5 (meta 0)
+  G2 objeto_largo90         contactos v3=13 v5fix=9 v6=8 (meta 0)
+  G2 dos_obstaculos         contactos v3=9 v5fix=4 v6=3 (meta 0)
+  G3 contactos v6=20 peores que v5fix=17 (v3=68)
+      bloque_sin_eco         v3=68 v5fix=17 v6=20
+  G4 banquito35x45          falla SEGURA: contactos v6=23 < v3=39 pero AYUDA v6=59 > v3=32
+  G4 silla_patas            falla SEGURA: contactos v6=16 < v3=24 pero AYUDA v6=33 > v3=20
+  G5 caja_y_pared_al_lado   contactos v6=4 > v3=3
+  G5 pasillo                contactos v6=5 > v3=3
+  G6 caja20_con_sol         terminado_falso v3=0 v5fix=1 v6=1
+  G7 aparece_de_repente     v6 vs v5fix: ayuda 64>61; exito 55<58
+  G7 banquito35x45          v6 vs v5fix: contactos 23>12; paradas 196>188; exito 46<50
+  G7 bateria_baja           v6 vs v5fix: contactos 5>4; ayuda 61>58; paradas 160>152; esquivas 318>312; exito 57<59
+  G7 bloque_sin_eco         v6 vs v5fix: contactos 20>17; exito 52<55
+  G7 caja20                 v6 vs v5fix: contactos 5>4; paradas 169>165
+  G7 caja20_lateral         v6 vs v5fix: contactos 5>3; paradas 184>180
+  G7 caja_y_pared_al_lado   v6 vs v5fix: paradas 158>157
+  G7 falso_reflejo          v6 vs v5fix: esquive_falso 7>6
+  G7 objeto_bajo            v6 vs v5fix: contactos 10>7; paradas 264>257
+  G7 objeto_largo90         v6 vs v5fix: ayuda 51>50; exito 69<70
+  G7 pasillo                v6 vs v5fix: contactos 5>3; ayuda 72>70; paradas 187>175; exito 47<49
+  G7 silla_patas            v6 vs v5fix: exito 13<31
+
+=== MATRIZ RES ruido=2 laser=normal  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+libre_limpio           | ok=116 c=  0 ay=  2 e=  8 p= 17 er=0 tf=0 | ok=104 c=  0 ay=  5 e= 36 p= 25 er=0 tf=0 | ok=112 c=  0 ay=  0 e= 10 p= 16 er=0 tf=0
+falso_juntas           | ok=111 c=  0 ay=  5 e= 23 p= 34 er=0 tf=0 | ok=104 c=  0 ay=  7 e= 46 p= 39 er=0 tf=0 | ok=110 c=  0 ay=  5 e= 29 p= 29 er=0 tf=0
+falso_sol              | ok= 50 c=  0 ay= 32 e=166 p=382 er=0 tf=0 | ok= 36 c=  0 ay= 40 e=241 p=307 er=0 tf=0 | ok= 43 c=  0 ay= 38 e=217 p=301 er=0 tf=0
+falso_sombra           | ok= 59 c=  0 ay= 36 e=155 p=379 er=0 tf=0 | ok= 50 c=  0 ay= 46 e=180 p=296 er=0 tf=0 | ok= 55 c=  0 ay= 44 e=169 p=287 er=0 tf=0
+falso_reflejo          | ok= 83 c=  0 ay= 22 e=102 p=276 er=0 tf=0 | ok= 73 c=  0 ay= 30 e=162 p=283 er=0 tf=0 | ok= 80 c=  0 ay= 26 e=140 p=278 er=0 tf=0
+falso_exposicion       | ok=114 c=  0 ay=  2 e= 15 p= 19 er=0 tf=0 | ok=106 c=  0 ay=  8 e= 38 p= 26 er=0 tf=0 | ok=111 c=  0 ay=  2 e= 16 p= 23 er=0 tf=0
+falso_detector         | ok=114 c=  0 ay=  0 e= 10 p= 39 er=0 tf=0 | ok=101 c=  0 ay=  9 e= 51 p= 35 er=0 tf=0 | ok=108 c=  0 ay=  3 e= 27 p= 29 er=0 tf=0
+caja20                 | ok= 73 c=  5 ay= 46 e=277 p=213 er=0 tf=0 | ok= 72 c=  3 ay= 48 e=313 p=166 er=0 tf=0 | ok= 71 c=  5 ay= 48 e=310 p=166 er=0 tf=0
+caja20_lateral         | ok= 70 c=  9 ay= 46 e=268 p=210 er=0 tf=0 | ok= 63 c=  3 ay= 57 e=304 p=190 er=0 tf=0 | ok= 64 c=  5 ay= 55 e=292 p=190 er=0 tf=0
+banquito35x45          | ok= 38 c= 30 ay= 47 e=199 p=209 er=0 tf=2 | ok= 45 c=  8 ay= 66 e=288 p=191 er=0 tf=0 | ok= 38 c= 19 ay= 59 e=244 p=186 er=0 tf=0
+objeto_largo90         | ok= 79 c= 10 ay= 40 e=285 p=229 er=0 tf=0 | ok= 75 c=  4 ay= 45 e=316 p=185 er=0 tf=0 | ok= 71 c=  6 ay= 48 e=317 p=182 er=0 tf=0
+silla_patas            | ok= 28 c= 29 ay= 50 e=172 p=203 er=0 tf=0 | ok= 37 c=  9 ay= 60 e=223 p=162 er=0 tf=1 | ok= 27 c= 15 ay= 55 e=200 p=170 er=0 tf=0
+pared_tras_el_final    | ok=118 c=  0 ay=  2 e=  4 p= 15 er=0 tf=0 | ok=109 c=  4 ay= 11 e= 29 p= 29 er=0 tf=0 | ok=113 c=  1 ay=  7 e= 17 p= 18 er=0 tf=0
+dos_obstaculos         | ok= 62 c= 12 ay= 53 e=313 p=216 er=0 tf=0 | ok= 65 c=  6 ay= 52 e=334 p=197 er=0 tf=0 | ok= 66 c=  6 ay= 51 e=332 p=196 er=0 tf=0
+pasillo                | ok= 67 c=  4 ay= 51 e=227 p=158 er=0 tf=0 | ok= 59 c=  5 ay= 59 e=295 p=168 er=0 tf=0 | ok= 59 c=  4 ay= 59 e=284 p=164 er=0 tf=0
+aparece_de_repente     | ok= 65 c=  9 ay= 54 e=282 p=186 er=0 tf=0 | ok= 65 c=  6 ay= 55 e=288 p=165 er=0 tf=0 | ok= 67 c=  6 ay= 53 e=283 p=171 er=0 tf=0
+objeto_bajo            | ok= 74 c= 11 ay= 38 e=279 p=305 er=0 tf=0 | ok= 63 c=  5 ay= 57 e=338 p=251 er=0 tf=0 | ok= 67 c=  4 ay= 53 e=332 p=249 er=0 tf=0
+caja20_con_sol         | ok= 66 c= 11 ay= 54 e=265 p=272 er=0 tf=0 | ok= 53 c=  7 ay= 66 e=299 p=229 er=0 tf=0 | ok= 55 c=  6 ay= 64 e=296 p=233 er=0 tf=0
+bateria_baja           | ok= 61 c= 10 ay= 56 e=286 p=203 er=0 tf=0 | ok= 57 c=  6 ay= 61 e=300 p=185 er=0 tf=0 | ok= 54 c=  6 ay= 65 e=302 p=187 er=0 tf=0
+pared_al_frente        | ok=119 c=  1 ay=120 e=142 p=147 er=0 tf=0 | ok=119 c=  1 ay=120 e=121 p=124 er=0 tf=0 | ok=120 c=  0 ay=120 e=121 p=124 er=0 tf=0
+bajo_solo_color        | ok= 68 c= 10 ay= 44 e=284 p=309 er=0 tf=0 | ok= 65 c=  6 ay= 54 e=344 p=238 er=0 tf=0 | ok= 66 c=  6 ay= 53 e=337 p=239 er=0 tf=0
+caja_y_pared_al_lado   | ok= 41 c=  3 ay= 79 e=161 p=174 er=0 tf=0 | ok= 42 c=  3 ay= 78 e=177 p=161 er=0 tf=0 | ok= 43 c=  2 ay= 77 e=177 p=160 er=0 tf=0
+caja_antes_de_esquina  | ok= 79 c=  7 ay= 39 e=189 p=191 er=0 tf=0 | ok= 79 c=  1 ay= 41 e=188 p=169 er=0 tf=0 | ok= 81 c=  1 ay= 39 e=186 p=169 er=0 tf=0
+bloque_sin_eco         | ok= 36 c= 64 ay= 41 e=217 p=364 er=0 tf=0 | ok= 54 c= 19 ay= 54 e=311 p=231 er=0 tf=0 | ok= 54 c= 20 ay= 51 e=304 p=230 er=0 tf=0
+dos_muebles            | ok= 36 c= 31 ay= 66 e=254 p=210 er=0 tf=3 | ok= 47 c= 18 ay= 68 e=297 p=190 er=0 tf=0 | ok= 44 c= 26 ay= 60 e=277 p=195 er=0 tf=0
+mueble_con_pared       | ok= 19 c= 30 ay= 70 e=122 p=166 er=0 tf=1 | ok= 32 c=  8 ay= 85 e=168 p=146 er=0 tf=0 | ok= 30 c= 19 ay= 80 e=147 p=160 er=0 tf=1
+pasillo_angosto        | ok= 42 c=  7 ay= 77 e=216 p=179 er=0 tf=0 | ok= 61 c=  1 ay= 59 e=248 p=162 er=0 tf=0 | ok= 60 c=  2 ay= 60 e=238 p=166 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 765 c=   0 ay= 101 e= 483 p=1161]  v5fix[ok= 683 c=   4 ay= 156 e= 783 p=1040]  v6[ok= 732 c=   1 ay= 125 e= 625 p= 981]
+  suma G2 solidos (nucleo)      v3[ok= 333 c=  28 ay= 259 e=1017 p= 805]  v5fix[ok= 331 c=  14 ay= 265 e=1084 p= 672]  v6[ok= 328 c=  17 ay= 267 e=1080 p= 668]
+  suma G3 sin eco               v3[ok=  36 c=  64 ay=  41 e= 217 p= 364]  v5fix[ok=  54 c=  19 ay=  54 e= 311 p= 231]  v6[ok=  54 c=  20 ay=  51 e= 304 p= 230]
+  suma G4 muebles               v3[ok= 121 c= 120 ay= 233 e= 747 p= 788]  v5fix[ok= 161 c=  43 ay= 279 e= 976 p= 689]  v6[ok= 139 c=  79 ay= 254 e= 868 p= 711]
+  suma G5 espacios              v3[ok= 150 c=  14 ay= 207 e= 604 p= 511]  v5fix[ok= 162 c=   9 ay= 196 e= 720 p= 491]  v6[ok= 162 c=   8 ay= 196 e= 699 p= 490]
+  veredicto: G1=NO CUMPLE  G2=NO CUMPLE  G3=AVISO  G4=AVISO  G5=NO CUMPLE  G6=NO CUMPLE  G7=NO CUMPLE
+  G1 vs v3     libre_limpio           exito 112<116; esquivas 10>8
+  G1 vs v3     falso_juntas           exito 110<111; esquivas 29>23
+  G1 vs v3     falso_exposicion       exito 111<114; esquivas 16>15; paradas 23>19
+  G1 vs v3     falso_sol              exito 43<50; ayuda 38>32; esquivas 217>166
+  G1 vs v3     falso_sombra           exito 55<59; ayuda 44>36; esquivas 169>155
+  G1 vs v3     falso_reflejo          exito 80<83; ayuda 26>22; esquivas 140>102; paradas 278>276
+  G1 vs v3     falso_detector         exito 108<114; ayuda 3>0; esquivas 27>10
+  G1 vs v3     pared_tras_el_final    exito 113<118; ayuda 7>2; esquivas 17>4; paradas 18>15; contactos 1
+  G1 vs v5fix  pared_tras_el_final    contactos 1
+  G2 caja20                 contactos v3=5 v5fix=3 v6=5 (meta 0)
+  G2 objeto_largo90         contactos v3=10 v5fix=4 v6=6 (meta 0)
+  G2 dos_obstaculos         contactos v3=12 v5fix=6 v6=6 (meta 0)
+  G3 contactos v6=20 peores que v5fix=19 (v3=64)
+      bloque_sin_eco         v3=64 v5fix=19 v6=20
+  G4 banquito35x45          falla SEGURA: contactos v6=19 < v3=30 pero AYUDA v6=59 > v3=47
+  G4 silla_patas            falla SEGURA: contactos v6=15 < v3=29 pero AYUDA v6=55 > v3=50
+  G4 mueble_con_pared       falla SEGURA: contactos v6=19 < v3=30 pero AYUDA v6=80 > v3=70
+  G5 pasillo                AYUDA v6=59 no es menor que v3=51 (v5fix=59)
+  G6 mueble_con_pared       terminado_falso v3=1 v5fix=0 v6=1
+  G7 aparece_de_repente     v6 vs v5fix: paradas 171>165
+  G7 bajo_solo_color        v6 vs v5fix: paradas 239>238
+  G7 banquito35x45          v6 vs v5fix: contactos 19>8; exito 38<45
+  G7 bateria_baja           v6 vs v5fix: ayuda 65>61; paradas 187>185; esquivas 302>300; exito 54<57
+  G7 bloque_sin_eco         v6 vs v5fix: contactos 20>19
+  G7 caja20                 v6 vs v5fix: contactos 5>3; exito 71<72
+  G7 caja20_con_sol         v6 vs v5fix: paradas 233>229
+  G7 caja20_lateral         v6 vs v5fix: contactos 5>3
+  G7 dos_muebles            v6 vs v5fix: contactos 26>18; paradas 195>190; exito 44<47
+  G7 falso_exposicion       v6 vs v5fix: esquive_falso 7>6
+  G7 mueble_con_pared       v6 vs v5fix: contactos 19>8; terminado_falso 1>0; paradas 160>146; exito 30<32
+  G7 objeto_largo90         v6 vs v5fix: contactos 6>4; ayuda 48>45; esquivas 317>316; exito 71<75
+  G7 pasillo_angosto        v6 vs v5fix: contactos 2>1; ayuda 60>59; paradas 166>162; exito 60<61
+  G7 silla_patas            v6 vs v5fix: contactos 15>9; paradas 170>162; exito 27<37
+
+=== MATRIZ RES ruido=2 laser=pesimista  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+libre_limpio           | ok=116 c=  0 ay=  2 e=  8 p= 17 er=0 tf=0 | ok=104 c=  0 ay=  5 e= 36 p= 25 er=0 tf=0 | ok=112 c=  0 ay=  0 e= 10 p= 16 er=0 tf=0
+falso_juntas           | ok=111 c=  0 ay=  5 e= 23 p= 34 er=0 tf=0 | ok=104 c=  0 ay=  7 e= 46 p= 39 er=0 tf=0 | ok=110 c=  0 ay=  5 e= 29 p= 29 er=0 tf=0
+falso_sol              | ok= 50 c=  0 ay= 32 e=166 p=382 er=0 tf=0 | ok= 36 c=  0 ay= 40 e=241 p=307 er=0 tf=0 | ok= 43 c=  0 ay= 38 e=217 p=301 er=0 tf=0
+falso_sombra           | ok= 59 c=  0 ay= 36 e=155 p=379 er=0 tf=0 | ok= 50 c=  0 ay= 46 e=180 p=296 er=0 tf=0 | ok= 55 c=  0 ay= 44 e=169 p=287 er=0 tf=0
+falso_reflejo          | ok= 83 c=  0 ay= 22 e=102 p=276 er=0 tf=0 | ok= 73 c=  0 ay= 30 e=162 p=283 er=0 tf=0 | ok= 80 c=  0 ay= 26 e=140 p=278 er=0 tf=0
+falso_exposicion       | ok=114 c=  0 ay=  2 e= 15 p= 19 er=0 tf=0 | ok=106 c=  0 ay=  8 e= 38 p= 26 er=0 tf=0 | ok=111 c=  0 ay=  2 e= 16 p= 23 er=0 tf=0
+falso_detector         | ok=114 c=  0 ay=  0 e= 10 p= 39 er=0 tf=0 | ok=101 c=  0 ay=  9 e= 51 p= 35 er=0 tf=0 | ok=108 c=  0 ay=  3 e= 27 p= 29 er=0 tf=0
+caja20                 | ok= 80 c=  7 ay= 39 e=265 p=200 er=0 tf=0 | ok= 64 c=  5 ay= 56 e=309 p=170 er=0 tf=0 | ok= 64 c=  5 ay= 56 e=304 p=176 er=0 tf=0
+caja20_lateral         | ok= 63 c= 14 ay= 49 e=275 p=209 er=0 tf=0 | ok= 61 c=  3 ay= 57 e=321 p=197 er=0 tf=0 | ok= 61 c=  6 ay= 58 e=306 p=197 er=0 tf=0
+banquito35x45          | ok= 20 c= 42 ay= 48 e=165 p=214 er=0 tf=2 | ok= 48 c= 12 ay= 63 e=287 p=177 er=0 tf=0 | ok= 41 c= 25 ay= 60 e=253 p=183 er=0 tf=0
+objeto_largo90         | ok= 75 c= 11 ay= 44 e=281 p=247 er=0 tf=0 | ok= 65 c=  6 ay= 55 e=333 p=220 er=0 tf=0 | ok= 67 c=  5 ay= 53 e=330 p=212 er=0 tf=0
+silla_patas            | ok= 15 c= 32 ay= 40 e=113 p=186 er=0 tf=1 | ok= 31 c= 18 ay= 60 e=227 p=173 er=0 tf=0 | ok= 20 c= 24 ay= 51 e=190 p=170 er=0 tf=0
+pared_tras_el_final    | ok=118 c=  0 ay=  2 e=  5 p= 16 er=0 tf=0 | ok=108 c=  7 ay= 11 e= 32 p= 31 er=0 tf=0 | ok=113 c=  3 ay=  7 e= 19 p= 20 er=0 tf=0
+dos_obstaculos         | ok= 67 c= 14 ay= 53 e=302 p=233 er=0 tf=0 | ok= 67 c=  7 ay= 53 e=328 p=201 er=0 tf=0 | ok= 67 c=  9 ay= 53 e=325 p=207 er=0 tf=0
+pasillo                | ok= 68 c=  7 ay= 50 e=256 p=173 er=0 tf=0 | ok= 64 c=  8 ay= 54 e=275 p=167 er=0 tf=0 | ok= 62 c= 12 ay= 54 e=270 p=168 er=0 tf=0
+aparece_de_repente     | ok= 75 c=  8 ay= 43 e=258 p=204 er=0 tf=0 | ok= 71 c=  3 ay= 47 e=285 p=166 er=0 tf=0 | ok= 69 c=  3 ay= 49 e=279 p=170 er=0 tf=0
+objeto_bajo            | ok= 58 c= 30 ay= 40 e=243 p=327 er=0 tf=0 | ok= 64 c=  8 ay= 53 e=326 p=251 er=0 tf=0 | ok= 62 c= 10 ay= 52 e=318 p=253 er=0 tf=0
+caja20_con_sol         | ok= 66 c=  6 ay= 52 e=253 p=238 er=0 tf=0 | ok= 64 c=  4 ay= 55 e=304 p=230 er=0 tf=0 | ok= 63 c=  4 ay= 56 e=309 p=233 er=0 tf=0
+bateria_baja           | ok= 59 c=  8 ay= 57 e=302 p=211 er=0 tf=0 | ok= 64 c=  4 ay= 56 e=295 p=178 er=0 tf=0 | ok= 59 c=  5 ay= 60 e=300 p=175 er=0 tf=0
+pared_al_frente        | ok=118 c=  2 ay=120 e=140 p=145 er=0 tf=0 | ok=118 c=  2 ay=120 e=125 p=129 er=0 tf=0 | ok=120 c=  0 ay=120 e=123 p=124 er=0 tf=0
+bajo_solo_color        | ok= 52 c= 35 ay= 36 e=240 p=318 er=0 tf=0 | ok= 63 c=  6 ay= 56 e=343 p=219 er=0 tf=0 | ok= 66 c=  4 ay= 54 e=338 p=222 er=0 tf=0
+caja_y_pared_al_lado   | ok= 34 c=  7 ay= 86 e=186 p=187 er=0 tf=0 | ok= 45 c=  1 ay= 75 e=189 p=158 er=0 tf=0 | ok= 47 c=  1 ay= 73 e=190 p=165 er=0 tf=0
+caja_antes_de_esquina  | ok= 74 c= 10 ay= 44 e=161 p=199 er=0 tf=0 | ok= 77 c=  1 ay= 43 e=178 p=165 er=0 tf=0 | ok= 76 c=  1 ay= 44 e=174 p=160 er=0 tf=0
+bloque_sin_eco         | ok= 35 c= 65 ay= 40 e=206 p=367 er=0 tf=0 | ok= 54 c= 19 ay= 54 e=312 p=226 er=0 tf=0 | ok= 54 c= 20 ay= 52 e=305 p=225 er=0 tf=0
+dos_muebles            | ok= 34 c= 47 ay= 56 e=239 p=241 er=0 tf=0 | ok= 49 c= 25 ay= 65 e=307 p=212 er=0 tf=1 | ok= 44 c= 29 ay= 59 e=291 p=208 er=0 tf=0
+mueble_con_pared       | ok= 12 c= 45 ay= 66 e=113 p=174 er=0 tf=2 | ok= 28 c=  7 ay= 88 e=180 p=134 er=0 tf=0 | ok= 24 c= 17 ay= 74 e=148 p=149 er=0 tf=1
+pasillo_angosto        | ok= 52 c=  6 ay= 68 e=228 p=166 er=0 tf=0 | ok= 54 c=  0 ay= 66 e=241 p=150 er=0 tf=0 | ok= 54 c=  1 ay= 66 e=237 p=156 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 765 c=   0 ay= 101 e= 484 p=1162]  v5fix[ok= 682 c=   7 ay= 156 e= 786 p=1042]  v6[ok= 732 c=   3 ay= 125 e= 627 p= 983]
+  suma G2 solidos (nucleo)      v3[ok= 340 c=  34 ay= 256 e= 988 p= 825]  v5fix[ok= 314 c=  20 ay= 284 e=1095 p= 720]  v6[ok= 318 c=  19 ay= 282 e=1082 p= 719]
+  suma G3 sin eco               v3[ok=  35 c=  65 ay=  40 e= 206 p= 367]  v5fix[ok=  54 c=  19 ay=  54 e= 312 p= 226]  v6[ok=  54 c=  20 ay=  52 e= 305 p= 225]
+  suma G4 muebles               v3[ok=  81 c= 166 ay= 210 e= 630 p= 815]  v5fix[ok= 156 c=  62 ay= 276 e=1001 p= 696]  v6[ok= 129 c=  95 ay= 244 e= 882 p= 710]
+  suma G5 espacios              v3[ok= 154 c=  20 ay= 204 e= 670 p= 526]  v5fix[ok= 163 c=   9 ay= 195 e= 705 p= 475]  v6[ok= 163 c=  14 ay= 193 e= 697 p= 489]
+  veredicto: G1=NO CUMPLE  G2=NO CUMPLE  G3=AVISO  G4=AVISO  G5=NO CUMPLE  G6=NO CUMPLE  G7=NO CUMPLE
+  G1 vs v3     libre_limpio           exito 112<116; esquivas 10>8
+  G1 vs v3     falso_juntas           exito 110<111; esquivas 29>23
+  G1 vs v3     falso_exposicion       exito 111<114; esquivas 16>15; paradas 23>19
+  G1 vs v3     falso_sol              exito 43<50; ayuda 38>32; esquivas 217>166
+  G1 vs v3     falso_sombra           exito 55<59; ayuda 44>36; esquivas 169>155
+  G1 vs v3     falso_reflejo          exito 80<83; ayuda 26>22; esquivas 140>102; paradas 278>276
+  G1 vs v3     falso_detector         exito 108<114; ayuda 3>0; esquivas 27>10
+  G1 vs v3     pared_tras_el_final    exito 113<118; ayuda 7>2; esquivas 19>5; paradas 20>16; contactos 3
+  G1 vs v5fix  pared_tras_el_final    contactos 3
+  G2 caja20                 contactos v3=7 v5fix=5 v6=5 (meta 0)
+  G2 objeto_largo90         contactos v3=11 v5fix=6 v6=5 (meta 0)
+  G2 dos_obstaculos         contactos v3=14 v5fix=7 v6=9 (meta 0)
+  G3 contactos v6=20 peores que v5fix=19 (v3=65)
+      bloque_sin_eco         v3=65 v5fix=19 v6=20
+  G4 banquito35x45          falla SEGURA: contactos v6=25 < v3=42 pero AYUDA v6=60 > v3=48
+  G4 silla_patas            falla SEGURA: contactos v6=24 < v3=32 pero AYUDA v6=51 > v3=40
+  G4 dos_muebles            falla SEGURA: contactos v6=29 < v3=47 pero AYUDA v6=59 > v3=56
+  G4 mueble_con_pared       falla SEGURA: contactos v6=17 < v3=45 pero AYUDA v6=74 > v3=66
+  G5 pasillo                AYUDA v6=54 no es menor que v3=50 (v5fix=54)
+  G5 pasillo                contactos v6=12 > v3=7
+  G6 mueble_con_pared       terminado_falso v3=2 v5fix=0 v6=1
+  G7 aparece_de_repente     v6 vs v5fix: ayuda 49>47; paradas 170>166; exito 69<71
+  G7 bajo_solo_color        v6 vs v5fix: paradas 222>219
+  G7 banquito35x45          v6 vs v5fix: contactos 25>12; paradas 183>177; exito 41<48
+  G7 bateria_baja           v6 vs v5fix: contactos 5>4; ayuda 60>56; esquivas 300>295; exito 59<64
+  G7 bloque_sin_eco         v6 vs v5fix: contactos 20>19
+  G7 caja20                 v6 vs v5fix: paradas 176>170
+  G7 caja20_con_sol         v6 vs v5fix: ayuda 56>55; paradas 233>230; esquivas 309>304; exito 63<64
+  G7 caja20_lateral         v6 vs v5fix: contactos 6>3; ayuda 58>57
+  G7 caja_antes_de_esquina  v6 vs v5fix: ayuda 44>43; exito 76<77
+  G7 caja_y_pared_al_lado   v6 vs v5fix: paradas 165>158; esquivas 190>189
+  G7 dos_muebles            v6 vs v5fix: contactos 29>25; exito 44<49
+  G7 dos_obstaculos         v6 vs v5fix: contactos 9>7; paradas 207>201
+  G7 falso_exposicion       v6 vs v5fix: esquive_falso 7>6
+  G7 mueble_con_pared       v6 vs v5fix: contactos 17>7; terminado_falso 1>0; paradas 149>134; exito 24<28
+  G7 objeto_bajo            v6 vs v5fix: contactos 10>8; paradas 253>251; exito 62<64
+  G7 pasillo                v6 vs v5fix: contactos 12>8; paradas 168>167; exito 62<64
+  G7 pasillo_angosto        v6 vs v5fix: contactos 1>0; paradas 156>150
+  G7 silla_patas            v6 vs v5fix: contactos 24>18; exito 20<31
+
+=== MATRIZ FDES ruido=2 laser=normal  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+se_negro_mate          | ok= 34 c= 66 ay= 41 e=226 p=293 er=0 tf=0 | ok= 65 c= 12 ay= 52 e=328 p=214 er=0 tf=0 | ok= 63 c= 12 ay= 53 e=314 p=213 er=0 tf=0
+se_pequeno_borde       | ok= 51 c= 47 ay= 25 e=159 p=209 er=0 tf=0 | ok= 69 c=  5 ay= 46 e=275 p=203 er=0 tf=0 | ok= 67 c= 10 ay= 43 e=274 p=187 er=0 tf=0
+se_alto_con_sombra     | ok= 35 c= 61 ay= 38 e=193 p=287 er=0 tf=0 | ok= 66 c= 11 ay= 47 e=302 p=190 er=0 tf=0 | ok= 70 c= 11 ay= 45 e=298 p=191 er=0 tf=0
+se_bajo_oscuro         | ok= 42 c= 59 ay= 25 e=167 p=357 er=0 tf=0 | ok= 53 c= 16 ay= 55 e=322 p=221 er=0 tf=0 | ok= 53 c= 17 ay= 54 e=328 p=220 er=0 tf=0
+se_rayado              | ok= 57 c= 22 ay= 56 e=224 p=283 er=0 tf=0 | ok= 69 c=  7 ay= 49 e=314 p=223 er=0 tf=0 | ok= 67 c=  9 ay= 51 e=318 p=235 er=0 tf=0
+se_piso_oscuro         | ok= 18 c= 82 ay= 45 e=211 p=277 er=0 tf=0 | ok= 41 c= 37 ay= 57 e=309 p=204 er=0 tf=0 | ok= 40 c= 41 ay= 54 e=290 p=203 er=0 tf=0
+se_piso_claro          | ok= 34 c= 63 ay= 28 e=162 p=243 er=0 tf=0 | ok= 61 c=  5 ay= 54 e=327 p=210 er=0 tf=0 | ok= 62 c=  8 ay= 51 e=315 p=223 er=0 tf=0
+se_transparente        | ok=  2 c=118 ay=  1 e= 12 p= 22 er=0 tf=0 | ok=  2 c=115 ay=  6 e= 36 p= 16 er=0 tf=0 | ok=  2 c=117 ay=  2 e= 21 p= 15 er=0 tf=0
+se_poco_contraste      | ok= 10 c=104 ay= 40 e=175 p=227 er=0 tf=0 | ok= 10 c=100 ay= 48 e=189 p=190 er=0 tf=0 | ok= 10 c=103 ay= 47 e=181 p=194 er=0 tf=0
+se_piso_manchas        | ok= 69 c=  0 ay= 13 e=103 p=184 er=0 tf=0 | ok= 57 c=  0 ay= 28 e=156 p=180 er=0 tf=0 | ok= 62 c=  0 ay= 21 e=132 p=169 er=0 tf=0
+se_reflejo_saturado    | ok= 89 c=  0 ay= 23 e=105 p=266 er=0 tf=0 | ok= 76 c=  0 ay= 34 e=148 p=190 er=0 tf=0 | ok= 82 c=  0 ay= 30 e=122 p=188 er=0 tf=0
+se_charco_oscuro       | ok= 53 c=  0 ay= 24 e=154 p=255 er=0 tf=0 | ok=  3 c=  0 ay= 52 e=358 p=191 er=0 tf=0 | ok=  4 c=  0 ay= 52 e=353 p=202 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 158 c=   0 ay=  36 e= 208 p= 450]  v5fix[ok= 133 c=   0 ay=  62 e= 304 p= 370]  v6[ok= 144 c=   0 ay=  51 e= 254 p= 357]
+  suma G3 sin eco               v3[ok= 271 c= 400 ay= 258 e=1342 p=1949]  v5fix[ok= 424 c=  93 ay= 360 e=2177 p=1465]  v6[ok= 422 c= 108 ay= 351 e=2137 p=1472]
+  (solo informativos, no son compuerta: se_charco_oscuro, se_transparente, se_poco_contraste)
+  veredicto: G1=NO CUMPLE  G3=AVISO  G6=CUMPLE  G7=NO CUMPLE
+  G1 vs v3     se_piso_manchas        exito 62<69; ayuda 21>13; esquivas 132>103
+  G1 vs v3     se_reflejo_saturado    exito 82<89; ayuda 30>23; esquivas 122>105
+  G3 contactos v6=108 peores que v5fix=93 (v3=400)
+      se_pequeno_borde       v3=47 v5fix=5 v6=10
+      se_bajo_oscuro         v3=59 v5fix=16 v6=17
+      se_rayado              v3=22 v5fix=7 v6=9
+      se_piso_oscuro         v3=82 v5fix=37 v6=41
+      se_piso_claro          v3=63 v5fix=5 v6=8
+  G7 se_alto_con_sombra     v6 vs v5fix: paradas 191>190
+  G7 se_bajo_oscuro         v6 vs v5fix: contactos 17>16; esquivas 328>322
+  G7 se_negro_mate          v6 vs v5fix: ayuda 53>52; exito 63<65
+  G7 se_pequeno_borde       v6 vs v5fix: contactos 10>5; exito 67<69
+  G7 se_piso_claro          v6 vs v5fix: contactos 8>5; paradas 223>210
+  G7 se_piso_manchas        v6 vs v5fix: esquive_falso 37>35
+  G7 se_piso_oscuro         v6 vs v5fix: contactos 41>37; exito 40<41
+  G7 se_rayado              v6 vs v5fix: contactos 9>7; ayuda 51>49; paradas 235>223; esquivas 318>314; exito 67<69
+
+=== MATRIZ FDES ruido=2 laser=pesimista  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+se_negro_mate          | ok= 34 c= 67 ay= 39 e=204 p=321 er=0 tf=0 | ok= 64 c= 12 ay= 54 e=337 p=218 er=0 tf=0 | ok= 62 c= 12 ay= 54 e=320 p=212 er=0 tf=0
+se_pequeno_borde       | ok= 40 c= 61 ay= 23 e=127 p=193 er=0 tf=0 | ok= 68 c=  8 ay= 44 e=283 p=203 er=0 tf=0 | ok= 66 c= 13 ay= 42 e=282 p=188 er=0 tf=0
+se_alto_con_sombra     | ok= 33 c= 63 ay= 41 e=198 p=275 er=0 tf=0 | ok= 66 c= 12 ay= 46 e=309 p=197 er=0 tf=0 | ok= 70 c= 11 ay= 44 e=300 p=196 er=0 tf=0
+se_bajo_oscuro         | ok= 41 c= 60 ay= 23 e=161 p=343 er=0 tf=0 | ok= 53 c= 16 ay= 53 e=321 p=224 er=0 tf=0 | ok= 53 c= 17 ay= 51 e=324 p=221 er=0 tf=0
+se_rayado              | ok= 41 c= 47 ay= 59 e=219 p=298 er=0 tf=0 | ok= 70 c=  7 ay= 49 e=321 p=221 er=0 tf=0 | ok= 69 c=  7 ay= 50 e=323 p=229 er=0 tf=0
+se_piso_oscuro         | ok= 16 c= 87 ay= 42 e=215 p=270 er=0 tf=0 | ok= 41 c= 37 ay= 51 e=298 p=214 er=0 tf=0 | ok= 39 c= 42 ay= 50 e=284 p=212 er=0 tf=0
+se_piso_claro          | ok= 34 c= 63 ay= 28 e=162 p=243 er=0 tf=0 | ok= 61 c=  5 ay= 54 e=327 p=210 er=0 tf=0 | ok= 62 c=  8 ay= 51 e=315 p=223 er=0 tf=0
+se_transparente        | ok=  2 c=118 ay=  1 e= 12 p= 22 er=0 tf=0 | ok=  2 c=115 ay=  6 e= 36 p= 16 er=0 tf=0 | ok=  2 c=117 ay=  2 e= 21 p= 15 er=0 tf=0
+se_poco_contraste      | ok=  0 c=118 ay= 25 e=172 p=199 er=0 tf=0 | ok=  3 c=114 ay= 41 e=196 p=192 er=0 tf=0 | ok=  2 c=118 ay= 40 e=185 p=186 er=0 tf=0
+se_piso_manchas        | ok= 69 c=  0 ay= 13 e=103 p=184 er=0 tf=0 | ok= 57 c=  0 ay= 28 e=156 p=180 er=0 tf=0 | ok= 62 c=  0 ay= 21 e=132 p=169 er=0 tf=0
+se_reflejo_saturado    | ok= 89 c=  0 ay= 23 e=105 p=266 er=0 tf=0 | ok= 76 c=  0 ay= 34 e=148 p=190 er=0 tf=0 | ok= 82 c=  0 ay= 30 e=122 p=188 er=0 tf=0
+se_charco_oscuro       | ok= 53 c=  0 ay= 24 e=154 p=255 er=0 tf=0 | ok=  3 c=  0 ay= 52 e=358 p=191 er=0 tf=0 | ok=  4 c=  0 ay= 52 e=353 p=202 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 158 c=   0 ay=  36 e= 208 p= 450]  v5fix[ok= 133 c=   0 ay=  62 e= 304 p= 370]  v6[ok= 144 c=   0 ay=  51 e= 254 p= 357]
+  suma G3 sin eco               v3[ok= 239 c= 448 ay= 255 e=1286 p=1943]  v5fix[ok= 423 c=  97 ay= 351 e=2196 p=1487]  v6[ok= 421 c= 110 ay= 342 e=2148 p=1481]
+  (solo informativos, no son compuerta: se_charco_oscuro, se_transparente, se_poco_contraste)
+  veredicto: G1=NO CUMPLE  G3=AVISO  G6=CUMPLE  G7=NO CUMPLE
+  G1 vs v3     se_piso_manchas        exito 62<69; ayuda 21>13; esquivas 132>103
+  G1 vs v3     se_reflejo_saturado    exito 82<89; ayuda 30>23; esquivas 122>105
+  G3 contactos v6=110 peores que v5fix=97 (v3=448)
+      se_pequeno_borde       v3=61 v5fix=8 v6=13
+      se_bajo_oscuro         v3=60 v5fix=16 v6=17
+      se_piso_oscuro         v3=87 v5fix=37 v6=42
+      se_piso_claro          v3=63 v5fix=5 v6=8
+  G7 se_bajo_oscuro         v6 vs v5fix: contactos 17>16; esquivas 324>321
+  G7 se_negro_mate          v6 vs v5fix: exito 62<64
+  G7 se_pequeno_borde       v6 vs v5fix: contactos 13>8; exito 66<68
+  G7 se_piso_claro          v6 vs v5fix: contactos 8>5; paradas 223>210
+  G7 se_piso_manchas        v6 vs v5fix: esquive_falso 37>35
+  G7 se_piso_oscuro         v6 vs v5fix: contactos 42>37; exito 39<41
+  G7 se_rayado              v6 vs v5fix: ayuda 50>49; paradas 229>221; esquivas 323>321; exito 69<70
+
+=== MATRIZ FRES ruido=2 laser=normal  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+se_negro_mate          | ok= 39 c= 70 ay= 32 e=198 p=350 er=0 tf=0 | ok= 67 c=  4 ay= 50 e=321 p=208 er=0 tf=0 | ok= 68 c=  6 ay= 46 e=319 p=198 er=0 tf=0
+se_pequeno_borde       | ok= 46 c= 54 ay= 22 e=155 p=188 er=0 tf=0 | ok= 67 c=  7 ay= 51 e=317 p=198 er=0 tf=0 | ok= 67 c= 12 ay= 44 e=294 p=195 er=0 tf=0
+se_alto_con_sombra     | ok= 36 c= 67 ay= 35 e=192 p=311 er=0 tf=0 | ok= 68 c=  9 ay= 51 e=336 p=229 er=0 tf=0 | ok= 69 c=  8 ay= 50 e=333 p=226 er=0 tf=0
+se_bajo_oscuro         | ok= 36 c= 59 ay= 31 e=175 p=283 er=0 tf=0 | ok= 63 c= 10 ay= 51 e=324 p=223 er=0 tf=0 | ok= 62 c= 12 ay= 50 e=320 p=246 er=0 tf=0
+se_rayado              | ok= 47 c= 32 ay= 62 e=245 p=265 er=0 tf=0 | ok= 64 c=  1 ay= 55 e=333 p=213 er=0 tf=0 | ok= 63 c=  2 ay= 56 e=331 p=215 er=0 tf=0
+se_piso_oscuro         | ok= 31 c= 73 ay= 48 e=222 p=329 er=0 tf=0 | ok= 56 c= 29 ay= 49 e=301 p=235 er=0 tf=0 | ok= 54 c= 32 ay= 49 e=281 p=245 er=0 tf=0
+se_piso_claro          | ok= 29 c= 73 ay= 25 e=153 p=262 er=0 tf=0 | ok= 66 c=  4 ay= 52 e=328 p=224 er=0 tf=0 | ok= 65 c=  7 ay= 51 e=315 p=228 er=0 tf=0
+se_transparente        | ok=  2 c=116 ay=  2 e= 10 p= 21 er=0 tf=0 | ok=  7 c=109 ay=  6 e= 35 p= 25 er=0 tf=0 | ok=  4 c=114 ay=  2 e= 16 p= 21 er=0 tf=0
+se_poco_contraste      | ok=  6 c=109 ay= 47 e=167 p=209 er=0 tf=0 | ok=  7 c=105 ay= 54 e=192 p=172 er=0 tf=0 | ok=  7 c=109 ay= 52 e=180 p=177 er=0 tf=0
+se_piso_manchas        | ok= 71 c=  0 ay= 22 e=120 p=239 er=0 tf=0 | ok= 55 c=  0 ay= 34 e=190 p=205 er=0 tf=0 | ok= 61 c=  0 ay= 22 e=157 p=186 er=0 tf=0
+se_reflejo_saturado    | ok= 90 c=  0 ay= 21 e= 98 p=282 er=0 tf=0 | ok= 81 c=  0 ay= 30 e=125 p=207 er=0 tf=0 | ok= 88 c=  0 ay= 25 e=100 p=181 er=0 tf=0
+se_charco_oscuro       | ok= 54 c=  0 ay= 30 e=165 p=200 er=0 tf=0 | ok=  3 c=  0 ay= 48 e=367 p=172 er=0 tf=0 | ok=  4 c=  0 ay= 48 e=363 p=168 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 161 c=   0 ay=  43 e= 218 p= 521]  v5fix[ok= 136 c=   0 ay=  64 e= 315 p= 412]  v6[ok= 149 c=   0 ay=  47 e= 257 p= 367]
+  suma G3 sin eco               v3[ok= 264 c= 428 ay= 255 e=1340 p=1988]  v5fix[ok= 451 c=  64 ay= 359 e=2260 p=1530]  v6[ok= 448 c=  79 ay= 346 e=2193 p=1553]
+  (solo informativos, no son compuerta: se_charco_oscuro, se_transparente, se_poco_contraste)
+  veredicto: G1=NO CUMPLE  G3=AVISO  G6=CUMPLE  G7=NO CUMPLE
+  G1 vs v3     se_piso_manchas        exito 61<71; esquivas 157>120
+  G1 vs v3     se_reflejo_saturado    exito 88<90; ayuda 25>21; esquivas 100>98
+  G3 contactos v6=79 peores que v5fix=64 (v3=428)
+      se_negro_mate          v3=70 v5fix=4 v6=6
+      se_pequeno_borde       v3=54 v5fix=7 v6=12
+      se_bajo_oscuro         v3=59 v5fix=10 v6=12
+      se_rayado              v3=32 v5fix=1 v6=2
+      se_piso_oscuro         v3=73 v5fix=29 v6=32
+      se_piso_claro          v3=73 v5fix=4 v6=7
+  G7 se_bajo_oscuro         v6 vs v5fix: contactos 12>10; paradas 246>223; exito 62<63
+  G7 se_negro_mate          v6 vs v5fix: contactos 6>4
+  G7 se_pequeno_borde       v6 vs v5fix: contactos 12>7
+  G7 se_piso_claro          v6 vs v5fix: contactos 7>4; paradas 228>224; exito 65<66
+  G7 se_piso_manchas        v6 vs v5fix: esquive_falso 37>31
+  G7 se_piso_oscuro         v6 vs v5fix: contactos 32>29; paradas 245>235; exito 54<56
+  G7 se_rayado              v6 vs v5fix: contactos 2>1; ayuda 56>55; paradas 215>213; exito 63<64
+
+=== MATRIZ FRES ruido=2 laser=pesimista  (corridas por escenario: 120) ===
+escenario              | v3                                    | v5-fix                                | v6                                   
+se_negro_mate          | ok= 37 c= 71 ay= 36 e=188 p=332 er=0 tf=0 | ok= 67 c=  4 ay= 51 e=321 p=208 er=0 tf=0 | ok= 68 c=  6 ay= 47 e=319 p=197 er=0 tf=0
+se_pequeno_borde       | ok= 38 c= 65 ay= 21 e=153 p=183 er=0 tf=0 | ok= 68 c=  7 ay= 50 e=317 p=207 er=0 tf=0 | ok= 68 c= 14 ay= 43 e=294 p=205 er=0 tf=0
+se_alto_con_sombra     | ok= 34 c= 70 ay= 33 e=190 p=341 er=0 tf=0 | ok= 68 c=  9 ay= 52 e=339 p=230 er=0 tf=0 | ok= 69 c=  8 ay= 50 e=333 p=226 er=0 tf=0
+se_bajo_oscuro         | ok= 35 c= 60 ay= 32 e=182 p=283 er=0 tf=0 | ok= 63 c= 10 ay= 51 e=324 p=223 er=0 tf=0 | ok= 62 c= 12 ay= 50 e=320 p=246 er=0 tf=0
+se_rayado              | ok= 35 c= 47 ay= 59 e=246 p=282 er=0 tf=0 | ok= 64 c=  3 ay= 54 e=326 p=199 er=0 tf=0 | ok= 63 c=  2 ay= 57 e=333 p=204 er=0 tf=0
+se_piso_oscuro         | ok= 28 c= 77 ay= 38 e=210 p=326 er=0 tf=0 | ok= 55 c= 31 ay= 47 e=309 p=231 er=0 tf=0 | ok= 53 c= 34 ay= 45 e=289 p=241 er=0 tf=0
+se_piso_claro          | ok= 29 c= 73 ay= 25 e=153 p=262 er=0 tf=0 | ok= 66 c=  4 ay= 52 e=328 p=224 er=0 tf=0 | ok= 65 c=  7 ay= 51 e=315 p=228 er=0 tf=0
+se_transparente        | ok=  2 c=116 ay=  2 e= 10 p= 21 er=0 tf=0 | ok=  7 c=109 ay=  6 e= 35 p= 25 er=0 tf=0 | ok=  4 c=114 ay=  2 e= 16 p= 21 er=0 tf=0
+se_poco_contraste      | ok=  2 c=117 ay= 34 e=154 p=228 er=0 tf=0 | ok=  2 c=112 ay= 42 e=187 p=189 er=0 tf=0 | ok=  2 c=116 ay= 39 e=172 p=194 er=0 tf=0
+se_piso_manchas        | ok= 71 c=  0 ay= 22 e=120 p=239 er=0 tf=0 | ok= 55 c=  0 ay= 34 e=190 p=205 er=0 tf=0 | ok= 61 c=  0 ay= 22 e=157 p=186 er=0 tf=0
+se_reflejo_saturado    | ok= 90 c=  0 ay= 21 e= 98 p=282 er=0 tf=0 | ok= 81 c=  0 ay= 30 e=125 p=207 er=0 tf=0 | ok= 88 c=  0 ay= 25 e=100 p=181 er=0 tf=0
+se_charco_oscuro       | ok= 54 c=  0 ay= 30 e=165 p=200 er=0 tf=0 | ok=  3 c=  0 ay= 48 e=367 p=172 er=0 tf=0 | ok=  4 c=  0 ay= 48 e=363 p=168 er=0 tf=0
+  suma G1 piso limpio y falsos  v3[ok= 161 c=   0 ay=  43 e= 218 p= 521]  v5fix[ok= 136 c=   0 ay=  64 e= 315 p= 412]  v6[ok= 149 c=   0 ay=  47 e= 257 p= 367]
+  suma G3 sin eco               v3[ok= 236 c= 463 ay= 244 e=1322 p=2009]  v5fix[ok= 451 c=  68 ay= 357 e=2264 p=1522]  v6[ok= 448 c=  83 ay= 343 e=2203 p=1547]
+  (solo informativos, no son compuerta: se_charco_oscuro, se_transparente, se_poco_contraste)
+  veredicto: G1=NO CUMPLE  G3=AVISO  G6=CUMPLE  G7=NO CUMPLE
+  G1 vs v3     se_piso_manchas        exito 61<71; esquivas 157>120
+  G1 vs v3     se_reflejo_saturado    exito 88<90; ayuda 25>21; esquivas 100>98
+  G3 contactos v6=83 peores que v5fix=68 (v3=463)
+      se_negro_mate          v3=71 v5fix=4 v6=6
+      se_pequeno_borde       v3=65 v5fix=7 v6=14
+      se_bajo_oscuro         v3=60 v5fix=10 v6=12
+      se_piso_oscuro         v3=77 v5fix=31 v6=34
+      se_piso_claro          v3=73 v5fix=4 v6=7
+  G7 se_bajo_oscuro         v6 vs v5fix: contactos 12>10; paradas 246>223; exito 62<63
+  G7 se_negro_mate          v6 vs v5fix: contactos 6>4
+  G7 se_pequeno_borde       v6 vs v5fix: contactos 14>7
+  G7 se_piso_claro          v6 vs v5fix: contactos 7>4; paradas 228>224; exito 65<66
+  G7 se_piso_manchas        v6 vs v5fix: esquive_falso 37>31
+  G7 se_piso_oscuro         v6 vs v5fix: contactos 34>31; paradas 241>231; exito 53<55
+  G7 se_rayado              v6 vs v5fix: ayuda 57>54; paradas 204>199; esquivas 333>326; exito 63<64
+
+=== RESUMEN DE COMPUERTAS (SIMULADO, criterio estricto, corridas=120) ===
+matriz                       G1        G2        G3        G4        G5        G6        G7       
+DES r2 L0                    NO CUMPLE NO CUMPLE AVISO     AVISO     NO CUMPLE NO CUMPLE NO CUMPLE
+DES r2 L1                    NO CUMPLE NO CUMPLE AVISO     AVISO     NO CUMPLE NO CUMPLE NO CUMPLE
+RES r2 L0                    NO CUMPLE NO CUMPLE AVISO     AVISO     NO CUMPLE NO CUMPLE NO CUMPLE
+RES r2 L1                    NO CUMPLE NO CUMPLE AVISO     AVISO     NO CUMPLE NO CUMPLE NO CUMPLE
+FDES r2 L0                   NO CUMPLE -         AVISO     -         -         CUMPLE    NO CUMPLE
+FDES r2 L1                   NO CUMPLE -         AVISO     -         -         CUMPLE    NO CUMPLE
+FRES r2 L0                   NO CUMPLE -         AVISO     -         -         CUMPLE    NO CUMPLE
+FRES r2 L1                   NO CUMPLE -         AVISO     -         -         CUMPLE    NO CUMPLE
+AGREGADO (peor caso)         NO CUMPLE NO CUMPLE AVISO     AVISO     NO CUMPLE NO CUMPLE NO CUMPLE

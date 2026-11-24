@@ -1,0 +1,19 @@
+# Margen extra de la guardia del giro de regreso (NAV_V6_GUARDIA_EXTRA_MM) con el codigo FINAL de v6 (HEAD d8877ab): 60 mm (elegido), 120 mm y 180 mm. 120 corridas por escenario, laser normal. SIMULADO / NO MEDIDO EN EL CARRO.
+# m60 = v6 completo con 60 mm; dgf120 / dgf180 = v6 completo compilado con -DNAV_V6_GUARDIA_EXTRA_MM=120 / 180. Celda: exito/contactos/ayuda e=esquivas p=paradas.
+# Lectura: cada milimetro extra de margen pide mas AYUDA en G5 (caja_y_pared_al_lado y pasillos); el contacto residual de pared_al_frente con laser pesimista (3 -> 2 -> 0 de 960 en RESERVADO ruido 0) esta en pared_al_frente_n960.txt.
+##### matriz=d0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | m60  960/  0/   0 e   0 p  27 | dgf120:v6_  960/  0/   0 e   0 p  27 | dgf180:v6_  960/  0/   0 e   0 p  27
+G2   (11 esc,  1320 corr) | m60 1313/  2/ 126 e1450 p1402 | dgf120:v6_ 1313/  2/ 126 e1450 p1402 | dgf180:v6_ 1313/  2/ 126 e1450 p1402
+G5   ( 2 esc,   240 corr) | m60  158/  1/  82 e 278 p 242 | dgf120:v6_  140/  1/ 100 e 277 p 242 | dgf180:v6_  111/  1/ 129 e 276 p 242
+##### matriz=r0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | m60  960/  0/   0 e   0 p  24 | dgf120:v6_  960/  0/   0 e   0 p  24 | dgf180:v6_  960/  0/   0 e   0 p  24
+G2   (11 esc,  1320 corr) | m60 1316/  1/ 123 e1483 p1418 | dgf120:v6_ 1316/  1/ 123 e1483 p1418 | dgf180:v6_ 1316/  1/ 123 e1483 p1418
+G5   ( 3 esc,   360 corr) | m60  305/  0/  55 e 414 p 361 | dgf120:v6_  286/  0/  74 e 413 p 361 | dgf180:v6_  198/  0/ 162 e 406 p 361
+##### matriz=d1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | m60  795/  0/ 111 e 507 p 820 | dgf120:v6_  795/  0/ 111 e 507 p 820 | dgf180:v6_  795/  0/ 111 e 507 p 820
+G2   (11 esc,  1320 corr) | m60  790/ 31/ 643 e3101 p1988 | dgf120:v6_  790/ 31/ 643 e3101 p1988 | dgf180:v6_  790/ 31/ 643 e3101 p1988
+G5   ( 2 esc,   240 corr) | m60   79/  9/ 158 e 444 p 311 | dgf120:v6_   74/  7/ 164 e 414 p 304 | dgf180:v6_   58/  5/ 182 e 365 p 299
+##### matriz=r1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | m60  788/  0/ 100 e 479 p 828 | dgf120:v6_  788/  0/ 100 e 479 p 828 | dgf180:v6_  788/  0/ 100 e 479 p 828
+G2   (11 esc,  1320 corr) | m60  788/ 47/ 645 e3088 p2061 | dgf120:v6_  788/ 47/ 645 e3088 p2061 | dgf180:v6_  788/ 47/ 645 e3088 p2061
+G5   ( 3 esc,   360 corr) | m60  167/  5/ 192 e 723 p 475 | dgf120:v6_  155/  5/ 204 e 680 p 471 | dgf180:v6_  111/  5/ 248 e 551 p 455

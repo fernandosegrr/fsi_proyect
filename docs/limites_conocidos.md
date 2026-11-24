@@ -1,12 +1,44 @@
 # Límites conocidos de la navegación
 
+## Rama `feat/autonomo-v6` (24-nov-2026): lo que cambia, lo que sigue abierto y una corrección a v5
+
+**SIMULADO / NO MEDIDO en el carro.** El carro real no se movió, no se instaló la APK ni se grabó firmware (solo se compilaron la app y los dos firmwares). `main` (`bd1727b`), `feat/autonomo-v3` (`e37f77b`) y las etiquetas anteriores no se tocaron. Diseño, diagnóstico y resultados por compuerta: [autonomo_v6_diseno.md](autonomo_v6_diseno.md); bitácora: [progreso_v6.md](progreso_v6.md); prueba en el carro: [protocolo_prueba_fisica_v6.md](protocolo_prueba_fisica_v6.md).
+
+**Corrección a la sección de v5 (más abajo).** Su `G1: CUMPLE` salió de un banco cuya visión en piso limpio era casi muda; con el simulador calibrado contra las 7 cajas negras reales del 15-nov (ruido 1), `v5-fix` es **peor que `v3` en piso limpio** (`DESARROLLO`, 960 corridas: 768 ok / 130 `AYUDA` / 596 esquives contra 798 / 101 / 440). Por eso la app arranca ahora con v5 y v6 **apagados** (= comportamiento de `v3`); el interruptor de v6 (**Más → Sensores**, incluye v5) es solo para la comparación A/B del protocolo, y la caja negra anota `v5=`, `v6=` y `version=` de cada corrida.
+
+**Qué agrega v6 (tres banderas del navegador, todas apagadas por defecto; con todas apagadas es `v5-fix` exacto y con v5 apagado es `v3` exacto: 32 de 32 comparaciones idénticas en el banco):**
+
+- `GUARDIA_VOLVER`: la guardia del giro (láser dentro del arco del chasis) vale también en el giro de regreso y el carro no avanza en paralelo con el láser a 250 mm o menos al frente. `pared_al_frente` con láser pesimista: 3 contactos en 7680 corridas contra 68 de `v3` y 59 de `v5-fix`. Cuesta `AYUDA` donde `v3` rodeaba con algo cerca al frente.
+- `RACHA_ESTRICTA`: una racha vertical a un lado ya no cuenta como racha del centro por una marca de la red en otra zona. Casi no hace nada sola; sobre la persistencia lateral baja 13 `AYUDA` y 56 esquives en piso limpio `RESERVADO`, a cambio de ≈ +6 contactos por escenario de muebles.
+- `LATERAL_PERSISTENTE`: una masa sólida a un lado necesita 6 cuadros seguidos (el centro sigue con 2), solo mientras el carro sigue la ruta. Es la que más compra de piso limpio y la que más cuesta en muebles y sin eco.
+
+**Lo que sigue abierto (números en [autonomo_v6_diseno.md](autonomo_v6_diseno.md), sección 6):**
+
+- **Piso limpio con ruido calibrado:** `v6` recupera del orden de dos tercios de lo que `v5-fix` perdía, pero **sigue por debajo de `v3`** en sol, sombra y reflejo (`DESARROLLO`: 795 ok / 111 `AYUDA` / 507 esquives contra 798 / 101 / 440); con el ruido de esfuerzo (sin calibrar) la distancia a `v3` es mayor (742 / 131 / 617 contra 777 / 110 / 490).
+- **Mancha plana oscura sobre el carril** (`se_piso_manchas`, `se_charco_oscuro`): `v6` la esquiva aun sin ruido (`v3` no); para el carro es indistinguible de un objeto oscuro de 3 cm sin eco. Es el punto débil de v6.
+- **Objeto oscuro sin eco y muebles de patas:** contactos muy por debajo de `v3` (`bloque_sin_eco` 120 → 25 de 120 sin ruido; muebles de `RESERVADO` 105 → 71) con más `AYUDA` que `v3` en muebles (falla segura); algo peor que `v5-fix` por diseño. `se_piso_oscuro` (piso oscuro con objeto) sigue con 30–51 contactos de 120.
+- **`terminado_falso`:** `silla_patas` lo conserva con las tres versiones (1 de 120 en `RESERVADO` sin ruido); `v6` suma casos sueltos en `dos_muebles`, `banquito35x45` y `caja20_con_sol`.
+- **`pared_al_frente`, residual:** 3 contactos en 7680 (RESERVADO, ruido 0, láser pesimista): la guardia llegó una lectura de láser (150 ms) tarde; subir el margen cuesta `AYUDA` en `caja_y_pared_al_lado` y pasillos.
+- **`caja_y_pared_al_lado`:** `AYUDA` igual o 3 más que `v3` en las celdas del banco.
+
+**Avisos para quien maneje el carro:**
+
+- **No pulsar «Continuar» tras una `AYUDA` con `Causa 18` en `v3` ni en `v5`:** al detener el giro por la guardia, la bandera de giro queda levantada y los cuadros del centro se ignoran hasta el siguiente giro; solo queda el freno del láser del firmware. Hallazgo de la revisión independiente, defecto **heredado de `v3`**: `v6` lo cierra en las dos guardias (con la bandera encendida), no en cualquier otro camino.
+- La guardia del paso en paralelo reutiliza la `Causa 16`, cuya frase no describe exactamente esa situación.
+- La ventana de «láser fresco» de la guardia es de 400 ms: tras una pérdida breve de lectura puede dar un freno de más (falla segura).
+- La vista previa de rutas de la app (`sim_ruta.c`) usa los valores por defecto del núcleo y **no sigue los interruptores** (no mueve motores).
+
+**Sigue `NO MEDIDO`:** todo lo anterior en el carro; respuesta real del `VL53L0X` a superficies oscuras y a patas; ruido de la visión con sol, sombras, reflejos, objetos y muebles reales (la calibración solo cubre piso limpio de 7 corridas de `v3`); exposición automática real del `GC0308`; cadencia real del láser y geometría real de las paredes. Propuestas de firmware, **no implementadas ni probadas**: [autonomo_v6_diseno.md](autonomo_v6_diseno.md), sección 7.
+
+---
+
 ## Rama `feat/autonomo-v5-carbon` (23-nov-2026): lo que cambia y lo que sigue abierto
 
 **SIMULADO / NO MEDIDO en el carro.** El carro real no se movió, no se instaló la APK ni se grabó firmware (solo se compilaron). `main`, el tag `v1.1` (`bd1727b`) y `feat/autonomo-v3` (`e37f77b`) no se tocaron. Detalle en [estado_20261123.md](estado_20261123.md), diseño en [autonomo_v5_diseno.md](autonomo_v5_diseno.md) y protocolo A/B en [protocolo_prueba_fisica_v5.md](protocolo_prueba_fisica_v5.md).
 
 Resultados calibrados (`DESARROLLO` 24 escenarios y `RESERVADO` 27 escenarios × 40 corridas × laser normal/pesimista, velocidad real `25.7–29.4 cm/s`, **SIMULADO**, ver [etapa5.txt](precision/v5/etapa5.txt)):
 
-- **Piso limpio (`G1: CUMPLE`):** `40/40 ok`, `0` contactos, `0` AYUDA y `0` esquives nuevos en las 4 matrices; paradas idénticas a `v3` en sol/sombra/reflejo. Con el interruptor **`Autónomo v5-carbon`** apagado (`v5=0` / `AV5_APAGADO=1`), la simulación reproduce **exactamente** a `v3` (`SI`).
+- **Piso limpio (`G1: CUMPLE`, solo con el banco heredado sin ruido de visión; con ruido calibrado v5 es peor que v3: ver la sección de v6 arriba):** `40/40 ok`, `0` contactos, `0` AYUDA y `0` esquives nuevos en las 4 matrices; paradas idénticas a `v3` en sol/sombra/reflejo. Con el interruptor **`Autónomo v5-carbon`** apagado (`v5=0` / `AV5_APAGADO=1`), la simulación reproduce **exactamente** a `v3` (`SI`).
 - **Hueco sin eco (`G3: CUMPLE`) y objetos bajos:** `bloque_sin_eco` baja de **40/40** contactos en `v3` a **7/40** (`DESARROLLO`) y **9/40** (`RESERVADO`) en ambos láseres mediante clasificación de masa sólida no-piso de alto contraste/croma (`v5_solido`) y retención ante lavado AEC; `objeto_bajo` pesimista baja de `19/14` a `1/1` contactos y `bajo_solo_color` pesimista de `23/17` a `3/0`.
 - **Muebles de patas (`G4: NO CUMPLE` en criterio estricto de AYUDA):** contactos bajan fuerte (`banquito35x45`: 15→4 / 25→6 `DESARROLLO` y 7→2 / 11→1 `RESERVADO`; `silla_patas`: 4→2 / 4→3 y 9→4 / 12→4; `mueble_con_pared`: 11→1 / 21→1), a cambio de más `AYUDA` segura al no girar sin espacio. Queda `1/40` `terminado_falso` en `silla_patas` de `RESERVADO` (`G6: NO CUMPLE`).
 - **Pasillos y pared lateral (`G5: NO CUMPLE`):** `pasillo` mejora a `29/40` (normal) y `32/40` (pesimista) en `DESARROLLO` y `40/40` / `39/40` en `RESERVADO` con `0` contactos; `caja_y_pared_al_lado` mantiene `0` contactos en las 4 matrices pero iguala o excede por 1 la `AYUDA` en `DESARROLLO` (`16 vs 15` normal, `18 vs 18` pesimista).

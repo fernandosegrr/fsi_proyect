@@ -1,0 +1,19 @@
+# pared_al_frente, 960 corridas por celda, con el codigo FINAL de v6 (HEAD d8877ab) contra v3 (e37f77b) y v5-carbon-fix (freeze/v5-carbon-fix), mismo banco para las tres.
+# SIMULADO / NO MEDIDO EN EL CARRO. Matriz = conjunto (d DESARROLLO, r RESERVADO) + ruido (0 heredado, 1 calibrado); laser 0 = normal, 1 = pesimista.
+# Celda: exito/contactos/ayuda e=esquivas p=paradas. v6 = todas las banderas (AV6_BITS=master). Residual de v6: 3 contactos, todos en r0 laser=1 (corridas 204, 352 y 768; traza de la 204 en autonomo_v6_diseno.md 3.1).
+##### matriz=d0 laser=0 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         959/  1/960 e964 p965 | v5fix      959/  1/960 e963 p964 | v6         960/  0/960 e962 p962
+##### matriz=d0 laser=1 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         943/ 17/959 e968 p984 | v5fix      943/ 17/959 e962 p979 | v6         960/  0/960 e962 p962
+##### matriz=r0 laser=0 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         958/  2/960 e967 p969 | v5fix      956/  4/960 e963 p967 | v6         960/  0/960 e963 p963
+##### matriz=r0 laser=1 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         946/ 14/959 e968 p982 | v5fix      943/ 17/959 e965 p982 | v6         957/  3/960 e965 p965
+##### matriz=d1 laser=0 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         959/  1/960 e1085 p1091 | v5fix      960/  0/960 e962 p962 | v6         960/  0/960 e963 p964
+##### matriz=d1 laser=1 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         949/ 11/960 e1099 p1112 | v5fix      952/  8/960 e988 p1000 | v6         960/  0/960 e980 p982
+##### matriz=r1 laser=0 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         954/  6/960 e1107 p1119 | v5fix      956/  4/960 e967 p973 | v6         960/  0/960 e967 p973
+##### matriz=r1 laser=1 n=960   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+    pared_al_frente        | v3         944/ 16/960 e1098 p1130 | v5fix      952/  8/960 e981 p995 | v6         960/  0/960 e968 p975

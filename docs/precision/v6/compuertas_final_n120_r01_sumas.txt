@@ -1,0 +1,74 @@
+# Sumas por grupo de compuertas (resumen de compuertas_final_n120_r01.txt, codigo final de v6, 120 corridas por escenario). SIMULADO / NO MEDIDO EN EL CARRO.
+# Celda: exito/contactos/AYUDA e=esquivas p=paradas. DES/RES = DESARROLLO/RESERVADO, FDES/FRES = familia sin eco; ruido 0 = banco heredado, 1 = calibrado con las cajas negras del 15-nov; laser normal o pesimista.
+DES ruido=0 laser=normal
+  G1 piso limpio y falsos  v3     960/  0/  0 e   0 p  27  v5fix  960/  0/  0 e   0 p  27  v6     960/  0/  0 e   0 p  27
+  G2 solidos               v3     476/  1/123 e 546 p 483  v5fix  476/  1/123 e 545 p 482  v6     476/  1/123 e 545 p 482
+  G3 sin eco               v3       0/120/  0 e   0 p  23  v5fix  100/ 20/  0 e 109 p 113  v6      95/ 25/  0 e 107 p 111
+  G4 muebles               v3     100/ 48/ 39 e 178 p 207  v5fix  123/ 17/ 54 e 200 p 218  v6      98/ 36/ 42 e 177 p 215
+  G5 espacios              v3     139/  1/100 e 266 p 241  v5fix  160/  1/ 80 e 278 p 242  v6     158/  1/ 82 e 278 p 242
+DES ruido=0 laser=pesimista
+  G1 piso limpio y falsos  v3     960/  0/  0 e   0 p  27  v5fix  960/  0/  0 e   0 p  27  v6     960/  0/  0 e   0 p  27
+  G2 solidos               v3     477/  2/121 e 550 p 491  v5fix  477/  2/121 e 543 p 490  v6     479/  0/121 e 543 p 488
+  G3 sin eco               v3       0/120/  0 e   0 p  23  v5fix  100/ 20/  0 e 109 p 113  v6      95/ 25/  0 e 107 p 111
+  G4 muebles               v3      54/ 73/ 29 e 130 p 181  v5fix  124/ 22/ 34 e 185 p 211  v6      96/ 43/ 29 e 164 p 209
+  G5 espacios              v3     134/  1/105 e 265 p 242  v5fix  156/  1/ 83 e 265 p 241  v6     153/  1/ 86 e 265 p 241
+DES ruido=1 laser=normal
+  G1 piso limpio y falsos  v3     798/  0/101 e 440 p1089  v5fix  768/  0/130 e 596 p 869  v6     795/  0/111 e 507 p 820
+  G2 solidos               v3     324/ 17/272 e1030 p 791  v5fix  320/  5/279 e1121 p 664  v6     320/  6/279 e1109 p 668
+  G3 sin eco               v3      37/ 63/ 22 e 149 p 227  v5fix   63/ 16/ 44 e 318 p 234  v6      61/ 19/ 43 e 304 p 221
+  G4 muebles               v3      56/ 58/ 90 e 354 p 351  v5fix   71/ 25/130 e 503 p 297  v6      55/ 32/111 e 411 p 283
+  G5 espacios              v3      72/  5/167 e 377 p 323  v5fix   77/  8/161 e 444 p 305  v6      79/  9/158 e 444 p 311
+DES ruido=1 laser=pesimista
+  G1 piso limpio y falsos  v3     798/  0/101 e 440 p1089  v5fix  768/  1/130 e 597 p 871  v6     795/  0/111 e 507 p 820
+  G2 solidos               v3     339/ 28/255 e1011 p 805  v5fix  326/ 16/271 e1117 p 690  v6     327/ 14/270 e1099 p 684
+  G3 sin eco               v3      37/ 63/ 22 e 149 p 227  v5fix   63/ 16/ 44 e 318 p 234  v6      61/ 19/ 43 e 304 p 221
+  G4 muebles               v3      48/ 63/ 46 e 254 p 328  v5fix   75/ 27/118 e 474 p 327  v6      53/ 39/ 92 e 372 p 307
+  G5 espacios              v3      73/  6/165 e 422 p 354  v5fix   92/  7/147 e 453 p 320  v6      90/  9/149 e 451 p 333
+RES ruido=0 laser=normal
+  G1 piso limpio y falsos  v3     960/  0/  0 e   0 p  24  v5fix  960/  0/  0 e   0 p  24  v6     960/  0/  0 e   0 p  24
+  G2 solidos               v3     477/  2/121 e 548 p 489  v5fix  478/  2/120 e 554 p 488  v6     479/  1/120 e 552 p 486
+  G3 sin eco               v3       1/119/  7 e 110 p 131  v5fix   87/ 33/  2 e 123 p 135  v6      85/ 35/  2 e 123 p 135
+  G4 muebles               v3     204/105/122 e 395 p 439  v5fix  252/ 33/141 e 466 p 461  v6     208/ 71/133 e 410 p 444
+  G5 espacios              v3     268/  0/ 92 e 397 p 362  v5fix  306/  0/ 54 e 414 p 361  v6     305/  0/ 55 e 414 p 361
+RES ruido=0 laser=pesimista
+  G1 piso limpio y falsos  v3     960/  0/  0 e   0 p  24  v5fix  960/  0/  0 e   0 p  24  v6     960/  0/  0 e   0 p  24
+  G2 solidos               v3     476/  4/120 e 538 p 488  v5fix  476/  4/120 e 539 p 486  v6     478/  2/120 e 539 p 484
+  G3 sin eco               v3       1/119/  5 e  90 p 115  v5fix   87/ 33/  2 e 116 p 130  v6      85/ 35/  2 e 117 p 130
+  G4 muebles               v3     146/153/ 93 e 328 p 406  v5fix  268/ 34/121 e 477 p 467  v6     215/ 90/ 96 e 408 p 437
+  G5 espacios              v3     281/  0/ 79 e 402 p 362  v5fix  296/  0/ 64 e 407 p 364  v6     293/  0/ 67 e 406 p 364
+RES ruido=1 laser=normal
+  G1 piso limpio y falsos  v3     788/  0/105 e 430 p 976  v5fix  751/  2/130 e 611 p 869  v6     788/  0/100 e 479 p 828
+  G2 solidos               v3     333/ 23/263 e1022 p 783  v5fix  328/ 13/270 e1089 p 654  v6     327/ 15/271 e1078 p 646
+  G3 sin eco               v3      31/ 70/ 43 e 211 p 369  v5fix   56/ 17/ 52 e 313 p 225  v6      56/ 18/ 49 e 306 p 228
+  G4 muebles               v3     125/108/243 e 773 p 729  v5fix  162/ 43/276 e 975 p 649  v6     139/ 73/257 e 874 p 670
+  G5 espacios              v3     155/ 11/204 e 624 p 512  v5fix  167/  6/192 e 741 p 476  v6     167/  5/192 e 723 p 475
+RES ruido=1 laser=pesimista
+  G1 piso limpio y falsos  v3     788/  0/105 e 431 p 977  v5fix  751/  3/130 e 611 p 870  v6     788/  0/100 e 479 p 828
+  G2 solidos               v3     337/ 31/257 e 999 p 814  v5fix  320/ 19/278 e1082 p 719  v6     322/ 18/277 e1073 p 716
+  G3 sin eco               v3      30/ 71/ 43 e 196 p 390  v5fix   56/ 17/ 52 e 312 p 222  v6      56/ 18/ 50 e 305 p 224
+  G4 muebles               v3      84/156/219 e 652 p 771  v5fix  158/ 66/272 e1015 p 674  v6     135/ 96/243 e 884 p 688
+  G5 espacios              v3     158/ 18/200 e 674 p 531  v5fix  169/  8/189 e 722 p 469  v6     167/ 11/189 e 716 p 481
+FDES ruido=0 laser=normal
+  G1 piso limpio y falsos  v3     240/  0/  0 e   0 p   9  v5fix  229/  0/  0 e  12 p  19  v6     232/  0/  0 e   8 p  16
+  G3 sin eco               v3     117/709/ 79 e 560 p 680  v5fix  728/109/ 19 e 879 p 883  v6     719/116/ 21 e 880 p 879
+FDES ruido=0 laser=pesimista
+  G1 piso limpio y falsos  v3     240/  0/  0 e   0 p   9  v5fix  229/  0/  0 e  12 p  19  v6     232/  0/  0 e   8 p  16
+  G3 sin eco               v3      38/795/ 64 e 451 p 610  v5fix  723/114/  6 e 868 p 865  v6     714/122/  8 e 866 p 861
+FDES ruido=1 laser=normal
+  G1 piso limpio y falsos  v3     164/  0/ 37 e 200 p 423  v5fix  152/  0/ 49 e 253 p 351  v6     157/  0/ 45 e 232 p 348
+  G3 sin eco               v3     273/407/246 e1361 p1920  v5fix  422/ 93/363 e2149 p1429  v6     422/107/352 e2108 p1442
+FDES ruido=1 laser=pesimista
+  G1 piso limpio y falsos  v3     164/  0/ 37 e 200 p 423  v5fix  152/  0/ 49 e 253 p 351  v6     157/  0/ 45 e 232 p 348
+  G3 sin eco               v3     242/449/240 e1294 p1894  v5fix  421/ 96/354 e2157 p1443  v6     423/107/341 e2111 p1448
+FRES ruido=0 laser=normal
+  G1 piso limpio y falsos  v3     240/  0/  0 e   0 p  14  v5fix  221/  0/  0 e  27 p  29  v6     224/  0/  0 e  21 p  27
+  G3 sin eco               v3     117/718/ 64 e 521 p 669  v5fix  775/ 56/ 14 e 897 p 928  v6     758/ 71/ 17 e 904 p 933
+FRES ruido=0 laser=pesimista
+  G1 piso limpio y falsos  v3     240/  0/  0 e   0 p  14  v5fix  221/  0/  0 e  27 p  29  v6     224/  0/  0 e  21 p  27
+  G3 sin eco               v3      41/794/ 59 e 420 p 595  v5fix  775/ 55/ 14 e 895 p 919  v6     758/ 70/ 17 e 902 p 924
+FRES ruido=1 laser=normal
+  G1 piso limpio y falsos  v3     166/  0/ 37 e 200 p 487  v5fix  149/  0/ 56 e 272 p 371  v6     158/  0/ 42 e 229 p 345
+  G3 sin eco               v3     271/420/243 e1311 p1945  v5fix  453/ 65/359 e2225 p1490  v6     451/ 77/345 e2181 p1490
+FRES ruido=1 laser=pesimista
+  G1 piso limpio y falsos  v3     166/  0/ 37 e 200 p 487  v5fix  149/  0/ 56 e 272 p 371  v6     158/  0/ 42 e 229 p 345
+  G3 sin eco               v3     243/457/242 e1294 p2023  v5fix  456/ 69/353 e2218 p1472  v6     454/ 80/341 e2190 p1480

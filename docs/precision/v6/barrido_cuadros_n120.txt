@@ -1,0 +1,24 @@
+# Barrido de NAV_V6_LATERAL_CUADROS (cuadros seguidos que necesita una masa solida LATERAL para armar la retencion; el centro sigue con 2), con el codigo FINAL de v6 (HEAD d8877ab) y TODAS las banderas encendidas.
+# SIMULADO / NO MEDIDO EN EL CARRO. 120 corridas por escenario, laser normal. d1 = DESARROLLO ruido calibrado, r1 = RESERVADO ruido calibrado, f1 = familia sin eco (dev) con ruido calibrado.
+# dcfN = v6 completo con NAV_V6_LATERAL_CUADROS=N (compilado con -DNAV_V6_LATERAL_CUADROS=N); el valor elegido es 6 (dcf6). Celda: exito/contactos/ayuda e=esquivas p=paradas.
+# G1 piso limpio y falsos (8 escenarios), G2 solidos (11 escenarios: mas amplio que el G2 de compuertas_v6.py), G4 muebles, G5 espacios, G3p sin eco con eco de color (bloque_sin_eco o familia), G3n manchas/reflejos sin objeto, LIM limites (transparente, poco contraste).
+# Lectura: cada cuadro extra de persistencia lateral baja esquives/AYUDA en piso limpio (G1) y sube contactos de muebles (G4); a partir de 6 el piso limpio ya no mejora.
+
+##### matriz=d1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          798/  0/ 101 e 440 p1089 | v5fix       768/  0/ 130 e 596 p 869 | dcf2  769/  1/ 130 e 601 p 869 | dcf3  782/  0/ 119 e 553 p 833 | dcf4  788/  0/ 117 e 530 p 831 | dcf6  795/  0/ 111 e 507 p 820 | dcf8  795/  0/ 110 e 504 p 823
+G2   (11 esc,  1320 corr) | v3          813/ 82/ 591 e2827 p2400 | v5fix       792/ 26/ 644 e3150 p1989 | dcf2  790/ 28/ 643 e3137 p1963 | dcf3  789/ 29/ 644 e3126 p1973 | dcf4  792/ 29/ 641 e3111 p1990 | dcf6  790/ 31/ 643 e3101 p1988 | dcf8  789/ 34/ 643 e3100 p1989
+G4   ( 2 esc,   240 corr) | v3           56/ 58/  90 e 354 p 351 | v5fix        71/ 25/ 130 e 503 p 297 | dcf2   65/ 22/ 123 e 458 p 291 | dcf3   67/ 21/ 116 e 445 p 289 | dcf4   60/ 26/ 119 e 444 p 288 | dcf6   55/ 32/ 111 e 411 p 283 | dcf8   51/ 35/ 111 e 398 p 283
+G5   ( 2 esc,   240 corr) | v3           72/  5/ 167 e 377 p 323 | v5fix        77/  8/ 161 e 444 p 305 | dcf2   78/  8/ 159 e 444 p 303 | dcf3   79/  8/ 158 e 449 p 306 | dcf4   79/  9/ 158 e 445 p 310 | dcf6   79/  9/ 158 e 444 p 311 | dcf8   79/  9/ 158 e 444 p 311
+G3p  ( 1 esc,   120 corr) | v3           37/ 63/  22 e 149 p 227 | v5fix        63/ 16/  44 e 318 p 234 | dcf2   63/ 15/  45 e 316 p 228 | dcf3   62/ 19/  42 e 304 p 220 | dcf4   61/ 19/  43 e 303 p 221 | dcf6   61/ 19/  43 e 304 p 221 | dcf8   61/ 19/  43 e 304 p 222
+
+##### matriz=r1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          788/  0/ 105 e 430 p 976 | v5fix       751/  2/ 130 e 611 p 869 | dcf2  752/  2/ 129 e 602 p 867 | dcf3  763/  2/ 121 e 561 p 851 | dcf4  777/  1/ 110 e 515 p 842 | dcf6  788/  0/ 100 e 479 p 828 | dcf8  788/  0/ 100 e 479 p 828
+G2   (11 esc,  1320 corr) | v3          824/ 82/ 593 e2893 p2393 | v5fix       779/ 44/ 656 e3138 p2060 | dcf2  785/ 46/ 649 e3115 p2041 | dcf3  785/ 45/ 648 e3104 p2046 | dcf4  788/ 44/ 645 e3090 p2065 | dcf6  788/ 47/ 645 e3088 p2061 | dcf8  788/ 48/ 645 e3087 p2062
+G4   ( 4 esc,   480 corr) | v3          125/108/ 243 e 773 p 729 | v5fix       162/ 43/ 276 e 975 p 649 | dcf2  161/ 47/ 266 e 960 p 642 | dcf3  154/ 53/ 266 e 922 p 649 | dcf4  150/ 61/ 261 e 915 p 653 | dcf6  139/ 73/ 257 e 874 p 670 | dcf8  136/ 88/ 256 e 848 p 674
+G5   ( 3 esc,   360 corr) | v3          155/ 11/ 204 e 624 p 512 | v5fix       167/  6/ 192 e 741 p 476 | dcf2  166/  5/ 193 e 726 p 468 | dcf3  167/  5/ 192 e 724 p 469 | dcf4  167/  5/ 192 e 724 p 469 | dcf6  167/  5/ 192 e 723 p 475 | dcf8  167/  6/ 192 e 724 p 479
+G3p  ( 1 esc,   120 corr) | v3           31/ 70/  43 e 211 p 369 | v5fix        56/ 17/  52 e 313 p 225 | dcf2   58/ 15/  50 e 309 p 220 | dcf3   57/ 16/  50 e 312 p 226 | dcf4   57/ 17/  49 e 307 p 227 | dcf6   56/ 18/  49 e 306 p 228 | dcf8   56/ 18/  49 e 306 p 228
+
+##### matriz=f1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G3p  ( 7 esc,   840 corr) | v3          273/407/ 246 e1361 p1920 | v5fix       422/ 93/ 363 e2149 p1429 | dcf2  424/ 94/ 360 e2127 p1408 | dcf3  426/ 98/ 355 e2122 p1421 | dcf4  425/ 99/ 356 e2117 p1427 | dcf6  422/107/ 352 e2108 p1442 | dcf8  418/112/ 350 e2092 p1441
+G3n  ( 3 esc,   360 corr) | v3          219/  0/  62 e 360 p 641 | v5fix       157/  0/  99 e 604 p 530 | dcf2  157/  0/ 101 e 605 p 534 | dcf3  160/  0/ 100 e 587 p 537 | dcf4  162/  0/  97 e 579 p 527 | dcf6  163/  0/  96 e 578 p 533 | dcf8  163/  0/  96 e 578 p 533
+LIM  ( 2 esc,   240 corr) | v3           10/223/  38 e 187 p 258 | v5fix         7/219/  48 e 204 p 201 | dcf2    7/219/  48 e 204 p 202 | dcf3    8/221/  45 e 201 p 202 | dcf4    7/223/  46 e 197 p 204 | dcf6    7/223/  45 e 193 p 206 | dcf8    7/223/  45 e 193 p 206

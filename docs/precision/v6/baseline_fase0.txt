@@ -1,0 +1,63 @@
+# Lineas base (Fase 0) de v3 (e37f77b), v5-carbon (freeze/v5-carbon) y v5-carbon-fix (freeze/v5-carbon-fix) con el simulador ACTUALIZADO (banco de v6, mismo para las tres).
+# SIMULADO / NO MEDIDO EN EL CARRO. 120 corridas por escenario. d = DESARROLLO (24 escenarios), r = RESERVADO (27); ruido 0 = banco heredado, 1 = calibrado con las cajas negras. Cada celda: ok/contactos/ayuda e=esquivas p=paradas.
+# Grupos: G1 piso limpio y falsos, G2 solidos, G4 muebles, G5 espacios, G3p sin eco (bloque_sin_eco).
+
+################ laser=0 (0 normal, 1 pesimista)
+
+##### matriz=d0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  27 | v5          960/  0/   0 e   0 p  27 | v5fix       960/  0/   0 e   0 p  27
+G2   (11 esc,  1320 corr) | v3         1314/  2/ 125 e1448 p1404 | v5         1313/  2/ 126 e1451 p1402 | v5fix      1313/  2/ 126 e1449 p1402
+G4   ( 2 esc,   240 corr) | v3          100/ 48/  39 e 178 p 207 | v5          123/ 17/  54 e 200 p 218 | v5fix       123/ 17/  54 e 200 p 218
+G5   ( 2 esc,   240 corr) | v3          139/  1/ 100 e 266 p 241 | v5          160/  1/  80 e 278 p 242 | v5fix       160/  1/  80 e 278 p 242
+G3p  ( 1 esc,   120 corr) | v3            0/120/   0 e   0 p  23 | v5          100/ 20/   0 e 110 p 113 | v5fix       100/ 20/   0 e 109 p 113
+
+##### matriz=r0 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  24 | v5          959/  0/   0 e   1 p  24 | v5fix       960/  0/   0 e   0 p  24
+G2   (11 esc,  1320 corr) | v3         1314/  3/ 123 e1482 p1418 | v5         1314/  3/ 123 e1487 p1418 | v5fix      1314/  3/ 123 e1487 p1420
+G4   ( 4 esc,   480 corr) | v3          204/105/ 122 e 395 p 439 | v5          252/ 33/ 141 e 466 p 461 | v5fix       252/ 33/ 141 e 466 p 461
+G5   ( 3 esc,   360 corr) | v3          268/  0/  92 e 397 p 362 | v5          306/  0/  54 e 414 p 361 | v5fix       306/  0/  54 e 414 p 361
+G3p  ( 1 esc,   120 corr) | v3            1/119/   7 e 110 p 131 | v5           87/ 33/   2 e 122 p 135 | v5fix        87/ 33/   2 e 123 p 135
+
+##### matriz=d1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          798/  0/ 101 e 440 p1089 | v5          762/  0/ 133 e 604 p 686 | v5fix       768/  0/ 130 e 596 p 869
+G2   (11 esc,  1320 corr) | v3          813/ 82/ 591 e2827 p2400 | v5          797/ 29/ 636 e3174 p1850 | v5fix       792/ 26/ 644 e3150 p1989
+G4   ( 2 esc,   240 corr) | v3           56/ 58/  90 e 354 p 351 | v5           71/ 23/ 131 e 505 p 295 | v5fix        71/ 25/ 130 e 503 p 297
+G5   ( 2 esc,   240 corr) | v3           72/  5/ 167 e 377 p 323 | v5           80/  7/ 159 e 452 p 285 | v5fix        77/  8/ 161 e 444 p 305
+G3p  ( 1 esc,   120 corr) | v3           37/ 63/  22 e 149 p 227 | v5           62/ 12/  48 e 326 p 215 | v5fix        63/ 16/  44 e 318 p 234
+
+##### matriz=r1 laser=0 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          788/  0/ 105 e 430 p 976 | v5          746/  2/ 122 e 633 p 735 | v5fix       751/  2/ 130 e 611 p 869
+G2   (11 esc,  1320 corr) | v3          824/ 82/ 593 e2893 p2393 | v5          778/ 39/ 656 e3159 p1912 | v5fix       779/ 44/ 656 e3138 p2060
+G4   ( 4 esc,   480 corr) | v3          125/108/ 243 e 773 p 729 | v5          163/ 41/ 275 e 976 p 643 | v5fix       162/ 43/ 276 e 975 p 649
+G5   ( 3 esc,   360 corr) | v3          155/ 11/ 204 e 624 p 512 | v5          168/  7/ 191 e 747 p 440 | v5fix       167/  6/ 192 e 741 p 476
+G3p  ( 1 esc,   120 corr) | v3           31/ 70/  43 e 211 p 369 | v5           61/ 14/  48 e 310 p 198 | v5fix        56/ 17/  52 e 313 p 225
+
+################ laser=1 (0 normal, 1 pesimista)
+
+##### matriz=d0 laser=1 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  27 | v5          960/  0/   0 e   0 p  27 | v5fix       960/  0/   0 e   0 p  27
+G2   (11 esc,  1320 corr) | v3         1181/134/ 125 e1323 p1437 | v5         1306/  8/ 126 e1459 p1413 | v5fix      1305/  9/ 126 e1458 p1414
+G4   ( 2 esc,   240 corr) | v3           54/ 73/  29 e 130 p 181 | v5          124/ 22/  34 e 185 p 211 | v5fix       124/ 22/  34 e 185 p 211
+G5   ( 2 esc,   240 corr) | v3          134/  1/ 105 e 265 p 242 | v5          156/  1/  83 e 265 p 241 | v5fix       156/  1/  83 e 265 p 241
+G3p  ( 1 esc,   120 corr) | v3            0/120/   0 e   0 p  23 | v5          100/ 20/   0 e 110 p 113 | v5fix       100/ 20/   0 e 109 p 113
+
+##### matriz=r0 laser=1 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          960/  0/   0 e   0 p  24 | v5          959/  0/   0 e   1 p  24 | v5fix       960/  0/   0 e   0 p  24
+G2   (11 esc,  1320 corr) | v3         1224/ 95/ 121 e1387 p1455 | v5         1308/  9/ 124 e1459 p1427 | v5fix      1308/  9/ 124 e1459 p1429
+G4   ( 4 esc,   480 corr) | v3          146/153/  93 e 328 p 406 | v5          268/ 34/ 121 e 477 p 467 | v5fix       268/ 34/ 121 e 477 p 467
+G5   ( 3 esc,   360 corr) | v3          281/  0/  79 e 402 p 362 | v5          296/  0/  64 e 407 p 364 | v5fix       296/  0/  64 e 407 p 364
+G3p  ( 1 esc,   120 corr) | v3            1/119/   5 e  90 p 115 | v5           87/ 33/   2 e 114 p 130 | v5fix        87/ 33/   2 e 116 p 130
+
+##### matriz=d1 laser=1 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          798/  0/ 101 e 440 p1089 | v5          762/  1/ 133 e 605 p 688 | v5fix       768/  1/ 130 e 597 p 871
+G2   (11 esc,  1320 corr) | v3          785/135/ 578 e2692 p2390 | v5          791/ 50/ 634 e3168 p1921 | v5fix       785/ 53/ 639 e3153 p2053
+G4   ( 2 esc,   240 corr) | v3           48/ 63/  46 e 254 p 328 | v5           75/ 27/ 118 e 474 p 327 | v5fix        75/ 27/ 118 e 474 p 327
+G5   ( 2 esc,   240 corr) | v3           73/  6/ 165 e 422 p 354 | v5           88/  7/ 151 e 451 p 302 | v5fix        92/  7/ 147 e 453 p 320
+G3p  ( 1 esc,   120 corr) | v3           37/ 63/  22 e 149 p 227 | v5           62/ 12/  48 e 326 p 215 | v5fix        63/ 16/  44 e 318 p 234
+
+##### matriz=r1 laser=1 n=120   (cada celda: ok/contactos/ayuda e=esquivas p=paradas)
+G1   ( 8 esc,   960 corr) | v3          788/  0/ 105 e 431 p 977 | v5          746/  3/ 122 e 633 p 736 | v5fix       751/  3/ 130 e 611 p 870
+G2   (11 esc,  1320 corr) | v3          791/140/ 574 e2743 p2496 | v5          789/ 38/ 640 e3199 p1956 | v5fix       788/ 47/ 640 e3144 p2114
+G4   ( 4 esc,   480 corr) | v3           84/156/ 219 e 652 p 771 | v5          158/ 62/ 272 e1022 p 657 | v5fix       158/ 66/ 272 e1015 p 674
+G5   ( 3 esc,   360 corr) | v3          158/ 18/ 200 e 674 p 531 | v5          166/  7/ 192 e 719 p 447 | v5fix       169/  8/ 189 e 722 p 469
+G3p  ( 1 esc,   120 corr) | v3           30/ 71/  43 e 196 p 390 | v5           61/ 14/  48 e 312 p 203 | v5fix        56/ 17/  52 e 312 p 222
