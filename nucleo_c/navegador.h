@@ -910,7 +910,8 @@ int navegador_poner_eco_retroceder(Navegador *nav, int mm);
 
 /* AUTONOMO V5-CARBON (feat/autonomo-v5-carbon). SIMULADO / NO MEDIDO salvo validacion fisica. */
 #define NAV_V5                     1
-#define NAV_V5_RETENCION_MS      500
+#define NAV_V5_RETENCION_MS      200
+#define NAV_V5_PATAS_RETENCION_MS 500
 #define NAV_V5_SOLIDO_RETENCION_MS 1800
 #define NAV_V5_MARGEN_COLA_MM    180
 int navegador_poner_v5(Navegador *nav, int activo);

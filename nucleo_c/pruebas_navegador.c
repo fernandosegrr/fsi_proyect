@@ -2338,6 +2338,36 @@ static void pruebas_v5_etapa1_etapa2(void)
     navegador_tick(&nav, 150, &obs);
     caso("con v5=0, vistazo_confirmado tras coincidencia previa mantiene zona_cercania=0 (paridad v3)",
          nav.zona_cercania[ZONA_IZQUIERDA] == 0 && nav.zona_cerc_frena[ZONA_IZQUIERDA] == 0);
+
+    /* Fase 4.4 fix (G1 falso_reflejo): detencion por alucinacion aislada (350 ms) con solo color despues
+     * debe liberar antes de NAV_COINCIDENCIA_ESQUIVAR_MS (800 ms) y no disparar un esquive falso. */
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    navegador_iniciar(&nav);
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 3250; t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    for (t = 3350; t <= 3650; t += 100) {
+        obs.zona[ZONA_CENTRO].hay_obstaculo = 1;
+        obs.zona[ZONA_CENTRO].cercania = 3;
+        obs.zona[ZONA_CENTRO].celdas = 25;
+        obs.fuentes_vision[ZONA_CENTRO] = 3;
+        navegador_tick(&nav, t, &obs);
+    }
+    obs.fuentes_vision[ZONA_CENTRO] = 1;
+    obs.zona[ZONA_CENTRO].hay_obstaculo = 1;
+    obs.zona[ZONA_CENTRO].cercania = 3;
+    obs.zona[ZONA_CENTRO].celdas = 25;
+    for (t = 3750; t <= 4150; t += 100) {
+        navegador_tick(&nav, t, &obs);
+    }
+    caso("v5 fix: alucinacion aislada de 350 ms libera sin esquivar en reflejos (G1)",
+         nav.estado == NAV_SIGUIENDO && nav.esquivadas == 0);
 }
 
 int main(void)

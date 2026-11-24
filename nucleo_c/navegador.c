@@ -2480,7 +2480,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
 
                 if (nav->v5_racha_seguidas[z] >= req_r && (nn_cuadro || rachas_cuadro >= 2 || eco_reciente)) {
                     solido_ok = 1;
-                    nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_RETENCION_MS;
+                    nav->v5_solido_hasta_ms[z] = ahora_ms + (uint32_t)NAV_V5_PATAS_RETENCION_MS;
                     if (nav->v5_coinc_cercania[z] < 2) nav->v5_coinc_cercania[z] = 2;
                 }
             }
