@@ -107,6 +107,13 @@ typedef struct {
     int det_falso_vivo;         /* inferencias que le quedan a la caja inventada actual */
     CajaModelo det_falso;
     uint32_t azar;
+    /* Parametros calibrados / aleatorizados del laser (v5): con laser_param_activo == 0 conserva constantes heredadas. */
+    int laser_param_activo;
+    double laser_adelante_mm;
+    double laser_ruido_rel;
+    double laser_ruido_abs_mm;
+    double laser_perdida;
+    double laser_senal_min;
 } Mundo;
 
 typedef struct { double x, y, rumbo_rad; } MvPose;

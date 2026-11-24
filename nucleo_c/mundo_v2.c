@@ -56,6 +56,12 @@ void mv_iniciar(Mundo *m, uint32_t semilla)
     m->foto.fondo[0] = 0.50; m->foto.fondo[1] = 0.48; m->foto.fondo[2] = 0.45;
     m->foto.brillo_piso = 0.0;
     m->det_falsos_por_inferencia = 0.005;
+    m->laser_param_activo = 0;
+    m->laser_adelante_mm = MV_LASER_ADELANTE_MM;
+    m->laser_ruido_rel = 0.02;
+    m->laser_ruido_abs_mm = 3.0;
+    m->laser_perdida = 0.02;
+    m->laser_senal_min = 1.0;
 }
 
 int mv_objeto(Mundo *m, const char *nombre, double recall, int clase, uint32_t aparece_ms, int en_ruta)
@@ -371,8 +377,13 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
 {
     enum { NH = 9, NV = 9 };
     const double medio = rad(MV_LASER_CONO_GRADOS / 2.0);
+    double adel = m->laser_param_activo ? m->laser_adelante_mm : MV_LASER_ADELANTE_MM;
+    double perdida = m->laser_param_activo ? m->laser_perdida : 0.02;
+    double s_min = m->laser_param_activo ? m->laser_senal_min : 1.0;
+    double r_rel = m->laser_param_activo ? m->laser_ruido_rel : 0.02;
+    double r_abs = m->laser_param_activo ? m->laser_ruido_abs_mm : 3.0;
     double fx = sin(p.rumbo_rad), fy = -cos(p.rumbo_rad), rx = cos(p.rumbo_rad), ry = sin(p.rumbo_rad);
-    double ox = p.x + fx * MV_LASER_ADELANTE_MM, oy = p.y + fy * MV_LASER_ADELANTE_MM, oz = MV_LASER_ALTURA_MM;
+    double ox = p.x + fx * adel, oy = p.y + fy * adel, oz = MV_LASER_ALTURA_MM;
     double dist[NH * NV], refl[NH * NV], peso[NH * NV];
     double corr = (mv_uniforme(m) - 0.5) * 2.0 * medio / (NH - 1);   /* la rejilla de rayos se corre un poco en cada lectura */
     double peso_total = 0.0;
@@ -410,7 +421,7 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
             }
         }
     }
-    if (peso_total <= 0.0 || mv_uniforme(m) < 0.02) return 0;   /* 2 % de lecturas perdidas */
+    if (peso_total <= 0.0 || mv_uniforme(m) < perdida) return 0;   /* lecturas perdidas */
     if (mv_laser_mezcla && n_golpes > 0) {   /* v3: promedio ponderado por la señal de cada grupo (grupos separados por más de 80 mm) */
         double s_tot = 0.0, sd_tot = 0.0;
         int hecho[NH * NV];
@@ -430,8 +441,8 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
             s_tot += senal;
             sd_tot += senal * d0;
         }
-        if (s_tot >= 1.0) {
-            double leido = (sd_tot / s_tot) * (1.0 + mv_normal(m, 0.02)) + mv_normal(m, 3.0);
+        if (s_tot >= s_min) {
+            double leido = (sd_tot / s_tot) * (1.0 + mv_normal(m, r_rel)) + mv_normal(m, r_abs);
 
             *mm = (int)limitar(leido, 8.0, MV_LASER_ALCANCE_MM);
             return 1;
@@ -449,8 +460,8 @@ int mv_laser(Mundo *m, MvPose p, uint32_t t_ms, int *mm)
         dd = d0 > 30.0 ? d0 : 30.0;
         /* Normalizada: un blanco de cartón (0.5) que llena el cono se ve justo hasta el alcance. */
         senal = (suma_r / peso_total) / 0.5 * (MV_LASER_ALCANCE_MM / dd) * (MV_LASER_ALCANCE_MM / dd);
-        if (senal >= 1.0) {
-            double leido = d0 * (1.0 + mv_normal(m, 0.02)) + mv_normal(m, 3.0);
+        if (senal >= s_min) {
+            double leido = d0 * (1.0 + mv_normal(m, r_rel)) + mv_normal(m, r_abs);
 
             *mm = (int)limitar(leido, 8.0, MV_LASER_ALCANCE_MM);
             return 1;

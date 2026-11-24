@@ -61,4 +61,8 @@ pruebas_firmware/pruebas_*
 
 !pruebas_firmware/pruebas_*.c
 fotos_entrada/
+cajas_negras/
+docs/pruebas_fisicas_20261114.csv
+docs/pruebas_fisicas_20261123.csv
+docs/precision/v5/base_v3_calibrada.json
 

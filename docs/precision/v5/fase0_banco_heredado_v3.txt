@@ -1,0 +1,95 @@
+-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), 40 corridas por escenario, semillas 170000 + indice * 10007 + corrida --
+AV2 escenario=libre_limpio tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10518 p95=10550 | lateral media=14 p95=32 | longitudinal media=42 p95=87 | desvio_max p95=31 | esquivas=0 paradas=0 corridas_con_parada=0 | cuadros color=0 coincidencia=0 | sin_piso=4 | bajo_mueble=0 vistazos=3 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_juntas tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10522 p95=10550 | lateral media=12 p95=29 | longitudinal media=49 p95=94 | desvio_max p95=29 | esquivas=0 paradas=0 corridas_con_parada=0 | cuadros color=0 coincidencia=0 | sin_piso=5 | bajo_mueble=0 vistazos=4 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_sol tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10650 p95=11050 | lateral media=16 p95=35 | longitudinal media=36 p95=93 | desvio_max p95=46 | esquivas=0 paradas=8 corridas_con_parada=8 | cuadros color=5949 coincidencia=41 | sin_piso=10 | bajo_mueble=0 vistazos=72 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_sombra tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10613 p95=10900 | lateral media=15 p95=31 | longitudinal media=31 p95=75 | desvio_max p95=46 | esquivas=0 paradas=5 corridas_con_parada=5 | cuadros color=4673 coincidencia=38 | sin_piso=26 | bajo_mueble=0 vistazos=71 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_reflejo tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10562 p95=10600 | lateral media=24 p95=45 | longitudinal media=45 p95=85 | desvio_max p95=54 | esquivas=0 paradas=2 corridas_con_parada=1 | cuadros color=3654 coincidencia=4 | sin_piso=23 | bajo_mueble=0 vistazos=35 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_exposicion tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10518 p95=10550 | lateral media=13 p95=37 | longitudinal media=54 p95=87 | desvio_max p95=37 | esquivas=0 paradas=0 corridas_con_parada=0 | cuadros color=7 coincidencia=0 | sin_piso=2 | bajo_mueble=0 vistazos=8 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=falso_detector tipo=falso n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=10565 p95=10600 | lateral media=15 p95=31 | longitudinal media=40 p95=80 | desvio_max p95=37 | esquivas=0 paradas=0 corridas_con_parada=0 | cuadros color=0 coincidencia=0 | sin_piso=7 | bajo_mueble=0 vistazos=112 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=caja20 tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=17643 p95=18350 | lateral media=27 p95=53 | longitudinal media=73 p95=156 | desvio_max p95=450 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=1253 coincidencia=41 | sin_piso=4 | bajo_mueble=0 vistazos=0 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=caja20_lateral tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=19363 p95=20950 | lateral media=20 p95=44 | longitudinal media=104 p95=423 | desvio_max p95=491 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=1145 coincidencia=50 | sin_piso=5 | bajo_mueble=0 vistazos=22 vistazos_con_eco=19 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=banquito35x45 tipo=obstaculo n=40 exito=37 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=20373 p95=23250 | lateral media=26 p95=58 | longitudinal media=139 p95=512 | desvio_max p95=461 | esquivas=38 paradas=43 corridas_con_parada=40 | cuadros color=728 coincidencia=89 | sin_piso=4 | bajo_mueble=3 vistazos=57 vistazos_con_eco=15 | causas | cat ok=37 contacto=0 bajo_mueble=3 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=objeto_largo90 tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=21618 p95=21950 | lateral media=26 p95=57 | longitudinal media=54 p95=115 | desvio_max p95=461 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=2169 coincidencia=120 | sin_piso=0 | bajo_mueble=0 vistazos=6 vistazos_con_eco=2 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=silla_patas tipo=obstaculo n=40 exito=14 contactos=1 ayuda=5 error=0 terminado_falso=0 sin_terminar=0 llegan=35 | tiempo_ms media=14755 p95=21450 | lateral media=17 p95=60 | longitudinal media=42 p95=143 | desvio_max p95=466 | esquivas=20 paradas=34 corridas_con_parada=26 | cuadros color=1387 coincidencia=78 | sin_piso=3 | bajo_mueble=25 vistazos=87 vistazos_con_eco=4 | causas 2:1 16:1 18:3 | cat ok=14 contacto=1 bajo_mueble=24 ayuda=1 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=pared_tras_el_final tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=7415 p95=7450 | lateral media=11 p95=25 | longitudinal media=30 p95=54 | desvio_max p95=24 | esquivas=0 paradas=0 corridas_con_parada=0 | cuadros color=0 coincidencia=0 | sin_piso=2 | bajo_mueble=0 vistazos=8 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=dos_obstaculos tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=23751 p95=27650 | lateral media=26 p95=60 | longitudinal media=57 p95=208 | desvio_max p95=464 | esquivas=55 paradas=40 corridas_con_parada=40 | cuadros color=1515 coincidencia=72 | sin_piso=0 | bajo_mueble=0 vistazos=3 vistazos_con_eco=1 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=pasillo tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=17553 p95=18300 | lateral media=23 p95=46 | longitudinal media=77 p95=130 | desvio_max p95=442 | esquivas=40 paradas=42 corridas_con_parada=40 | cuadros color=1257 coincidencia=32 | sin_piso=6 | bajo_mueble=0 vistazos=3 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=aparece_de_repente tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=18656 p95=24200 | lateral media=22 p95=52 | longitudinal media=223 p95=1302 | desvio_max p95=449 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=1134 coincidencia=40 | sin_piso=3 | bajo_mueble=0 vistazos=3 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=objeto_bajo tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=21472 p95=25850 | lateral media=21 p95=50 | longitudinal media=121 p95=860 | desvio_max p95=462 | esquivas=40 paradas=80 corridas_con_parada=40 | cuadros color=4112 coincidencia=2369 | sin_piso=4 | bajo_mueble=0 vistazos=41 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=caja20_con_sol tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=18353 p95=21650 | lateral media=19 p95=49 | longitudinal media=165 p95=871 | desvio_max p95=445 | esquivas=40 paradas=42 corridas_con_parada=40 | cuadros color=2545 coincidencia=97 | sin_piso=10 | bajo_mueble=0 vistazos=15 vistazos_con_eco=2 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=bateria_baja tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=17838 p95=20600 | lateral media=25 p95=52 | longitudinal media=86 p95=246 | desvio_max p95=435 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=1261 coincidencia=67 | sin_piso=3 | bajo_mueble=0 vistazos=1 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=pared_al_frente tipo=imposible n=40 exito=40 contactos=0 ayuda=40 error=0 terminado_falso=0 sin_terminar=0 llegan=0 | tiempo_ms media=0 p95=0 | lateral media=0 p95=0 | longitudinal media=0 p95=0 | desvio_max p95=209 | esquivas=40 paradas=40 corridas_con_parada=40 | cuadros color=0 coincidencia=0 | sin_piso=4 | bajo_mueble=0 vistazos=0 vistazos_con_eco=0 | causas 16:40 | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=bajo_solo_color tipo=limite n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=20892 p95=24700 | lateral media=21 p95=47 | longitudinal media=132 p95=787 | desvio_max p95=463 | esquivas=40 paradas=41 corridas_con_parada=40 | cuadros color=3400 coincidencia=6 | sin_piso=4 | bajo_mueble=0 vistazos=40 vistazos_con_eco=2 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=caja_y_pared_al_lado tipo=obstaculo n=40 exito=27 contactos=1 ayuda=13 error=0 terminado_falso=0 sin_terminar=0 llegan=27 | tiempo_ms media=20833 p95=35050 | lateral media=38 p95=79 | longitudinal media=342 p95=1506 | desvio_max p95=440 | esquivas=52 paradas=40 corridas_con_parada=40 | cuadros color=1340 coincidencia=59 | sin_piso=6 | bajo_mueble=0 vistazos=3 vistazos_con_eco=0 | causas 16:3 18:10 | cat ok=27 contacto=1 bajo_mueble=0 ayuda=12 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+AV2 escenario=caja_antes_de_esquina tipo=obstaculo n=40 exito=40 contactos=0 ayuda=0 error=0 terminado_falso=0 sin_terminar=0 llegan=40 | tiempo_ms media=21020 p95=23000 | lateral media=43 p95=89 | longitudinal media=31 p95=68 | desvio_max p95=1261 | esquivas=40 paradas=42 corridas_con_parada=40 | cuadros color=1254 coincidencia=78 | sin_piso=7 | bajo_mueble=0 vistazos=0 vistazos_con_eco=0 | causas | cat ok=40 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0
+OK     v3: las categorias excluyentes (ok, contacto, bajo_mueble, ayuda...) suman las corridas de cada escenario y ok coincide con el exito
+FALLO  compuerta: cero contactos en todos los escenarios (salvo el limite conocido)
+OK     compuerta: ningun Terminado sin haber dejado atras el objeto
+3 casos, 1 fallos
+
+Simulando 23 escenarios x 200 corridas en 6 procesos...
+SIMULADO / NO MEDIDO en el carro. Banco nucleo_c/pruebas_autonomo_v2.c; 200 corridas por escenario; semillas 170000 + indice * 10007 + corrida.
+Columnas EXCLUYENTES (suman las corridas): ok | contacto | bajo_mueble | ayuda | error | sin_terminar | falso_fin | esquive_falso | otro (ver la cabecera de scripts/compuertas_autonomo.py).
+Después, aparte: esquives (total) | paradas (corridas con parada) | tiempo medio (s) | lateral p95 (mm) | vistazos (con eco) | causas de AYUDA/ERROR
+
+libre_limpio  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   35 | vistazos    26 (   0) | causas 
+falso_juntas  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   34 | vistazos    30 (   0) | causas 
+falso_sol  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas    27 (  26) | t  10.6 s | lat p95   36 | vistazos   343 (   0) | causas 
+falso_sombra  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas    16 (  15) | t  10.6 s | lat p95   37 | vistazos   348 (   0) | causas 
+falso_reflejo  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas    22 (  18) | t  10.6 s | lat p95   38 | vistazos   157 (   0) | causas 
+falso_exposicion  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.5 s | lat p95   35 | vistazos    37 (   0) | causas 
+falso_detector  [falso]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t  10.6 s | lat p95   36 | vistazos   569 (   0) | causas 
+caja20  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   202 ( 200) | t  17.9 s | lat p95   51 | vistazos    10 (   2) | causas 
+caja20_lateral  [obstaculo]
+   actual   ok=199 contacto=0 bajo_mueble=0 ayuda=1 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   205 ( 200) | t  19.5 s | lat p95   42 | vistazos   123 ( 101) | causas 16:1
+banquito35x45  [obstaculo]
+   actual   ok=167 contacto=11 bajo_mueble=17 ayuda=5 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   184 | paradas   228 ( 195) | t  19.8 s | lat p95   56 | vistazos   327 (  78) | causas 16:3 18:9
+objeto_largo90  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   210 | paradas   211 ( 200) | t  21.9 s | lat p95   56 | vistazos    35 (  11) | causas 
+silla_patas  [obstaculo]
+   actual   ok=87 contacto=2 bajo_mueble=108 ayuda=3 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   104 | paradas   158 ( 136) | t  15.5 s | lat p95   47 | vistazos   410 (  30) | causas 2:1 16:4 18:9
+pared_tras_el_final  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives     0 | paradas     0 (   0) | t   7.4 s | lat p95   26 | vistazos    26 (   0) | causas 
+dos_obstaculos  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   268 | paradas   200 ( 200) | t  23.6 s | lat p95   68 | vistazos    13 (   2) | causas 
+pasillo  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   203 ( 200) | t  17.5 s | lat p95   53 | vistazos    10 (   1) | causas 
+aparece_de_repente  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   200 ( 200) | t  18.3 s | lat p95   50 | vistazos    11 (   0) | causas 
+objeto_bajo  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   409 ( 200) | t  21.2 s | lat p95   51 | vistazos   202 (   0) | causas 
+caja20_con_sol  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   210 ( 200) | t  18.1 s | lat p95   56 | vistazos    60 (  11) | causas 
+bateria_baja  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   200 ( 200) | t  17.9 s | lat p95   59 | vistazos     6 (   0) | causas 
+pared_al_frente  [imposible]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   202 | paradas   202 ( 200) | t   0.0 s | lat p95    0 | vistazos     3 (   2) | causas 16:200
+bajo_solo_color  [limite]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   210 ( 200) | t  20.7 s | lat p95   47 | vistazos   202 (   4) | causas 
+caja_y_pared_al_lado  [obstaculo]
+   actual   ok=129 contacto=1 bajo_mueble=0 ayuda=70 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   265 | paradas   204 ( 200) | t  21.6 s | lat p95  116 | vistazos    13 (   2) | causas 16:14 18:57
+caja_antes_de_esquina  [obstaculo]
+   actual   ok=200 contacto=0 bajo_mueble=0 ayuda=0 error=0 sin_terminar=0 falso_fin=0 esquive_falso=0 otro=0 | esquives   200 | paradas   210 ( 200) | t  20.6 s | lat p95   97 | vistazos    15 (   3) | causas 
+
+COMPUERTAS de la versión actual: 12 fallos
+   FALLO falso_sol: el carro se detuvo en 26/200 corridas, 27 paradas (meta: sin detenerse)
+   FALLO falso_sombra: el carro se detuvo en 15/200 corridas, 16 paradas (meta: sin detenerse)
+   FALLO falso_reflejo: el carro se detuvo en 18/200 corridas, 22 paradas (meta: sin detenerse)
+   FALLO banquito35x45: 11 contactos (meta 0)
+   FALLO banquito35x45: éxito 167/200 (meta >= 99 %)
+   FALLO banquito35x45: AYUDA 12/200 (meta < 1 %)
+   FALLO silla_patas: 2 contactos (meta 0)
+   FALLO silla_patas: éxito 87/200 (meta >= 99 %)
+   FALLO silla_patas: AYUDA 14/200 (meta < 1 %)
+   FALLO caja_y_pared_al_lado: 1 contactos (meta 0)
+   FALLO caja_y_pared_al_lado: éxito 129/200 (meta >= 99 %)
+   FALLO caja_y_pared_al_lado: AYUDA 71/200 (meta < 1 %)
+

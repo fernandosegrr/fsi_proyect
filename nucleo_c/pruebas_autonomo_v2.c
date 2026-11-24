@@ -20,6 +20,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include "simulador_navegador.h"
@@ -39,8 +40,11 @@ enum {
     E_LIBRE, E_FP_JUNTAS, E_FP_SOL, E_FP_SOMBRA, E_FP_REFLEJO, E_FP_EXPOSICION, E_FP_DETECTOR,
     E_CAJA20, E_CAJA20_LADO, E_BANQUITO, E_LARGO90, E_SILLA, E_PARED_FINAL, E_DOS, E_PASILLO, E_APARECE, E_BAJO,
     E_CAJA20_SOL, E_BATERIA, E_PARED_FRENTE, E_BAJO_SOLO_COLOR,
-    E_CAJA_PARED, E_ESQUINA, N_ESC   /* añadidos tras la revisión independiente: van al final para no mover las semillas de los anteriores */
+    E_CAJA_PARED, E_ESQUINA,
+    E_SIN_ECO, E_DOS_MUEBLES, E_MUEBLE_PARED, E_PASILLO_ANGOSTO, N_ESC
 };
+#define N_ESC_LEGACY     23
+#define N_ESC_DESARROLLO 24
 static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "libre_limpio", T_FALSO }, { "falso_juntas", T_FALSO }, { "falso_sol", T_FALSO }, { "falso_sombra", T_FALSO },
     { "falso_reflejo", T_FALSO }, { "falso_exposicion", T_FALSO }, { "falso_detector", T_FALSO },
@@ -48,7 +52,9 @@ static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "silla_patas", T_OBSTACULO }, { "pared_tras_el_final", T_OBSTACULO }, { "dos_obstaculos", T_OBSTACULO }, { "pasillo", T_OBSTACULO },
     { "aparece_de_repente", T_OBSTACULO }, { "objeto_bajo", T_OBSTACULO }, { "caja20_con_sol", T_OBSTACULO }, { "bateria_baja", T_OBSTACULO },
     { "pared_al_frente", T_IMPOSIBLE }, { "bajo_solo_color", T_LIMITE },
-    { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO }
+    { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO },
+    { "bloque_sin_eco", T_OBSTACULO }, { "dos_muebles", T_OBSTACULO },
+    { "mueble_con_pared", T_OBSTACULO }, { "pasillo_angosto", T_OBSTACULO }
 };
 
 static Navegador nav;
@@ -56,6 +62,33 @@ static Simulador sim;
 static Mundo mundo;
 static int casos, fallos, depurar;
 static uint32_t azar;
+static int op_conjunto = 0;       /* 0 = heredado v2/v3, 1 = DESARROLLO, 2 = RESERVADO */
+static int op_laser = 0;          /* 0 = normal, 1 = pesimista */
+static int op_ciega = 0;          /* 1 = evaluacion ciega con SplitMix64 (strtoull) */
+static uint64_t op_ciega_semilla = 0ULL;
+static int op_v5_apagado = 0;     /* 1 = AV5_APAGADO=1 (reproduce v3) */
+
+static uint64_t splitmix64_val(uint64_t x)
+{
+    uint64_t z = x + 0x9e3779b97f4a7c15ULL;
+
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+    return z ^ (z >> 31);
+}
+
+static uint32_t semilla_corrida(int e, int i)
+{
+    if (op_ciega) {
+        uint64_t k = op_ciega_semilla ^ ((uint64_t)(e + 1) * 0x9e3779b97f4a7c15ULL) ^ ((uint64_t)(i + 1) * 0xbf58476d1ce4e5b9ULL);
+        uint32_t s = (uint32_t)(splitmix64_val(k) ^ (splitmix64_val(k + 1ULL) >> 17));
+
+        return s ? s : 1u;
+    }
+    if (op_conjunto == 1) return 2100000u + (uint32_t)e * 10007u + (uint32_t)i;
+    if (op_conjunto == 2) return 4300000u + (uint32_t)e * 10007u + (uint32_t)i;
+    return 170000u + (uint32_t)e * 10007u + (uint32_t)i;
+}
 
 static void caso(const char *nombre, int ok)
 {
@@ -227,7 +260,7 @@ static void armar_escena(int e, Escena *s)
         mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
         {
             int o = mv_objeto(&mundo, "paredes", 0.0, 0, 0, 0);
-            double w = unif(780.0, 900.0);
+            double w = (op_conjunto == 1) ? unif(550.0, 800.0) : unif(780.0, 900.0);
 
             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
             mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
@@ -265,6 +298,54 @@ static void armar_escena(int e, Escena *s)
             else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
         }
         break;
+    case E_SIN_ECO:          /* bloque oscuro / mate que no devuelve eco al laser pero si ven color y detector */
+        d = unif(850.0, 1150.0);
+        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0,
+                35, 40, 48, 0.002, unif(0.80, 0.95), 72, 0);
+        break;
+    case E_DOS_MUEBLES:      /* reservado / ciego: dos muebles de patas finas en secuencia */
+        ruta_recta(s, 15);
+        d = unif(700.0, 900.0);
+        mv_mueble(&mundo, "banquito_a", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 200.0,
+                  unif(320.0, 400.0), unif(360.0, 450.0), unif(25.0, 38.0), unif(280.0, 420.0), 0.0,
+                  135, 90, 52, unif(0.45, 0.75), 13);
+        d = unif(1750.0, 2050.0);
+        mv_mueble(&mundo, "silla_b", 1000.0 + unif(-50.0, 50.0), s->y0 - d - 210.0,
+                  unif(340.0, 420.0), unif(380.0, 450.0), unif(24.0, 36.0), unif(380.0, 460.0), 400.0,
+                  60, 60, 75, unif(0.65, 0.90), 61);
+        break;
+    case E_MUEBLE_PARED:     /* reservado / ciego: mueble de patas finas junto a una pared lateral */
+        d = unif(850.0, 1100.0);
+        mv_mueble(&mundo, "banquito", 1000.0 + unif(-35.0, 35.0), s->y0 - d - 210.0,
+                  unif(320.0, 390.0), unif(400.0, 460.0), unif(25.0, 36.0), unif(280.0, 420.0), 0.0,
+                  130, 85, 50, unif(0.50, 0.80), 13);
+        {
+            int o = mv_objeto(&mundo, "pared_lateral", 0.0, 0, 0, 0);
+            double w = unif(320.0, 480.0);
+
+            if (entre(0, 1)) mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    case E_PASILLO_ANGOSTO:  /* reservado / ciego: pasillo estrecho/asimetrico con paso libre por un lado */
+        d = unif(900.0, 1150.0);
+        {
+            int lado_libre = entre(0, 1) ? 1 : -1;
+            double w_ang = unif(520.0, 620.0);
+            double w_amp = unif(660.0, 760.0);
+            double caja_x = 1000.0 - lado_libre * unif(20.0, 90.0);
+            int o = mv_objeto(&mundo, "paredes", 0.0, 0, 0, 0);
+
+            mv_caja(&mundo, "caja20", caja_x, s->y0 - d - 100.0, 200.0, 200.0, 200.0, 145, 105, 65, 0.5, 0.03, 72, 0);
+            if (lado_libre > 0) {
+                mv_prisma(&mundo, o, 1000.0 - w_ang - 100.0, -800.0, 1000.0 - w_ang, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+                mv_prisma(&mundo, o, 1000.0 + w_amp, -800.0, 1000.0 + w_amp + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            } else {
+                mv_prisma(&mundo, o, 1000.0 - w_amp - 100.0, -800.0, 1000.0 - w_amp, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+                mv_prisma(&mundo, o, 1000.0 + w_ang, -800.0, 1000.0 + w_ang + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            }
+        }
+        break;
     default:                 /* E_ESQUINA (revisión): ruta en L con la caja 40 a 60 cm antes de la esquina: el paso en paralelo no puede seguir de frente más allá */
         {
             int o;
@@ -273,6 +354,209 @@ static void armar_escena(int e, Escena *s)
             d = unif(400.0, 600.0);              /* de la cara de la caja a la esquina (que está en y = 0) */
             o = mv_caja(&mundo, "caja20", 1000.0 + unif(-30.0, 30.0), d + 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
             mundo.objetos[o].en_ruta = 0;        /* «haberla dejado atrás» aquí es llegar al final, que está después de la esquina */
+        }
+        break;
+    }
+    s->fondo_medible = 0;
+}
+
+/* Reconstruye variantes RESERVADO / CIEGA sin tocar ni sesgar DESARROLLO ni el modo heredado. */
+static void armar_escena_reservado(int e, Escena *s, uint32_t semilla)
+{
+    double d, lado;
+
+    mv_iniciar(&mundo, semilla ^ 0xA55A1337u);
+    memset(s, 0, sizeof *s);
+    s->tipo = ESC[e].tipo;
+    s->aparece_obj = -1;
+    ruta_recta(s, 10);
+    luz_normal();
+    mundo.foto.albedo[0] = unif(0.54, 0.80);
+    mundo.foto.albedo[1] = mundo.foto.albedo[0] * unif(0.93, 1.01);
+    mundo.foto.albedo[2] = mundo.foto.albedo[0] * unif(0.86, 0.99);
+    mundo.foto.rot_rad = unif(-0.14, 0.14);
+    switch (e) {
+    case E_LIBRE:
+        break;
+    case E_FP_JUNTAS:
+        mundo.foto.loseta_mm = unif(240.0, 360.0);
+        mundo.foto.junta_mm = unif(5.5, 9.0);
+        mundo.foto.junta_factor = unif(0.38, 0.58);
+        break;
+    case E_FP_SOL:
+        mv_parche(&mundo, 1000.0 + unif(-220.0, 220.0), unif(550.0, 1350.0), unif(450.0, 950.0), unif(140.0, 340.0), unif(-45.0, 45.0), unif(2.1, 3.6), unif(8.0, 28.0));
+        if (entre(0, 99) < 65) mv_parche(&mundo, 1000.0 + unif(-320.0, 320.0), unif(180.0, 600.0), unif(220.0, 450.0), unif(100.0, 220.0), unif(-50.0, 50.0), unif(1.9, 3.2), 18.0);
+        break;
+    case E_FP_SOMBRA:
+        mv_parche(&mundo, 1000.0 + unif(-220.0, 220.0), unif(550.0, 1350.0), unif(380.0, 820.0), unif(160.0, 360.0), unif(-45.0, 45.0), unif(0.42, 0.62), unif(18.0, 65.0));
+        mundo.foto.sombra_propia = entre(0, 1) ? unif(0.52, 0.72) : 1.0;
+        break;
+    case E_FP_REFLEJO:
+        mundo.foto.reflejo = 1;
+        mundo.foto.brillo_piso = unif(0.55, 1.0);
+        mundo.foto.vent_x = 1000.0 + unif(-450.0, 450.0);
+        mundo.foto.vent_y = -unif(1300.0, 2900.0);
+        mundo.foto.vent_nx = 0.0; mundo.foto.vent_ny = 1.0;
+        mundo.foto.vent_semiancho = unif(480.0, 1050.0);
+        mundo.foto.vent_z0 = unif(650.0, 980.0);
+        mundo.foto.vent_z1 = mundo.foto.vent_z0 + unif(850.0, 1350.0);
+        mundo.foto.vent_brillo = unif(1.6, 3.2);
+        break;
+    case E_FP_EXPOSICION:
+        mundo.foto.escalon_ganancia = entre(0, 1) ? unif(0.50, 0.75) : unif(1.30, 1.80);
+        mundo.foto.escalon_ms = (uint32_t)entre(2200, 7800);
+        break;
+    case E_FP_DETECTOR:
+        mundo.det_falsos_por_inferencia = unif(0.12, 0.28);
+        break;
+    case E_CAJA20:
+    case E_CAJA20_SOL:
+    case E_BATERIA:
+        d = unif(800.0, 1250.0);
+        mv_caja(&mundo, "caja_res", 1000.0 + unif(-55.0, 55.0), s->y0 - d - 110.0, unif(170.0, 240.0), unif(170.0, 240.0), unif(180.0, 240.0),
+                entre(95, 165), entre(80, 125), entre(55, 95), unif(0.40, 0.65), 0.04, 72, 0);
+        if (e == E_CAJA20_SOL) mv_parche(&mundo, 1000.0 + unif(-200.0, 200.0), s->y0 - unif(250.0, 750.0), unif(480.0, 900.0), unif(130.0, 260.0), unif(-35.0, 35.0), unif(2.0, 3.6), 15.0);
+        if (e == E_BATERIA) s->sag_pct = entre(10, 20);
+        break;
+    case E_CAJA20_LADO:
+        d = unif(820.0, 1220.0);
+        lado = unif(85.0, 195.0) * (entre(0, 1) ? 1.0 : -1.0);
+        mv_caja(&mundo, "caja_lado", 1000.0 + lado, s->y0 - d - 100.0, unif(180.0, 230.0), unif(180.0, 230.0), 200.0, 140, 100, 65, 0.5, 0.04, 72, 0);
+        break;
+    case E_BANQUITO:
+        d = unif(750.0, 1150.0);
+        mv_mueble(&mundo, "banquito_res", 1000.0 + unif(-55.0, 55.0), s->y0 - d - 210.0,
+                  unif(310.0, 410.0), unif(370.0, 470.0), unif(24.0, 40.0), unif(270.0, 420.0), 0.0,
+                  130, 85, 50, unif(0.42, 0.72), 13);
+        break;
+    case E_LARGO90:
+        ruta_recta(s, 14);
+        d = unif(750.0, 1150.0);
+        mv_caja(&mundo, "largo_res", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 440.0, unif(260.0, 340.0), unif(820.0, 960.0), 240.0, 85, 95, 130, 0.48, 0.05, 72, 0);
+        break;
+    case E_SILLA:
+        d = unif(750.0, 1150.0);
+        mv_mueble(&mundo, "silla_res", 1000.0 + unif(-55.0, 55.0), s->y0 - d - 210.0,
+                  unif(350.0, 440.0), unif(380.0, 460.0), unif(22.0, 34.0), unif(390.0, 470.0), 380.0,
+                  55, 58, 72, unif(0.60, 0.90), 61);
+        break;
+    case E_PARED_FINAL:
+        ruta_recta(s, 7);
+        d = unif(430.0, 680.0);
+        {
+            int o = mv_objeto(&mundo, "pared", 0.0, 0, 0, 0);
+
+            mv_prisma(&mundo, o, -1500.0, -d - 120.0 - 100.0, 3500.0, -d - 120.0, 0.0, 1500.0, 210, 205, 195, 0.6);
+        }
+        break;
+    case E_DOS:
+        ruta_recta(s, 15);
+        d = unif(680.0, 920.0);
+        mv_caja(&mundo, "caja_a", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 100.0, unif(180.0, 220.0), 200.0, 200.0, 150, 110, 70, 0.5, 0.04, 72, 0);
+        d = unif(1720.0, 2050.0);
+        mv_caja(&mundo, "caja_b", 1000.0 + unif(-70.0, 70.0), s->y0 - d - 100.0, unif(180.0, 230.0), 200.0, 200.0, 70, 120, 80, 0.5, 0.04, 72, 0);
+        break;
+    case E_PASILLO:
+        d = unif(850.0, 1150.0);
+        mv_caja(&mundo, "caja20", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
+        {
+            int o = mv_objeto(&mundo, "paredes", 0.0, 0, 0, 0);
+            double w = unif(650.0, 860.0);
+
+            mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    case E_APARECE:
+        d = unif(850.0, 1300.0);
+        s->aparece_obj = mv_caja(&mundo, "caja_sorpresa", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 145, 105, 65, 0.5, 0.04, 72, 0xFFFFFFFFu);
+        s->aparece_mm = unif(340.0, 620.0);
+        break;
+    case E_BAJO:
+        d = unif(850.0, 1200.0);
+        mv_caja(&mundo, "plano_res", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 125.0, unif(250.0, 340.0), unif(210.0, 280.0), unif(12.0, 24.0),
+                entre(30, 55), entre(35, 55), entre(75, 110), unif(0.25, 0.35), unif(0.45, 0.72), 73, 0);
+        break;
+    case E_PARED_FRENTE:
+        d = unif(850.0, 1200.0);
+        {
+            int o = mv_objeto(&mundo, "pared", 0.0, 0, 0, 1);
+
+            mv_prisma(&mundo, o, -1500.0, s->y0 - d - 100.0, 3500.0, s->y0 - d, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    case E_BAJO_SOLO_COLOR:
+        d = unif(850.0, 1200.0);
+        mv_caja(&mundo, "plano_desc_res", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 125.0, unif(250.0, 340.0), unif(210.0, 280.0), unif(12.0, 24.0),
+                entre(30, 55), entre(35, 55), entre(75, 110), unif(0.25, 0.35), 0.0, 0, 0);
+        break;
+    case E_CAJA_PARED:
+        d = unif(850.0, 1200.0);
+        mv_caja(&mundo, "caja20", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0, 150, 110, 70, 0.5, 0.03, 72, 0);
+        {
+            int o = mv_objeto(&mundo, "pared_lateral", 0.0, 0, 0, 0);
+            double w = unif(250.0, 460.0);
+
+            if (entre(0, 1)) mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    case E_SIN_ECO:
+        d = unif(800.0, 1180.0);
+        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-65.0, 65.0), s->y0 - d - 105.0, unif(170.0, 260.0), unif(170.0, 260.0), unif(180.0, 260.0),
+                entre(25, 50), entre(28, 52), entre(32, 65), unif(0.001, 0.004), unif(0.65, 0.92), 72, 0);
+        break;
+    case E_DOS_MUEBLES:
+        ruta_recta(s, 15);
+        d = unif(680.0, 920.0);
+        mv_mueble(&mundo, "banquito_a", 1000.0 + unif(-55.0, 55.0), s->y0 - d - 200.0,
+                  unif(310.0, 410.0), unif(360.0, 460.0), unif(24.0, 40.0), unif(270.0, 420.0), 0.0,
+                  130, 88, 52, unif(0.45, 0.78), 13);
+        d = unif(1720.0, 2080.0);
+        mv_mueble(&mundo, "silla_b", 1000.0 + unif(-55.0, 55.0), s->y0 - d - 210.0,
+                  unif(340.0, 430.0), unif(380.0, 460.0), unif(22.0, 36.0), unif(380.0, 465.0), 400.0,
+                  55, 58, 75, unif(0.60, 0.90), 61);
+        break;
+    case E_MUEBLE_PARED:
+        d = unif(800.0, 1150.0);
+        mv_mueble(&mundo, "banquito", 1000.0 + unif(-45.0, 45.0), s->y0 - d - 210.0,
+                  unif(320.0, 400.0), unif(390.0, 465.0), unif(24.0, 38.0), unif(275.0, 425.0), 0.0,
+                  125, 82, 48, unif(0.45, 0.80), 13);
+        {
+            int o = mv_objeto(&mundo, "pared_lateral", 0.0, 0, 0, 0);
+            double w = unif(290.0, 480.0);
+
+            if (entre(0, 1)) mv_prisma(&mundo, o, 1000.0 + w, -800.0, 1000.0 + w + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+        }
+        break;
+    case E_PASILLO_ANGOSTO:
+        d = unif(850.0, 1150.0);
+        {
+            int lado_libre = entre(0, 1) ? 1 : -1;
+            double w_ang = unif(500.0, 620.0);
+            double w_amp = unif(660.0, 760.0);
+            double caja_x = 1000.0 - lado_libre * unif(20.0, 95.0);
+            int o = mv_objeto(&mundo, "paredes", 0.0, 0, 0, 0);
+
+            mv_caja(&mundo, "caja20", caja_x, s->y0 - d - 100.0, 200.0, 200.0, 200.0, 145, 105, 65, 0.5, 0.04, 72, 0);
+            if (lado_libre > 0) {
+                mv_prisma(&mundo, o, 1000.0 - w_ang - 100.0, -800.0, 1000.0 - w_ang, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+                mv_prisma(&mundo, o, 1000.0 + w_amp, -800.0, 1000.0 + w_amp + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            } else {
+                mv_prisma(&mundo, o, 1000.0 - w_amp - 100.0, -800.0, 1000.0 - w_amp, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+                mv_prisma(&mundo, o, 1000.0 + w_ang, -800.0, 1000.0 + w_ang + 100.0, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
+            }
+        }
+        break;
+    default:
+        {
+            int o;
+
+            ruta_ele(s, 8, 6, entre(0, 1) ? 1 : -1);
+            d = unif(380.0, 640.0);
+            o = mv_caja(&mundo, "caja20", 1000.0 + unif(-45.0, 45.0), d + 100.0, 200.0, 200.0, 200.0, 145, 105, 65, 0.5, 0.04, 72, 0);
+            mundo.objetos[o].en_ruta = 0;
         }
         break;
     }
@@ -342,9 +626,11 @@ static Resultado correr(int e, uint32_t semilla)
     ModeloPiso piso;
     DeteccionesModelo det_listo, det_en_curso;
     ResultadoObstaculos cuadro;
-    uint32_t prox_captura = 0, det_fin_ms = 0;
+    uint32_t prox_captura = 0, det_fin_ms = 0, sens_prog_antes = 0;
     int estado_fin = 0, causa_fin = 0;
     int det_ocupado = 0, hay_det = 0;
+    int v5_cal = (op_conjunto != 0 || op_ciega != 0);
+    int cam_cad_ms = 70, cam_jit_ms = 25, cam_drop_pct = 2;
     int i, t, a, d, zm, delta_ppm, tope_ms, base_avance, cmd_antes = NAV_CMD_STOP;
     double ux, uy;
 
@@ -355,13 +641,14 @@ static Resultado correr(int e, uint32_t semilla)
     memset(&cuadro, 0, sizeof cuadro);
     azar = semilla;
     mv_iniciar(&mundo, semilla);
-    armar_escena(e, &s);
+    if (op_conjunto == 2 || op_ciega) armar_escena_reservado(e, &s, semilla);
+    else armar_escena(e, &s);
     if (op_aec_fijo) { mundo.foto.aec_auto = 0; mundo.foto.awb_auto = 0; }
 
     /* Lo que el navegador cree: la calibración del carro (la de J15/J16). */
     cal_defecto(&cal);
     cal.arranque_ms = 100;
-    cal.ms_por_cm_x10 = 518;
+    cal.ms_por_cm_x10 = v5_cal ? 325 : 518;
     cal.frenado_mm = 30;
     cal.ms_por_grado_izq_x10 = 74;
     cal.ms_por_grado_der_x10 = 78;
@@ -432,6 +719,33 @@ static Resultado correr(int e, uint32_t semilla)
     sim.periodo_cuadro_ms = 1000000;
     sim.j16_rumbo = 1;
     sim.fw_escala_pct = entre(-1, 1);
+    if (v5_cal) {
+        /* Rango calibrado alrededor de mediciones reales de cinta (25.7-29.4 cm/s), cadencia y cone ToF. */
+        sim.real.ms_por_cm_x10 = entre(315, 390);
+        sim.real.ms_por_grado_izq_x10 += entre(-6, 6);
+        sim.real.ms_por_grado_der_x10 += entre(-6, 6);
+        sim.fw_escala_ppm = entre(-15000, 15000);
+        sim.j16_latencia_sens_ms = entre(45, 145);
+        cam_cad_ms = entre(55, 130);
+        cam_jit_ms = 25;
+        cam_drop_pct = entre(2, 4);
+        mundo.foto.ruido = unif(1.2, 2.8);
+        mundo.foto.objetivo_luma = unif(122.0, 136.0);
+        mundo.laser_param_activo = 1;
+        mundo.laser_adelante_mm = MV_LASER_ADELANTE_MM - unif(0.0, 35.0);
+        if (!getenv("AV3_LASER_MEZCLA")) mv_laser_mezcla = 1;
+        if (op_laser == 1) {
+            mundo.laser_perdida = unif(0.08, 0.20);
+            mundo.laser_senal_min = unif(1.5, 3.0);
+            mundo.laser_ruido_rel = unif(0.01, 0.06);
+            mundo.laser_ruido_abs_mm = unif(3.0, 10.0);
+        } else {
+            mundo.laser_perdida = unif(0.01, 0.05);
+            mundo.laser_senal_min = unif(0.8, 1.2);
+            mundo.laser_ruido_rel = unif(0.01, 0.03);
+            mundo.laser_ruido_abs_mm = unif(2.0, 5.0);
+        }
+    }
 #ifdef SIM_REALISMO_V2
     sim.v2_azar = semilla ^ 0x5EEDu;
     sim.v2_frenado_giro_pct = 100;
@@ -479,7 +793,7 @@ static Resultado correr(int e, uint32_t semilla)
 
             if (libre <= s.aparece_mm) mundo.objetos[s.aparece_obj].aparece_ms = (uint32_t)t;
         }
-        /* Cámara: captura a ~12 cuadros por segundo; cada cuadro llega al teléfono 110 a 170 ms después (2 % se pierden). */
+        /* Cámara: captura a ~12 cuadros por segundo (o cadencia calibrada); cada cuadro llega 110 a 170 ms después. */
         if ((uint32_t)t >= prox_captura) {
             int libre = -1;
 
@@ -489,9 +803,15 @@ static Resultado correr(int e, uint32_t semilla)
                 cola[libre].pose = p;
                 cola[libre].captura_ms = (uint32_t)t;
                 cola[libre].llega_ms = (uint32_t)t + (uint32_t)(110 + (int)(60.0 * mv_uniforme(&mundo)));
-                cola[libre].usado = (mv_uniforme(&mundo) >= 0.02);
+                cola[libre].usado = (mv_uniforme(&mundo) >= (v5_cal ? (double)cam_drop_pct / 100.0 : 0.02));
             }
-            prox_captura = (uint32_t)t + 70u + (uint32_t)(25.0 * mv_uniforme(&mundo));
+            if (v5_cal) {
+                int step = cam_cad_ms + entre(-15, cam_jit_ms);
+                if (step < 40) step = 40;
+                prox_captura = (uint32_t)t + (uint32_t)step;
+            } else {
+                prox_captura = (uint32_t)t + 70u + (uint32_t)(25.0 * mv_uniforme(&mundo));
+            }
         }
         for (i = 0; i < COLA_CUADROS; i++) {   /* el más nuevo de los que ya llegaron; los demás se descartan (buzón de último cuadro) */
             if (cola[i].usado && cola[i].llega_ms <= (uint32_t)t) {
@@ -553,7 +873,13 @@ static Resultado correr(int e, uint32_t semilla)
         sim.fw_error_der_x10 = normal_x10(17, 30);
         if (s.sag_pct > 0) sim.pct_avance = base_avance - s.sag_pct * (t > 40000 ? 40000 : t) / 40000;
 
+        sens_prog_antes = sim.proximo_sens_ms;
         sim_correr(&sim, &nav, NAV_TICK_MS);
+        if (v5_cal && sim.proximo_sens_ms != sens_prog_antes) {
+            int dt_sens = 100 + entre(-15, 35);
+            if (dt_sens < NAV_TICK_MS) dt_sens = NAV_TICK_MS;
+            sim.proximo_sens_ms = (sim.t_ms >= (uint32_t)NAV_TICK_MS ? sim.t_ms - (uint32_t)NAV_TICK_MS : 0u) + (uint32_t)dt_sens;
+        }
         volcar_diag();
         if (depurar > 1 && (t % 500) == 0) {
             printf("   [%6d ms] real=(%.0f,%.0f,%.1f) nav=(%d,%d,%d) estado=%s cmd=%s laser=%d%s\n", t, p.x, p.y, p.rumbo_rad * 57.29578, nav.x_mm, nav.y_mm, nav.rumbo_grados,
@@ -602,8 +928,22 @@ static Resultado correr(int e, uint32_t semilla)
     {
         MvPose p = pose_real();
         double fx = sin(p.rumbo_rad), fy = -cos(p.rumbo_rad);
+        double rx = cos(p.rumbo_rad), ry = sin(p.rumbo_rad);
         double cola_s = (p.x - fx * 120.0 - s.fin_x) * ux + (p.y - fy * 120.0 - s.fin_y) * uy;
         int o, pasados = 1;
+
+        if (v5_cal) {
+            int sx_i, sy_i;
+            cola_s = 1e9;
+            for (sx_i = -1; sx_i <= 1; sx_i += 2) {
+                for (sy_i = -1; sy_i <= 1; sy_i += 2) {
+                    double cx = p.x + sx_i * (MV_CARRO_ANCHO_MM * 0.5) * rx + sy_i * (MV_CARRO_LARGO_MM * 0.5) * fx;
+                    double cy = p.y + sx_i * (MV_CARRO_ANCHO_MM * 0.5) * ry + sy_i * (MV_CARRO_LARGO_MM * 0.5) * fy;
+                    double cs = (cx - s.fin_x) * ux + (cy - s.fin_y) * uy;
+                    if (cs < cola_s) cola_s = cs;
+                }
+            }
+        }
 
         if (!r.contacto) {
             int tipo = mv_contacto_tipo(&mundo, p, (uint32_t)t, NULL);
@@ -665,7 +1005,7 @@ typedef struct {
     int n, exito, llegan, contactos, ayudas, errores, falsos_terminado, sin_terminar, esquivas, paradas, corridas_con_parada, sin_piso;
     int bajo_mueble, vistazos, vistazos_con_eco;
     int cat[CAT_N];
-    int causas[20];
+    int causas[32];
     int t_media, t_p95, lat_media, lat_p95, lon_media, lon_p95, desvio_p95, color_cuadros, coinc_cuadros;
 } Resumen;
 
@@ -692,7 +1032,7 @@ static Resumen monte_carlo(int e, int n)
     memset(&s, 0, sizeof s);
     s.n = n;
     for (i = 0; i < n; i++) {
-        Resultado r = correr(e, 170000u + (uint32_t)e * 10007u + (uint32_t)i);
+        Resultado r = correr(e, semilla_corrida(e, i));
 
         s.exito += r.exito; s.llegan += r.llego; s.contactos += r.contacto; s.ayudas += r.ayuda; s.errores += r.error;
         s.falsos_terminado += r.terminado_falso; s.sin_terminar += r.sin_terminar; s.esquivas += r.esquivas; s.paradas += r.paradas;
@@ -700,7 +1040,7 @@ static Resumen monte_carlo(int e, int n)
         s.color_cuadros += r.cuadros_color; s.coinc_cuadros += r.cuadros_coinc;
         s.bajo_mueble += r.bajo_mueble; s.vistazos += r.vistazos; s.vistazos_con_eco += r.vistazos_con_eco;
         s.cat[r.categoria]++;
-        if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 20) s.causas[r.causa]++;
+        if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 32) s.causas[r.causa]++;
         vdes[i] = r.desvio_max;
         if (r.llego) { vt[k] = r.tiempo_ms; vlat[k] = r.lateral; vlon[k] = r.longitudinal; k++; }
         if (getenv("AV2_LISTAR") && !r.exito) printf("   corrida %d: llego=%d contacto=%d bajo_mueble=%d ayuda=%d causa=%d error=%d falso_fin=%d esquivas=%d\n", i, r.llego, r.contacto, r.bajo_mueble, r.ayuda, r.causa, r.error, r.terminado_falso, r.esquivas);
@@ -726,7 +1066,7 @@ static void imprimir(int e, const Resumen *s)
            ESC[e].nombre, TIPO[ESC[e].tipo], s->n, s->exito, s->contactos, s->ayudas, s->errores, s->falsos_terminado, s->sin_terminar, s->llegan, s->t_media, s->t_p95,
            s->lat_media, s->lat_p95, s->lon_media, s->lon_p95, s->desvio_p95, s->esquivas, s->paradas, s->corridas_con_parada, s->color_cuadros, s->coinc_cuadros, s->sin_piso,
            s->bajo_mueble, s->vistazos, s->vistazos_con_eco);
-    for (c = 0; c < 20; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
+    for (c = 0; c < 32; c++) if (s->causas[c]) printf(" %d:%d", c, s->causas[c]);
     printf(" | cat");
     for (c = 0; c < CAT_N; c++) printf(" %s=%d", CAT_NOMBRE[c], s->cat[c]);
     printf("\n");
@@ -734,17 +1074,35 @@ static void imprimir(int e, const Resumen *s)
 
 int main(int argc, char **argv)
 {
-    int n = 40, e, solo = -1;
+    int n = 40, e, solo = -1, n_esc = N_ESC_LEGACY;
     static Resumen res[N_ESC];
+    const char *env;
 
     if (getenv("AV2_UMBRAL")) op_umbral = atoi(getenv("AV2_UMBRAL"));
     if (getenv("AV2_CELDAS")) op_celdas = atoi(getenv("AV2_CELDAS"));
     if (getenv("AV2_AEC_FIJO")) op_aec_fijo = atoi(getenv("AV2_AEC_FIJO"));
+    if ((env = getenv("AV5_CONJUNTO")) != NULL) {
+        if (strcmp(env, "desarrollo") == 0 || strcmp(env, "DESARROLLO") == 0) op_conjunto = 1;
+        else if (strcmp(env, "reservado") == 0 || strcmp(env, "RESERVADO") == 0) op_conjunto = 2;
+        else op_conjunto = atoi(env);
+    }
+    if ((env = getenv("AV5_LASER")) != NULL) {
+        op_laser = (strcmp(env, "pesimista") == 0 || atoi(env) == 1) ? 1 : 0;
+    }
+    if ((env = getenv("AV5_CIEGA")) != NULL && env[0] != '\0') {
+        op_ciega = 1;
+        op_ciega_semilla = (uint64_t)strtoull(env, NULL, 10);
+        if (op_ciega_semilla == 0ULL) op_ciega_semilla = 1ULL;
+    }
+    if ((env = getenv("AV5_APAGADO")) != NULL) op_v5_apagado = atoi(env);
+
+    n_esc = (op_ciega || op_conjunto == 2) ? N_ESC : (op_conjunto == 1 ? N_ESC_DESARROLLO : N_ESC_LEGACY);
+
     if (argc > 3 && strcmp(argv[1], "depurar") == 0) {
         depurar = getenv("AV2_TODO") ? 2 : 1;
         e = atoi(argv[2]);
         if (e < 0 || e >= N_ESC) return 2;
-        correr(e, 170000u + (uint32_t)e * 10007u + (uint32_t)atoi(argv[3]));
+        correr(e, semilla_corrida(e, atoi(argv[3])));
         return 0;
     }
     if (argc > 1) {
@@ -753,8 +1111,19 @@ int main(int argc, char **argv)
         if (n > 5000) n = 5000;
     }
     if (argc > 2) solo = atoi(argv[2]);
-    printf("-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), %d corridas por escenario, semillas 170000 + indice * 10007 + corrida --\n", n);
-    for (e = 0; e < N_ESC; e++) {
+    if (op_ciega) {
+        printf("-- Banco v5 CIEGO (SIMULADO / NO MEDIDO en el carro), %d corridas, laser=%s, semilla64=%llu --\n",
+               n, op_laser ? "pesimista" : "normal", (unsigned long long)op_ciega_semilla);
+    } else if (op_conjunto == 1) {
+        printf("-- Banco v5 DESARROLLO (SIMULADO / NO MEDIDO en el carro), %d corridas, laser=%s, semillas 2100000 + indice * 10007 + corrida --\n",
+               n, op_laser ? "pesimista" : "normal");
+    } else if (op_conjunto == 2) {
+        printf("-- Banco v5 RESERVADO (SIMULADO / NO MEDIDO en el carro), %d corridas, laser=%s, semillas 4300000 + indice * 10007 + corrida --\n",
+               n, op_laser ? "pesimista" : "normal");
+    } else {
+        printf("-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), %d corridas por escenario, semillas 170000 + indice * 10007 + corrida --\n", n);
+    }
+    for (e = 0; e < n_esc; e++) {
         if (solo >= 0 && e != solo) continue;
         res[e] = monte_carlo(e, n);
         imprimir(e, &res[e]);
@@ -764,7 +1133,7 @@ int main(int argc, char **argv)
     if (solo < 0 && argc <= 1) {   /* compuertas de la prueba rápida (make test); el informe de 1000 corridas lo revisa scripts/compuertas_autonomo.py */
         int contactos = 0, falsos = 0;
 
-        for (e = 0; e < N_ESC; e++) {
+        for (e = 0; e < n_esc; e++) {
             if (ESC[e].tipo == T_LIMITE) continue;
             contactos += res[e].contactos;
             falsos += res[e].falsos_terminado;
@@ -772,7 +1141,7 @@ int main(int argc, char **argv)
         {
             int suman = 1, k;
 
-            for (e = 0; e < N_ESC; e++) {
+            for (e = 0; e < n_esc; e++) {
                 int total = 0;
 
                 for (k = 0; k < CAT_N; k++) total += res[e].cat[k];

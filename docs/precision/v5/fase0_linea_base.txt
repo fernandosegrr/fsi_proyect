@@ -1,0 +1,162 @@
+
+=== MATRIZ: desarrollo_normal ===
+v3    : -- Banco v5 DESARROLLO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=normal, semillas 2100000 + indice * 10007 + corrida --
+actual: -- Banco v5 DESARROLLO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=normal, semillas 2100000 + indice * 10007 + corrida --
+  libre_limpio           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_juntas           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_sol              v3[ok=40 cont= 0 bm= 0 ay= 0 par=  3 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  3 esq= 0 c=()]
+  falso_sombra           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  4 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  4 esq= 0 c=()]
+  falso_reflejo          v3[ok=40 cont= 0 bm= 0 ay= 0 par=  1 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  1 esq= 0 c=()]
+  falso_exposicion       v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_detector         v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  caja20                 v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=43 c=()]
+  caja20_lateral         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=42]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=42 c=()]
+  banquito35x45          v3[ok=23 cont=15 bm=16 ay=10 par= 44 esq=41]  v5[ok=23 cont=15 bm=16 ay=10 err= 0 tf= 0 par= 44 esq=41 c=(16:3 18:7)]
+  objeto_largo90         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=50]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=50 c=()]
+  silla_patas            v3[ok=11 cont= 4 bm=27 ay= 7 par= 27 esq=20]  v5[ok=11 cont= 4 bm=27 ay= 7 err= 0 tf= 0 par= 27 esq=20 c=(16:2 18:5)]
+  pared_tras_el_final    v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  dos_obstaculos         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=58]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=58 c=()]
+  pasillo                v3[ok=22 cont= 0 bm= 0 ay=18 par= 41 esq=40]  v5[ok=22 cont= 0 bm= 0 ay=18 err= 0 tf= 0 par= 41 esq=40 c=(16:18)]
+  aparece_de_repente     v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=51]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=51 c=()]
+  objeto_bajo            v3[ok=40 cont= 0 bm= 0 ay= 0 par= 55 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 55 esq=43 c=()]
+  caja20_con_sol         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=42]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=42 c=()]
+  bateria_baja           v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=45]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=45 c=()]
+  pared_al_frente        v3[ok=40 cont= 0 bm= 0 ay=40 par= 40 esq=40]  v5[ok=40 cont= 0 bm= 0 ay=40 err= 0 tf= 0 par= 40 esq=40 c=(16:40)]
+  bajo_solo_color        v3[ok=40 cont= 0 bm= 0 ay= 0 par= 42 esq=42]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 42 esq=42 c=()]
+  caja_y_pared_al_lado   v3[ok=24 cont= 1 bm= 0 ay=15 par= 40 esq=50]  v5[ok=24 cont= 1 bm= 0 ay=15 err= 0 tf= 0 par= 40 esq=50 c=(2:1 16:6 18:8)]
+  caja_antes_de_esquina  v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=43 c=()]
+  bloque_sin_eco         v3[ok=33 cont= 7 bm= 0 ay= 0 par= 80 esq=46]  v5[ok=33 cont= 7 bm= 0 ay= 0 err= 0 tf= 0 par= 80 esq=46 c=()]
+
+=== MATRIZ: desarrollo_pesimista ===
+v3    : -- Banco v5 DESARROLLO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=pesimista, semillas 2100000 + indice * 10007 + corrida --
+actual: -- Banco v5 DESARROLLO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=pesimista, semillas 2100000 + indice * 10007 + corrida --
+  libre_limpio           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_juntas           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_sol              v3[ok=40 cont= 0 bm= 0 ay= 0 par=  3 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  3 esq= 0 c=()]
+  falso_sombra           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  4 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  4 esq= 0 c=()]
+  falso_reflejo          v3[ok=40 cont= 0 bm= 0 ay= 0 par=  1 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  1 esq= 0 c=()]
+  falso_exposicion       v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_detector         v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  caja20                 v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=45]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=45 c=()]
+  caja20_lateral         v3[ok=38 cont= 1 bm= 0 ay= 1 par= 39 esq=42]  v5[ok=38 cont= 1 bm= 0 ay= 1 err= 0 tf= 0 par= 39 esq=42 c=(2:1)]
+  banquito35x45          v3[ok= 6 cont=25 bm=31 ay=12 par= 40 esq=29]  v5[ok= 6 cont=25 bm=31 ay=12 err= 0 tf= 1 par= 40 esq=29 c=(16:2 18:10)]
+  objeto_largo90         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 43 esq=48]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 43 esq=48 c=()]
+  silla_patas            v3[ok= 6 cont= 4 bm=33 ay= 3 par= 20 esq= 9]  v5[ok= 6 cont= 4 bm=33 ay= 3 err= 0 tf= 0 par= 20 esq= 9 c=(16:2 18:1)]
+  pared_tras_el_final    v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  dos_obstaculos         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=53]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=53 c=()]
+  pasillo                v3[ok=26 cont= 0 bm= 0 ay=14 par= 40 esq=41]  v5[ok=26 cont= 0 bm= 0 ay=14 err= 0 tf= 0 par= 40 esq=41 c=(16:14)]
+  aparece_de_repente     v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=40]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=40 c=()]
+  objeto_bajo            v3[ok=21 cont=19 bm= 0 ay= 0 par= 91 esq=24]  v5[ok=21 cont=19 bm= 0 ay= 0 err= 0 tf= 0 par= 91 esq=24 c=()]
+  caja20_con_sol         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=44]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=44 c=()]
+  bateria_baja           v3[ok=40 cont= 0 bm= 0 ay= 0 par= 42 esq=44]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 42 esq=44 c=()]
+  pared_al_frente        v3[ok=40 cont= 0 bm= 0 ay=40 par= 40 esq=40]  v5[ok=40 cont= 0 bm= 0 ay=40 err= 0 tf= 0 par= 40 esq=40 c=(16:40)]
+  bajo_solo_color        v3[ok=17 cont=23 bm= 0 ay= 0 par= 23 esq=21]  v5[ok=17 cont=23 bm= 0 ay= 0 err= 0 tf= 0 par= 23 esq=21 c=()]
+  caja_y_pared_al_lado   v3[ok=22 cont= 0 bm= 0 ay=18 par= 41 esq=46]  v5[ok=22 cont= 0 bm= 0 ay=18 err= 0 tf= 0 par= 41 esq=46 c=(16:9 18:9)]
+  caja_antes_de_esquina  v3[ok=40 cont= 0 bm= 0 ay= 0 par= 43 esq=45]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 43 esq=45 c=()]
+  bloque_sin_eco         v3[ok=33 cont= 7 bm= 0 ay= 0 par= 80 esq=47]  v5[ok=33 cont= 7 bm= 0 ay= 0 err= 0 tf= 0 par= 80 esq=47 c=()]
+
+=== MATRIZ: reservado_normal ===
+v3    : -- Banco v5 RESERVADO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=normal, semillas 4300000 + indice * 10007 + corrida --
+actual: -- Banco v5 RESERVADO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=normal, semillas 4300000 + indice * 10007 + corrida --
+  libre_limpio           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_juntas           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_sol              v3[ok=40 cont= 0 bm= 0 ay= 0 par=  2 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  2 esq= 0 c=()]
+  falso_sombra           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  1 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  1 esq= 0 c=()]
+  falso_reflejo          v3[ok=40 cont= 0 bm= 0 ay= 0 par=  5 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  5 esq= 0 c=()]
+  falso_exposicion       v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_detector         v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  caja20                 v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=44]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=44 c=()]
+  caja20_lateral         v3[ok=39 cont= 0 bm= 0 ay= 1 par= 41 esq=42]  v5[ok=39 cont= 0 bm= 0 ay= 1 err= 0 tf= 0 par= 41 esq=42 c=(16:1)]
+  banquito35x45          v3[ok=19 cont= 7 bm=16 ay= 5 par= 30 esq=30]  v5[ok=19 cont= 7 bm=16 ay= 5 err= 0 tf= 0 par= 30 esq=30 c=(16:1 18:4)]
+  objeto_largo90         v3[ok=39 cont= 0 bm= 0 ay= 1 par= 44 esq=42]  v5[ok=39 cont= 0 bm= 0 ay= 1 err= 0 tf= 0 par= 44 esq=42 c=(16:1)]
+  silla_patas            v3[ok=14 cont= 9 bm=22 ay= 6 par= 30 esq=26]  v5[ok=14 cont= 9 bm=22 ay= 6 err= 0 tf= 1 par= 30 esq=26 c=(16:2 18:4)]
+  pared_tras_el_final    v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  dos_obstaculos         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=61]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=61 c=()]
+  pasillo                v3[ok=36 cont= 0 bm= 0 ay= 4 par= 41 esq=42]  v5[ok=36 cont= 0 bm= 0 ay= 4 err= 0 tf= 0 par= 41 esq=42 c=(16:4)]
+  aparece_de_repente     v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=46]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=46 c=()]
+  objeto_bajo            v3[ok=40 cont= 0 bm= 0 ay= 0 par= 69 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 69 esq=43 c=()]
+  caja20_con_sol         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=45]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=45 c=()]
+  bateria_baja           v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=43 c=()]
+  pared_al_frente        v3[ok=39 cont= 1 bm= 0 ay=40 par= 41 esq=40]  v5[ok=39 cont= 1 bm= 0 ay=40 err= 0 tf= 0 par= 41 esq=40 c=(6:1 16:39)]
+  bajo_solo_color        v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=43 c=()]
+  caja_y_pared_al_lado   v3[ok=24 cont= 0 bm= 0 ay=16 par= 40 esq=50]  v5[ok=24 cont= 0 bm= 0 ay=16 err= 0 tf= 0 par= 40 esq=50 c=(2:1 8:1 16:5 18:9)]
+  caja_antes_de_esquina  v3[ok=40 cont= 0 bm= 0 ay= 0 par= 43 esq=42]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 43 esq=42 c=()]
+  bloque_sin_eco         v3[ok=24 cont=16 bm= 0 ay= 3 par= 95 esq=43]  v5[ok=24 cont=16 bm= 0 ay= 3 err= 0 tf= 0 par= 95 esq=43 c=(18:3)]
+  dos_muebles            v3[ok=25 cont= 6 bm=12 ay= 6 par= 43 esq=41]  v5[ok=25 cont= 6 bm=12 ay= 6 err= 0 tf= 0 par= 43 esq=41 c=(16:2 18:4)]
+  mueble_con_pared       v3[ok=10 cont=11 bm=18 ay=20 par= 36 esq=33]  v5[ok=10 cont=11 bm=18 ay=20 err= 0 tf= 0 par= 36 esq=33 c=(16:15 18:5)]
+  pasillo_angosto        v3[ok=35 cont= 0 bm= 0 ay= 5 par= 41 esq=48]  v5[ok=35 cont= 0 bm= 0 ay= 5 err= 0 tf= 0 par= 41 esq=48 c=(16:4 18:1)]
+
+=== MATRIZ: reservado_pesimista ===
+v3    : -- Banco v5 RESERVADO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=pesimista, semillas 4300000 + indice * 10007 + corrida --
+actual: -- Banco v5 RESERVADO (SIMULADO / NO MEDIDO en el carro), 40 corridas, laser=pesimista, semillas 4300000 + indice * 10007 + corrida --
+  libre_limpio           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_juntas           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_sol              v3[ok=40 cont= 0 bm= 0 ay= 0 par=  2 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  2 esq= 0 c=()]
+  falso_sombra           v3[ok=40 cont= 0 bm= 0 ay= 0 par=  1 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  1 esq= 0 c=()]
+  falso_reflejo          v3[ok=40 cont= 0 bm= 0 ay= 0 par=  5 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  5 esq= 0 c=()]
+  falso_exposicion       v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  falso_detector         v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  caja20                 v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=41]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=41 c=()]
+  caja20_lateral         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=45]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=45 c=()]
+  banquito35x45          v3[ok=12 cont=11 bm=21 ay= 7 par= 32 esq=29]  v5[ok=12 cont=11 bm=21 ay= 7 err= 0 tf= 0 par= 32 esq=29 c=(16:2 18:5)]
+  objeto_largo90         v3[ok=38 cont= 2 bm= 0 ay= 0 par= 41 esq=47]  v5[ok=38 cont= 2 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=47 c=()]
+  silla_patas            v3[ok= 9 cont=12 bm=26 ay= 7 par= 24 esq=20]  v5[ok= 9 cont=12 bm=26 ay= 7 err= 0 tf= 1 par= 24 esq=20 c=(2:1 16:3 18:3)]
+  pared_tras_el_final    v3[ok=40 cont= 0 bm= 0 ay= 0 par=  0 esq= 0]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par=  0 esq= 0 c=()]
+  dos_obstaculos         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=57]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=57 c=()]
+  pasillo                v3[ok=37 cont= 0 bm= 0 ay= 3 par= 40 esq=40]  v5[ok=37 cont= 0 bm= 0 ay= 3 err= 0 tf= 0 par= 40 esq=40 c=(16:3)]
+  aparece_de_repente     v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=44]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=44 c=()]
+  objeto_bajo            v3[ok=26 cont=14 bm= 0 ay= 0 par= 98 esq=32]  v5[ok=26 cont=14 bm= 0 ay= 0 err= 0 tf= 1 par= 98 esq=32 c=()]
+  caja20_con_sol         v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=43]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=43 c=()]
+  bateria_baja           v3[ok=40 cont= 0 bm= 0 ay= 0 par= 41 esq=46]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 41 esq=46 c=()]
+  pared_al_frente        v3[ok=40 cont= 0 bm= 0 ay=40 par= 41 esq=41]  v5[ok=40 cont= 0 bm= 0 ay=40 err= 0 tf= 0 par= 41 esq=41 c=(16:40)]
+  bajo_solo_color        v3[ok=23 cont=17 bm= 0 ay= 0 par= 26 esq=27]  v5[ok=23 cont=17 bm= 0 ay= 0 err= 0 tf= 0 par= 26 esq=27 c=()]
+  caja_y_pared_al_lado   v3[ok=27 cont= 0 bm= 0 ay=13 par= 40 esq=48]  v5[ok=27 cont= 0 bm= 0 ay=13 err= 0 tf= 0 par= 40 esq=48 c=(16:8 18:5)]
+  caja_antes_de_esquina  v3[ok=40 cont= 0 bm= 0 ay= 0 par= 40 esq=42]  v5[ok=40 cont= 0 bm= 0 ay= 0 err= 0 tf= 0 par= 40 esq=42 c=()]
+  bloque_sin_eco         v3[ok=21 cont=19 bm= 0 ay= 2 par= 99 esq=43]  v5[ok=21 cont=19 bm= 0 ay= 2 err= 0 tf= 0 par= 99 esq=43 c=(18:2)]
+  dos_muebles            v3[ok=18 cont=13 bm=20 ay= 6 par= 40 esq=36]  v5[ok=18 cont=13 bm=20 ay= 6 err= 0 tf= 0 par= 40 esq=36 c=(16:1 18:5)]
+  mueble_con_pared       v3[ok= 8 cont=21 bm=25 ay=14 par= 34 esq=27]  v5[ok= 8 cont=21 bm=25 ay=14 err= 0 tf= 0 par= 34 esq=27 c=(16:9 18:5)]
+  pasillo_angosto        v3[ok=35 cont= 0 bm= 0 ay= 5 par= 40 esq=42]  v5[ok=35 cont= 0 bm= 0 ay= 5 err= 0 tf= 0 par= 40 esq=42 c=(16:5)]
+
+=== RESUMEN DE COMPUERTAS G1-G7 (SIMULADO) ===
+  G1: CUMPLE
+  G2: NO CUMPLE
+  G3: NO CUMPLE
+  G4: NO CUMPLE
+  G5: NO CUMPLE
+  G6: NO CUMPLE
+  G7: CUMPLE
+
+Observaciones / incumplimientos:
+  - G2 [desarrollo_pesimista] caja20_lateral: contactos=1 (meta 0)
+  - G2 [desarrollo_pesimista] objeto_bajo: contactos=19 (meta 0)
+  - G2 [reservado_normal] pared_al_frente: contactos=1 (meta 0)
+  - G2 [reservado_pesimista] objeto_largo90: contactos=2 (meta 0)
+  - G2 [reservado_pesimista] objeto_bajo: contactos=14 (meta 0)
+  - G3 [desarrollo_normal] bloque_sin_eco: v5 contactos=7 vs v3=7
+  - G3 [desarrollo_pesimista] bloque_sin_eco: v5 contactos=7 vs v3=7
+  - G3 [reservado_normal] bloque_sin_eco: v5 contactos=16 vs v3=16
+  - G3 [reservado_pesimista] bloque_sin_eco: v5 contactos=19 vs v3=19
+  - G4 [desarrollo_normal] banquito35x45: cont v5=15 v3=15, ay v5=10 v3=10
+  - G4 [desarrollo_normal] silla_patas: cont v5=4 v3=4, ay v5=7 v3=7
+  - G4 [desarrollo_pesimista] banquito35x45: cont v5=25 v3=25, ay v5=12 v3=12
+  - G4 [desarrollo_pesimista] silla_patas: cont v5=4 v3=4, ay v5=3 v3=3
+  - G4 [reservado_normal] banquito35x45: cont v5=7 v3=7, ay v5=5 v3=5
+  - G4 [reservado_normal] silla_patas: cont v5=9 v3=9, ay v5=6 v3=6
+  - G4 [reservado_normal] dos_muebles: cont v5=6 v3=6, ay v5=6 v3=6
+  - G4 [reservado_normal] mueble_con_pared: cont v5=11 v3=11, ay v5=20 v3=20
+  - G4 [reservado_pesimista] banquito35x45: cont v5=11 v3=11, ay v5=7 v3=7
+  - G4 [reservado_pesimista] silla_patas: cont v5=12 v3=12, ay v5=7 v3=7
+  - G4 [reservado_pesimista] dos_muebles: cont v5=13 v3=13, ay v5=6 v3=6
+  - G4 [reservado_pesimista] mueble_con_pared: cont v5=21 v3=21, ay v5=14 v3=14
+  - G5 [desarrollo_normal] caja_y_pared_al_lado: v5 cont=1 ay=15 vs v3 cont=1 ay=15
+  - G5 [desarrollo_normal] pasillo: v5 cont=0 ay=18 vs v3 cont=0 ay=18
+  - G5 [desarrollo_pesimista] caja_y_pared_al_lado: v5 cont=0 ay=18 vs v3 cont=0 ay=18
+  - G5 [desarrollo_pesimista] pasillo: v5 cont=0 ay=14 vs v3 cont=0 ay=14
+  - G5 [reservado_normal] caja_y_pared_al_lado: v5 cont=0 ay=16 vs v3 cont=0 ay=16
+  - G5 [reservado_normal] pasillo_angosto: v5 cont=0 ay=5 vs v3 cont=0 ay=5
+  - G5 [reservado_pesimista] caja_y_pared_al_lado: v5 cont=0 ay=13 vs v3 cont=0 ay=13
+  - G5 [reservado_pesimista] pasillo_angosto: v5 cont=0 ay=5 vs v3 cont=0 ay=5
+  - G6 [desarrollo_pesimista] banquito35x45: terminado_falso=1
+  - G6 [reservado_normal] silla_patas: terminado_falso=1
+  - G6 [reservado_pesimista] silla_patas: terminado_falso=1
+  - G6 [reservado_pesimista] objeto_bajo: terminado_falso=1
