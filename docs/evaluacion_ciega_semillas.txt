@@ -1,0 +1,16 @@
+# Semillas externas para evaluacion ciega post-congelamiento (v5-carbon)
+# SIMULADO / NO MEDIDO EN EL CARRO.
+# Generado DESPUES de crear y publicar el tag freeze/v5-carbon, ANTES de correr los escenarios.
+
+hora_local = 2026-11-23 23:58:55
+hora_utc   = 2026-11-24T05:58:55Z
+rama       = feat/autonomo-v5-carbon
+tag        = freeze/v5-carbon
+tag_objeto = 3b0535e220c06c4333c59312f8a855669de3d424
+commit_congelado = 6e96ad7859d1e846edae72eae7f344e6196a5be2
+origin_main      = bd1727beb0fc3412eced5fa71cba9442758e85b4
+origin_main_hex8 = bd1727be (entero = 3172411326)
+
+semilla_A = 1795499935
+semilla_B = 4967911261
+semilla_C = 14218563985265

@@ -91,4 +91,16 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
 - Creado `docs/protocolo_prueba_fisica_v5.md` y `docs/pruebas_fisicas_v5_plantilla.csv` (reglas de seguridad, `adb install -r` sin desinstalar ante fallo de firma, carga opcional de `SEG=4` no ejecutada, mediciones baratas `M-v5.1`..`M-v5.6`, bloques progresivos `P0`..`P4` y seccion A/B contra `v3`).
 - Actualizados capitulos del manual (`04_firmware.md`, `06_protocolo.md`, `07_navegacion.md`, `08_vision.md`, `09_aplicacion.md`, `12_pruebas.md`, `13_limites.md`, `15_problemas.md`) y portada en `docs/manual/generar_manual.py`.
 - Regenerado `docs/manual/Manual_Proyecto_Carro_FSI.pdf` con `--sin-figuras` (**75 paginas, 12 figuras, 30 tablas, 3,838,232 bytes / 3748.3 KB < 15 MB**; portada verificada con `pymupdf`) y validado `python docs/verificar_enlaces.py` (**160 archivos Markdown, 202 enlaces validos, 0 rotos**).
-- **Siguiente**: Fase 4 (verificacion previa, push y tag anotado `freeze/v5-carbon`, obtencion de semillas externas A/B/C y evaluacion ciega unica sobre el commit congelado).
+
+## Fase 4 — Congelamiento (`freeze/v5-carbon`) y evaluacion ciega (Completada sobre codigo congelado)
+- Publicada rama `feat/autonomo-v5-carbon` y etiqueta anotada `freeze/v5-carbon` (objeto `3b0535e220c06c4333c59312f8a855669de3d424` -> commit congelado `6e96ad7859d1e846edae72eae7f344e6196a5be2`) antes de generar las semillas.
+- Registradas previamente en `docs/evaluacion_ciega_semillas.txt`: `A = 1795499935`, `B = 4967911261` (`bd1727be` + `A`), `C = 14218563985265` (`A * 7919`), y ejecutado `scripts/evaluacion_ciega.ps1` exactamente una vez por semilla (`docs/evaluacion_ciega_resultados.txt`, `SIMULADO`).
+- **Resultados por semilla (SIMULADO):**
+  - Semilla `A`: `G1=CUMPLE G2=NO_CUMPLE G3=NO_CUMPLE G4=NO_CUMPLE G5=NO_CUMPLE G6=CUMPLE G7=CUMPLE`
+  - Semilla `B`: `G1=NO_CUMPLE G2=NO_CUMPLE G3=NO_CUMPLE G4=NO_CUMPLE G5=NO_CUMPLE G6=CUMPLE G7=NO_CUMPLE`
+  - Semilla `C`: `G1=CUMPLE G2=NO_CUMPLE G3=CUMPLE G4=NO_CUMPLE G5=NO_CUMPLE G6=NO_CUMPLE G7=CUMPLE`
+- **Agregado A+B+C (120 corridas/escenario x 2 modelos laser = 3240 corridas c/u):**
+  - Laser normal: `v3 2722/238/226/368` -> `v5 2920/60/133/329` (`-75 %` contactos).
+  - Laser pesimista: `v3 2596/385/316/303` -> `v5 2938/70/129/291` (`-82 %` contactos).
+  - Agregado: **`G3=CUMPLE`** (`bloque_sin_eco` `117->29` normal, `118->29` pesimista); **`G1=NO_CUMPLE`** y **`G7=NO_CUMPLE`** por **1/120** `esquive_falso` en `falso_reflejo` de Semilla `B` (`libre_limpio` y los 5 escenarios limpios quedaron en `120/120` con `0/0/0/0`); `G2`, `G4`, `G5`, `G6` permanecen `NO CUMPLE`.
+- **Diagnostico de ese `1/120` en `falso_reflejo` (sin tocar `freeze/v5-carbon`):** en la corrida `i=8` de Semilla `B`, una falsa deteccion aislada de TFLite (`350 ms`) combinada con `NAV_V5_RETENCION_MS = 500` sostuvo `hay = 1` durante `850 ms >= NAV_COINCIDENCIA_ESQUIVAR_MS (800 ms)`, impidiendo la recuperacion por `libre_confirmado`. Conforme a Fase 4.4, se conserva integro `freeze/v5-carbon` y se propone la correccion puntual (`NAV_V5_RETENCION_MS = 200 ms`) en rama aparte `feat/autonomo-v5-carbon-fix` repetida con semillas nuevas.
