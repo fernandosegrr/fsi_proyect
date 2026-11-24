@@ -298,10 +298,10 @@ static void armar_escena(int e, Escena *s)
             else             mv_prisma(&mundo, o, 1000.0 - w - 100.0, -800.0, 1000.0 - w, s->y0 + 600.0, 0.0, 1500.0, 215, 210, 200, 0.6);
         }
         break;
-    case E_SIN_ECO:          /* bloque oscuro / mate que no devuelve eco al laser pero si ven color y detector */
-        d = unif(850.0, 1150.0);
-        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-40.0, 40.0), s->y0 - d - 100.0, 200.0, 200.0, 200.0,
-                35, 40, 48, 0.002, unif(0.80, 0.95), 72, 0);
+    case E_SIN_ECO:          /* bloque oscuro / mate / transparente que no devuelve eco al laser y es raro para COCO */
+        d = unif(750.0, 1150.0);
+        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-60.0, 60.0), s->y0 - d - 90.0, 260.0, 180.0, 180.0,
+                55, 60, 75, 0.0, 0.05, 72, 0);
         break;
     case E_DOS_MUEBLES:      /* reservado / ciego: dos muebles de patas finas en secuencia */
         ruta_recta(s, 15);
@@ -502,9 +502,9 @@ static void armar_escena_reservado(int e, Escena *s, uint32_t semilla)
         }
         break;
     case E_SIN_ECO:
-        d = unif(800.0, 1180.0);
-        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-65.0, 65.0), s->y0 - d - 105.0, unif(170.0, 260.0), unif(170.0, 260.0), unif(180.0, 260.0),
-                entre(25, 50), entre(28, 52), entre(32, 65), unif(0.001, 0.004), unif(0.65, 0.92), 72, 0);
+        d = unif(750.0, 1150.0);
+        mv_caja(&mundo, "bloque_sin_eco", 1000.0 + unif(-70.0, 70.0), s->y0 - d - 95.0, unif(200.0, 280.0), unif(160.0, 220.0), unif(160.0, 240.0),
+                entre(35, 65), entre(38, 68), entre(45, 85), unif(0.0, 0.002), unif(0.03, 0.08), 72, 0);
         break;
     case E_DOS_MUEBLES:
         ruta_recta(s, 15);

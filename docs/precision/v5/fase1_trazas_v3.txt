@@ -1,0 +1,1736 @@
+================ bloque_sin_eco_norm_r1 (esc=23, laser=0, run=1) ================
+MUNDO bloque_sin_eco planta=(x 883..1083, y 656..856) en_ruta=1 aparece_ms=0
+   [    50 ms real=(991,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(991,2000,0.9) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=144 motivo=0
+   [   350 ms real=(991,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=300
+   [   450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [   500 ms] real=(991,2000,0.9) nav=(1000,1970,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [   750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [   950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [  1000 ms] real=(994,1870,1.5) nav=(1000,1816,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [  1100 ms real=(994,1844,1)] POSE_DIAG avance origen=ruta pose=(1000,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1100 ms real=(994,1844,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [  1100 ms real=(994,1844,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1050
+   [  1200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [  1350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [  1500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  1500 ms] real=(996,1740,1.1) nav=(1000,1662,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=0
+   [  1750 ms real=(997,1675,1)] POSE_DIAG avance origen=ruta pose=(1000,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1750 ms real=(997,1675,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1750 ms real=(997,1675,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1700
+   [  1800 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=142 motivo=0
+   [  1950 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=143 motivo=0
+   [  2000 ms] real=(998,1610,1.1) nav=(1000,1508,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2150 ms] cuadro color=(0/0/1 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=1
+   [  2300 ms] cuadro color=(0/0/1 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=1
+   [  2400 ms real=(1000,1506,1)] POSE_DIAG avance origen=ruta pose=(1000,1400,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  2400 ms real=(1000,1506,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  2400 ms real=(1000,1506,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2350
+   [  2450 ms] cuadro color=(0/0/1 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  2500 ms] real=(1000,1480,1.1) nav=(1000,1354,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2600 ms] cuadro color=(0/0/3 1/1/14 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  2750 ms] cuadro color=(0/0/4 1/1/14 0/0/0) fusion=(000) det_n=1 brillo=144 motivo=1
+   [  2850 ms] cuadro color=(0/0/4 1/1/15 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=1
+   [  3000 ms] cuadro color=(1/1/7 1/1/21 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  3050 ms real=(1002,1337,1)] POSE_DIAG avance origen=ruta pose=(1000,1200,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  3050 ms real=(1002,1337,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  3050 ms real=(1002,1337,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=3000
+   [  3000 ms] real=(1002,1350,1.1) nav=(1000,1200,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3200 ms] cuadro color=(1/1/12 1/1/24 0/0/0) fusion=(110) det_n=1 brillo=140 motivo=3
+   [  3300 ms] cuadro color=(1/1/16 1/1/32 0/0/0) fusion=(110) det_n=1 brillo=136 motivo=3
+   [  3450 ms] cuadro color=(1/2/25 1/2/40 0/0/5) fusion=(110) det_n=1 brillo=129 motivo=3
+   [  3500 ms real=(1004,1220,1)] OBS_DIAG evento=detiene mascara_izq=0000000000601806000000000 mascara_cen=00000000001e0781e00000000 mascara_der=0000000000020080200000000 cercania=(2,2,0) celdas=(25,40,5) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  3500 ms real=(1004,1220,1)] POSE_DIAG avance origen=ruta pose=(1000,1032,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  3500 ms real=(1004,1220,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=550 hecho=168
+   [  3500 ms] real=(1004,1220,1.1) nav=(1000,1032,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  3600 ms] cuadro color=(1/2/36 1/2/48 0/0/6) fusion=(110) det_n=1 brillo=121 motivo=3
+   [  3800 ms] cuadro color=(1/3/64 1/3/64 1/3/24) fusion=(111) det_n=1 brillo=94 motivo=3
+   [  3900 ms] cuadro color=(1/3/80 1/3/80 1/3/79) fusion=(111) det_n=1 brillo=106 motivo=35
+   [  4000 ms] real=(1005,1173,1.1) nav=(1000,1032,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  4050 ms] cuadro color=(1/3/80 1/3/80 1/3/79) fusion=(000) det_n=0 brillo=115 motivo=35
+   [  4350 ms] cuadro color=(1/3/80 1/3/80 1/3/79) fusion=(000) det_n=0 brillo=127 motivo=35
+   [  4400 ms real=(1005,1173,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=4350
+   [  4500 ms] real=(1005,1173,1.1) nav=(1000,1017,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4550 ms] cuadro color=(1/3/80 1/3/80 1/3/79) fusion=(111) det_n=1 brillo=129 motivo=35
+   [  4600 ms real=(1005,1147,1)] POSE_DIAG avance origen=ruta pose=(1000,1002,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  4600 ms real=(1005,1147,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=200 hecho=30
+   [  4600 ms real=(1005,1147,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=4550
+   [  4600 ms real=(1005,1147,1)] OBS_DIAG evento=detiene mascara_izq=0000000000e0380e0380e0380 mascara_cen=00000000001e0781e0781e078 mascara_der=000000000003c0f03c0f03c0f cercania=(0,3,0) celdas=(80,80,79) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  4600 ms real=(1005,1147,1)] POSE_DIAG avance origen=ruta pose=(1000,972,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  4600 ms real=(1005,1147,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=100 hecho=30
+   [  4650 ms] cuadro color=(1/3/80 1/3/80 1/3/79) fusion=(111) det_n=1 brillo=130 motivo=35
+   [  4850 ms] cuadro color=(1/3/80 1/3/80 1/3/75) fusion=(111) det_n=1 brillo=92 motivo=35
+   [  5000 ms] cuadro color=(0/0/0 0/0/0 1/3/20) fusion=(000) det_n=0 brillo=82 motivo=7
+   [  5000 ms] real=(1006,1100,1.4) nav=(1000,972,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  5150 ms] cuadro color=(0/0/0 0/0/0 1/3/20) fusion=(000) det_n=0 brillo=91 motivo=1
+   [  5300 ms real=(1006,1100,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=5250
+   [  5350 ms] cuadro color=(0/0/0 0/0/0 1/3/20) fusion=(001) det_n=1 brillo=99 motivo=7
+   [  5500 ms] cuadro color=(0/0/0 0/0/0 1/3/20) fusion=(000) det_n=1 brillo=105 motivo=1
+   [  5500 ms] real=(1007,1087,1.5) nav=(1000,926,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5650 ms] cuadro color=(0/0/0 0/0/0 1/3/11) fusion=(000) det_n=0 brillo=105 motivo=1
+   [  5800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=104 motivo=6
+   [  5950 ms real=(1010,970,1)] POSE_DIAG avance origen=ruta pose=(1001,803,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  5950 ms real=(1010,970,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=650 hecho=169
+   [  5950 ms real=(1010,970,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=5900
+   [  5900 ms] CONTACTO con bloque_sin_eco real=(1010,970,1.7) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  5950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=110 motivo=0
+   [  6000 ms] real=(1011,957,1.6) nav=(1001,773,1) estado=SIGUIENDO cmd=FORWARD laser=8
+   [  6150 ms real=(1011,931,1)] SENS_DIAG tof_paro mm=8 estado=SIGUIENDO cmd=FORWARD t_ms=6100
+   [  6150 ms real=(1011,931,1)] OBS_DIAG evento=detiene mascara_izq=0000000000000000000000000 mascara_cen=0000000000000000000000000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(0,0,0) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  6150 ms real=(1011,931,1)] POSE_DIAG avance origen=ruta pose=(1001,712,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  6150 ms real=(1011,931,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=300 hecho=91
+   [  6150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=115 motivo=0
+   [  6200 ms real=(1011,931,1)] CONTRADICCION_LASER_CAMARA laser_mm=8 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  6250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=118 motivo=0
+   [  6500 ms] real=(1012,897,1.5) nav=(1001,712,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=8
+   [  6550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=123 motivo=6
+   [  6650 ms real=(1011,897,1)] ESQUIVE_DIAG plan lado=-1 giro_adelante_mm=90 libre_mm=-92 cercania=3 cabe=0
+   [  6650 ms real=(1011,897,1)] BORDE_DIAG retroceso_conocido=212 mm
+   [  6650 ms real=(1011,897,1)] RUTA_DIAG envia cmd=REVERSE origen=otro pedido=0 plan_ms=0 t_ms=6600
+   [  6750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=0
+   [  6850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=0
+   [  7000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [  7000 ms] real=(1011,949,0.4) nav=(1001,804,0) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=8
+   [  7200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [  7300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [  7350 ms real=(1011,1040,359)] POSE_DIAG avance origen=otro pose=(1001,924,358) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  7350 ms real=(1011,1040,359)] RUTA_DIAG fin cmd=REVERSE origen=otro pedido=0 plan_ms=0 real_ms=700 hecho=212
+   [  7450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [  7500 ms] real=(1013,1088,-1.9) nav=(1001,924,358) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  7650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [  7850 ms real=(1012,1080,354)] SENS_DIAG tof_paro decide lado=izquierda por=camara laser_mm=220 celdas_izq=0 celdas_der=0
+   [  7850 ms real=(1012,1080,354)] OBS_DIAG evento=esquiva mascara_izq=0000000000000000000000000 mascara_cen=0000000000000000000000000 mascara_der=0000000000000000000000000 cercania=(0,0,0) celdas=(0,0,0) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  7850 ms real=(1012,1080,354)] RUTA_DIAG envia cmd=LEFT origen=esquive pedido=90 plan_ms=766 t_ms=7800
+   [  7850 ms real=(1012,1080,354)] SENS_DIAG giro pide=GIRAR objetivo=-90 origen=esquive t_ms=7800
+   [  7850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [  8000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [  8000 ms] real=(1008,1059,-20.3) nav=(998,904,344) estado=ESQUIVANDO cmd=LEFT laser=1200 (sin eco)
+   [  8100 ms] cuadro color=(1/3/20 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=1
+   [  8250 ms] cuadro color=(1/3/80 1/3/28 0/0/0) fusion=(000) det_n=0 brillo=184 motivo=3
+   [  8400 ms] cuadro color=(0/0/0 0/0/0 1/3/29) fusion=(000) det_n=1 brillo=238 motivo=7
+   [  8500 ms] real=(960,1007,-66.4) nav=(921,839,276) estado=ESQUIVANDO cmd=LEFT laser=1200 (sin eco)
+   [  8600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=255 motivo=0
+   [  8750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=255 motivo=0
+   [  8850 ms real=(921,998,269)] TURN_DIAG lado=IZQ origen=esquive pedido=90 hecho=89 plan_ms=766 real_ms=1000 um_grado=(1414,0) mm=(-93,-85) carro_mm=(89,-88) rumbo=357>269 por=angulo fw_real_x10=888 fw_ms=719 ant=10
+   [  8850 ms real=(921,998,269)] SENS_DIAG giro por=angulo objetivo=90 real_x10=888 error_x10=-12 fw_ms=719 origen=esquive
+   [  8850 ms real=(921,998,269)] RUTA_DIAG fin cmd=LEFT origen=esquive pedido=90 plan_ms=766 real_ms=1000 hecho=89
+   [  8850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=250 motivo=0
+   [  9000 ms] real=(921,999,-91.3) nav=(908,839,269) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  9100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=236 motivo=2
+   [  9200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=213 motivo=6
+   [  9350 ms] cuadro color=(0/0/4 0/0/2 0/0/5) fusion=(000) det_n=0 brillo=190 motivo=2
+   [  9500 ms] real=(921,999,-91.3) nav=(908,839,269) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  9550 ms] cuadro color=(0/0/0 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=172 motivo=6
+   [  9600 ms real=(921,998,269)] BARRIDO_DIAG cara=340 lecturas(grados:s,lado)= 0:- 6:- 20:- 32:- 43:- 57:- 71:-
+   [  9600 ms real=(921,998,269)] ESQUIVE_DIAG escaneo lado=-1 lecturas=7 con_eco=0 ancho_mm=0 sin_final=0 pared_lateral_mm=0 lateral_mm=400 tope_mm=800
+   [  9600 ms real=(921,998,269)] ESQUIVE_DIAG tramo lado=-1 lateral_giro_mm=88 lateral_vuelta_mm=144 tramo_mm=168 margen_mm=400
+   [  9600 ms real=(921,998,269)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=168 plan_ms=555 t_ms=9550
+   [  9650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=159 motivo=0
+   [  9800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=151 motivo=2
+   [  9950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=2
+   [ 10000 ms] real=(856,1000,-90.7) nav=(802,841,269) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10150 ms real=(817,1000,270)] POSE_DIAG avance origen=esquive pose=(741,842,269) rumbo_inicio=269 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [ 10150 ms real=(817,1000,270)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=168 plan_ms=555 real_ms=550 hecho=167
+   [ 10150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=2
+   [ 10250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=6
+   [ 10400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 10450 ms real=(746,1000,274)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=10400
+   [ 10450 ms real=(746,1000,274)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=10400
+   [ 10500 ms] real=(737,999,-82.2) nav=(741,842,269) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 10550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 10700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=0
+   [ 10900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [ 11000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=2
+   [ 11000 ms] real=(649,943,-38.0) nav=(602,749,333) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 11350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=0
+   [ 11500 ms real=(624,860,359)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=89 plan_ms=802 real_ms=1050 um_grado=(2475,118) mm=(-153,-160) carro_mm=(150,162) rumbo=269>358 por=angulo fw_real_x10=889 fw_ms=762 ant=10
+   [ 11500 ms real=(624,860,359)] SENS_DIAG giro por=angulo objetivo=90 real_x10=889 error_x10=-11 fw_ms=762 origen=esquive
+   [ 11500 ms real=(624,860,359)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1050 hecho=89
+   [ 11500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 11500 ms] real=(624,861,-1.5) nav=(588,682,358) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [ 11600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 11750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 11800 ms real=(624,860,359)] REINC_DIAG pasar paralelo_mm=894 pose=(588,682,358) salida=(1001,924) cercania_salida=3
+   [ 11800 ms real=(624,860,359)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 t_ms=11750
+   [ 11950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 12000 ms] real=(624,861,-1.5) nav=(587,637,358) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 12250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 12450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [ 12500 ms] real=(627,731,4.0) nav=(585,483,2) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 12700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 12850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13000 ms] real=(636,602,3.4) nav=(591,330,2) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 13250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13500 ms] real=(642,472,2.5) nav=(596,176,1) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 13550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 13800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 14000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 14000 ms] real=(647,343,1.8) nav=(598,22,1) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 14200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 14350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 14500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 14500 ms] real=(650,213,1.4) nav=(599,-132,0) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 14650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 14700 ms real=(650,160,1)] POSE_DIAG avance origen=esquive pose=(599,-208,0) rumbo_inicio=358 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [ 14700 ms real=(650,160,1)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 real_ms=2900 hecho=890
+   [ 14800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [ 14950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [ 15000 ms real=(652,103,5)] REINC_DIAG plan pose_antes=(599,-208,0) salida=(1001,924,357) desvio_mm=401 solo_rumbo=0 objetivo=(1000,-450) dist_mm=151 giro1=89 giro2=-89 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=2212
+   [ 15000 ms real=(652,103,5)] REINC_DIAG pivote giro1_pose=(761,-358,89) previo=(912,-360) final=(1000,-450,0) correcciones=0
+   [ 15000 ms real=(652,103,5)] RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=89 plan_ms=794 t_ms=14950
+   [ 15000 ms real=(652,103,5)] SENS_DIAG giro pide=GIRAR objetivo=89 origen=vuelta t_ms=14950
+   [ 15000 ms] real=(653,103,5.6) nav=(599,-208,0) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 15100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [ 15250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 15400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 15500 ms] real=(701,17,47.9) nav=(677,-337,57) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 15550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 15700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 15950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 16050 ms real=(787,-14,87)] TURN_DIAG lado=DER origen=vuelta pedido=89 hecho=85 plan_ms=794 real_ms=1050 um_grado=(2475,118) mm=(151,-150) carro_mm=(150,151) rumbo=0>85 por=angulo fw_real_x10=852 fw_ms=765 ant=5
+   [ 16050 ms real=(787,-14,87)] SENS_DIAG giro por=angulo objetivo=89 real_x10=852 error_x10=-38 fw_ms=765 origen=vuelta
+   [ 16050 ms real=(787,-14,87)] RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=89 plan_ms=794 real_ms=1050 hecho=85
+   [ 16000 ms] real=(787,-14,87.2) nav=(750,-358,85) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 16050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [ 16250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 16350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 16500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 16550 ms real=(787,-14,87)] RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=151 plan_ms=490 t_ms=16500
+   [ 16500 ms] real=(787,-14,87.2) nav=(750,-358,85) estado=REINCORPORANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 16650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 16800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 16950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17050 ms real=(878,-18,87)] POSE_DIAG avance origen=vuelta pose=(901,-369,86) rumbo_inicio=85 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [ 17050 ms real=(878,-18,87)] RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=151 plan_ms=490 real_ms=500 hecho=151
+   [ 17000 ms] real=(865,-18,87.8) nav=(901,-369,86) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 17100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17350 ms real=(931,-21,83)] RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=89 plan_ms=759 t_ms=17300
+   [ 17350 ms real=(931,-21,83)] SENS_DIAG giro pide=GIRAR objetivo=-89 origen=vuelta t_ms=17300
+   [ 17400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17500 ms] real=(953,-26,69.6) nav=(921,-373,73) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 17600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 17850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 18000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 18000 ms] real=(1003,-75,24.4) nav=(984,-451,5) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 18200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [ 18300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 18350 ms real=(1010,-112,0)] TURN_DIAG lado=IZQ origen=vuelta pedido=89 hecho=87 plan_ms=759 real_ms=1000 um_grado=(1414,0) mm=(84,-91) carro_mm=(90,-84) rumbo=86>359 por=angulo fw_real_x10=871 fw_ms=722 ant=5
+   [ 18350 ms real=(1010,-112,0)] SENS_DIAG giro por=angulo objetivo=89 real_x10=871 error_x10=-19 fw_ms=722 origen=vuelta
+   [ 18350 ms real=(1010,-112,0)] RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=89 plan_ms=759 real_ms=1000 hecho=87
+   [ 18500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [ 18500 ms] real=(1011,-112,-0.1) nav=(985,-460,359) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 18600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [ 18800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 18900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 19000 ms] real=(1011,-112,-0.1) nav=(985,-460,359) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 19050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 19250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 19350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 19500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [ 19550 ms real=(1010,-112,0)] REINC_DIAG fin tras_el_destino s=2460 destino=2000: el rodeo termino mas alla del final dibujado
+   [ 19550 ms real=(1010,-112,0)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(985,-460,359)
+   [ 19500 ms] real=(1011,-112,-0.1) nav=(985,-460,359) estado=TERMINADO cmd=STOP laser=1200 (sin eco)
+FIN bloque_sin_eco semilla=2330162 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=1 ayudas=0 paradas=3 t=19500 ms real=(1011,-112,-0.1) nav=(985,-460,359) lateral=10 long=112 cola=647 piso_aprendido=1
+
+================ objeto_bajo_pes_r5 (esc=16, laser=1, run=5) ================
+MUNDO plano planta=(x 826..1126, y 782..1032) en_ruta=1 aparece_ms=0
+   [    50 ms real=(996,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(996,2000,0.5) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=140 motivo=0
+   [   200 ms real=(996,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [   350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [   500 ms] real=(997,1921,1.4) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [   700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [   800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=0
+   [   850 ms] cuadro color=(0/0/2 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=1
+   [   950 ms real=(999,1778,1)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [   950 ms real=(999,1778,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(999,1778,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [   950 ms] cuadro color=(0/0/2 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  1000 ms] real=(1000,1763,1.1) nav=(1001,1770,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1050 ms] cuadro color=(0/0/2 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  1200 ms] cuadro color=(0/0/2 1/1/8 0/0/0) fusion=(000) det_n=1 brillo=137 motivo=1
+   [  1250 ms] cuadro color=(0/0/2 1/1/8 0/0/0) fusion=(000) det_n=1 brillo=136 motivo=1
+   [  1400 ms] cuadro color=(0/0/5 1/1/16 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=1
+   [  1450 ms] cuadro color=(0/0/5 1/1/16 0/0/1) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  1500 ms] real=(1003,1605,0.9) nav=(1002,1616,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1600 ms real=(1003,1573,0)] POSE_DIAG avance origen=ruta pose=(1002,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1600 ms real=(1003,1573,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1600 ms real=(1003,1573,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1600 ms] cuadro color=(0/0/6 1/1/16 0/0/1) fusion=(010) det_n=1 brillo=132 motivo=1
+   [  1650 ms] cuadro color=(0/0/6 1/1/16 0/0/1) fusion=(010) det_n=1 brillo=133 motivo=1
+   [  1800 ms] cuadro color=(1/1/11 1/1/24 0/0/2) fusion=(110) det_n=1 brillo=126 motivo=1
+   [  1900 ms] cuadro color=(1/1/12 1/1/24 0/0/3) fusion=(000) det_n=0 brillo=127 motivo=1
+   [  2000 ms] cuadro color=(1/1/17 1/1/24 0/0/5) fusion=(110) det_n=1 brillo=125 motivo=1
+   [  2000 ms] real=(1005,1447,0.9) nav=(1002,1462,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2100 ms] cuadro color=(1/1/17 1/1/24 0/0/6) fusion=(110) det_n=1 brillo=126 motivo=1
+   [  2150 ms] cuadro color=(1/2/26 1/2/32 1/2/10) fusion=(111) det_n=1 brillo=118 motivo=1
+   [  2200 ms real=(1005,1369,0)] POSE_DIAG avance origen=ruta pose=(1002,1386,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2200 ms real=(1005,1369,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=700 hecho=214
+   [  2250 ms] cuadro color=(1/2/34 1/2/40 1/2/14) fusion=(111) det_n=1 brillo=111 motivo=1
+   [  2350 ms] cuadro color=(1/2/38 1/2/40 1/2/20) fusion=(111) det_n=1 brillo=109 motivo=1
+   [  2450 ms] cuadro color=(1/2/38 1/2/40 1/2/20) fusion=(111) det_n=1 brillo=112 motivo=3
+   [  2500 ms real=(1005,1369,0)] OBS_DIAG evento=detiene mascara_izq=000000000000380e038000000 mascara_cen=0000000000000781e07800000 mascara_der=00000000000000c0300e00000 cercania=(3,3,3) celdas=(38,40,20) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  2500 ms] real=(1005,1369,0.8) nav=(1002,1386,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  2550 ms] cuadro color=(1/2/38 1/2/40 1/2/20) fusion=(000) det_n=1 brillo=114 motivo=3
+   [  2800 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=116 motivo=7
+   [  2900 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=1 brillo=117 motivo=1
+   [  2950 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=1 brillo=118 motivo=1
+   [  3000 ms] real=(1005,1369,0.8) nav=(1002,1386,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  3100 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=118 motivo=1
+   [  3150 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=119 motivo=1
+   [  3250 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=119 motivo=1
+   [  3350 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=119 motivo=1
+   [  3450 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=119 motivo=1
+   [  3500 ms] real=(1005,1369,0.8) nav=(1002,1386,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  3550 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  3650 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  3750 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  3850 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=120 motivo=1
+   [  3950 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  4000 ms] real=(1005,1369,0.8) nav=(1002,1386,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  4100 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=119 motivo=1
+   [  4200 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  4250 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  4400 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=1 brillo=119 motivo=1
+   [  4450 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=1 brillo=120 motivo=1
+   [  4500 ms] real=(1005,1369,0.8) nav=(1002,1386,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  4550 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  4650 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=120 motivo=1
+   [  4800 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  4850 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  4950 ms real=(1005,1369,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=4900
+   [  4950 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(111) det_n=1 brillo=120 motivo=1
+   [  5000 ms real=(1005,1369,0)] POSE_DIAG avance origen=ruta pose=(1002,1386,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  5000 ms real=(1005,1369,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=50 hecho=0
+   [  5000 ms real=(1005,1369,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=4950
+   [  5000 ms real=(1005,1369,0)] OBS_DIAG evento=detiene mascara_izq=000000000000380e038000000 mascara_cen=0000000000000781e07800000 mascara_der=00000000000000c0380e00000 cercania=(0,3,0) celdas=(38,40,24) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  5000 ms real=(1005,1369,0)] POSE_DIAG avance origen=ruta pose=(1002,1356,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  5000 ms real=(1005,1369,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=100 hecho=30
+   [  5000 ms] real=(1005,1369,0.8) nav=(1002,1356,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  5100 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  5150 ms] cuadro color=(1/2/38 1/2/40 1/2/24) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  5300 ms] cuadro color=(1/3/54 1/3/56 1/3/40) fusion=(111) det_n=1 brillo=95 motivo=1
+   [  5350 ms] cuadro color=(1/3/54 1/3/56 1/3/40) fusion=(111) det_n=1 brillo=98 motivo=1
+   [  5450 ms] cuadro color=(1/3/54 1/3/56 1/3/39) fusion=(111) det_n=1 brillo=101 motivo=1
+   [  5500 ms] real=(1005,1339,0.8) nav=(1002,1356,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  5550 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(000) det_n=1 brillo=102 motivo=3
+   [  5650 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(000) det_n=0 brillo=103 motivo=3
+   [  5750 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(000) det_n=0 brillo=105 motivo=3
+   [  5850 ms real=(1005,1339,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=5800
+   [  5900 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(111) det_n=1 brillo=105 motivo=3
+   [  5950 ms real=(1005,1309,0)] OBS_DIAG evento=detiene mascara_izq=000000000000380e0380e0000 mascara_cen=0000000000000781e0781e000 mascara_der=00000000000000c0300e03c00 cercania=(0,3,0) celdas=(54,56,35) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  5950 ms real=(1005,1309,0)] POSE_DIAG avance origen=ruta pose=(1002,1326,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  5950 ms real=(1005,1309,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=100 hecho=30
+   [  5950 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(111) det_n=1 brillo=106 motivo=3
+   [  6000 ms] real=(1005,1309,0.8) nav=(1002,1326,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  6050 ms] cuadro color=(1/3/54 1/3/56 1/3/35) fusion=(111) det_n=1 brillo=106 motivo=3
+   [  6300 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(111) det_n=1 brillo=94 motivo=3
+   [  6400 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(111) det_n=1 brillo=96 motivo=3
+   [  6450 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(000) det_n=0 brillo=97 motivo=3
+   [  6500 ms] real=(1005,1309,0.8) nav=(1002,1326,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  6600 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(000) det_n=0 brillo=98 motivo=3
+   [  6650 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(000) det_n=0 brillo=98 motivo=3
+   [  6750 ms real=(1005,1309,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=6700
+   [  6750 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(000) det_n=1 brillo=98 motivo=3
+   [  6850 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(111) det_n=1 brillo=99 motivo=3
+   [  6900 ms real=(1005,1277,0)] OBS_DIAG evento=detiene mascara_izq=000000000000380e0380e0380 mascara_cen=0000000000000781e0781e078 mascara_der=00000000000000c0300e03c0f cercania=(0,3,0) celdas=(62,64,45) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  6900 ms real=(1005,1277,0)] POSE_DIAG avance origen=ruta pose=(1002,1281,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6900 ms real=(1005,1277,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=150 hecho=45
+   [  7000 ms] cuadro color=(1/3/62 1/3/64 1/3/45) fusion=(111) det_n=1 brillo=99 motivo=3
+   [  7000 ms] real=(1006,1247,1.0) nav=(1002,1281,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  7050 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(111) det_n=1 brillo=110 motivo=3
+   [  7150 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(111) det_n=1 brillo=108 motivo=3
+   [  7250 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(000) det_n=0 brillo=107 motivo=3
+   [  7400 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(000) det_n=0 brillo=107 motivo=3
+   [  7450 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(000) det_n=0 brillo=106 motivo=3
+   [  7550 ms real=(1005,1247,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=7500
+   [  7500 ms] real=(1006,1247,1.0) nav=(1002,1281,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  7550 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(111) det_n=1 brillo=106 motivo=3
+   [  7600 ms real=(1005,1217,0)] OBS_DIAG evento=detiene mascara_izq=000000000000380e0380e0380 mascara_cen=0000000000000781e0781e078 mascara_der=0000000000000080300e03c0f cercania=(0,3,0) celdas=(56,56,42) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  7600 ms real=(1005,1217,0)] POSE_DIAG avance origen=ruta pose=(1002,1251,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  7600 ms real=(1005,1217,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=50 hecho=30
+   [  7650 ms] cuadro color=(1/3/56 1/3/56 1/3/42) fusion=(111) det_n=1 brillo=106 motivo=3
+   [  7750 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=1 brillo=117 motivo=3
+   [  7850 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=0 brillo=115 motivo=3
+   [  7950 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=0 brillo=114 motivo=3
+   [  8050 ms real=(1005,1217,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=8000
+   [  8000 ms] real=(1006,1217,1.0) nav=(1002,1251,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  8050 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=0 brillo=113 motivo=3
+   [  8150 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=0 brillo=112 motivo=3
+   [  8250 ms] cuadro color=(1/3/48 1/3/48 1/3/39) fusion=(000) det_n=0 brillo=111 motivo=3
+   [  8300 ms] CONTACTO con plano real=(1007,1154,1.5) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  8350 ms] cuadro color=(1/3/48 1/3/48 1/3/38) fusion=(000) det_n=0 brillo=111 motivo=3
+   [  8400 ms real=(1007,1138,1)] POSE_DIAG avance origen=ruta pose=(1002,1175,1) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  8400 ms real=(1007,1138,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=350 hecho=76
+   [  8400 ms real=(1007,1138,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=180 plan_ms=585 t_ms=8350
+   [  8450 ms] cuadro color=(1/3/40 1/3/40 1/3/34) fusion=(000) det_n=0 brillo=123 motivo=3
+   [  8500 ms] real=(1008,1107,1.5) nav=(1002,1129,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  8550 ms] cuadro color=(1/3/32 1/3/34 1/3/34) fusion=(000) det_n=0 brillo=129 motivo=3
+   [  8650 ms] cuadro color=(1/3/24 1/3/24 1/3/23) fusion=(000) det_n=0 brillo=142 motivo=3
+   [  8750 ms] cuadro color=(1/3/16 1/3/16 1/3/16) fusion=(000) det_n=0 brillo=150 motivo=3
+   [  8850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=168 motivo=0
+   [  8950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=159 motivo=0
+   [  9000 ms real=(1010,948,0)] POSE_DIAG avance origen=ruta pose=(1004,991,1) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  9000 ms real=(1010,948,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=180 plan_ms=585 real_ms=700 hecho=184
+   [  9000 ms real=(1010,948,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=8950
+   [  9000 ms] real=(1010,949,0.3) nav=(1004,976,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  9050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=153 motivo=0
+   [  9150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=2
+   [  9250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=2
+   [  9400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=2
+   [  9450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=2
+   [  9500 ms] real=(1010,791,-0.4) nav=(1004,822,359) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  9600 ms real=(1009,759,0)] POSE_DIAG avance origen=ruta pose=(1004,807,359) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  9600 ms real=(1009,759,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=184
+   [  9600 ms real=(1009,759,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=9550
+   [  9600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=2
+   [  9700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=2
+   [  9750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=2
+   [  9850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [  9950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 10000 ms] real=(1009,633,-0.4) nav=(1003,669,359) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 10150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10300 ms real=(1008,537,0)] POSE_DIAG avance origen=ruta pose=(1002,592,359) rumbo_inicio=359 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [ 10300 ms real=(1008,537,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [ 10300 ms real=(1008,537,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=10250
+   [ 10300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10500 ms] real=(1008,475,-0.3) nav=(1002,516,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 10900 ms real=(1007,348,0)] POSE_DIAG avance origen=ruta pose=(1001,408,0) rumbo_inicio=359 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [ 10900 ms real=(1007,348,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=184
+   [ 10900 ms real=(1007,348,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=10850
+   [ 10900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 11000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 11000 ms] real=(1008,317,-0.2) nav=(1001,362,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [ 11150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11500 ms] real=(1007,159,-0.0) nav=(1000,208,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11600 ms real=(1007,127,0)] POSE_DIAG avance origen=ruta pose=(1000,193,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [ 11600 ms real=(1007,127,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [ 11600 ms real=(1007,127,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=520 t_ms=11550
+   [ 11600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 11850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 12000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [ 12000 ms] real=(1007,1,-0.1) nav=(1000,55,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=2
+   [ 12100 ms real=(1007,-45,0)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(1000,40,0)
+   [ 12100 ms real=(1007,-45,0)] POSE_DIAG avance origen=ruta pose=(1000,10,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [ 12100 ms real=(1007,-45,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=520 real_ms=600 hecho=183
+FIN objeto_bajo semilla=2260117 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=0 ayudas=0 paradas=5 t=12050 ms real=(1007,-45,-0.1) nav=(1000,10,0) lateral=7 long=45 cola=707 piso_aprendido=1
+
+================ bajo_solo_color_pes_r0 (esc=20, laser=1, run=0) ================
+MUNDO plano_desconocido planta=(x 826..1126, y 792..1042) en_ruta=1 aparece_ms=0
+   [    50 ms real=(999,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(999,2000,-0.4) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=137 motivo=0
+   [   200 ms real=(999,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [   500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [   500 ms] real=(999,1971,-0.1) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [   800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [   950 ms real=(999,1838,0)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [   950 ms real=(999,1838,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(999,1838,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [   950 ms] cuadro color=(0/0/1 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  1000 ms] real=(999,1824,0.2) nav=(1001,1770,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1100 ms] cuadro color=(0/0/2 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  1300 ms] cuadro color=(0/0/2 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  1450 ms] cuadro color=(0/0/2 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  1500 ms] real=(999,1677,0.0) nav=(1002,1616,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1600 ms real=(999,1647,0)] POSE_DIAG avance origen=ruta pose=(1002,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1600 ms real=(999,1647,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1600 ms real=(999,1647,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1600 ms] cuadro color=(0/0/5 1/1/16 0/0/1) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  1700 ms] cuadro color=(0/0/5 1/1/16 0/0/2) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  1900 ms] cuadro color=(0/0/5 1/1/16 0/0/1) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  2000 ms] real=(999,1530,-0.0) nav=(1002,1462,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2050 ms] cuadro color=(1/1/10 1/1/24 0/0/3) fusion=(000) det_n=0 brillo=124 motivo=1
+   [  2150 ms] cuadro color=(1/1/13 1/1/24 1/1/7) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  2250 ms real=(999,1456,0)] POSE_DIAG avance origen=ruta pose=(1003,1400,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2250 ms real=(999,1456,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  2250 ms real=(999,1456,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2300 ms] cuadro color=(1/1/15 1/1/24 1/1/8) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  2350 ms real=(998,1426,359)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=1 celdas=15 cercania=1 cuadros=3 grados=14 lateral_mm=94
+   [  2450 ms] cuadro color=(1/2/23 1/2/32 1/2/13) fusion=(000) det_n=0 brillo=116 motivo=1
+   [  2500 ms] real=(995,1383,-8.2) nav=(1003,1309,354) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2600 ms] cuadro color=(1/2/19 1/2/45 1/2/37) fusion=(100) det_n=1 brillo=104 motivo=1
+   [  2800 ms] cuadro color=(1/3/15 1/3/48 1/3/56) fusion=(000) det_n=0 brillo=100 motivo=1
+   [  2900 ms real=(970,1268,349)] POSE_DIAG avance origen=ruta pose=(985,1202,346) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2900 ms real=(970,1268,349)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  2900 ms real=(970,1268,349)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2850
+   [  2950 ms] cuadro color=(1/3/16 1/3/60 1/3/58) fusion=(000) det_n=0 brillo=96 motivo=3
+   [  3000 ms] real=(965,1239,-7.0) nav=(975,1158,347) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3050 ms] cuadro color=(1/3/23 1/3/55 1/3/56) fusion=(000) det_n=0 brillo=99 motivo=3
+   [  3200 ms real=(961,1180,0)] VISTAZO_DIAG sin_eco lado=-1 ms=850: sigue la ruta
+   [  3250 ms] cuadro color=(1/3/37 1/3/48 1/3/48) fusion=(000) det_n=0 brillo=103 motivo=3
+   [  3250 ms] CONTACTO con plano_desconocido real=(962,1152,1.7) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  3350 ms] cuadro color=(1/3/39 1/3/40 1/3/40) fusion=(000) det_n=0 brillo=112 motivo=3
+   [  3550 ms real=(965,1078,4)] POSE_DIAG avance origen=ruta pose=(970,1004,3) rumbo_inicio=346 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  3550 ms real=(965,1078,4)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  3550 ms real=(965,1078,4)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=3500
+   [  3500 ms] real=(965,1093,3.9) nav=(970,1004,3) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3550 ms] cuadro color=(1/3/32 1/3/32 1/3/32) fusion=(000) det_n=0 brillo=125 motivo=3
+   [  3700 ms] cuadro color=(1/3/16 1/3/17 1/3/24) fusion=(000) det_n=0 brillo=142 motivo=3
+   [  3800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=165 motivo=6
+   [  3950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=157 motivo=0
+   [  4000 ms] real=(975,946,3.8) nav=(982,852,5) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=152 motivo=2
+   [  4200 ms real=(978,887,3)] POSE_DIAG avance origen=ruta pose=(985,805,4) rumbo_inicio=3 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  4200 ms real=(978,887,3)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  4200 ms real=(978,887,3)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=4150
+   [  4250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=2
+   [  4450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=2
+   [  4500 ms] real=(983,800,1.9) nav=(991,699,3) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=2
+   [  4750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=2
+   [  4850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=2
+   [  4900 ms real=(985,682,0)] POSE_DIAG avance origen=ruta pose=(995,591,2) rumbo_inicio=4 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  4900 ms real=(985,682,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=214
+   [  4900 ms real=(985,682,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=4850
+   [  5000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=2
+   [  5000 ms] real=(985,653,0.7) nav=(996,545,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=6
+   [  5300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  5500 ms real=(985,505,0)] POSE_DIAG avance origen=ruta pose=(998,407,1) rumbo_inicio=2 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  5500 ms real=(985,505,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=184
+   [  5500 ms real=(985,505,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=5450
+   [  5500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  5500 ms] real=(986,506,-0.1) nav=(998,392,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  5750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  5900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  6000 ms] real=(986,359,-0.2) nav=(999,238,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6200 ms real=(985,300,0)] POSE_DIAG avance origen=ruta pose=(999,192,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6200 ms real=(985,300,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [  6200 ms real=(985,300,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=520 t_ms=6150
+   [  6250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6500 ms] real=(985,212,-0.3) nav=(999,85,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6700 ms real=(984,153,0)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(999,39,0)
+   [  6700 ms real=(984,153,0)] POSE_DIAG avance origen=ruta pose=(999,9,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6700 ms real=(984,153,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=520 real_ms=600 hecho=183
+FIN bajo_solo_color semilla=2300140 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=0 ayudas=0 paradas=0 t=6650 ms real=(984,109,-0.3) nav=(999,9,0) lateral=15 long=109 cola=562 piso_aprendido=1
+
+================ banquito_norm_r0_cont (esc=9, laser=0, run=0) ================
+MUNDO banquito planta=(x 803..1153, y 641..1091) en_ruta=1 aparece_ms=0
+   [    50 ms real=(1000,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1000,2000,0.4) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=134 motivo=0
+   [   250 ms real=(1000,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=200
+   [   250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=134 motivo=0
+   [   400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=134 motivo=0
+   [   500 ms] real=(1000,1952,0.9) nav=(1000,1939,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=134 motivo=0
+   [   600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=134 motivo=0
+   [   650 ms real=(1001,1904,0)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=2 celdas=0 cercania=1 cuadros=3 grados=10 lateral_mm=0
+   [   750 ms] cuadro color=(0/0/0 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [   900 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=1 brillo=133 motivo=0
+   [  1000 ms real=(992,1794,352)] POSE_DIAG avance origen=ruta pose=(1000,1801,357) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1000 ms real=(992,1794,352)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=199
+   [  1000 ms real=(992,1794,352)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=950
+   [  1000 ms] cuadro color=(0/0/0 0/0/1 0/0/1) fusion=(000) det_n=1 brillo=132 motivo=0
+   [  1000 ms] real=(993,1795,-8.9) nav=(1000,1787,357) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1150 ms] cuadro color=(0/0/0 0/0/1 0/0/2) fusion=(000) det_n=1 brillo=130 motivo=0
+   [  1300 ms] cuadro color=(0/0/0 0/0/2 0/0/3) fusion=(000) det_n=1 brillo=130 motivo=0
+   [  1450 ms] cuadro color=(0/0/0 0/0/2 0/0/4) fusion=(000) det_n=0 brillo=131 motivo=0
+   [  1500 ms] real=(971,1638,-1.5) nav=(976,1634,353) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1600 ms real=(970,1606,1)] VISTAZO_DIAG sin_eco lado=-1 ms=950: sigue la ruta
+   [  1600 ms] cuadro color=(0/0/2 0/0/0 0/0/5) fusion=(000) det_n=0 brillo=132 motivo=0
+   [  1650 ms real=(970,1590,2)] POSE_DIAG avance origen=ruta pose=(972,1604,353) rumbo_inicio=357 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  1650 ms real=(970,1590,2)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  1650 ms real=(970,1590,2)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1600
+   [  1800 ms] cuadro color=(0/0/6 0/0/0 0/0/6) fusion=(000) det_n=1 brillo=133 motivo=0
+   [  1950 ms] cuadro color=(1/1/8 0/0/0 1/1/9) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  2000 ms] cuadro color=(0/0/6 0/0/0 1/1/12) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  2000 ms] real=(979,1480,5.4) nav=(972,1482,4) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2150 ms] cuadro color=(0/0/1 0/0/1 1/2/13) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  2300 ms real=(987,1385,5)] POSE_DIAG avance origen=ruta pose=(978,1405,5) rumbo_inicio=353 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2300 ms real=(987,1385,5)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2300 ms real=(987,1385,5)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=2250
+   [  2300 ms] cuadro color=(0/0/1 0/0/1 1/2/23) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  2450 ms] cuadro color=(0/0/1 0/0/1 1/3/26) fusion=(001) det_n=1 brillo=131 motivo=1
+   [  2500 ms] real=(993,1322,4.5) nav=(984,1330,5) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2650 ms] cuadro color=(0/0/4 0/0/2 0/0/3) fusion=(000) det_n=1 brillo=138 motivo=0
+   [  2750 ms] cuadro color=(0/0/2 0/0/2 0/0/2) fusion=(000) det_n=1 brillo=138 motivo=0
+   [  2800 ms] BAJO EL MUEBLE banquito (entra en su planta sin tocar nada) real=(1000,1212,3.0) estado=SIGUIENDO cmd=FORWARD
+   [  2950 ms] cuadro color=(0/0/6 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  3000 ms real=(1002,1164,2)] POSE_DIAG avance origen=ruta pose=(993,1191,3) rumbo_inicio=5 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  3000 ms real=(1002,1164,2)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=214
+   [  3000 ms real=(1002,1164,2)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=2950
+   [  3000 ms] real=(1002,1164,2.5) nav=(993,1177,3) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3050 ms] cuadro color=(0/0/6 0/0/0 0/0/3) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  3150 ms] cuadro color=(1/1/7 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  3300 ms] cuadro color=(0/0/4 0/0/0 1/1/8) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  3350 ms real=(1006,1053,2)] VISTAZO_DIAG empieza lado=1 zona=DER fuentes=1 celdas=8 cercania=1 cuadros=3 grados=16 lateral_mm=149
+   [  3350 ms] cuadro color=(0/0/0 0/0/0 1/2/13) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  3500 ms] real=(1011,1006,9.4) nav=(998,1023,2) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3550 ms] cuadro color=(0/0/0 0/0/0 1/2/17) fusion=(000) det_n=0 brillo=131 motivo=1
+   [  3600 ms real=(1016,975,13)] POSE_DIAG avance origen=ruta pose=(999,1008,2) rumbo_inicio=3 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  3600 ms real=(1016,975,13)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=183
+   [  3600 ms real=(1016,975,13)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=3550
+   [  3700 ms] cuadro color=(0/0/0 0/0/0 1/2/21) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  3800 ms] cuadro color=(0/0/0 1/3/26 1/3/11) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  3850 ms real=(1042,885,17)] CONTRADICCION_LASER_CAMARA laser_mm=200 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  3850 ms real=(1042,885,17)] SENS_DIAG eco_confirma laser_mm=200: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  3850 ms real=(1042,885,17)] OBS_DIAG evento=detiene mascara_izq=0000000000000000000000000 mascara_cen=0000000000060180601806000 mascara_der=0000000000020080200802000 cercania=(0,3,0) celdas=(0,26,11) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  3850 ms real=(1042,885,17)] POSE_DIAG avance origen=ruta pose=(1015,904,14) rumbo_inicio=2 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  3850 ms real=(1042,885,17)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=350 hecho=105
+   [  3950 ms] cuadro color=(0/0/0 1/3/40 1/3/10) fusion=(000) det_n=0 brillo=120 motivo=3
+   [  4000 ms] real=(1043,885,17.6) nav=(1015,904,17) estado=DETENIDO_OBSTACULO cmd=STOP laser=109
+   [  4100 ms] cuadro color=(0/0/0 1/3/40 1/3/24) fusion=(000) det_n=0 brillo=118 motivo=3
+   [  4300 ms] cuadro color=(0/0/0 1/3/40 1/3/24) fusion=(000) det_n=0 brillo=120 motivo=3
+   [  4350 ms real=(1042,885,17)] ESQUIVE_DIAG plan vistazo lado=-1 eco_mm=200 barrido_mm=255: retrocede antes de girar
+   [  4350 ms real=(1042,885,17)] BORDE_DIAG retroceso_conocido=250 mm
+   [  4350 ms real=(1042,885,17)] RUTA_DIAG envia cmd=REVERSE origen=otro pedido=0 plan_ms=0 t_ms=4300
+   [  4350 ms] cuadro color=(0/0/0 1/3/40 1/3/24) fusion=(000) det_n=0 brillo=122 motivo=3
+   [  4500 ms] real=(1034,916,17.0) nav=(1007,932,17) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=140
+   [  4550 ms] cuadro color=(0/0/0 1/3/40 1/3/24) fusion=(000) det_n=0 brillo=124 motivo=3
+   [  4650 ms] cuadro color=(0/0/0 1/3/40 1/3/14) fusion=(000) det_n=0 brillo=131 motivo=3
+   [  4800 ms] cuadro color=(0/0/0 1/3/27 0/0/6) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  4950 ms] cuadro color=(0/0/0 1/2/21 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  5000 ms] real=(992,1069,14.4) nav=(964,1080,15) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=298
+   [  5100 ms] cuadro color=(0/0/0 1/2/15 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  5200 ms real=(976,1130,13)] POSE_DIAG avance origen=otro pose=(946,1154,14) rumbo_inicio=17 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  5200 ms real=(976,1130,13)] RUTA_DIAG fin cmd=REVERSE origen=otro pedido=0 plan_ms=0 real_ms=850 hecho=259
+   [  5300 ms] cuadro color=(0/0/0 1/1/12 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  5400 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=140 motivo=0
+   [  5500 ms] real=(970,1160,13.4) nav=(946,1154,13) estado=DETENIDO_OBSTACULO cmd=STOP laser=391
+   [  5550 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [  5650 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=137 motivo=0
+   [  5700 ms real=(971,1152,8)] SENS_DIAG tof_paro decide lado=izquierda por=camara laser_mm=450 celdas_izq=0 celdas_der=0
+   [  5700 ms real=(971,1152,8)] OBS_DIAG evento=esquiva mascara_izq=0000000000000000000000000 mascara_cen=0000000000040000000000000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(0,6,0) franja_tapada=0 franja_pct=30 ignorado=000 iguales=1
+   [  5700 ms real=(971,1152,8)] ESQUIVE_DIAG salida torcido=13 lado=-1 primer_giro=103
+   [  5700 ms real=(971,1152,8)] RUTA_DIAG envia cmd=LEFT origen=esquive pedido=103 plan_ms=862 t_ms=5650
+   [  5700 ms real=(971,1152,8)] SENS_DIAG giro pide=GIRAR objetivo=-103 origen=esquive t_ms=5650
+   [  5800 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  5850 ms real=(972,1128,356)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=6 filas=7-9 cols=13-14 ms_giro=150 cuadros_tras_giro=2 accion=ignorada_girando
+   [  5950 ms] cuadro color=(1/1/8 0/0/0 1/1/10) fusion=(000) det_n=1 brillo=130 motivo=1
+   [  6000 ms] real=(967,1106,-18.6) nav=(943,1103,340) estado=ESQUIVANDO cmd=LEFT laser=336
+   [  6000 ms] CONTACTO con banquito real=(965,1099,-23.1) estado=ESQUIVANDO fase=0 reinc=0 cmd=LEFT
+   [  6100 ms] cuadro color=(0/0/0 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  6250 ms] cuadro color=(0/0/0 0/0/0 1/2/10) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  6300 ms real=(941,1066,315)] CONTRADICCION_LASER_CAMARA laser_mm=320 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  6450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  6500 ms] real=(916,1049,-64.2) nav=(862,1044,272) estado=ESQUIVANDO cmd=LEFT laser=1200 (sin eco)
+   [  6550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  6750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=2
+   [  6850 ms real=(875,1039,272)] TURN_DIAG lado=IZQ origen=esquive pedido=103 hecho=101 plan_ms=862 real_ms=1150 um_grado=(1414,0) mm=(-84,-110) carro_mm=(88,-106) rumbo=13>272 por=angulo fw_real_x10=1005 fw_ms=867 ant=10
+   [  6850 ms real=(875,1039,272)] SENS_DIAG giro por=angulo objetivo=103 real_x10=1005 error_x10=-25 fw_ms=867 origen=esquive
+   [  6850 ms real=(875,1039,272)] RUTA_DIAG fin cmd=LEFT origen=esquive pedido=103 plan_ms=862 real_ms=1150 hecho=101
+   [  7000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=123 motivo=2
+   [  7000 ms] real=(875,1039,-88.6) nav=(862,1044,272) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  7150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=123 motivo=2
+   [  7300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=124 motivo=2
+   [  7500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=124 motivo=2
+   [  7550 ms real=(875,1039,272)] BARRIDO_DIAG cara=570 lecturas(grados:s,lado)= 12:498,-111 10:501,-92 1:- 11:521,108 23:490,199 34:- 45:- 57:-
+   [  7550 ms real=(875,1039,272)] ESQUIVE_DIAG escaneo lado=-1 lecturas=8 con_eco=4 ancho_mm=0 sin_final=0 pared_lateral_mm=0 lateral_mm=400 tope_mm=800
+   [  7550 ms real=(875,1039,272)] ESQUIVE_DIAG tramo lado=-1 lateral_giro_mm=84 lateral_vuelta_mm=144 tramo_mm=172 margen_mm=400
+   [  7550 ms real=(875,1039,272)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=172 plan_ms=555 t_ms=7500
+   [  7500 ms] real=(875,1039,-88.6) nav=(862,1044,272) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [  7600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=2
+   [  7700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=2
+   [  7850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=2
+   [  7950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=2
+   [  8000 ms] real=(749,1034,-86.7) nav=(740,1039,273) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [  8100 ms real=(702,1030,274)] POSE_DIAG avance origen=esquive pose=(696,1036,274) rumbo_inicio=272 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  8100 ms real=(702,1030,274)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=172 plan_ms=555 real_ms=550 hecho=166
+   [  8100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=2
+   [  8350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=2
+   [  8400 ms real=(692,1029,278)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=8350
+   [  8400 ms real=(692,1029,278)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=8350
+   [  8500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=2
+   [  8500 ms] real=(673,1025,-74.4) nav=(680,1033,280) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  8650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=2
+   [  8800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  8900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  9000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  9000 ms] real=(598,963,-33.5) nav=(561,916,344) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  9100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [  9300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [  9400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  9500 ms real=(580,877,3)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=89 plan_ms=802 real_ms=1100 um_grado=(2475,118) mm=(-138,-173) carro_mm=(149,162) rumbo=274>3 por=angulo fw_real_x10=885 fw_ms=850 ant=10
+   [  9500 ms real=(580,877,3)] SENS_DIAG giro por=angulo objetivo=90 real_x10=885 error_x10=-15 fw_ms=850 origen=esquive
+   [  9500 ms real=(580,877,3)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1100 hecho=89
+   [  9500 ms] real=(580,877,3.3) nav=(558,863,3) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  9600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  9700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  9800 ms real=(580,877,3)] REINC_DIAG pasar paralelo_mm=894 pose=(558,863,3) salida=(946,1154) cercania_salida=3
+   [  9800 ms real=(580,877,3)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 t_ms=9750
+   [  9800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10000 ms] real=(583,830,4.0) nav=(560,818,3) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10500 ms] real=(588,671,-1.0) nav=(566,664,0) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 10950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11000 ms] real=(583,513,-2.1) nav=(563,511,358) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 11450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 11500 ms] real=(577,355,-1.6) nav=(558,357,358) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 12000 ms] real=(574,197,-0.9) nav=(553,203,359) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 12200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 12300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 12450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 12500 ms] real=(573,39,-0.5) nav=(550,49,359) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 12700 ms real=(572,-39,0)] POSE_DIAG avance origen=esquive pose=(550,-27,359) rumbo_inicio=3 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [ 12700 ms real=(572,-39,0)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 real_ms=2900 hecho=890
+   [ 12700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [ 12850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 13000 ms real=(573,-49,3)] REINC_DIAG plan pose_antes=(550,-27,0) salida=(946,1154,0) desvio_mm=450 solo_rumbo=0 objetivo=(1000,-250) dist_mm=173 giro1=95 giro2=-95 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=2031
+   [ 13000 ms real=(573,-49,3)] REINC_DIAG pivote giro1_pose=(729,-176,95) previo=(902,-160) final=(1000,-250,0) correcciones=0
+   [ 13000 ms real=(573,-49,3)] RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=95 plan_ms=841 t_ms=12950
+   [ 13000 ms real=(573,-49,3)] SENS_DIAG giro pide=GIRAR objetivo=95 origen=vuelta t_ms=12950
+   [ 13000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 13000 ms] real=(573,-50,3.8) nav=(550,-27,0) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 13150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 13300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 13500 ms] real=(618,-136,45.2) nav=(628,-156,57) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 13600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 13750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 13850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 14000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 14000 ms] real=(710,-171,86.6) nav=(729,-176,95) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 14200 ms real=(730,-170,95)] TURN_DIAG lado=DER origen=vuelta pedido=95 hecho=94 plan_ms=841 real_ms=1200 um_grado=(2475,118) mm=(176,-149) carro_mm=(149,176) rumbo=0>93 por=angulo fw_real_x10=937 fw_ms=902 ant=5
+   [ 14200 ms real=(730,-170,95)] SENS_DIAG giro por=angulo objetivo=95 real_x10=937 error_x10=-13 fw_ms=902 origen=vuelta
+   [ 14200 ms real=(730,-170,95)] RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=95 plan_ms=841 real_ms=1200 hecho=94
+   [ 14250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 14400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 14500 ms] real=(730,-170,95.0) nav=(726,-176,93) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 14650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 14850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 14900 ms real=(730,-170,95)] RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=173 plan_ms=555 t_ms=14850
+   [ 14950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15000 ms] real=(746,-169,95.1) nav=(740,-176,93) estado=REINCORPORANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 15100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15450 ms real=(902,-154,95)] POSE_DIAG avance origen=vuelta pose=(892,-168,94) rumbo_inicio=93 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [ 15450 ms real=(902,-154,95)] RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=173 plan_ms=555 real_ms=550 hecho=166
+   [ 15500 ms] real=(902,-154,95.5) nav=(892,-168,94) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 15550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15750 ms real=(910,-154,91)] RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=95 plan_ms=803 t_ms=15700
+   [ 15750 ms real=(910,-154,91)] SENS_DIAG giro pide=GIRAR objetivo=-95 origen=vuelta t_ms=15700
+   [ 15800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 15900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 16000 ms] real=(948,-161,68.8) nav=(933,-175,67) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 16050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 16200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 16300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 16500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16500 ms] real=(1002,-213,24.4) nav=(988,-258,0) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 16600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16850 ms real=(1010,-253,0)] TURN_DIAG lado=IZQ origen=vuelta pedido=95 hecho=93 plan_ms=803 real_ms=1100 um_grado=(1414,0) mm=(96,-88) carro_mm=(89,-94) rumbo=94>0 por=angulo fw_real_x10=934 fw_ms=816 ant=5
+   [ 16850 ms real=(1010,-253,0)] SENS_DIAG giro por=angulo objetivo=95 real_x10=934 error_x10=-16 fw_ms=816 origen=vuelta
+   [ 16850 ms real=(1010,-253,0)] RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=95 plan_ms=803 real_ms=1100 hecho=93
+   [ 16850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17000 ms] real=(1010,-253,0.7) nav=(988,-256,0) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 17150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17500 ms] real=(1010,-253,0.7) nav=(988,-256,0) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 17600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [ 17900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 17950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 18000 ms real=(1010,-253,0)] REINC_DIAG fin tras_el_destino s=2256 destino=2000: el rodeo termino mas alla del final dibujado
+   [ 18000 ms real=(1010,-253,0)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(988,-256,0)
+FIN banquito35x45 semilla=2190063 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=1 ayudas=0 paradas=1 t=17950 ms real=(1010,-253,0.7) nav=(988,-256,0) lateral=10 long=253 cola=772 piso_aprendido=0
+
+================ banquito_norm_r2_cont_ay18 (esc=9, laser=0, run=2) ================
+MUNDO banquito planta=(x 844..1194, y 541..991) en_ruta=1 aparece_ms=0
+   [    50 ms real=(1003,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1003,2000,-0.6) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=139 motivo=0
+   [   200 ms real=(1003,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [   450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [   500 ms] real=(1003,1944,0.1) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [   800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=139 motivo=0
+   [   950 ms real=(1002,1819,0)] POSE_DIAG avance origen=ruta pose=(1001,1800,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [   950 ms real=(1002,1819,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(1002,1819,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [   950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=139 motivo=0
+   [  1000 ms real=(1002,1805,0)] VISTAZO_DIAG empieza lado=1 zona=DER fuentes=2 celdas=0 cercania=1 cuadros=3 grados=10 lateral_mm=0
+   [  1000 ms] real=(1003,1805,1.0) nav=(1001,1770,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1150 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=1 brillo=138 motivo=0
+   [  1300 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [  1400 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  1500 ms] real=(1017,1668,3.1) nav=(1016,1617,9) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1550 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=1 brillo=139 motivo=0
+   [  1600 ms real=(1018,1639,0)] POSE_DIAG avance origen=ruta pose=(1018,1602,4) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  1600 ms real=(1018,1639,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  1600 ms real=(1018,1639,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1700 ms real=(1017,1611,359)] VISTAZO_DIAG sin_eco lado=1 ms=700: sigue la ruta
+   [  1700 ms] cuadro color=(0/0/2 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  1900 ms] cuadro color=(0/0/2 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=140 motivo=0
+   [  2000 ms] real=(1014,1529,-3.7) nav=(1018,1465,357) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2050 ms] cuadro color=(0/0/2 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  2150 ms] cuadro color=(0/0/3 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=138 motivo=0
+   [  2250 ms real=(1009,1459,357)] POSE_DIAG avance origen=ruta pose=(1016,1403,357) rumbo_inicio=4 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2250 ms real=(1009,1459,357)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2250 ms real=(1009,1459,357)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2350 ms] cuadro color=(1/1/7 0/0/0 1/1/8) fusion=(101) det_n=1 brillo=137 motivo=1
+   [  2500 ms] real=(1005,1390,-3.2) nav=(1012,1312,357) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2550 ms] cuadro color=(1/1/8 0/0/0 0/0/5) fusion=(000) det_n=1 brillo=138 motivo=1
+   [  2650 ms] cuadro color=(1/2/14 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=138 motivo=1
+   [  2850 ms] cuadro color=(1/2/20 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  2900 ms real=(1000,1279,356)] POSE_DIAG avance origen=ruta pose=(1008,1204,358) rumbo_inicio=357 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2900 ms real=(1000,1279,356)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2900 ms real=(1000,1279,356)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2850
+   [  2900 ms real=(1000,1279,356)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=1 celdas=20 cercania=2 cuadros=3 grados=16 lateral_mm=121
+   [  2950 ms] cuadro color=(1/3/22 0/0/1 0/0/1) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  3000 ms] real=(997,1252,-9.5) nav=(1006,1159,354) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3100 ms] cuadro color=(1/3/38 0/0/1 0/0/3) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  3250 ms] cuadro color=(1/3/61 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=122 motivo=1
+   [  3450 ms] cuadro color=(1/3/60 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  3450 ms] BAJO EL MUEBLE banquito (entra en su planta sin tocar nada) real=(967,1117,-4.5) estado=SIGUIENDO cmd=FORWARD
+   [  3550 ms real=(965,1103,358)] POSE_DIAG avance origen=ruta pose=(975,1008,348) rumbo_inicio=358 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  3550 ms real=(965,1103,358)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  3550 ms real=(965,1103,358)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=3500
+   [  3500 ms] real=(967,1117,-4.5) nav=(975,1008,348) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3500 ms] CONTACTO con banquito real=(966,1103,-2.5) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  3600 ms real=(965,1089,0)] VISTAZO_DIAG confirma lado=-1 laser_mm=464 ecos=2 ms=700
+   [  3600 ms real=(965,1089,0)] OBS_DIAG evento=detiene mascara_izq=0000000000c0300c0300c0300 mascara_cen=0000000000000000000000000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(60,2,0) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  3600 ms real=(965,1089,0)] POSE_DIAG avance origen=ruta pose=(971,965,356) rumbo_inicio=348 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  3600 ms real=(965,1089,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=150 hecho=43
+   [  3650 ms] cuadro color=(0/0/0 0/0/3 0/0/0) fusion=(000) det_n=0 brillo=155 motivo=2
+   [  3700 ms real=(965,1042,0)] CONTRADICCION_LASER_CAMARA laser_mm=464 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  3750 ms] cuadro color=(0/0/6 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  3900 ms] cuadro color=(1/1/8 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=143 motivo=1
+   [  4000 ms] real=(965,1043,0.2) nav=(971,965,1) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  4050 ms] cuadro color=(1/1/8 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  4100 ms real=(965,1042,0)] ESQUIVE_DIAG plan vistazo lado=1 eco_mm=464 barrido_mm=315: retrocede antes de girar
+   [  4100 ms real=(965,1042,0)] BORDE_DIAG retroceso_conocido=250 mm
+   [  4100 ms real=(965,1042,0)] RUTA_DIAG envia cmd=REVERSE origen=otro pedido=0 plan_ms=0 t_ms=4050
+   [  4250 ms] cuadro color=(1/1/8 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  4350 ms] cuadro color=(1/1/8 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  4500 ms] cuadro color=(0/0/6 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=140 motivo=0
+   [  4500 ms] real=(965,1126,-1.4) nav=(971,1072,0) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=1200 (sin eco)
+   [  4700 ms] cuadro color=(0/0/3 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=140 motivo=0
+   [  4800 ms] cuadro color=(0/0/0 0/0/2 0/0/3) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  4950 ms real=(970,1270,357)] POSE_DIAG avance origen=otro pose=(973,1223,358) rumbo_inicio=1 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  4950 ms real=(970,1270,357)] RUTA_DIAG fin cmd=REVERSE origen=otro pedido=0 plan_ms=0 real_ms=850 hecho=258
+   [  5000 ms] cuadro color=(1/3/16 0/0/2 0/0/4) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  5000 ms] real=(970,1270,-3.5) nav=(973,1223,357) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  5150 ms] cuadro color=(1/3/47 0/0/1 0/0/1) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  5300 ms] cuadro color=(1/3/47 0/0/1 0/0/1) fusion=(000) det_n=0 brillo=128 motivo=1
+   [  5450 ms real=(970,1257,0)] SENS_DIAG tof_paro decide lado=derecha por=camara laser_mm=714 celdas_izq=47 celdas_der=1
+   [  5450 ms real=(970,1257,0)] OBS_DIAG evento=esquiva mascara_izq=0000000000c0300c0300c0300 mascara_cen=0000000000000000000000000 mascara_der=0000000000000000000000000 cercania=(3,0,0) celdas=(47,1,1) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  5450 ms real=(970,1257,0)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=5400
+   [  5450 ms real=(970,1257,0)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=5400
+   [  5450 ms] cuadro color=(1/3/47 0/0/1 0/0/1) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  5500 ms] real=(972,1245,4.9) nav=(973,1223,357) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  5550 ms] cuadro color=(1/3/47 0/0/1 0/0/1) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  5700 ms] cuadro color=(0/0/4 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=153 motivo=2
+   [  6000 ms real=(1022,1144,42)] ESQUIVE_DIAG guardia_giro lado=1 laser_mm=139 guardia_mm=153 pared_mm=0 cambio_lado=0: algo dentro del arco del giro, deja de girar
+   [  6000 ms real=(1022,1144,42)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=41 plan_ms=802 real_ms=550 um_grado=(2475,118) mm=(38,-104) carro_mm=(101,43) rumbo=357>39 por=angulo fw_real_x10=412 fw_ms=0 ant=0
+   [  6000 ms real=(1022,1144,42)] SENS_DIAG giro por=angulo objetivo=90 real_x10=412 error_x10=-488 fw_ms=0 origen=esquive
+   [  6000 ms real=(1022,1144,42)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=550 hecho=41
+   [  6000 ms real=(1022,1144,42)] AYUDA_DIAG pide ayuda motivo=1 causa=18 pose=(1011,1119,39) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=139 laser_valido=1
+FIN banquito35x45 semilla=2190065 estado=AYUDA causa=18 exito=0 contacto=1 esquivas=1 ayudas=1 paradas=1 t=5950 ms real=(1023,1145,42.7) nav=(1011,1119,39) lateral=22 long=1144 cola=-759 piso_aprendido=1
+
+================ banquito_norm_r11_ay16 (esc=9, laser=0, run=11) ================
+MUNDO banquito planta=(x 814..1164, y 721..1171) en_ruta=1 aparece_ms=0
+   [    50 ms real=(993,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(993,2000,0.6) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   200 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=-1 brillo=141 motivo=0
+   [   250 ms real=(993,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=200
+   [   300 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=142 motivo=0
+   [   450 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=141 motivo=0
+   [   500 ms] real=(994,1945,1.2) nav=(1000,1939,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   600 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=141 motivo=0
+   [   750 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=0 brillo=142 motivo=0
+   [   900 ms] cuadro color=(0/0/1 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  1000 ms real=(996,1806,0)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  1000 ms real=(996,1806,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [  1000 ms real=(996,1806,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=950
+   [  1000 ms] real=(996,1806,1.0) nav=(1001,1785,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1100 ms] cuadro color=(0/0/3 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=140 motivo=0
+   [  1200 ms] cuadro color=(0/0/2 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  1350 ms] cuadro color=(0/0/4 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  1500 ms] cuadro color=(0/0/3 0/0/0 0/0/6) fusion=(000) det_n=1 brillo=141 motivo=0
+   [  1500 ms] real=(998,1668,0.7) nav=(1001,1631,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1650 ms real=(998,1626,0)] POSE_DIAG avance origen=ruta pose=(1001,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1650 ms real=(998,1626,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1650 ms real=(998,1626,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1600
+   [  1700 ms] cuadro color=(1/1/7 0/0/0 0/0/6) fusion=(100) det_n=1 brillo=140 motivo=1
+   [  1800 ms] cuadro color=(1/1/11 0/0/0 1/1/11) fusion=(000) det_n=0 brillo=138 motivo=1
+   [  1850 ms real=(998,1570,1)] VISTAZO_DIAG empieza lado=1 zona=DER fuentes=1 celdas=11 cercania=1 cuadros=3 grados=16 lateral_mm=172
+   [  1950 ms] cuadro color=(1/2/11 0/0/0 1/2/15) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  2000 ms] real=(1003,1529,9.2) nav=(1001,1477,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2150 ms] cuadro color=(0/0/1 0/0/1 1/2/18) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2250 ms] cuadro color=(0/0/0 1/2/8 1/2/14) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  2300 ms real=(1026,1437,17)] CONTRADICCION_LASER_CAMARA laser_mm=353 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  2300 ms real=(1026,1437,17)] POSE_DIAG avance origen=ruta pose=(1010,1401,15) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2300 ms real=(1026,1437,17)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2300 ms real=(1026,1437,17)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2250
+   [  2300 ms real=(1026,1437,17)] SENS_DIAG eco_confirma laser_mm=353: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  2300 ms real=(1026,1437,17)] OBS_DIAG evento=detiene mascara_izq=0000000000000000000000000 mascara_cen=0000000000020080200800000 mascara_der=0000000000020080200800000 cercania=(0,3,0) celdas=(0,8,14) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2300 ms real=(1026,1437,17)] POSE_DIAG avance origen=ruta pose=(1017,1372,15) rumbo_inicio=15 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2300 ms real=(1026,1437,17)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=100 hecho=29
+   [  2450 ms] cuadro color=(0/0/0 1/3/25 1/3/8) fusion=(000) det_n=0 brillo=136 motivo=1
+   [  2500 ms] real=(1027,1438,17.3) nav=(1017,1372,17) estado=DETENIDO_OBSTACULO cmd=STOP laser=208
+   [  2700 ms] cuadro color=(0/0/0 1/3/30 1/3/13) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  2800 ms real=(1028,1430,12)] SENS_DIAG tof_paro decide lado=izquierda por=camara laser_mm=353 celdas_izq=0 celdas_der=13
+   [  2800 ms real=(1028,1430,12)] OBS_DIAG evento=esquiva mascara_izq=0000000000000000000000000 mascara_cen=0000000000060180601806008 mascara_der=0000000000020080200802000 cercania=(0,3,0) celdas=(0,30,13) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2800 ms real=(1028,1430,12)] ESQUIVE_DIAG salida torcido=17 lado=-1 primer_giro=107
+   [  2800 ms real=(1028,1430,12)] RUTA_DIAG envia cmd=LEFT origen=esquive pedido=107 plan_ms=892 t_ms=2750
+   [  2800 ms real=(1028,1430,12)] SENS_DIAG giro pide=GIRAR objetivo=-107 origen=esquive t_ms=2750
+   [  2900 ms] cuadro color=(0/0/0 1/3/30 1/3/13) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  2950 ms real=(1030,1407,0)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=30 filas=7-16 cols=8-15 ms_giro=150 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3000 ms] real=(1031,1400,-5.3) nav=(1021,1341,357) estado=ESQUIVANDO cmd=LEFT laser=1200 (sin eco)
+   [  3050 ms] cuadro color=(0/0/2 0/0/2 1/3/56) fusion=(000) det_n=0 brillo=128 motivo=1
+   [  3150 ms] cuadro color=(0/0/2 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=156 motivo=2
+   [  3300 ms] cuadro color=(1/3/16 0/0/3 0/0/0) fusion=(000) det_n=1 brillo=146 motivo=1
+   [  3500 ms] cuadro color=(1/3/48 1/3/10 0/0/2) fusion=(000) det_n=0 brillo=124 motivo=3
+   [  3550 ms real=(989,1330,306)] CONTRADICCION_LASER_CAMARA laser_mm=175 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  3550 ms real=(989,1330,306)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=10 filas=7-16 cols=8-8 ms_giro=750 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3500 ms] real=(996,1335,-50.5) nav=(962,1261,290) estado=ESQUIVANDO cmd=LEFT laser=130
+   [  3600 ms] cuadro color=(0/0/0 1/3/50 1/3/17) fusion=(000) det_n=0 brillo=128 motivo=3
+   [  3800 ms] cuadro color=(0/0/0 0/0/0 1/3/33) fusion=(000) det_n=0 brillo=145 motivo=3
+   [  3900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=160 motivo=2
+   [  3950 ms real=(941,1313,275)] TURN_DIAG lado=IZQ origen=esquive pedido=107 hecho=104 plan_ms=892 real_ms=1150 um_grado=(1414,0) mm=(-81,-116) carro_mm=(87,-111) rumbo=17>273 por=angulo fw_real_x10=1038 fw_ms=891 ant=10
+   [  3950 ms real=(941,1313,275)] SENS_DIAG giro por=angulo objetivo=107 real_x10=1038 error_x10=-32 fw_ms=891 origen=esquive
+   [  3950 ms real=(941,1313,275)] RUTA_DIAG fin cmd=LEFT origen=esquive pedido=107 plan_ms=892 real_ms=1150 hecho=104
+   [  4000 ms] real=(942,1314,-85.8) nav=(936,1256,273) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  4050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=154 motivo=0
+   [  4200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=150 motivo=0
+   [  4350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  4500 ms] real=(942,1314,-85.8) nav=(936,1256,273) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  4550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  4600 ms real=(941,1313,275)] BARRIDO_DIAG cara=473 lecturas(grados:s,lado)= 16:299,-89 9:- 3:- 17:- 31:354,189 44:290,241 56:- 65:-
+   [  4600 ms real=(941,1313,275)] ESQUIVE_DIAG escaneo lado=-1 lecturas=8 con_eco=3 ancho_mm=189 sin_final=0 pared_lateral_mm=241 lateral_mm=429 tope_mm=-19
+   [  4600 ms real=(941,1313,275)] ESQUIVE_DIAG lado_cerrado lado=-1 sin_vuelta estorbo_lado_mm=241 alcance_mm=345 otro_lado_libre=1 atras_mm=300: no se da la vuelta, se pide ayuda
+   [  4600 ms real=(941,1313,275)] AYUDA_DIAG pide ayuda motivo=1 causa=16 pose=(936,1256,273) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=1200 laser_valido=0
+FIN banquito35x45 semilla=2190074 estado=AYUDA causa=16 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=4550 ms real=(942,1314,-85.8) nav=(936,1256,273) lateral=58 long=1313 cola=-701 piso_aprendido=1
+
+================ silla_norm_r0_cont (esc=11, laser=0, run=0) ================
+MUNDO silla planta=(x 763..1163, y 484..904) en_ruta=1 aparece_ms=0
+   [    50 ms real=(1002,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1002,2000,0.9) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=135 motivo=0
+   [   200 ms real=(1002,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [   350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [   500 ms] real=(1003,1939,1.5) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [   600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [   800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [   850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [   950 ms real=(1006,1803,1)] POSE_DIAG avance origen=ruta pose=(1000,1800,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [   950 ms real=(1006,1803,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(1006,1803,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [  1000 ms] real=(1006,1788,1.2) nav=(1000,1770,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  1100 ms real=(1006,1757,0)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=2 celdas=0 cercania=1 cuadros=3 grados=10 lateral_mm=0
+   [  1150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  1250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  1300 ms] cuadro color=(0/0/1 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=134 motivo=0
+   [  1400 ms] cuadro color=(0/0/1 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  1500 ms] cuadro color=(0/0/0 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  1500 ms] real=(994,1637,-8.7) nav=(993,1617,351) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1600 ms real=(990,1607,356)] POSE_DIAG avance origen=ruta pose=(991,1601,351) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  1600 ms real=(990,1607,356)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  1600 ms real=(990,1607,356)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1650 ms] cuadro color=(0/0/0 0/0/1 0/0/2) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  1800 ms] cuadro color=(0/0/1 0/0/0 0/0/2) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  1850 ms real=(988,1531,1)] VISTAZO_DIAG sin_eco lado=-1 ms=750: sigue la ruta
+   [  1900 ms] cuadro color=(0/0/3 0/0/0 0/0/2) fusion=(000) det_n=1 brillo=134 motivo=0
+   [  2000 ms] cuadro color=(0/0/2 0/0/0 0/0/3) fusion=(000) det_n=1 brillo=134 motivo=0
+   [  2000 ms] real=(991,1487,3.5) nav=(980,1464,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2100 ms] cuadro color=(0/0/3 0/0/0 0/0/2) fusion=(000) det_n=1 brillo=135 motivo=0
+   [  2250 ms real=(995,1411,4)] POSE_DIAG avance origen=ruta pose=(982,1402,3) rumbo_inicio=351 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2250 ms real=(995,1411,4)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2250 ms real=(995,1411,4)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2250 ms] cuadro color=(0/0/0 0/0/0 0/0/3) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  2350 ms] cuadro color=(0/0/0 0/0/0 0/0/3) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  2450 ms] cuadro color=(0/0/0 0/0/0 0/0/3) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  2500 ms] real=(1001,1336,3.8) nav=(986,1311,3) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2600 ms] cuadro color=(0/0/1 0/0/0 0/0/6) fusion=(000) det_n=1 brillo=134 motivo=0
+   [  2750 ms] cuadro color=(0/0/0 0/0/0 1/2/10) fusion=(001) det_n=1 brillo=133 motivo=1
+   [  2800 ms] cuadro color=(0/0/0 0/0/0 1/2/11) fusion=(001) det_n=1 brillo=133 motivo=1
+   [  2850 ms real=(1008,1214,3)] POSE_DIAG avance origen=ruta pose=(992,1190,2) rumbo_inicio=3 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2850 ms real=(1008,1214,3)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=700 hecho=212
+   [  2900 ms] cuadro color=(0/0/1 0/0/1 1/2/14) fusion=(001) det_n=1 brillo=132 motivo=1
+   [  3000 ms] cuadro color=(0/0/0 0/0/1 1/3/16) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  3000 ms] real=(1008,1214,3.1) nav=(992,1190,2) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [  3150 ms real=(1008,1214,3)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=3100
+   [  3150 ms] cuadro color=(0/0/0 0/0/1 1/3/16) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  3200 ms real=(1008,1214,3)] POSE_DIAG avance origen=ruta pose=(992,1190,2) rumbo_inicio=2 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  3200 ms real=(1008,1214,3)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=50 hecho=0
+   [  3200 ms real=(1008,1214,3)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=3150
+   [  3300 ms] cuadro color=(0/0/0 0/0/1 1/3/16) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  3400 ms] cuadro color=(0/0/0 0/0/1 1/3/16) fusion=(000) det_n=0 brillo=134 motivo=1
+   [  3500 ms] real=(1012,1139,3.2) nav=(995,1084,2) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3550 ms] cuadro color=(0/0/2 0/0/1 0/0/6) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  3650 ms] cuadro color=(0/0/2 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  3800 ms real=(1015,1048,1)] POSE_DIAG avance origen=ruta pose=(998,1007,1) rumbo_inicio=2 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  3800 ms real=(1015,1048,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=183
+   [  3800 ms real=(1015,1048,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=3750
+   [  3800 ms] cuadro color=(0/0/2 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=138 motivo=0
+   [  3850 ms] BAJO EL MUEBLE silla (entra en su planta sin tocar nada) real=(1017,1018,1.4) estado=SIGUIENDO cmd=FORWARD
+   [  3900 ms] cuadro color=(0/0/0 0/0/0 0/0/2) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  3950 ms] cuadro color=(0/0/0 0/0/0 0/0/4) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  4000 ms] real=(1017,988,1.2) nav=(999,931,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4150 ms] cuadro color=(0/0/0 0/0/0 0/0/5) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  4250 ms] cuadro color=(0/0/0 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  4300 ms real=(1019,896,2)] VISTAZO_DIAG empieza lado=1 zona=DER fuentes=0 celdas=6 cercania=1 cuadros=3 grados=16 lateral_mm=149
+   [  4400 ms] cuadro color=(0/0/0 0/0/0 1/2/10) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  4500 ms real=(1027,836,13)] POSE_DIAG avance origen=ruta pose=(1000,792,2) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  4500 ms real=(1027,836,13)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [  4500 ms real=(1027,836,13)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=4450
+   [  4500 ms] cuadro color=(0/0/0 0/0/0 1/2/16) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  4500 ms] real=(1028,837,13.6) nav=(1000,777,2) estado=SIGUIENDO cmd=FORWARD laser=251
+   [  4650 ms] cuadro color=(0/0/0 0/0/6 1/2/7) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  4750 ms] cuadro color=(0/0/0 1/3/22 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  4800 ms real=(1052,749,13)] CONTRADICCION_LASER_CAMARA laser_mm=241 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  4800 ms real=(1052,749,13)] SENS_DIAG eco_confirma laser_mm=241: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  4800 ms real=(1052,749,13)] OBS_DIAG evento=detiene mascara_izq=0000000000000000000000000 mascara_cen=0000000000060180601800000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(0,22,0) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  4800 ms real=(1052,749,13)] POSE_DIAG avance origen=ruta pose=(1022,674,15) rumbo_inicio=2 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  4800 ms real=(1052,749,13)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=400 hecho=120
+   [  4800 ms] cuadro color=(0/0/0 1/3/23 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=1
+   [  5000 ms] cuadro color=(0/0/0 1/3/10 1/3/28) fusion=(000) det_n=0 brillo=122 motivo=3
+   [  5000 ms] real=(1060,720,13.2) nav=(1022,674,12) estado=DETENIDO_OBSTACULO cmd=STOP laser=129
+   [  5100 ms] cuadro color=(0/0/0 0/0/6 1/3/44) fusion=(000) det_n=0 brillo=119 motivo=3
+   [  5250 ms] cuadro color=(0/0/0 0/0/6 1/3/44) fusion=(000) det_n=0 brillo=122 motivo=3
+   [  5300 ms real=(1059,719,13)] ESQUIVE_DIAG plan vistazo lado=-1 eco_mm=241 barrido_mm=255: retrocede antes de girar
+   [  5300 ms real=(1059,719,13)] BORDE_DIAG retroceso_conocido=250 mm
+   [  5300 ms real=(1059,719,13)] RUTA_DIAG envia cmd=REVERSE origen=otro pedido=0 plan_ms=0 t_ms=5250
+   [  5400 ms] cuadro color=(0/0/0 0/0/6 1/3/44) fusion=(000) det_n=0 brillo=124 motivo=3
+   [  5500 ms] cuadro color=(0/0/0 0/0/6 1/3/44) fusion=(000) det_n=0 brillo=126 motivo=3
+   [  5500 ms] real=(1053,749,12.8) nav=(1013,718,12) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=146
+   [  5550 ms] cuadro color=(0/0/0 0/0/6 1/3/44) fusion=(000) det_n=0 brillo=128 motivo=3
+   [  5700 ms] cuadro color=(0/0/0 1/3/10 1/3/30) fusion=(000) det_n=0 brillo=135 motivo=3
+   [  5800 ms] cuadro color=(0/0/0 1/3/9 1/3/17) fusion=(000) det_n=0 brillo=140 motivo=3
+   [  6000 ms] cuadro color=(0/0/0 1/2/7 1/2/7) fusion=(000) det_n=0 brillo=144 motivo=3
+   [  6000 ms] real=(1023,898,10.7) nav=(983,870,10) estado=DETENIDO_OBSTACULO cmd=REVERSE laser=1200 (sin eco)
+   [  6100 ms] cuadro color=(0/0/0 0/0/6 0/0/2) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  6150 ms real=(1012,958,10)] POSE_DIAG avance origen=otro pose=(973,928,10) rumbo_inicio=12 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6150 ms real=(1012,958,10)] RUTA_DIAG fin cmd=REVERSE origen=otro pedido=0 plan_ms=0 real_ms=850 hecho=258
+   [  6200 ms] cuadro color=(0/0/0 0/0/5 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=0
+   [  6300 ms] cuadro color=(0/0/0 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  6500 ms] cuadro color=(0/0/0 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=1
+   [  6500 ms] real=(1013,958,10.3) nav=(973,928,9) estado=DETENIDO_OBSTACULO cmd=STOP laser=1200 (sin eco)
+   [  6600 ms] cuadro color=(0/0/0 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=1
+   [  6650 ms real=(1013,951,5)] CONTRADICCION_LASER_CAMARA laser_mm=366 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  6650 ms real=(1013,951,5)] SENS_DIAG tof_paro decide lado=izquierda por=camara laser_mm=491 celdas_izq=0 celdas_der=0
+   [  6650 ms real=(1013,951,5)] OBS_DIAG evento=esquiva mascara_izq=0000000000000000000000000 mascara_cen=0000000000020080000000000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(0,8,0) franja_tapada=0 franja_pct=25 ignorado=000 iguales=1
+   [  6650 ms real=(1013,951,5)] ESQUIVE_DIAG salida torcido=9 lado=-1 primer_giro=99
+   [  6650 ms real=(1013,951,5)] RUTA_DIAG envia cmd=LEFT origen=esquive pedido=99 plan_ms=833 t_ms=6600
+   [  6650 ms real=(1013,951,5)] SENS_DIAG giro pide=GIRAR objetivo=-99 origen=esquive t_ms=6600
+   [  6750 ms] cuadro color=(0/0/0 1/1/8 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=1
+   [  6800 ms real=(1012,931,352)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=8 filas=7-10 cols=14-15 ms_giro=150 cuadros_tras_giro=2 accion=ignorada_girando
+   [  6900 ms] cuadro color=(0/0/0 0/0/0 1/1/8) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  7000 ms] cuadro color=(1/1/8 0/0/0 0/0/0) fusion=(100) det_n=1 brillo=134 motivo=1
+   [  7050 ms real=(1001,900,329)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=IZQ celdas=8 filas=7-10 cols=3-4 ms_giro=400 cuadros_tras_giro=2 accion=ignorada_girando
+   [  7000 ms] real=(1005,907,-26.9) nav=(961,868,329) estado=ESQUIVANDO cmd=LEFT laser=361
+   [  7100 ms] CONTACTO con silla real=(994,890,-40.9) estado=ESQUIVANDO fase=0 reinc=0 cmd=LEFT
+   [  7150 ms] cuadro color=(0/0/3 0/0/5 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  7200 ms real=(989,885,315)] CONTRADICCION_LASER_CAMARA laser_mm=348 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  7200 ms real=(989,885,315)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=5 filas=7-10 cols=8-9 ms_giro=550 cuadros_tras_giro=2 accion=ignorada_girando
+   [  7300 ms] cuadro color=(0/0/0 1/2/7 0/0/2) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  7350 ms] cuadro color=(0/0/0 0/0/0 1/2/11) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  7450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  7500 ms] real=(955,865,-73.4) nav=(884,824,270) estado=ESQUIVANDO cmd=LEFT laser=1200 (sin eco)
+   [  7600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  7700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  7750 ms real=(933,862,271)] TURN_DIAG lado=IZQ origen=esquive pedido=99 hecho=99 plan_ms=833 real_ms=1100 um_grado=(1414,0) mm=(-89,-104) carro_mm=(88,-104) rumbo=9>271 por=angulo fw_real_x10=986 fw_ms=819 ant=10
+   [  7750 ms real=(933,862,271)] SENS_DIAG giro por=angulo objetivo=99 real_x10=986 error_x10=-4 fw_ms=819 origen=esquive
+   [  7750 ms real=(933,862,271)] RUTA_DIAG fin cmd=LEFT origen=esquive pedido=99 plan_ms=833 real_ms=1100 hecho=99
+   [  7850 ms] cuadro color=(1/3/62 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=109 motivo=1
+   [  7950 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=114 motivo=1
+   [  8000 ms] real=(933,862,-89.1) nav=(884,824,271) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  8150 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=118 motivo=1
+   [  8200 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=121 motivo=1
+   [  8350 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=123 motivo=3
+   [  8400 ms real=(933,862,271)] BARRIDO_DIAG cara=611 lecturas(grados:s,lado)= 9:478,-76 4:- 6:- 20:506,184 32:- 41:- 53:- 67:-
+   [  8400 ms real=(933,862,271)] ESQUIVE_DIAG escaneo lado=-1 lecturas=8 con_eco=2 ancho_mm=0 sin_final=0 pared_lateral_mm=0 lateral_mm=400 tope_mm=800
+   [  8400 ms real=(933,862,271)] ESQUIVE_DIAG tramo lado=-1 lateral_giro_mm=89 lateral_vuelta_mm=147 tramo_mm=164 margen_mm=400
+   [  8400 ms real=(933,862,271)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=164 plan_ms=523 t_ms=8350
+   [  8450 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=3
+   [  8500 ms] real=(933,862,-89.1) nav=(869,824,271) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [  8550 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=3
+   [  8650 ms] cuadro color=(1/3/60 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=127 motivo=3
+   [  8800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=159 motivo=2
+   [  8900 ms real=(811,859,272)] POSE_DIAG avance origen=esquive pose=(731,823,272) rumbo_inicio=271 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  8900 ms real=(811,859,272)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=164 plan_ms=523 real_ms=500 hecho=153
+   [  8900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=152 motivo=0
+   [  9000 ms] real=(766,858,-88.2) nav=(731,823,272) estado=ESQUIVANDO cmd=STOP laser=1200 (sin eco)
+   [  9050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  9100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  9200 ms real=(755,856,276)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=9150
+   [  9200 ms real=(755,856,276)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=9150
+   [  9200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  9350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  9450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  9500 ms] real=(697,833,-59.0) nav=(650,792,304) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  9550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  9750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  9900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10000 ms] real=(636,748,-17.3) nav=(587,653,2) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 10050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10250 ms real=(632,705,0)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=87 plan_ms=802 real_ms=1050 um_grado=(2475,118) mm=(-145,-162) carro_mm=(150,156) rumbo=272>358 por=angulo fw_real_x10=869 fw_ms=800 ant=10
+   [ 10250 ms real=(632,705,0)] SENS_DIAG giro por=angulo objetivo=90 real_x10=869 error_x10=-31 fw_ms=800 origen=esquive
+   [ 10250 ms real=(632,705,0)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1050 hecho=87
+   [ 10250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10550 ms real=(632,705,0)] REINC_DIAG pasar paralelo_mm=894 pose=(586,661,358) salida=(973,928) cercania_salida=3
+   [ 10550 ms real=(632,705,0)] RUTA_DIAG envia cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 t_ms=10500
+   [ 10500 ms] real=(632,706,-0.6) nav=(586,661,358) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 10550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 10950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11000 ms] real=(632,600,0.3) nav=(583,539,359) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 11500 ms] real=(632,448,-0.1) nav=(581,386,359) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 11550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 11700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 11800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 12000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 12000 ms] real=(632,297,0.3) nav=(578,232,359) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 12250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 12400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 12500 ms] real=(633,145,0.5) nav=(576,78,0) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 12600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 12700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 12750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 12900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 13000 ms] real=(634,-6,0.7) nav=(575,-76,0) estado=ESQUIVANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 13050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 13150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 13350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 13450 ms real=(635,-142,0)] POSE_DIAG avance origen=esquive pose=(575,-229,0) rumbo_inicio=358 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [ 13450 ms real=(635,-142,0)] RUTA_DIAG fin cmd=FORWARD origen=esquive pedido=894 plan_ms=2895 real_ms=2900 hecho=890
+   [ 13450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 13500 ms] real=(636,-173,0.9) nav=(575,-229,0) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 13550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 13700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 13750 ms real=(636,-182,4)] REINC_DIAG plan pose_antes=(575,-229,0) salida=(973,928,0) desvio_mm=425 solo_rumbo=0 objetivo=(1000,-600) dist_mm=328 giro1=62 giro2=-61 rumbo_linea=0 esquivadas=1 pasar_primero=0 fin_obstaculo=2233
+   [ 13750 ms real=(636,-182,4)] REINC_DIAG pivote giro1_pose=(665,-364,62) previo=(954,-521) final=(1000,-600,0) correcciones=0
+   [ 13750 ms real=(636,-182,4)] RUTA_DIAG envia cmd=RIGHT origen=vuelta pedido=62 plan_ms=584 t_ms=13700
+   [ 13750 ms real=(636,-182,4)] SENS_DIAG giro pide=GIRAR objetivo=62 origen=vuelta t_ms=13700
+   [ 13750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 13950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 14000 ms] real=(649,-228,23.0) nav=(593,-295,25) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 14050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 14150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 14300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 14400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 14500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 14500 ms] real=(713,-295,59.9) nav=(665,-364,62) estado=REINCORPORANDO cmd=RIGHT laser=1200 (sin eco)
+   [ 14600 ms real=(718,-298,62)] TURN_DIAG lado=DER origen=vuelta pedido=62 hecho=61 plan_ms=584 real_ms=850 um_grado=(2475,118) mm=(88,-134) carro_mm=(134,88) rumbo=0>61 por=angulo fw_real_x10=612 fw_ms=586 ant=5
+   [ 14600 ms real=(718,-298,62)] SENS_DIAG giro por=angulo objetivo=62 real_x10=612 error_x10=-8 fw_ms=586 origen=vuelta
+   [ 14600 ms real=(718,-298,62)] RUTA_DIAG fin cmd=RIGHT origen=vuelta pedido=62 plan_ms=584 real_ms=850 hecho=61
+   [ 14650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 14750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 14900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15050 ms real=(718,-298,62)] RUTA_DIAG envia cmd=FORWARD origen=vuelta pedido=328 plan_ms=1075 t_ms=15000
+   [ 15000 ms] real=(719,-299,62.5) nav=(663,-363,61) estado=REINCORPORANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 15100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15500 ms] real=(813,-347,63.1) nav=(770,-422,62) estado=REINCORPORANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 15600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 15900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 16000 ms] real=(947,-416,62.8) nav=(904,-495,61) estado=REINCORPORANDO cmd=FORWARD laser=1200 (sin eco)
+   [ 16050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16100 ms real=(974,-429,62)] POSE_DIAG avance origen=vuelta pose=(944,-517,61) rumbo_inicio=61 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [ 16100 ms real=(974,-429,62)] RUTA_DIAG fin cmd=FORWARD origen=vuelta pedido=328 plan_ms=1075 real_ms=1050 hecho=320
+   [ 16100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 16200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16400 ms real=(1006,-446,58)] RUTA_DIAG envia cmd=LEFT origen=vuelta pedido=61 plan_ms=551 t_ms=16350
+   [ 16400 ms real=(1006,-446,58)] SENS_DIAG giro pide=GIRAR objetivo=-61 origen=vuelta t_ms=16350
+   [ 16500 ms] real=(1015,-454,51.3) nav=(952,-522,55) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 16600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [ 16750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 16800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 17000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 17000 ms] real=(1043,-499,12.8) nav=(990,-596,0) estado=REINCORPORANDO cmd=LEFT laser=1200 (sin eco)
+   [ 17050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 17150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 17200 ms real=(1044,-515,1)] TURN_DIAG lado=IZQ origen=vuelta pedido=61 hecho=61 plan_ms=551 real_ms=800 um_grado=(1414,0) mm=(46,-79) carro_mm=(78,-46) rumbo=61>0 por=angulo fw_real_x10=608 fw_ms=546 ant=5
+   [ 17200 ms real=(1044,-515,1)] SENS_DIAG giro por=angulo objetivo=61 real_x10=608 error_x10=-2 fw_ms=546 origen=vuelta
+   [ 17200 ms real=(1044,-515,1)] RUTA_DIAG fin cmd=LEFT origen=vuelta pedido=61 plan_ms=551 real_ms=800 hecho=61
+   [ 17350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 17450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [ 17500 ms] real=(1044,-515,1.6) nav=(990,-596,0) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 17550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 17650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 17750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 17850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 18000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 18000 ms] real=(1044,-515,1.6) nav=(990,-596,0) estado=REINCORPORANDO cmd=STOP laser=1200 (sin eco)
+   [ 18150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 18200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [ 18250 ms real=(1044,-515,1)] REINC_DIAG fin tras_el_destino s=2596 destino=2000: el rodeo termino mas alla del final dibujado
+   [ 18250 ms real=(1044,-515,1)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(990,-596,0)
+FIN silla_patas semilla=2210077 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=1 ayudas=0 paradas=2 t=18200 ms real=(1044,-515,1.6) nav=(990,-596,0) lateral=44 long=515 cola=876 piso_aprendido=1
+
+================ pasillo_norm_r4_ay16 (esc=14, laser=0, run=4) ================
+MUNDO caja20 planta=(x 884..1084, y 725..925) en_ruta=1 aparece_ms=0
+MUNDO paredes planta=(x 312..1688, y -800..2600) en_ruta=0 aparece_ms=0
+   [    50 ms real=(997,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(997,2000,-0.0) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=138 motivo=0
+   [   250 ms real=(997,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=200
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=138 motivo=0
+   [   500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [   500 ms] real=(997,1956,0.5) nav=(1000,1939,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=138 motivo=0
+   [   750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [   900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=137 motivo=0
+   [  1000 ms real=(998,1807,0)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1000 ms real=(998,1807,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [  1000 ms real=(998,1807,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=950
+   [  1000 ms] real=(998,1808,0.5) nav=(1001,1785,1) estado=SIGUIENDO cmd=FORWARD laser=756
+   [  1050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  1200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [  1350 ms] cuadro color=(0/0/0 0/0/5 0/0/0) fusion=(000) det_n=1 brillo=137 motivo=0
+   [  1400 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=1 brillo=137 motivo=0
+   [  1500 ms] real=(999,1660,0.5) nav=(1002,1631,0) estado=SIGUIENDO cmd=FORWARD laser=601
+   [  1550 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  1650 ms real=(999,1615,0)] POSE_DIAG avance origen=ruta pose=(1002,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  1650 ms real=(999,1615,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1650 ms real=(999,1615,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1600
+   [  1700 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=1
+   [  1900 ms] cuadro color=(0/0/0 1/1/14 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=1
+   [  2000 ms] cuadro color=(0/0/2 1/1/14 0/0/0) fusion=(010) det_n=1 brillo=137 motivo=1
+   [  2050 ms real=(1000,1496,0)] CONTRADICCION_LASER_CAMARA laser_mm=531 laser_obstaculo=0 camara_obstaculo=1 columnas=3..6
+   [  2000 ms] real=(1000,1512,0.4) nav=(1002,1477,0) estado=SIGUIENDO cmd=FORWARD laser=461
+   [  2150 ms] cuadro color=(0/0/2 1/1/14 0/0/0) fusion=(010) det_n=1 brillo=137 motivo=1
+   [  2300 ms real=(1000,1422,0)] POSE_DIAG avance origen=ruta pose=(1003,1400,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2300 ms real=(1000,1422,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  2300 ms real=(1000,1422,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2250
+   [  2350 ms] cuadro color=(0/0/6 1/1/24 0/0/0) fusion=(010) det_n=1 brillo=135 motivo=1
+   [  2400 ms real=(1000,1383,0)] SENS_DIAG eco_confirma laser_mm=388: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  2400 ms real=(1000,1383,0)] OBS_DIAG evento=detiene mascara_izq=0000000000200000000000000 mascara_cen=00000000001e0780000000000 mascara_der=0000000000000000000000000 cercania=(0,3,0) celdas=(6,24,0) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2400 ms real=(1000,1383,0)] POSE_DIAG avance origen=ruta pose=(1003,1340,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2400 ms real=(1000,1383,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=200 hecho=60
+   [  2500 ms] cuadro color=(0/0/6 1/1/24 0/0/0) fusion=(010) det_n=1 brillo=136 motivo=1
+   [  2500 ms] real=(1000,1384,0.2) nav=(1003,1340,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=342
+   [  2600 ms] cuadro color=(1/1/12 1/1/32 0/0/4) fusion=(110) det_n=1 brillo=133 motivo=1
+   [  2750 ms] cuadro color=(1/1/12 1/1/32 0/0/4) fusion=(000) det_n=0 brillo=135 motivo=1
+   [  2800 ms real=(1000,1383,0)] CONTRADICCION_LASER_CAMARA laser_mm=358 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  2900 ms real=(1001,1371,4)] SENS_DIAG tof_paro decide lado=derecha por=camara laser_mm=388 celdas_izq=12 celdas_der=4
+   [  2900 ms real=(1001,1371,4)] OBS_DIAG evento=esquiva mascara_izq=0000000000200800000000000 mascara_cen=00000000001e0780000000000 mascara_der=0000000000020080000000000 cercania=(0,3,0) celdas=(12,32,4) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2900 ms real=(1001,1371,4)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=2850
+   [  2900 ms real=(1001,1371,4)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=2850
+   [  2900 ms] cuadro color=(1/1/12 1/1/32 0/0/4) fusion=(000) det_n=0 brillo=136 motivo=1
+   [  2950 ms real=(1003,1358,8)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=32 filas=7-10 cols=8-15 ms_giro=50 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3000 ms] real=(1006,1347,12.8) nav=(1005,1324,6) estado=ESQUIVANDO cmd=RIGHT laser=306
+   [  3200 ms] cuadro color=(1/2/44 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  3400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=151 motivo=0
+   [  3500 ms] real=(1079,1247,54.9) nav=(1114,1197,70) estado=ESQUIVANDO cmd=RIGHT laser=487
+   [  3550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  3800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  3850 ms real=(1162,1220,84)] CONTRADICCION_LASER_CAMARA laser_mm=368 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  3850 ms real=(1162,1220,84)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=950 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  4000 ms real=(1179,1220,90)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=91 plan_ms=802 real_ms=1100 um_grado=(2475,118) mm=(168,-150) carro_mm=(150,168) rumbo=0>91 por=angulo fw_real_x10=906 fw_ms=818 ant=10
+   [  4000 ms real=(1179,1220,90)] SENS_DIAG giro por=angulo objetivo=90 real_x10=906 error_x10=6 fw_ms=818 origen=esquive
+   [  4000 ms real=(1179,1220,90)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1100 hecho=91
+   [  4000 ms] real=(1180,1221,90.0) nav=(1171,1190,91) estado=ESQUIVANDO cmd=STOP laser=301
+   [  4100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=0
+   [  4150 ms real=(1179,1220,90)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=1250 cuadros_tras_giro=0 accion=ignorada_espera_estable
+   [  4250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=139 motivo=0
+   [  4400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  4500 ms] real=(1180,1221,90.0) nav=(1171,1190,91) estado=ESQUIVANDO cmd=STOP laser=298
+   [  4550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  4600 ms real=(1179,1220,90)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=1700 cuadros_tras_giro=2 accion=centro_cuenta
+   [  4750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  4800 ms real=(1179,1220,90)] BARRIDO_DIAG cara=508 lecturas(grados:s,lado)= 2:470,18 8:453,68 17:- 27:- 40:735,593 53:511,613 63:386,642 72:298,629
+   [  4800 ms real=(1179,1220,90)] ESQUIVE_DIAG escaneo lado=1 lecturas=8 con_eco=6 ancho_mm=68 sin_final=0 pared_lateral_mm=593 lateral_mm=400 tope_mm=333
+   [  4800 ms real=(1179,1220,90)] ESQUIVE_DIAG lado_cerrado lado=1: se mide el otro lado (vuelta completa en el mismo sentido)
+   [  4850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  4900 ms real=(1179,1220,90)] ESQUIVE_DIAG fase=ASENTAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=2000 cuadros_tras_giro=4 accion=centro_cuenta
+   [  4950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  5000 ms] real=(1180,1221,90.0) nav=(1171,1190,91) estado=ESQUIVANDO cmd=STOP laser=295
+   [  5050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  5100 ms real=(1194,1221,94)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=180 plan_ms=1504 t_ms=5050
+   [  5100 ms real=(1194,1221,94)] SENS_DIAG giro pide=GIRAR objetivo=180 origen=esquive t_ms=5050
+   [  5250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  5300 ms real=(1249,1239,114)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=200 cuadros_tras_giro=6 accion=ignorada_girando
+   [  5400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  5500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  5500 ms] real=(1296,1274,133.9) nav=(1278,1241,135) estado=ESQUIVANDO cmd=RIGHT laser=262
+   [  5650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  5800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  5850 ms real=(1340,1364,167)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=750 cuadros_tras_giro=6 accion=ignorada_girando
+   [  5950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [  6000 ms] real=(1343,1408,182.6) nav=(1307,1406,199) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  6150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [  6300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  6450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  6500 ms] real=(1272,1531,231.3) nav=(1170,1505,264) estado=ESQUIVANDO cmd=RIGHT laser=948
+   [  6550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  6700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=136 motivo=0
+   [  6900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  6950 ms real=(1173,1563,266)] TURN_DIAG lado=DER origen=esquive pedido=180 hecho=178 plan_ms=1504 real_ms=1850 um_grado=(2475,118) mm=(-15,315) carro_mm=(-9,315) rumbo=91>269 por=angulo fw_real_x10=1784 fw_ms=1566 ant=5
+   [  6950 ms real=(1173,1563,266)] SENS_DIAG giro por=angulo objetivo=180 real_x10=1784 error_x10=-16 fw_ms=1566 origen=esquive
+   [  6950 ms real=(1173,1563,266)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=180 plan_ms=1504 real_ms=1850 hecho=178
+   [  7000 ms] real=(1173,1564,266.9) nav=(1156,1505,269) estado=ESQUIVANDO cmd=STOP laser=647
+   [  7050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=134 motivo=0
+   [  7150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  7250 ms real=(1160,1563,270)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=7200
+   [  7250 ms real=(1160,1563,270)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=7200
+   [  7300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [  7400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=132 motivo=0
+   [  7500 ms] real=(1102,1550,291.2) nav=(1090,1488,294) estado=ESQUIVANDO cmd=RIGHT laser=582
+   [  7700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=131 motivo=0
+   [  7800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  7950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [  8000 ms] real=(1015,1468,331.8) nav=(1003,1345,358) estado=ESQUIVANDO cmd=RIGHT laser=1200 (sin eco)
+   [  8150 ms] cuadro color=(0/0/0 0/0/0 1/1/9) fusion=(000) det_n=0 brillo=126 motivo=1
+   [  8250 ms] cuadro color=(0/0/0 0/0/0 1/1/26) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  8350 ms real=(998,1402,354)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=89 plan_ms=802 real_ms=1100 um_grado=(2475,118) mm=(-153,-160) carro_mm=(150,162) rumbo=269>358 por=angulo fw_real_x10=885 fw_ms=833 ant=3
+   [  8350 ms real=(998,1402,354)] SENS_DIAG giro por=angulo objetivo=90 real_x10=885 error_x10=-15 fw_ms=833 origen=esquive
+   [  8350 ms real=(998,1402,354)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1100 hecho=89
+   [  8400 ms] cuadro color=(0/0/0 1/1/23 1/1/20) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  8450 ms real=(998,1402,354)] CONTRADICCION_LASER_CAMARA laser_mm=366 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  8450 ms real=(998,1402,354)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=23 filas=7-10 cols=10-15 ms_giro=1200 cuadros_tras_giro=0 accion=ignorada_espera_estable
+   [  8500 ms] real=(998,1402,354.7) nav=(1003,1345,358) estado=ESQUIVANDO cmd=STOP laser=359
+   [  8600 ms] cuadro color=(0/0/0 1/1/32 1/1/14) fusion=(000) det_n=0 brillo=126 motivo=1
+   [  8700 ms] cuadro color=(0/0/0 1/1/32 1/1/14) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  8850 ms] cuadro color=(0/0/0 1/1/32 1/1/14) fusion=(000) det_n=0 brillo=132 motivo=1
+   [  8900 ms real=(998,1402,354)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=32 filas=7-10 cols=8-15 ms_giro=1650 cuadros_tras_giro=2 accion=centro_cuenta
+   [  9000 ms] cuadro color=(0/0/0 1/1/32 1/1/14) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  9050 ms real=(998,1402,354)] BARRIDO_DIAG cara=508 lecturas(grados:s,lado)= 88:-149,613 82:-68,604 72:72,609 60:254,600 47:466,582 35:805,592 23:-
+   [  9050 ms real=(998,1402,354)] ESQUIVE_DIAG escaneo lado=-1 lecturas=7 con_eco=6 ancho_mm=0 sin_final=0 pared_lateral_mm=582 lateral_mm=400 tope_mm=322
+   [  9050 ms real=(998,1402,354)] AYUDA_DIAG pide ayuda motivo=1 causa=16 pose=(1003,1345,358) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=370 laser_valido=1
+   [  9000 ms] real=(998,1402,354.7) nav=(1003,1345,358) estado=AYUDA cmd=STOP laser=373
+FIN pasillo semilla=2240102 estado=AYUDA causa=16 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=9000 ms real=(998,1402,354.7) nav=(1003,1345,358) lateral=1 long=1402 cola=-806 piso_aprendido=1
+
+================ caja_pared_norm_r0_ay16 (esc=21, laser=0, run=0) ================
+MUNDO caja20 planta=(x 898..1098, y 726..926) en_ruta=1 aparece_ms=0
+MUNDO pared_lateral planta=(x 1354..1454, y -800..2600) en_ruta=0 aparece_ms=0
+   [    50 ms real=(991,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(991,2000,0.6) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=936
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=128 motivo=0
+   [   200 ms real=(991,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=0
+   [   450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [   500 ms] real=(992,1926,1.6) nav=(1000,1924,1) estado=SIGUIENDO cmd=FORWARD laser=935
+   [   600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [   750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [   950 ms real=(995,1791,1)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [   950 ms real=(995,1791,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(995,1791,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [   950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [  1000 ms] real=(995,1776,1.0) nav=(1001,1770,1) estado=SIGUIENDO cmd=FORWARD laser=717
+   [  1100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=0
+   [  1200 ms] cuadro color=(0/0/0 0/0/5 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=0
+   [  1400 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=0
+   [  1500 ms] real=(998,1628,1.0) nav=(1002,1616,0) estado=SIGUIENDO cmd=FORWARD laser=579
+   [  1550 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=1
+   [  1600 ms real=(998,1597,1)] POSE_DIAG avance origen=ruta pose=(1002,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1600 ms real=(998,1597,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1600 ms real=(998,1597,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1650 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=1
+   [  1800 ms] cuadro color=(0/0/0 1/1/14 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  1950 ms] cuadro color=(0/0/2 1/1/16 0/0/0) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  2000 ms] real=(1000,1478,1.0) nav=(1002,1462,0) estado=SIGUIENDO cmd=FORWARD laser=446
+   [  2150 ms] cuadro color=(0/0/3 1/1/24 0/0/0) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  2250 ms real=(1001,1404,0)] POSE_DIAG avance origen=ruta pose=(1003,1400,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2250 ms real=(1001,1404,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  2250 ms real=(1001,1404,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2400 ms] cuadro color=(1/1/8 1/1/32 0/0/4) fusion=(000) det_n=0 brillo=121 motivo=1
+   [  2450 ms real=(1001,1335,0)] CONTRADICCION_LASER_CAMARA laser_mm=398 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  2450 ms real=(1001,1335,0)] SENS_DIAG eco_confirma laser_mm=398: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  2450 ms real=(1001,1335,0)] OBS_DIAG evento=detiene mascara_izq=0000000000200800000000000 mascara_cen=00000000001e0780000000000 mascara_der=0000000000020080000000000 cercania=(0,3,0) celdas=(8,32,4) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2450 ms real=(1001,1335,0)] POSE_DIAG avance origen=ruta pose=(1003,1309,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2450 ms real=(1001,1335,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=300 hecho=91
+   [  2500 ms] real=(1002,1335,0.4) nav=(1003,1309,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=331
+   [  2600 ms] cuadro color=(1/2/15 1/2/40 1/2/10) fusion=(000) det_n=0 brillo=119 motivo=1
+   [  2750 ms] cuadro color=(1/2/16 1/2/40 1/2/10) fusion=(000) det_n=0 brillo=120 motivo=1
+   [  2900 ms] cuadro color=(1/2/16 1/2/40 1/2/10) fusion=(000) det_n=0 brillo=122 motivo=1
+   [  2950 ms real=(1002,1324,4)] SENS_DIAG tof_paro decide lado=derecha por=camara laser_mm=398 celdas_izq=16 celdas_der=10
+   [  2950 ms real=(1002,1324,4)] OBS_DIAG evento=esquiva mascara_izq=0000000000200802000000000 mascara_cen=00000000001e0781e00000000 mascara_der=0000000000020080200000000 cercania=(0,3,0) celdas=(16,40,10) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2950 ms real=(1002,1324,4)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=2900
+   [  2950 ms real=(1002,1324,4)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=2900
+   [  3000 ms] cuadro color=(1/2/16 1/2/40 1/2/10) fusion=(000) det_n=0 brillo=124 motivo=1
+   [  3050 ms real=(1006,1303,13)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=40 filas=7-11 cols=8-15 ms_giro=100 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3000 ms] real=(1004,1314,9.1) nav=(1003,1309,0) estado=ESQUIVANDO cmd=RIGHT laser=291
+   [  3150 ms] cuadro color=(1/2/48 1/2/35 0/0/0) fusion=(000) det_n=0 brillo=120 motivo=1
+   [  3350 ms] cuadro color=(1/2/49 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=127 motivo=1
+   [  3450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=137 motivo=0
+   [  3500 ms] real=(1060,1228,52.6) nav=(1098,1172,64) estado=ESQUIVANDO cmd=RIGHT laser=236
+   [  3650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  3700 ms real=(1097,1209,69)] CONTRADICCION_LASER_CAMARA laser_mm=236 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  3700 ms real=(1097,1209,69)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=750 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=2
+   [  3900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=2
+   [  3950 ms real=(1137,1203,86)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=87 plan_ms=802 real_ms=1000 um_grado=(2475,118) mm=(157,-150) carro_mm=(150,157) rumbo=0>87 por=angulo fw_real_x10=869 fw_ms=742 ant=10
+   [  3950 ms real=(1137,1203,86)] SENS_DIAG giro por=angulo objetivo=90 real_x10=869 error_x10=-31 fw_ms=742 origen=esquive
+   [  3950 ms real=(1137,1203,86)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=1000 hecho=87
+   [  4000 ms] real=(1137,1203,86.7) nav=(1160,1159,87) estado=ESQUIVANDO cmd=STOP laser=119
+   [  4100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  4150 ms real=(1137,1203,86)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=1200 cuadros_tras_giro=0 accion=ignorada_espera_estable
+   [  4200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=138 motivo=0
+   [  4350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=135 motivo=0
+   [  4500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=0
+   [  4550 ms real=(1137,1203,86)] ESQUIVE_DIAG fase=MIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=1600 cuadros_tras_giro=2 accion=centro_cuenta
+   [  4500 ms] real=(1137,1203,86.7) nav=(1160,1159,87) estado=ESQUIVANDO cmd=STOP laser=120
+   [  4850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [  4900 ms real=(1137,1203,86)] BARRIDO_DIAG cara=518 lecturas(grados:s,lado)= 0:429,0 4:441,33 13:485,111 24:769,338 37:519,373 50:373,401 61:302,443 70:251,446
+   [  4900 ms real=(1137,1203,86)] ESQUIVE_DIAG escaneo lado=1 lecturas=8 con_eco=8 ancho_mm=401 sin_final=1 pared_lateral_mm=443 lateral_mm=801 tope_mm=183
+   [  4900 ms real=(1137,1203,86)] ESQUIVE_DIAG lado_cerrado lado=1 sin_vuelta estorbo_lado_mm=446 alcance_mm=480 otro_lado_libre=1 atras_mm=300: no se da la vuelta, se pide ayuda
+   [  4900 ms real=(1137,1203,86)] AYUDA_DIAG pide ayuda motivo=1 causa=16 pose=(1160,1159,87) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=119 laser_valido=1
+FIN caja_y_pared_al_lado semilla=2310147 estado=AYUDA causa=16 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=4850 ms real=(1137,1203,86.7) nav=(1160,1159,87) lateral=137 long=1203 cola=-583 piso_aprendido=1
+
+================ caja_pared_norm_r5_ay18 (esc=21, laser=0, run=5) ================
+MUNDO caja20 planta=(x 917..1117, y 846..1046) en_ruta=1 aparece_ms=0
+MUNDO pared_lateral planta=(x 1312..1412, y -800..2600) en_ruta=0 aparece_ms=0
+   [    50 ms real=(1009,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1009,2000,0.7) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=808
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=130 motivo=0
+   [   200 ms real=(1009,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   500 ms] real=(1010,1945,1.4) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=796
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=0
+   [   900 ms] cuadro color=(0/0/0 0/0/5 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [   950 ms real=(1012,1822,1)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [   950 ms real=(1012,1822,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(1012,1822,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [  1000 ms] cuadro color=(0/0/0 0/0/5 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [  1000 ms] real=(1013,1809,1.2) nav=(1001,1770,1) estado=SIGUIENDO cmd=FORWARD laser=666
+   [  1100 ms] cuadro color=(0/0/0 0/0/6 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=0
+   [  1200 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=129 motivo=1
+   [  1300 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  1400 ms] cuadro color=(0/0/0 1/1/7 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  1500 ms] real=(1015,1672,1.2) nav=(1002,1616,0) estado=SIGUIENDO cmd=FORWARD laser=523
+   [  1550 ms] cuadro color=(0/0/0 1/1/14 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=1
+   [  1600 ms real=(1015,1645,1)] POSE_DIAG avance origen=ruta pose=(1002,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  1600 ms real=(1015,1645,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1600 ms real=(1015,1645,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1650 ms] cuadro color=(0/0/0 1/1/15 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  1750 ms] cuadro color=(0/0/2 1/1/16 0/0/0) fusion=(010) det_n=1 brillo=130 motivo=1
+   [  1900 ms] cuadro color=(0/0/2 1/1/16 0/0/0) fusion=(000) det_n=0 brillo=130 motivo=1
+   [  2000 ms] real=(1018,1536,1.1) nav=(1002,1462,0) estado=SIGUIENDO cmd=FORWARD laser=385
+   [  2050 ms] cuadro color=(0/0/3 1/1/24 0/0/0) fusion=(000) det_n=0 brillo=128 motivo=1
+   [  2250 ms real=(1018,1467,0)] POSE_DIAG avance origen=ruta pose=(1003,1400,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  2250 ms real=(1018,1467,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  2250 ms real=(1018,1467,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2250 ms] cuadro color=(1/1/8 1/1/32 0/0/4) fusion=(000) det_n=0 brillo=125 motivo=1
+   [  2300 ms real=(1018,1454,0)] CONTRADICCION_LASER_CAMARA laser_mm=367 laser_obstaculo=1 camara_obstaculo=0 columnas=3..6
+   [  2300 ms real=(1018,1454,0)] SENS_DIAG eco_confirma laser_mm=367: el obstaculo queda confirmado (la camara no lo libera; sin eco no es libre)
+   [  2300 ms real=(1018,1454,0)] OBS_DIAG evento=detiene mascara_izq=0000000000200800000000000 mascara_cen=00000000001e0780000000000 mascara_der=0000000000020080000000000 cercania=(0,3,0) celdas=(8,32,4) franja_tapada=0 franja_pct=0 ignorado=000 iguales=1
+   [  2300 ms real=(1018,1454,0)] POSE_DIAG avance origen=ruta pose=(1003,1355,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2300 ms real=(1018,1454,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=150 hecho=45
+   [  2300 ms] cuadro color=(1/1/12 1/1/32 0/0/6) fusion=(000) det_n=0 brillo=126 motivo=1
+   [  2400 ms] cuadro color=(1/2/15 1/2/40 1/2/10) fusion=(000) det_n=0 brillo=123 motivo=1
+   [  2500 ms] cuadro color=(1/2/25 1/2/48 1/2/18) fusion=(000) det_n=0 brillo=117 motivo=1
+   [  2500 ms] real=(1019,1420,0.8) nav=(1003,1355,0) estado=DETENIDO_OBSTACULO cmd=STOP laser=270
+   [  2650 ms] cuadro color=(1/2/25 1/2/48 1/2/18) fusion=(000) det_n=0 brillo=120 motivo=3
+   [  2750 ms] cuadro color=(1/2/25 1/2/48 1/2/18) fusion=(000) det_n=0 brillo=123 motivo=3
+   [  2800 ms real=(1019,1408,5)] SENS_DIAG tof_paro decide lado=derecha por=camara laser_mm=367 celdas_izq=25 celdas_der=18
+   [  2800 ms real=(1019,1408,5)] OBS_DIAG evento=esquiva mascara_izq=0000000000601806008000000 mascara_cen=00000000001e0781e07800000 mascara_der=00000000000300c0300800000 cercania=(0,3,0) celdas=(25,48,18) franja_tapada=1 franja_pct=0 ignorado=000 iguales=1
+   [  2800 ms real=(1019,1408,5)] RUTA_DIAG envia cmd=RIGHT origen=esquive pedido=90 plan_ms=802 t_ms=2750
+   [  2800 ms real=(1019,1408,5)] SENS_DIAG giro pide=GIRAR objetivo=90 origen=esquive t_ms=2750
+   [  2800 ms] cuadro color=(1/2/25 1/2/48 1/2/18) fusion=(000) det_n=0 brillo=125 motivo=3
+   [  2850 ms real=(1021,1397,9)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=48 filas=7-12 cols=8-15 ms_giro=50 cuadros_tras_giro=2 accion=ignorada_girando
+   [  2950 ms] cuadro color=(1/2/25 1/2/48 1/2/18) fusion=(000) det_n=0 brillo=126 motivo=3
+   [  3000 ms] cuadro color=(1/2/56 1/2/48 0/0/0) fusion=(000) det_n=0 brillo=126 motivo=3
+   [  3000 ms] real=(1032,1364,22.6) nav=(1014,1304,19) estado=ESQUIVANDO cmd=RIGHT laser=493
+   [  3100 ms] cuadro color=(1/3/66 1/3/15 0/0/0) fusion=(000) det_n=0 brillo=133 motivo=3
+   [  3200 ms] cuadro color=(1/3/46 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=3
+   [  3350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=153 motivo=6
+   [  3400 ms real=(1093,1294,57)] ESQUIVE_DIAG fase=GIRAR cerc=3 zona=CEN celdas=0 filas=? cols=? ms_giro=600 cuadros_tras_giro=2 accion=ignorada_girando
+   [  3450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  3500 ms real=(1104,1289,61)] ESQUIVE_DIAG guardia_giro lado=1 laser_mm=199 guardia_mm=153 pared_mm=283 cambio_lado=0: algo dentro del arco del giro, deja de girar
+   [  3500 ms real=(1104,1289,61)] TURN_DIAG lado=DER origen=esquive pedido=90 hecho=48 plan_ms=802 real_ms=700 um_grado=(2475,118) mm=(58,-115) carro_mm=(115,58) rumbo=0>48 por=angulo fw_real_x10=476 fw_ms=0 ant=0
+   [  3500 ms real=(1104,1289,61)] SENS_DIAG giro por=angulo objetivo=90 real_x10=476 error_x10=-424 fw_ms=0 origen=esquive
+   [  3500 ms real=(1104,1289,61)] RUTA_DIAG fin cmd=RIGHT origen=esquive pedido=90 plan_ms=802 real_ms=700 hecho=48
+   [  3500 ms real=(1104,1289,61)] AYUDA_DIAG pide ayuda motivo=1 causa=18 pose=(1061,1240,48) esquivadas=1 del_obstaculo=1 ayudas=1 laser_mm=199 laser_valido=1
+FIN caja_y_pared_al_lado semilla=2310152 estado=AYUDA causa=18 exito=0 contacto=0 esquivas=1 ayudas=1 paradas=1 t=3450 ms real=(1104,1290,61.6) nav=(1061,1240,48) lateral=104 long=1289 cola=-588 piso_aprendido=1
+
+================ caja20_lat_pes_r22_cont (esc=8, laser=1, run=22) ================
+MUNDO caja20 planta=(x 714..914, y 890..1090) en_ruta=1 aparece_ms=0
+   [    50 ms real=(1005,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1005,2000,-0.8) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=149 motivo=0
+   [   200 ms real=(1005,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [   400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [   450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [   500 ms] real=(1004,1922,-0.1) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [   650 ms] cuadro color=(0/0/5 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [   750 ms] cuadro color=(0/0/5 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [   850 ms] cuadro color=(0/0/5 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [   950 ms real=(1003,1780,0)] POSE_DIAG avance origen=ruta pose=(1001,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [   950 ms real=(1003,1780,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(1003,1780,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [  1000 ms] cuadro color=(0/0/6 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [  1000 ms] real=(1004,1764,-0.7) nav=(1001,1770,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1050 ms] cuadro color=(0/0/6 0/0/1 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [  1150 ms] cuadro color=(1/1/14 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  1200 ms real=(1003,1701,359)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=1 celdas=14 cercania=1 cuadros=3 grados=14 lateral_mm=94
+   [  1250 ms] cuadro color=(1/1/14 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  1350 ms] cuadro color=(1/1/14 0/0/3 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  1500 ms] real=(988,1609,-15.5) nav=(996,1617,351) estado=SIGUIENDO cmd=FORWARD laser=415
+   [  1550 ms] cuadro color=(0/0/6 1/1/16 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  1600 ms real=(979,1579,345)] POSE_DIAG avance origen=ruta pose=(993,1601,347) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  1600 ms real=(979,1579,345)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  1600 ms real=(979,1579,345)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1650 ms] cuadro color=(0/0/5 1/1/24 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=1
+   [  1750 ms] cuadro color=(0/0/6 1/1/24 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=1
+   [  1850 ms] cuadro color=(1/1/23 1/1/22 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  1950 ms real=(968,1470,1)] VISTAZO_DIAG sin_eco lado=-1 ms=750: sigue la ruta
+   [  1950 ms] cuadro color=(1/2/37 1/2/13 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2000 ms] real=(969,1455,3.0) nav=(969,1466,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2050 ms] cuadro color=(1/2/40 0/0/3 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=1
+   [  2250 ms real=(974,1376,4)] POSE_DIAG avance origen=ruta pose=(972,1404,5) rumbo_inicio=347 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2250 ms real=(974,1376,4)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  2250 ms real=(974,1376,4)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2250 ms] cuadro color=(1/3/50 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  2400 ms] cuadro color=(1/3/48 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  2450 ms] cuadro color=(1/3/50 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2500 ms] real=(980,1298,3.5) nav=(979,1313,5) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2600 ms] cuadro color=(1/3/49 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2650 ms] cuadro color=(1/3/45 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2750 ms] cuadro color=(1/3/46 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  2750 ms] CONTACTO con caja20 real=(984,1204,2.2) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  2900 ms real=(985,1172,1)] POSE_DIAG avance origen=ruta pose=(987,1205,3) rumbo_inicio=5 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  2900 ms real=(985,1172,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=199
+   [  2900 ms real=(985,1172,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=2850
+   [  2900 ms] cuadro color=(1/3/39 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  3000 ms] cuadro color=(1/3/33 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=1
+   [  3000 ms] real=(986,1142,1.5) nav=(989,1160,3) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3050 ms] cuadro color=(1/3/23 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=1
+   [  3300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=150 motivo=0
+   [  3350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3500 ms] real=(988,985,0.5) nav=(994,1006,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3600 ms real=(988,953,0)] POSE_DIAG avance origen=ruta pose=(994,991,1) rumbo_inicio=3 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  3600 ms real=(988,953,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=214
+   [  3600 ms real=(988,953,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=3550
+   [  3650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=149 motivo=0
+   [  3900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [  3950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [  4000 ms] real=(988,828,-0.0) nav=(996,853,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  4150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  4200 ms real=(988,764,0)] POSE_DIAG avance origen=ruta pose=(997,807,1) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  4200 ms real=(988,764,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=184
+   [  4200 ms real=(988,764,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=4150
+   [  4250 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  4350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  4450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  4500 ms] real=(988,671,-0.3) nav=(997,700,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  4650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  4800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  4850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  4900 ms real=(986,544,0)] POSE_DIAG avance origen=ruta pose=(998,592,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  4900 ms real=(986,544,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [  4900 ms real=(986,544,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=4850
+   [  5000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5000 ms] real=(987,514,-0.6) nav=(998,546,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5500 ms real=(985,356,0)] POSE_DIAG avance origen=ruta pose=(998,408,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  5500 ms real=(985,356,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=184
+   [  5500 ms real=(985,356,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=5450
+   [  5500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5500 ms] real=(985,357,-0.6) nav=(998,393,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5600 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  5650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  5800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  5850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6000 ms] real=(984,200,-0.6) nav=(998,239,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  6150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6200 ms real=(982,136,0)] POSE_DIAG avance origen=ruta pose=(998,193,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6200 ms real=(982,136,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=215
+   [  6200 ms real=(982,136,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=520 t_ms=6150
+   [  6300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6500 ms] real=(982,43,-0.8) nav=(998,86,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6700 ms real=(980,-33,359)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(998,40,0)
+   [  6700 ms real=(980,-33,359)] POSE_DIAG avance origen=ruta pose=(998,10,0) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6700 ms real=(980,-33,359)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=520 real_ms=600 hecho=183
+FIN caja20_lateral semilla=2180078 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=0 ayudas=0 paradas=0 t=6650 ms real=(981,-33,-1.1) nav=(998,10,0) lateral=19 long=33 cola=800 piso_aprendido=1
+
+================ banquito_pes_r26_tf (esc=9, laser=1, run=26) ================
+MUNDO banquito planta=(x 807..1157, y 498..948) en_ruta=1 aparece_ms=0
+   [    50 ms real=(1006,2000,0)] SENS_DIAG config giroscopio=1 sensor_distancia=1 rumbo_fw=1
+   [     0 ms] real=(1006,2000,0.9) nav=(1000,2000,0) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [   150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=-1 brillo=145 motivo=0
+   [   200 ms real=(1006,2000,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=750 t_ms=150
+   [   350 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [   400 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [   500 ms] real=(1007,1962,1.4) nav=(1000,1924,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [   550 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [   700 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [   850 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [   950 ms real=(1009,1847,1)] POSE_DIAG avance origen=ruta pose=(1000,1800,1) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [   950 ms real=(1009,1847,1)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=750 real_ms=750 hecho=200
+   [   950 ms real=(1009,1847,1)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=900
+   [   950 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  1000 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  1000 ms] real=(1010,1834,1.5) nav=(1000,1770,1) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1150 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [  1200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [  1300 ms] cuadro color=(0/0/1 0/0/0 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [  1450 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [  1500 ms] real=(1013,1707,1.4) nav=(1001,1616,0) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  1550 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=1 brillo=145 motivo=0
+   [  1600 ms real=(1013,1681,0)] POSE_DIAG avance origen=ruta pose=(1001,1600,0) rumbo_inicio=1 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  1600 ms real=(1013,1681,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=200
+   [  1600 ms real=(1013,1681,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=1550
+   [  1600 ms real=(1013,1681,0)] VISTAZO_DIAG empieza lado=-1 zona=IZQ fuentes=2 celdas=1 cercania=2 cuadros=3 grados=16 lateral_mm=149
+   [  1650 ms] cuadro color=(0/0/1 0/0/1 0/0/0) fusion=(000) det_n=1 brillo=146 motivo=0
+   [  1850 ms] cuadro color=(0/0/1 0/0/0 0/0/1) fusion=(000) det_n=1 brillo=146 motivo=0
+   [  2000 ms] cuadro color=(0/0/0 0/0/1 0/0/2) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  2000 ms] real=(998,1581,-14.5) nav=(993,1463,347) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2100 ms] cuadro color=(0/0/0 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=147 motivo=0
+   [  2250 ms real=(982,1519,348)] POSE_DIAG avance origen=ruta pose=(977,1403,344) rumbo_inicio=0 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  2250 ms real=(982,1519,348)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=750 hecho=198
+   [  2250 ms real=(982,1519,348)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=2200
+   [  2250 ms] cuadro color=(0/0/0 0/0/2 0/0/0) fusion=(000) det_n=1 brillo=147 motivo=0
+   [  2400 ms] cuadro color=(0/0/0 0/0/2 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  2550 ms real=(976,1443,1)] VISTAZO_DIAG sin_eco lado=-1 ms=950: sigue la ruta
+   [  2500 ms] real=(976,1456,0.3) nav=(957,1314,353) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  2550 ms] cuadro color=(0/0/3 0/0/2 0/0/6) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  2600 ms] cuadro color=(0/0/6 0/0/0 0/0/6) fusion=(000) det_n=0 brillo=142 motivo=0
+   [  2750 ms] cuadro color=(1/1/9 0/0/0 1/1/7) fusion=(101) det_n=1 brillo=142 motivo=1
+   [  2850 ms real=(982,1367,7)] POSE_DIAG avance origen=ruta pose=(956,1193,2) rumbo_inicio=344 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  2850 ms real=(982,1367,7)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=700 hecho=211
+   [  2900 ms] cuadro color=(0/0/1 0/0/0 1/1/11) fusion=(001) det_n=1 brillo=145 motivo=1
+   [  3000 ms] real=(988,1325,7.5) nav=(956,1193,7) estado=SIGUIENDO cmd=STOP laser=1200 (sin eco)
+   [  3100 ms] cuadro color=(0/0/1 0/0/1 1/2/15) fusion=(000) det_n=0 brillo=144 motivo=1
+   [  3150 ms real=(987,1325,7)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=3100
+   [  3150 ms] cuadro color=(0/0/1 0/0/1 1/2/15) fusion=(000) det_n=0 brillo=143 motivo=1
+   [  3200 ms real=(987,1325,7)] POSE_DIAG avance origen=ruta pose=(956,1193,7) rumbo_inicio=7 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  3200 ms real=(987,1325,7)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=50 hecho=0
+   [  3200 ms real=(987,1325,7)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=3150
+   [  3300 ms] cuadro color=(0/0/1 0/0/1 1/2/15) fusion=(000) det_n=0 brillo=144 motivo=1
+   [  3400 ms] cuadro color=(0/0/1 0/0/1 1/2/15) fusion=(000) det_n=0 brillo=144 motivo=1
+   [  3500 ms] real=(995,1275,7.9) nav=(968,1087,7) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  3600 ms] cuadro color=(0/0/1 0/0/1 1/2/18) fusion=(000) det_n=0 brillo=143 motivo=1
+   [  3700 ms] cuadro color=(0/0/1 0/0/1 1/2/27) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  3750 ms real=(1002,1211,6)] VISTAZO_DIAG empieza lado=1 zona=DER fuentes=1 celdas=27 cercania=2 cuadros=6 grados=16 lateral_mm=93
+   [  3800 ms real=(1004,1198,7)] POSE_DIAG avance origen=ruta pose=(977,1011,7) rumbo_inicio=7 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  3800 ms real=(1004,1198,7)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=183
+   [  3800 ms real=(1004,1198,7)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=3750
+   [  3850 ms] cuadro color=(0/0/3 0/0/1 1/3/41) fusion=(000) det_n=0 brillo=136 motivo=1
+   [  3900 ms] cuadro color=(0/0/3 0/0/2 1/3/32) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  4000 ms] real=(1014,1149,14.1) nav=(985,936,8) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4050 ms] cuadro color=(0/0/0 0/0/2 1/3/43) fusion=(000) det_n=0 brillo=138 motivo=1
+   [  4200 ms] cuadro color=(0/0/0 0/0/3 1/3/55) fusion=(000) det_n=0 brillo=133 motivo=1
+   [  4200 ms] BAJO EL MUEBLE banquito (entra en su planta sin tocar nada) real=(1031,1088,14.0) estado=SIGUIENDO cmd=FORWARD
+   [  4300 ms] cuadro color=(0/0/0 0/0/2 1/3/53) fusion=(000) det_n=0 brillo=136 motivo=3
+   [  4350 ms] CONTACTO con banquito real=(1038,1050,7.4) estado=SIGUIENDO fase=0 reinc=0 cmd=FORWARD
+   [  4400 ms] cuadro color=(0/0/0 0/0/3 1/3/11) fusion=(000) det_n=0 brillo=156 motivo=3
+   [  4500 ms real=(1040,1024,3)] POSE_DIAG avance origen=ruta pose=(1017,801,8) rumbo_inicio=7 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  4500 ms real=(1040,1024,3)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=213
+   [  4500 ms real=(1040,1024,3)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=4450
+   [  4500 ms] cuadro color=(0/0/0 0/0/3 0/0/0) fusion=(000) det_n=0 brillo=158 motivo=0
+   [  4550 ms real=(1041,1012,2)] VISTAZO_DIAG sin_eco lado=1 ms=800: sigue la ruta
+   [  4500 ms] real=(1040,1025,4.0) nav=(1019,787,8) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  4750 ms] cuadro color=(0/0/0 0/0/4 0/0/4) fusion=(000) det_n=0 brillo=150 motivo=0
+   [  4900 ms] cuadro color=(0/0/0 0/0/0 1/1/8) fusion=(001) det_n=1 brillo=147 motivo=1
+   [  4950 ms] cuadro color=(0/0/0 0/0/0 1/2/15) fusion=(001) det_n=1 brillo=144 motivo=1
+   [  5000 ms] real=(1039,898,-3.0) nav=(1022,633,357) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5100 ms real=(1037,872,357)] POSE_DIAG avance origen=ruta pose=(1020,589,357) rumbo_inicio=8 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  5100 ms real=(1037,872,357)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=700 hecho=212
+   [  5100 ms] cuadro color=(0/0/0 0/0/0 1/2/19) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  5250 ms] cuadro color=(0/0/0 0/0/0 1/2/27) fusion=(000) det_n=0 brillo=140 motivo=1
+   [  5400 ms real=(1036,842,357)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=200 plan_ms=650 t_ms=5350
+   [  5400 ms] cuadro color=(0/0/0 0/0/0 1/3/19) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  5450 ms real=(1036,842,357)] POSE_DIAG avance origen=ruta pose=(1020,589,356) rumbo_inicio=356 imu_lista=1 imu_edad_ms=100 por=rumbo_medido
+   [  5450 ms real=(1036,842,357)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=200 plan_ms=650 real_ms=50 hecho=0
+   [  5450 ms real=(1036,842,357)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=618 t_ms=5400
+   [  5500 ms] cuadro color=(0/0/0 0/0/0 1/3/19) fusion=(000) det_n=0 brillo=142 motivo=1
+   [  5500 ms] real=(1036,842,-3.2) nav=(1018,560,356) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  5600 ms] cuadro color=(0/0/0 0/0/0 1/3/19) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  5800 ms] cuadro color=(0/0/0 0/0/0 1/3/19) fusion=(000) det_n=0 brillo=141 motivo=1
+   [  5950 ms] cuadro color=(0/0/0 0/0/0 1/3/10) fusion=(000) det_n=0 brillo=145 motivo=1
+   [  6050 ms real=(1032,727,359)] POSE_DIAG avance origen=ruta pose=(1008,406,357) rumbo_inicio=356 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  6050 ms real=(1032,727,359)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=618 real_ms=700 hecho=183
+   [  6050 ms real=(1032,727,359)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=210 plan_ms=683 t_ms=6000
+   [  6000 ms] real=(1032,741,-1.5) nav=(1008,406,357) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6100 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=150 motivo=0
+   [  6200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=148 motivo=0
+   [  6300 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  6450 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=146 motivo=0
+   [  6500 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=145 motivo=0
+   [  6500 ms] real=(1031,613,-0.5) nav=(1003,254,359) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  6650 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  6750 ms real=(1030,549,0)] POSE_DIAG avance origen=ruta pose=(1001,192,359) rumbo_inicio=357 imu_lista=1 imu_edad_ms=50 por=rumbo_medido
+   [  6750 ms real=(1030,549,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=210 plan_ms=683 real_ms=800 hecho=214
+   [  6750 ms real=(1030,549,0)] RUTA_DIAG envia cmd=FORWARD origen=ruta pedido=190 plan_ms=520 t_ms=6700
+   [  6750 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=144 motivo=0
+   [  6800 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  6900 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=143 motivo=0
+   [  7000 ms] real=(1030,486,0.4) nav=(1000,101,359) estado=SIGUIENDO cmd=FORWARD laser=1200 (sin eco)
+   [  7050 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=0
+   [  7200 ms] cuadro color=(0/0/0 0/0/0 0/0/0) fusion=(000) det_n=0 brillo=142 motivo=0
+   [  7250 ms real=(1030,422,0)] RUTA_DIAG fin destino_alcanzado sin_rodeo_pendiente laser_mm=1200 laser_valido=0 pose=(999,40,0)
+   [  7250 ms real=(1030,422,0)] POSE_DIAG avance origen=ruta pose=(999,10,0) rumbo_inicio=359 imu_lista=1 imu_edad_ms=0 por=rumbo_medido
+   [  7250 ms real=(1030,422,0)] RUTA_DIAG fin cmd=FORWARD origen=ruta pedido=190 plan_ms=520 real_ms=600 hecho=182
+FIN banquito35x45 semilla=2190089 estado=TERMINADO causa=0 exito=0 contacto=1 esquivas=0 ayudas=0 paradas=2 t=7200 ms real=(1031,392,0.5) nav=(999,10,0) lateral=30 long=392 cola=-15 piso_aprendido=1

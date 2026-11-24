@@ -4,32 +4,20 @@ Repositorio usado: `E:\Dev\fsi_proyecto` (`D:\Dev\fsi_proyecto` no existe).
 Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr <223138626+fernandosegrr@users.noreply.github.com>`.
 
 ## Fase 0 — Inventario, linea base y simulador calibrado (Completada)
+- Rama `feat/autonomo-v5-carbon` creada desde `e37f77b`, `.gitignore` actualizado y commit `817a844` generado tras verificar toda la suite base sin regresiones.
+- Validada igualdad exacta `AV5_APAGADO=1` vs `e37f77b` en modo heredado (24/24 lineas) y en el banco calibrado de 4 matrices (`DESARROLLO`/`RESERVADO` x `normal`/`pesimista`).
+
+## Fase 1 — Diagnostico de fallas reales/simuladas y diseno v5 (Completada)
 
 ### Que se hizo
-- Creacion de la rama `feat/autonomo-v5-carbon` desde `e37f77b`.
-- Actualizacion de `.gitignore` para excluir `cajas_negras/`, `docs/pruebas_fisicas_20261114.csv`, `docs/pruebas_fisicas_20261123.csv` y el cache temporal `docs/precision/v5/base_v3_calibrada.json`.
-- Ejecucion integra de la suite base antes de editar codigo C/Python (`docs/precision/v5/fase0_verificacion.txt`, `fase0_banco_heredado_v3.txt`, `fase0_mc_precision.txt`):
-  * `make -C nucleo_c test`: OK (`EXIT=0`).
-  * `make -C pruebas_firmware test`: OK (`EXIT=0`, `verificar_pagina.py` OK).
-  * `probar_servidor_falso.py`: 60 casos, 0 fallos (`EXIT=0`).
-  * `probar_version.py`: OK (`EXIT=0`); `verificar_enlaces.py`: 155 archivos, 186 enlaces validos (`EXIT=0`).
-  * Banco heredado v3 (`pruebas_autonomo_v2.exe`, N=40): 1 contacto en `silla_patas`, 1 contacto y 13 AYUDA en `caja_y_pared_al_lado` (`exit=1`).
-  * `compuertas_autonomo.py --corridas 200 --solo actual --sin-guardar`: 12 fallos (paradas en `falso_sol`, `falso_sombra`, `falso_reflejo`; contactos/AYUDA en `banquito35x45`, `silla_patas`, `caja_y_pared_al_lado`).
-  * `comparar_esquives.py --corridas 1000`: 4 fallos estrictos de +1 mm con RUMBO (`17/40 -> 18/44` mm).
-- Analisis de los registros fisicos locales (`docs/pruebas_fisicas_20261114.csv` y 7 cajas negras `cn_20261115_*.txt`): velocidad real con cinta **25.7 a 29.4 cm/s** (4 corridas), cadencia `VTEL` med 69 ms / p95 147 ms, intervalo `SENS` inferido med 100 ms / p95 174 ms, y falsos disparos frecuentes de vision aislada en piso limpio (`fv!=0` en 280/518 ticks, `VISTAZO_DIAG` en 6/7 corridas).
-- Calibracion del simulador en `nucleo_c/mundo_v2.h`, `nucleo_c/mundo_v2.c` y `nucleo_c/pruebas_autonomo_v2.c`, mas creacion de `scripts/compuertas_v5.py` y `docs/precision/calibracion_v5.md`.
-- Comprobado que:
-  1. Sin variables `AV5_*`, `pruebas_autonomo_v2.exe` reproduce exactamente (`True`, 24 vs 24 lineas) el banco heredado v3.
-  2. Compilando `e37f77b` contra el mismo arnes calibrado, `compuertas_v5.py --apagado` da igualdad exacta en las 4 matrices (`DESARROLLO`/`RESERVADO` x `normal`/`pesimista`).
-
-### Linea base de v3 (`e37f77b`) en el banco calibrado v5 (SIMULADO, N=40) — `docs/precision/v5/fase0_linea_base.txt`
-- **G1 (piso limpio y falsos):** CUMPLE frente a si mismo (`0` AYUDA y `0` esquivas en piso limpio; paradas en `falso_sol`: 3 dev / 2 res, `falso_sombra`: 4 / 1, `falso_reflejo`: 1 / 5).
-- **G2 (solidos y `objeto_bajo`):** NO CUMPLE (`caja20_lateral` 1 contacto en `desarrollo_pesimista`, `objeto_bajo` 19 contactos `desarrollo_pesimista` y 14 `reservado_pesimista`, `pared_al_frente` 1 contacto en `reservado_normal`, `objeto_largo90` 2 contactos en `reservado_pesimista`).
-- **G3 (`bloque_sin_eco`):** NO CUMPLE (v3: 7/40 contactos en `desarrollo`, 16/40 en `reservado_normal`, 19/40 en `reservado_pesimista`).
-- **G4 (muebles de patas finas):** NO CUMPLE (`banquito35x45`: 15–25 contactos dev, 7–11 res + 5–12 AYUDA; `silla_patas`: 4–12 contactos + 22–33 `bajo_mueble`; `dos_muebles`: 6–13 contactos + 6 AYUDA; `mueble_con_pared`: 11–21 contactos + 14–20 AYUDA).
-- **G5 (`pasillo`, `pasillo_angosto`, `caja_y_pared_al_lado`):** NO CUMPLE (`caja_y_pared_al_lado` 13–18 AYUDA; `pasillo` 14–18 AYUDA dev / 3–4 res; `pasillo_angosto` 5 AYUDA res).
-- **G6 (`terminado_falso` con 4 esquinas):** NO CUMPLE (`terminado_falso = 1` en 4 escenarios de estres/muebles).
-- **G7 (sin regresion en otras metricas):** CUMPLE en linea base (`error=0`, `sin_terminar=0`).
+- Ajuste realista de `bloque_sin_eco` (`E_SIN_ECO`) como bloque oscuro/mate/transparente con reflectancia ~0 y `recall` bajo de clase fuera de COCO (0.05 en `DESARROLLO`, 0.03–0.08 en `RESERVADO`), reproduciendo exactamente el hueco reportado en `v3`: **40/40 contactos en las 4 matrices** (`docs/precision/v5/fase0_linea_base.txt` recalculado con `--recalcular-v3`).
+- Extraccion de trazas (`AV2_TODO=1 depurar`) sobre corridas fallidas de `v3` en `DESARROLLO` guardadas en `docs/precision/v5/fase1_trazas_v3.txt`.
+- Hallazgos raiz verificados:
+  1. En `bloque_sin_eco`, color si detecta el bloque desde `[900..2550 ms]` hasta `cercania=3` (`80 celdas`), pero `fusion.c` lo descarta al faltar la caja neuronal; ademas AEC eleva ganancia cuando el bloque oscuro tapa el cuadro (`[2750 ms]`), borrando despues el contraste de color.
+  2. En `objeto_bajo` pesimista, una perdida momentanea de la caja neuronal en `DETENIDO_OBSTACULO` reanuda `FORWARD` contra el obstaculo, y un giro a `cercania >= 2` sin retroceso pivota dentro de la huella del obstaculo.
+  3. En `banquito35x45` y `silla_patas`, `vistazo` en `cercania >= 2` tuerce al carro bajo el mueble, la erosion borra patas verticales de 1–2 columnas, el escaneo ToF pasa entre patas (`ancho_mm=0`) y un error de longitud a velocidad real deja la esquina trasera a `-15 mm` (`terminado_falso = 1`, G6).
+  4. En `caja_y_pared_al_lado` y `pasillo`, `v3` elige el lado obstruido y aborta por `AYUDA` 16/18 sin deshacer el giro ni probar el otro lado (pese a registrar `otro_lado_libre=1`) y sin aprovechar el pivote izquierdo mas corto (~90 mm vs ~158 mm derecho).
+- Documentado el diseno completo por etapas 1–5 en `docs/autonomo_v5_diseno.md` con respaldo bibliografico primario auditado en `docs/investigacion_autonomo/`.
 
 ### Siguiente
-- **Fase 1:** Extraer trazas (`depurar`) de v3 en `DESARROLLO` sobre los modos de falla anteriores y redactar `docs/autonomo_v5_diseno.md`.
+- **Fase 2, Etapa 1 (`v5_coincidencia_estable`)**: retencion breve de coincidencia con presencia de color, bloqueo de reanudacion falsa detenido y retroceso recto previo al giro cuando no hay distancia ToF.
