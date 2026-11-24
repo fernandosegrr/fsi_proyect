@@ -1,0 +1,653 @@
+=== make -C pruebas_firmware test (2026-11-24 10:58:00) ===
+make: Entering directory 'E:/Dev/fsi_proyecto/pruebas_firmware'
+gcc -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro -I. -o pruebas_carro pruebas_carro.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c -lpthread
+gcc -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro -I. -DARRANQUE_ESCALONADO_MS=40 -o pruebas_escalonado pruebas_carro.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c -lpthread
+gcc -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro -I. -I../camara_prueba -o pruebas_camara pruebas_camara.c ../camara_prueba/recuperacion.c
+gcc -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro -I. -o pruebas_sensores pruebas_sensores.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c -lm
+gcc -std=c99 -Wall -Wextra -Wpedantic -Werror -I../firmware_carro -I. -o pruebas_rumbo pruebas_rumbo.c ../firmware_carro/carro.c ../firmware_carro/imu.c ../firmware_carro/tof.c ../firmware_carro/giro.c ../firmware_carro/sensores.c ../firmware_carro/rumbo.c sensores_falsos.c
+./pruebas_carro
+== Parte 1: casos puntuales ==
+OK     FORWARD: izq usa pin B (26), der usa pin A (25), a 255
+OK     REVERSE: izq usa pin A (27), der usa pin B (33), a 255
+OK     LEFT: pivote, solo el motor derecho (pin 25) a 255
+OK     RIGHT: pivote, solo el motor izquierdo (pin 26) a 255
+OK     STOP detiene los 4 pines
+OK     EBRAKE detiene los 4 pines
+OK     STOP repetido se vuelve a ejecutar (4 escrituras más)
+OK     EBRAKE repetido se vuelve a ejecutar (4 escrituras más)
+OK     STOP repetido limpia un pin con PWM residual
+OK     FORWARD repetido se ignora (0 escrituras nuevas)
+OK     cambiar de FORWARD a LEFT sí actúa
+OK     LEFT repetido se ignora
+OK     watchdog: a 1000 ms exactos NO frena
+OK     watchdog: a 1001 ms frena todo
+OK     watchdog: escribe el mensaje de serie
+OK     watchdog: ya parado, no repite el mensaje
+OK     heartbeat: FORWARD repetido renueva el watchdog
+OK     heartbeat: 1001 ms después del último, frena
+OK     watchdog: con motores parados no actúa ni escribe
+OK     PING no renueva el watchdog: frena a 1001 ms del FORWARD
+OK     PING no mueve ni cambia los motores
+OK     PING no cambia el comando activo (FORWARD sigue ignorado)
+OK     PING con carro parado no escribe nada
+OK     PING se contesta con PONG
+OK     los comandos de movimiento y STOP no se contestan
+OK     un texto desconocido, vacio, en minusculas o parecido a PING no se contesta
+OK     texto NULL: no se contesta ni revienta
+OK     contestar el PING no renueva el watchdog (frena a 1001 ms del FORWARD) ni mueve los motores
+OK     FORWARD: al arrancar los dos motores van al 100 %
+OK     FORWARD: un ms antes de terminar el arranque siguen al 100 %
+OK     FORWARD: al terminar el arranque se aplica el ajuste por lado
+OK     REVERSE: igual, ajuste por lado después del arranque
+OK     STOP en pleno arranque: se queda detenido (el ajuste no revive los motores)
+OK     girar en pleno arranque: el pivote sigue al 100 % y no se pisa con el ajuste
+OK     un comando desconocido en pleno arranque no evita el ajuste al terminar
+OK     al arrancar el perfil es AUTO
+OK     AUTO: FORWARD tras el arranque a plena potencia va a 207 (izq) y 210 (der)
+OK     MODO_MANUAL se contesta con ACK_MANUAL
+OK     MODO_AUTO se contesta con ACK_AUTO
+OK     textos parecidos (minusculas, con espacios, con parametro) no se contestan
+OK     MODO_MANUAL cambia el perfil a MANUAL
+OK     MODO_MANUAL con el carro parado no escribe ningun PWM
+OK     MANUAL: FORWARD arranca los dos motores a 255
+OK     MANUAL: un ms antes del fin del arranque siguen a 255
+OK     MANUAL: tras el arranque va a 252 (izq) y 255 (der), el ajuste validado
+OK     MANUAL: REVERSE tras el arranque va a 252 (izq) y 255 (der)
+OK     AUTO: el pivote a la izquierda sigue a 255
+OK     MANUAL: el pivote a la derecha sigue a 255
+OK     (antes de cambiar) AUTO avanzando a 207 / 210
+OK     MODO_MANUAL con el carro en movimiento: primero STOP (los 4 pines en 0) y perfil MANUAL
+OK     ... y no se reanuda solo (ni con el ajuste del arranque)
+OK     ... el siguiente FORWARD se vuelve a aplicar (el MODO no cuenta como comando de movimiento)
+OK     ... y va a 252 / 255
+OK     MODO_AUTO en movimiento (MANUAL -> AUTO): primero STOP
+OK     MODO_MANUAL repetido en MANUAL y en marcha: no frena ni escribe nada
+OK     ... pero renueva el watchdog como cualquier comando real (a 900 ms del MODO sigue en marcha)
+OK     ... y frena 1001 ms despues
+OK     STOP no cambia el perfil
+OK     EBRAKE no cambia el perfil
+OK     PING y un comando desconocido no cambian el perfil
+OK     MODO_MANUALX y modo_auto (no son comandos) no cambian el perfil
+OK     el watchdog frena y devuelve el perfil a AUTO
+OK     carro_detener por si solo no cambia el perfil (lo usa STOP)
+OK     carro_poner_perfil_auto (al conectar o reconectar un cliente) deja el perfil AUTO
+OK     carro_iniciar (arranque) deja el perfil AUTO
+OK     el arranque a plena potencia es de 250 ms en los dos perfiles
+OK     balance por defecto: AUTO 986 y MANUAL 988 (los de siempre: 207/210 y 252/255)
+OK     carro_balance con un perfil que no existe da 0
+OK     BAL_AUTO:900 se contesta ACK_BAL_AUTO:900
+OK     ... el balance de AUTO queda en 900, el de MANUAL no cambia y se guardó una vez en la memoria
+OK     ... no mueve los motores ni escribe PWM
+OK     AUTO con balance 900: el lado izquierdo baja a 189 (210 x 0.900) y el derecho se queda en el tope de 210
+OK     ... y al retroceder igual: izquierdo 189, derecho 210
+OK     BAL_MANUAL:950 se contesta ACK_BAL_MANUAL:950 y queda guardado aparte
+OK     MANUAL con balance 950: el izquierdo baja a 242 (255 x 0.950) y el derecho se queda en 255
+OK     balance 1000: los dos lados iguales, 210 y 210 (nunca por encima del tope del perfil)
+OK     balance 800 (el mas bajo): el izquierdo baja a 168 y el derecho sigue en 210
+OK     con cualquier balance de 800 a 1000 el lado izquierdo nunca pasa del tope y nunca baja de 80 % del tope
+OK     fuera de rango (799, 1001, 0, 99, 5000) se contesta NAK_BAL
+OK     sin numero, con letras, con espacios, con signo o con decimales se contesta NAK_BAL
+OK     ... y el balance no cambia ni se guarda nada
+OK     textos parecidos que no son mensajes de balance no se contestan (BAL_AUTO sin dos puntos, bal_auto:900, BAL_X:900, BAL)
+OK     BAL? se contesta BAL:910:960 (AUTO y luego MANUAL)
+OK     BAL? sin cambios contesta los valores por defecto BAL:986:988
+OK     BAL_AUTO con el carro en marcha no frena ni toca los motores (se aplica al siguiente arranque)
+OK     ... y no cambia el comando actual (FORWARD repetido se sigue ignorando)
+OK     BAL? tampoco toca nada
+OK     ... renuevan el reloj del watchdog como cualquier comando real (1000 ms despues del BAL_AUTO sigue en marcha)
+OK     ... y frena 1001 ms despues
+OK     BAL_AUTO no cambia el perfil
+OK     al arrancar lee el balance guardado (905 y 970)
+OK     ... y lo usa al avanzar (210 x 0.905 = 190)
+OK     un valor guardado fuera de rango (500 o 1500) se ignora y queda el por defecto
+OK     0 = nada guardado: AUTO por defecto; 800 si es valido en MANUAL
+OK     lo que se guardo con BAL_AUTO:880 sobrevive a un reinicio (carro_iniciar lo vuelve a leer)
+OK     el watchdog, carro_detener y carro_poner_perfil_auto no cambian el balance
+OK     desconocido con carro parado: no escribe nada
+OK     ... y se cuenta (carro_desconocidos)
+OK     desconocido en marcha: no cambia los motores
+OK     ... y el carro sigue contando como «avanzando» (el freno láser sigue armado)
+OK     desconocido NO renueva el watchdog: a los 1000 ms del FORWARD todavía avanza
+OK     ... y a los 1001 ms del FORWARD frena, aunque el desconocido llegó hace 401 ms
+OK     una ráfaga de desconocidos y cadenas vacías no mantiene el avance: frena a los 1001 ms
+OK     tras un desconocido, el FORWARD repetido se sigue ignorando (0 escrituras): no reinicia el arranque a plena potencia
+OK     ... y el número de avances no cambia
+OK     comando del largo máximo se trata como desconocido
+OK     keep-alive: a 1999 ms sigue en bajo
+OK     keep-alive: a 2000 ms sube
+OK     keep-alive: a 49 ms de pulso sigue en alto
+OK     keep-alive: a 50 ms de pulso baja
+OK     keep-alive: a 3999 ms sigue en bajo
+OK     keep-alive: a 4000 ms vuelve a subir
+OK     desbordamiento: 512 ms después del FORWARD sigue en marcha
+OK     desbordamiento: 1000 ms exactos NO frena
+OK     desbordamiento: 1001 ms frena
+OK     desbordamiento keep-alive: primer pulso sube
+OK     desbordamiento keep-alive: cruza el cero y baja
+OK     desbordamiento keep-alive: a 1999 ms sigue en bajo
+OK     desbordamiento keep-alive: a 2000 ms sube otra vez
+-- direcciones y DHCP --
+OK     el DHCP empieza en la .10
+OK     el DHCP termina en la .20 (el core reparte inicio .. inicio+10)
+OK     la camara (.2) esta fuera del rango del DHCP
+OK     el DevKit (.1) esta fuera del rango del DHCP
+OK     la camara y el DevKit no comparten direccion
+OK     el rango cabe en la red /24 (termina antes de la .254)
+OK     la red es 192.168.4.x
+-- J10: cola de comandos, reconexion rapida y estres con 2 hilos --
+OK     cola: encolar FORWARD desde async_tcp no toca motores antes de loop()
+OK     cola: carro_vigilar_comunicacion NO extrae de la cola (unico punto en loop)
+OK     cola: vuelta_loop() vacia la cola bajo mutex y ejecuta el FORWARD
+OK     carrera: STOP a mitad de carro_vigilar_comunicacion queda encolado sin extraccion en vigilar
+OK     carrera: en la siguiente vuelta de loop() se extrae el STOP y deja los 4 motores en 0
+OK     carrera: tras el STOP en carrera los motores siguen en 0
+OK     cola llena: STOP encolado no se pierde ante rafaga de FORWARD/PING y el estado final es el ultimo comando (LEFT)
+OK     cola: PING encolado no renueva el reloj del watchdog (frena a 1001 ms)
+OK     cliente activo tras conectar #1 es 1
+OK     cliente #1 avanzando en MANUAL (252/255)
+OK     WS_EVT_DISCONNECT de cliente #2 (no activo) devuelve 0 y se ignora
+OK     ... tras desconectar cliente #2 no activo, el carro sigue avanzando en MANUAL y el activo sigue siendo #1
+OK     reconexion rapida: cierre tardio de #1 antes de loop() devuelve 0 y NO borra la cola de #2
+OK     reconexion rapida: loop() aplica __STOP_AUTO de la conexion y luego MODO_MANUAL + RIGHT de #2
+OK     rafaga de reconexiones (#2->#3->#4): al conectar #4 frena, vuelve a AUTO y el activo es #4
+OK     rafaga de reconexiones: cierres tardios de #2 y #3 se ignoran y no frenan a #4
+OK     rafaga de reconexiones: #4 ejecuta su LEFT sin interferencia
+OK     WS_EVT_DISCONNECT del cliente activo (#4) devuelve 1
+OK     ... y loop() frena y vuelve a AUTO con cliente activo 0
+OK     estres 2 hilos (100000 cmds con GIRAR mezclado): ningun STOP perdido (12472 STOP enviados + 0 giros que terminaron solos + 0 watchdogs == 12472 paradas de moto
+      (GIRAR pedidos: 37472, terminaron solos: 0)
+OK     estres 2 hilos (mezcla dura): se pidieron muchos GIRAR (la mayoria se corta con STOP/FORWARD/LEFT)
+OK     estres 2 hilos: cola_cantidad siempre coherente (0..COLA_COMANDOS_MAX y 0 al final)
+OK     estres 2 hilos (100000 cmds, ultimo=FORWARD): estado final de motores igual al ultimo comando
+OK     estres 2 hilos (100000 cmds, ultimo=LEFT): estado final de motores igual al ultimo comando
+OK     estres 2 hilos (100000 cmds, ultimo=STOP): estado final de motores igual al ultimo comando
+OK     estres 2 hilos (mezcla suave, 100000 cmds): ningun STOP perdido (12473 STOP + 372 giros que terminaron solos + 0 watchdogs == 12845 paradas) y los giros si ter
+OK     estres 2 hilos (100000 cmds, ultimo=STOP): estado final de motores igual al ultimo comando
+== Parte 2: comparación con el código original ==
+OK     comparación con el original (reloj desde 0): 300000 pasos, 0 diferencias
+OK     comparación con el original (reloj cruzando el desbordamiento): 300000 pasos, 0 diferencias
+OK     con el arranque escalonado apagado (0 ms, el valor por defecto) los dos motores arrancan juntos
+
+156 casos, 0 fallos
+./pruebas_sensores
+-- conversion de registros y de unidades --
+OK     juntar_bytes: 0x00 0x01 = 1
+OK     juntar_bytes: 0xFF 0xFF = -1
+OK     juntar_bytes: 0x80 0x00 = -32768
+OK     juntar_bytes: 0x7F 0xFF = 32767
+OK     juntar_bytes: 0x16 0xE7 (5863) positivo
+OK     juntar_bytes: 0xE9 0x19 (-5863) negativo
+OK     65.5 cuentas = 1 grado/s: 131 cuentas/2 en 1/256 = 1000 mdps
+OK     5895 cuentas (90 grados/s) = 90000 mdps
+OK     -5895 cuentas = -90000 mdps (simetrico)
+OK     0 cuentas = 0 mdps
+OK     32767 cuentas (tope del rango) = 500 grados/s +-0.3
+-- J13: sesgo tras arranque movido y reintento detenido --
+OK     J13: arranque quieto queda LISTA y no reintenta
+OK     J13: arranque movido agota promedios y queda MAL por motivo 4
+OK     J13: sin sesgo niega giro por angulo claramente y no energiza motores
+OK     J13: antes de cinco segundos no reintenta
+OK     J13: aun vencido el plazo no reintenta con motores en marcha
+OK     J13: detenido reintenta sin demora de bus y anuncia IMUR=1
+OK     J13: reintento exitoso mide sesgo y queda LISTA sin mover motores
+OK     J13: ultimo arranque registra el reintento en NVS
+OK     J13: nuevo arranque conserva historial anterior y agrega cero
+OK     J13: ARR conserva los cuatro campos TOF y agrega historial IMU
+-- inicio del MPU6050 --
+OK     WHO_AM_I 0x68 se acepta y queda calibrando
+OK     WHO_AM_I 0x70 (clon) se acepta y se registra cual fue
+OK     WHO_AM_I 0x72 (clon) se acepta
+OK     WHO_AM_I desconocido (0x34): MAL por otro chip
+OK     el bus no contesta: MAL por no responde
+OK     un clon que ignora los registros se descubre al leerlos de vuelta: MAL por configuracion
+OK     el evento MAL se avisa una vez
+-- sesgo, angulo y deriva con datos sinteticos --
+OK     calibrar con sesgo 12 cuentas y ruido +-3: queda LISTA
+OK     el sesgo medido es 12/65.5 = 0.18 grados/s (18 +-3 centesimas)
+OK     recien calibrado el angulo es 0
+OK     girar 90 grados/s durante 1 s da 90 +-0.5 grados
+OK     IMU_CERO deja el angulo en 0
+OK     girar -90 grados/s durante 1 s da -90 +-0.5 (a la derecha es negativo)
+OK     girar 200 grados/s durante 0.9 s da 180 +-1
+OK     la velocidad se reporta en decimas de grado/s: 90 grados/s = 900 +-10
+OK     60 s quieto con ruido +-4 cuentas: el angulo no pasa de 1 grado
+OK     sesgo 0.09 grados/s mal estimado, 60 s: deriva menor de 1 grado (zona muerta)
+OK     sesgo 0.46 grados/s mal estimado SIN ZUPT: deriva de ~27 grados en 60 s (por eso existe IMU_CAL)
+OK     ZUPT: el sesgo cambia 16 cuentas con el carro quieto y se corrige solo (angulo ya no crece en 60 s mas)
+OK     ZUPT: el angulo acumulado mientras se corregia es menor de 4 grados
+OK     ZUPT no corrige el sesgo si el carro lleva menos de 400 ms quieto
+OK     ZUPT no absorbe un giro lento de 5 grados/s (el sesgo no cambia) y el angulo suma 100
+-- desbordamiento del reloj de microsegundos --
+OK     el reloj da la vuelta a mitad de un giro de 90 grados/s durante 2 s: 180 +-1
+-- calibracion del sesgo: carro en movimiento, reintentos, IMU_CAL --
+OK     con el carro en movimiento no termina de calibrar
+OK     al quedar quieto calibra
+OK     si el carro se mueve mientras se mide el sesgo, se rechaza y tras 3 intentos queda MAL por sesgo
+OK     un sesgo absurdo (23 grados/s) se rechaza: MAL
+OK     imu_recalibrar() empieza
+OK     termina bien con el sesgo nuevo (30/65.5 = 0.46 grados/s) y avisa CAL_OK
+OK     una recalibracion que falla conserva el sesgo anterior, sigue LISTA y avisa CAL_FALLO
+-- fallos del giroscopio --
+OK     2 errores seguidos del bus y luego bien: sigue LISTA
+OK     3 errores seguidos: MAL por errores y avisa el evento
+OK     lecturas locas (-32768) seguidas: MAL
+OK     una lectura idéntica 200 veces seguidas (sensor congelado): MAL
+OK     desde MAL, imu_recalibrar() vuelve a iniciar el chip si ya contesta
+OK     ... y termina LISTA
+-- giro por angulo: GIRAR contra el modelo del carro --
+OK     tras 3 s el giroscopio esta LISTA y se avisa CAPS:IMU=1
+OK     GIRAR:90 enciende SOLO el motor derecho (pivote a la izquierda)
+OK     ... y la bandera de giro en curso se reporta en SENS
+OK     termina con GIRO_OK:90:<real x10>:<ms>
+OK     los motores quedan en 0
+      (primer giro de 90: angulo REAL del modelo 83.2, medido por el giroscopio 83.2, 550 ms, anticipacion 58 ms)
+OK     el giroscopio acierta el angulo real del modelo a +-2 grados
+      (despues de 6 giros: giro real 89.6 grados, anticipacion izquierda 53 ms)
+OK     tras unos giros la anticipacion se corrige sola: el giro de 90 queda a +-3 grados
+OK     GIRAR:-90 enciende SOLO el motor izquierdo (pivote a la derecha)
+OK     GIRO_OK:-90 con ángulo real negativo
+OK     a la derecha tambien se corrige sola (±3 grados)
+      (derecha despues de 6 giros: -89.6 grados; anticipacion izq 100 ms, der 53 ms)
+-- giro por angulo: distintos angulos (con la anticipacion ya aprendida) --
+OK     GIRAR:5 queda en 5.8 (error +0.8, tolerancia 4)
+OK     GIRAR:10 queda en 9.8 (error -0.2, tolerancia 6)
+OK     GIRAR:45 queda en 44.9 (error -0.1, tolerancia 6)
+OK     GIRAR:135 queda en 134.4 (error -0.6, tolerancia 6)
+OK     GIRAR:180 queda en 180.8 (error +0.8, tolerancia 6)
+OK     GIRAR:200 queda en 200.0 (error +0.0, tolerancia 6)
+OK     GIRAR:-5 queda en -5.8 (error -0.8, tolerancia 4)
+OK     GIRAR:-45 queda en -44.9 (error +0.1, tolerancia 6)
+OK     GIRAR:-180 queda en -180.8 (error -0.8, tolerancia 6)
+OK     GIRAR:-200 queda en -200.0 (error -0.0, tolerancia 6)
+-- giro por angulo: errores, ocupado, timeout, abortos --
+OK     GIRAR:4 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:-4 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:0 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:201 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:-201 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:abc -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR: -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:9x -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:--5 -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:90  -> GIRO_ERROR:angulo y no mueve los motores
+OK     GIRAR:1000 -> GIRO_ERROR:angulo y no mueve los motores
+OK     el minimo (5 grados) si se hace
+OK     el signo + se acepta
+OK     un GIRAR mientras gira -> GIRO_ERROR:ocupado y el primero sigue
+OK     ... y el primero termina bien
+OK     GIRAR con el carro avanzando -> GIRO_ERROR:ocupado y no lo toca
+OK     al caerse el giroscopio se avisa CAPS:IMU=0
+OK     con el giroscopio caido GIRAR -> GIRO_ERROR:sin_imu y los motores no se mueven
+OK     motor trabado: a los 1800 ms (menos del maximo de 500+15x90) sigue intentando
+OK     ... y a los ~1850 ms frena
+OK     informa GIRO_TIMEOUT:90:<real>:<ms> con el angulo real casi 0
+OK     STOP a mitad de un giro lo aborta y deja los motores en 0
+OK     ... informa GIRO_ERROR:abortado con el angulo parcial real
+OK     EBRAKE a mitad de un giro lo aborta y deja los motores en 0
+OK     ... informa GIRO_ERROR:abortado con el angulo parcial real
+OK     FORWARD a mitad de un giro lo aborta y el nuevo movimiento manda
+OK     ... informa GIRO_ERROR:abortado
+OK     REVERSE a mitad de un giro lo aborta y el nuevo movimiento manda
+OK     ... informa GIRO_ERROR:abortado
+OK     LEFT a mitad de un giro lo aborta y el nuevo movimiento manda
+OK     ... informa GIRO_ERROR:abortado
+OK     RIGHT a mitad de un giro lo aborta y el nuevo movimiento manda
+OK     ... informa GIRO_ERROR:abortado
+OK     MODO_MANUAL a mitad de un giro lo aborta y deja los motores en 0
+OK     ... informa GIRO_ERROR:abortado con el angulo parcial real
+OK     __STOP_AUTO a mitad de un giro lo aborta y deja los motores en 0
+OK     ... informa GIRO_ERROR:abortado con el angulo parcial real
+OK     antes de desconectar el giro esta en curso
+OK     al desconectarse el cliente activo el giro se aborta y los motores quedan en 0
+OK     si el giroscopio se cae a mitad del giro, los motores se apagan (nunca gira a ciegas)
+OK     ... y se informa GIRO_ERROR:sin_imu con el angulo parcial
+-- el giro no depende del watchdog de 1 s --
+OK     a los 1100 ms el giro de 180 sigue con los motores encendidos (watchdog de 1 s no actua)
+OK     termina con GIRO_OK
+OK     J16: un giro largo no avisa WD (el watchdog no freno)
+OK     FORWARD avanzando
+OK     J16: arrancar deja la cuenta del watchdog en 0 y sin aviso
+OK     sin mas ordenes el watchdog frena a los ~1000 ms
+OK     J16: avisa WD:1 una sola vez, a la app y al puerto serie
+OK     J16: ya parado no repite WD
+OK     las consultas CAPS?/IMU? NO renuevan el watchdog (frena aunque las mande cada 250 ms)
+OK     J16: el segundo freno avisa WD:2
+OK     J16: reiniciar (la cuenta baja a 0) no inventa un WD
+-- 10 giros de 90 a cada lado con un carro que varia entre giros (informativo) --
+      izquierda: error medio -0.17 grados, desviacion 1.56, dentro de +-3: 10 de 10
+      derecha : error medio +0.14 grados, desviacion 1.12, dentro de +-3: 10 de 10
+OK     con un carro que varia (+-10 % de velocidad, +-25 % de inercia) al menos 8 de 10 giros quedan a +-3 grados a la izquierda
+OK     ... y a la derecha
+-- J12: anticipacion independiente por sentido y por perfil, con mediana y memoria --
+      anticipaciones aprendidas tras 4 giros por lado: izquierda 55 ms, derecha 101 ms
+OK     con un motor asimetrico cada sentido aprende su propia anticipacion (la derecha, que frena peor, la tiene mas larga)
+OK     el perfil MANUAL no se tocó: sus anticipaciones siguen en 20 ms
+      izquierda: error medio +0.06 grados, dentro de +-3: 10 de 10
+      derecha : error medio -0.08 grados, dentro de +-3: 9 de 10
+OK     motor asimetrico y ruido: a la izquierda al menos 9 de 10 giros quedan a +-3 grados
+OK     motor asimetrico y ruido: a la derecha al menos 9 de 10 giros quedan a +-3 grados
+OK     ANT? -> ANT:<auto izq>,<auto der>,<manual izq>,<manual der> con los valores aprendidos
+      escrituras a la memoria durante 28 giros: 7 (limite: solo cuando cambia 3 ms o mas)
+OK     las anticipaciones se guardaron en la memoria no volatil (ranuras AUTO izq y der, con menos de 3 ms de diferencia: solo se escribe si cambia 3 ms o mas)
+OK     no se escribe en cada giro: menos de 20 escrituras en 28 giros
+OK     tras reiniciar el carro las anticipaciones aprendidas se leen de la memoria
+      mediana: anticipacion 55 ms antes de un giro raro y 55 ms despues
+OK     la mediana no se deja llevar por UN giro raro (cambia menos de 15 ms)
+OK     un giro de menos de 30 grados no cambia la anticipacion
+      MANUAL aprendio 94 ms (AUTO sigue en 56 ms)
+OK     en perfil MANUAL aprende en su propia ranura y la de AUTO no cambia
+OK     ANT_BORRAR -> ACK_ANT_BORRAR
+OK     ... AUTO vuelve a 100 ms, MANUAL a 20 ms y la memoria queda vacia
+OK     sensores_es_comando reconoce ANT_BORRAR y no ANT_BORRARX
+OK     J13: carga anticipaciones NVS superiores a 150 hasta el nuevo tope 250
+OK     J13: rechaza NVS fuera de rango y usa 100 en AUTO sin historial valido
+OK     J13: mediana conserva cinco muestras y tope de anticipacion 250 ms
+OK     J13: con inercia de 200 ms aprende por encima del antiguo tope 150
+OK     J13: asentamiento largo mide la inercia y el siguiente giro queda a +-3 grados
+-- A2: ANT no aprende de giros invalidos --
+OK     giro normal: aprende y actualiza ANT
+OK     timeout: emite ANT_IGNORADO:timeout y no actualiza ANT
+OK     interrumpido: emite ANT_IGNORADO:interrumpido y no actualiza ANT
+OK     error grande (> 20 deg): emite ANT_IGNORADO:error_grande y no actualiza ANT
+OK     giro largo (> 1.5x mediana con historial >= 3): emite ANT_IGNORADO:giro_largo y no actualiza ANT
+-- J12: reintentos del laser (al arrancar y despues de una caida) --
+OK     arranque limpio: el laser vive y los reintentos son 0 (CAPS:...,TOFR=0)
+      arranque con 2 fallos de inicio: reintentos 2, intentos hechos 3
+OK     el primer intento falla y el 3.o sirve: el laser vive con 2 reintentos de arranque
+OK     CAPS? conserva TOFR=2 y agrega IMUR, SEG=4, TUSO, TOFP y version
+OK     los 5 intentos de arranque fallan: el laser queda sin funcionar (4 reintentos de arranque) y CAPS dice TOF=0
+OK     el siguiente intento NO es inmediato: a los ~3 s todavia no hubo ninguno (se espera TOF_REINTENTO_MS)
+OK     a los 5 s sin laser reintenta solo (con el carro quieto), lo logra y avisa CAPS:...,TOF=1,TOFR=5
+OK     y vuelve a medir (300 mm)
+OK     con el carro avanzando no se intenta iniciar el laser (el intento puede esperar al sensor) aunque ya toque
+OK     al detenerse el carro (300 ms) el reintento pendiente se hace y el laser vuelve
+OK     se cae el laser (deja de dar medidas): TOF=0
+OK     sin contestar en el bus nunca se llama a la inicializacion (solo se pregunta si contesta)
+OK     al volver a contestar se inicia solo (sin reiniciar el carro) y el laser vuelve
+OK     3 errores seguidos del bus: se cae
+OK     antes de 5 s no reintenta
+OK     pasados 5 s reintenta y se recupera
+      historial tras 5 arranques [0,2,0,1,0]: n=5, con reintentos=2, empaquetado=02010
+OK     el historial recuerda 5 arranques: 2 con reintentos (el 2.o y el 4.o) y los dibuja 0,2,0,1,0
+OK     ARR? conserva historial TOF y agrega el de IMU
+OK     al 6.o arranque el mas viejo sale: quedan los ultimos 5 (2,0,1,0,3)
+OK     sin reintentos nunca hay avisos: 2 arranques limpios -> n=2, con reintentos=0
+-- laser: libre, validas y filtro de picos --
+OK     8190 = libre: 1200 mm y medida no valida
+OK     65535 = libre
+OK     1500 mm (mas lejos de 1200) = libre
+OK     1200 mm exactos es una medida valida
+OK     300 mm: tof_mm = 300 y medida valida
+OK     a unas 30 lecturas por segundo (200 ms dan 5 a 7)
+OK     1 s de lecturas: entre 25 y 32
+OK     un pico suelto de 90 entre lecturas de 500 no mueve la distancia informada
+OK     mediana: 500, 500, 90 -> 500
+OK     mediana: 500, 90, 90 -> 90
+OK     SEG=3: cercana, sin eco, cercana confirma la racha de cerca (un sin eco aislado no la rompe)
+OK     SEG=3: cercana, dos sin eco seguidos, cercana: la racha se rompe
+OK     SEG=3: cercana, lejana REAL, cercana: la racha se rompe al instante
+OK     una lectura de 3 mm es basura y se ignora (la distancia sigue en 300, valida=0)
+OK     SEG=4: lectura >= 8000 mm se clasifica sin eco (valida=0)
+OK     SEG=4: con el carro en marcha no recupera I2C
+OK     SEG=4: detenido intenta recuperar I2C y recupera el VL53L0X
+OK     SEG=4: TOFE? informa estado, recuperaciones I2C e invalidas
+OK     SEG=4: basura < 8 mm no renueva frescura indefinidamente
+OK     SEG=4: racha continua de lecturas < 8 mm por >500 ms apaga tof_vivo
+OK     1200 lecturas a 110 mm: cerca confirmada a 110
+OK     1200 lecturas a 110 mm: bloqueo confirmado a 110
+OK     y dos lecturas nuevas a 60 mm: la distancia confirmada es la nueva (antes quedaba una de 110)
+OK     lo mismo para el bloqueo de arranque
+OK     al alejarse deja de estar confirmada
+-- laser: parada de emergencia (solo AUTO y solo avanzando) --
+OK     J13/SEG=3: el umbral de autoridad de la app no cambia el freno firmware de 150 mm
+OK     avanza en AUTO con el laser libre
+      (frena 49 ms despues de aparecer el obstaculo a 100 mm)
+OK     2 lecturas seguidas menores de 120 mm frenan en menos de 100 ms
+OK     avisa TOF_PARO:100
+OK     el perfil sigue AUTO y el STOP salio por la cola interna
+OK     el aviso va a la app y al puerto serie
+OK     una lectura cercana suelta no frena
+OK     cercana + dos sin eco seguidos (la racha se rompe) no frenan
+OK     130 mm no frena (el umbral es 120)
+OK     119 mm si frena
+OK     una cercana + basura: todavia no hay racha de 2
+OK     ... la segunda cercana valida completa la racha
+OK     en perfil MANUAL el laser NO frena (la emergencia es solo de AUTO)
+OK     en reversa no frena
+OK     parado con algo cerca: no manda TOF_PARO
+OK     en un giro por angulo el laser no lo interrumpe
+OK     TOF_USO:0 se confirma con ACK_TOF_USO:0
+OK     con TOF_USO:0 el laser ya no frena aunque haya algo a 10 cm (apagado = como antes)
+OK     ... pero sigue midiendo (SENS/TOF? informan 100 mm)
+OK     TOF_USO:1 la vuelve a encender y frena
+OK     primer paro
+OK     SEG=2: con el obstaculo todavia ahi, otro FORWARD no arranca los motores (ni una escritura con potencia)
+OK     ... sigue parado, no cuenta como otro paro del freno y avisa TOF_PARO otra vez
+OK     ... el aviso lleva la distancia medida (TOF_PARO:100)
+OK     ... retroceder NO se bloquea (es la salida)
+OK     ... girar tampoco
+OK     ... y en perfil MANUAL el FORWARD arranca (el usuario manda, como siempre)
+OK     SEG=3: a 170 mm (entre el freno y el bloqueo) el FORWARD no arranca
+OK     SEG=3: a 190 mm el FORWARD arranca (y el freno de 150 mm sigue vigilando)
+OK     ... y al acercarse a 100 mm frena
+OK     quitado el obstaculo, FORWARD sigue avanzando
+OK     SEG=2: con TOF_USO:0 el FORWARD arranca aunque haya algo a 10 cm, y CAPS lo dice (TUSO=0)
+OK     ... CAPS anuncia TUSO=0
+OK     SEG=2, carrera freno + FORWARD en la misma vuelta: el carro queda parado (el FORWARD se rechaza con el frente bloqueado)
+OK     ... y sigue parado
+OK     SEG=2: tras el freno, con una lectura lejana el FORWARD siguiente arranca en la misma vuelta (2 avances)
+OK     ... y con el obstaculo otra vez a 100 mm el freno vuelve a actuar (antes quedaba desarmado)
+-- laser: sensor caido --
+OK     3 errores seguidos del bus: el laser se marca caido
+OK     ... y se avisa CAPS:...,TOF=0
+OK     con el laser caido el carro avanza como antes (no se queda trabado ni frena a ciegas)
+OK     si el sensor deja de dar medidas, a los 500 ms se marca caido
+OK     si el laser no inicia, queda caido desde el principio
+OK     1 o 2 errores seguidos y luego bien: el laser sigue vivo
+-- loop() no se bloquea con los sensores --
+      (el peor caso fue 3 transacciones del bus en una sola vuelta)
+OK     una vuelta de loop() hace como mucho 3 transacciones del bus (1 del giroscopio + 2 del laser)
+      (1 s: 220 transacciones del bus)
+OK     en 1 s el bus hace menos de 260 transacciones (giroscopio 100 + laser ~120 entre preguntas y lecturas)
+-- mensajes nuevos --
+OK     CAPS? recien encendido incluye estado calibrando e IMUR=0
+OK     al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)
+OK     CAPS? con todo listo incluye IMUR y motivo
+OK     SEG=4: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)
+OK     J13: CAPS incluye la version compilada sin truncarla
+OK     IMU? -> IMU:<angulo x10>,<sesgo x100>,2,104 (WHO_AM_I 0x68 = 104)
+OK     TOF? -> TOF:<mm>,<banderas>
+OK     TOF? con algo a 400 mm -> TOF:400,3 (vivo y medida valida)
+OK     ANT? -> ANT:100,100,20,20 (AUTO sin historial, MANUAL conservado)
+OK     despues de girar 45 el angulo del giroscopio no es 0
+OK     IMU_CERO -> ACK_IMU_CERO y el angulo vuelve a 0
+OK     IMU_CAL con el carro quieto -> ACK_IMU_CAL
+OK     ... mientras calibra, GIRAR -> GIRO_ERROR:sin_sesgo
+OK     al terminar -> IMU_CAL_OK:<sesgo x100>
+OK     IMU_CAL con el carro en marcha -> NAK_IMU_CAL (solo con el carro detenido)
+OK     ... y recien detenido (menos de 300 ms) tambien NAK_IMU_CAL
+OK     sin cliente conectado no se manda SENS
+OK     con cliente y perfil AUTO se manda SENS cada 100 ms (9 a 11 en 1 s)
+OK     formato SENS:<angulo x10>,<mm>,<banderas>: IMU lista + laser vivo + medida valida = 7
+OK     los SENS van solo al WebSocket
+OK     sin medida valida (libre) la bandera 4 se apaga: 3
+OK     en perfil MANUAL no se manda SENS
+OK     durante un giro la bandera 16 se enciende (7+16... o 3+16 = 19)
+OK     SENS_SERIE:1 manda SENS por el puerto serie sin cliente (9 a 11 en 1 s)
+OK     SENS_SERIE:0 lo apaga
+OK     GIRAR por el puerto serie se rechaza (NAK_SERIE) y los motores no se mueven
+OK     las consultas por serie contestan por serie
+OK     LOOP? -> LOOP:5100,1 (el peor loop y cuantos pasaron de 5 ms)
+OK     LOOP_CERO reinicia la medida
+OK     sensores_es_comando: los mensajes validos
+OK     sensores_es_comando: IMU_CALX, CAPS, IMU, GIRAR (sin :), FORWARD y vacio no lo son
+OK     la cola de salida guarda como mucho COLA_SALIDA_MAX mensajes y no se rompe
+OK     ... y los que se guardan son los mas nuevos (ultimo PRUEBA:99)
+OK     sin ninguno de los dos sensores: CAPS:IMU=0,TOF=0
+OK     ... y FORWARD/STOP funcionan como siempre
+OK     ... STOP frena
+OK     ... y GIRAR responde GIRO_ERROR:sin_imu sin mover nada
+-- J16: correccion de escala del giroscopio (IMU_ESCALA) --
+OK     J16: sin corregir la escala es 0 ppm
+OK     J16: con +20000 ppm, 90 grados/s durante 1 s dan 91.8 +-0.5 grados
+OK     J16: la velocidad tambien se corrige (918 +-10 decimas de grado/s)
+OK     J16: con -20000 ppm, -90 grados/s durante 1 s dan -88.2 +-0.5 grados
+OK     J16: la escala se recorta a +IMU_ESCALA_MAX_PPM
+OK     J16: ... y a -IMU_ESCALA_MAX_PPM
+OK     J16: reiniciar el chip (imu_iniciar) no borra la escala
+OK     J16: CAPS anuncia IMUS=0 (entiende IMU_ESCALA, sin correccion)
+OK     J16: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500, se usa y se guarda
+OK     J16: CAPS se vuelve a anunciar solo, con IMUS=-12500
+OK     J16: IMU_ESCALA? -> IMU_ESCALA:-12500
+OK     J16: IMU_ESCALA:50001 -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA:-50001 -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA: -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA:abc -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA:12  -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA:1234567 -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: IMU_ESCALA:--5 -> NAK_IMU_ESCALA y no cambia nada
+OK     J16: con el carro avanzando IMU_ESCALA se rechaza (NAK) y no cambia nada
+OK     J16: durante un giro por angulo tambien se rechaza
+OK     J16: IMU_ESCALA? no renueva el watchdog (frena aunque se mande cada 250 ms)
+OK     J16: al encender se usa la escala guardada (15000 ppm) y CAPS la anuncia
+OK     J16: una escala guardada fuera de rango no se usa (0 ppm)
+      (giroscopio con +2 % de escala: GIRAR:180 real 176.0 sin corregir y 180.8 con IMU_ESCALA:-19608)
+OK     J16: con el giroscopio 2 % alto, GIRAR:180 sin corregir queda corto (173.5 a 178.5 grados reales)
+OK     J16: con la escala corregida, GIRAR:180 queda en 180 +-2.5 grados reales
+
+306 casos, 0 fallos
+./pruebas_rumbo
+-- Parte 1: controlador (rumbo.c) --
+OK     apagado: empezar no pone el lazo en marcha
+OK     encendido: empezar toma el angulo actual como objetivo
+OK     sin error no corrige
+OK     se tuerce a la derecha 1 grado: corrige +RUMBO_KP_MIL_GRADO (girar a la izquierda)
+OK     corregir a la izquierda baja el lado izquierdo y sube el derecho
+OK     se tuerce a la izquierda: corrige al reves (el izquierdo sube, el derecho baja)
+OK     con error sostenido el integral crece (1 s con 1 grado: mas que el proporcional)
+OK     ...con la cuenta exacta: proporcional + integral = 10 + 10000/1500
+OK     con error grande y largo la correccion se queda en el tope
+OK     ...y el integral no pasa de su propio tope
+OK     al cambiar de signo el error, la correccion baja enseguida (sin carga de mas)
+OK     con mas de RUMBO_ERROR_MAX_X10 de error no corrige y marca fuera
+OK     al volver a un error normal corrige otra vez
+OK     sin avance en curso el objetivo se ignora
+OK     un objetivo muy lejos se recorta a +RUMBO_MAX_OBJETIVO_X10 del inicio
+OK     ...y a -RUMBO_MAX_OBJETIVO_X10
+OK     un objetivo cercano se aplica tal cual
+OK     al terminar guarda lo aprendido (el termino integral)
+OK     el siguiente avance empieza con lo aprendido (sin error ya corrige)
+OK     un hueco de tiempo enorme no se integra entero
+OK     terminar dos veces no cambia lo aprendido
+OK     sin correccion las potencias son las de siempre
+OK     en el arranque a plena potencia solo baja un lado (ninguno pasa del tope)
+OK     una correccion fuera de rango se recorta a RUMBO_MAX_MIL
+OK     una base negativa da 0, nunca negativo
+OK     leer_numero: -1234
+OK     leer_numero: +7 y 0
+OK     leer_numero: 999999 vale, 1234567 no (mas de 6 cifras)
+OK     leer_numero: vacio, solo signo, letras, espacio y decimales no valen
+OK     propiedad: la correccion nunca pasa de +-RUMBO_MAX_MIL (20000 casos)
+OK     propiedad: con integral cero el signo sigue al error (20000 casos)
+OK     propiedad: el reparto nunca da negativos ni pasa del tope (40000 repartos)
+OK     propiedad: mas correccion a la izquierda nunca refuerza el lado izquierdo (20000 pares)
+-- Parte 2: integrado con carro.c --
+OK     el giroscopio quedo LISTA tras el arranque
+OK     sin RUMBO: arranque a plena potencia 255/255
+OK     sin RUMBO: despues del arranque, potencias fijas del perfil AUTO (207/210)
+OK     sin RUMBO y con un lado ~1.6 % mas fuerte (tras el balance), en 3 s el carro se tuerce varios grados a la derecha
+OK     RUMBO:ON contesta ACK_RUMBO:1
+OK     RUMBO? dice encendido y sin avance en curso
+OK     con RUMBO: el arranque sigue siendo a plena potencia en el lado que no se corrige
+OK     con RUMBO el mismo carro se tuerce menos de 1 grado en 3 s
+OK     ...y reparte la potencia: el izquierdo (el fuerte) va por debajo del derecho mas que el balance fijo
+OK     ...sin pasar del tope ni apagar un lado
+OK     el comando actual sigue siendo FORWARD (el laser puede seguir frenando)
+OK     RUMBO:<n> no se contesta
+OK     RUMBO:<n> lleva el carro al objetivo (gira ~5 grados a la izquierda avanzando)
+OK     ...y sigue siendo FORWARD
+OK     RUMBO:<n> no renueva el watchdog: sin FORWARD el carro frena a ~1 s
+OK     tras el watchdog el lazo ya no esta en marcha pero sigue encendido
+OK     RUMBO:OFF en marcha vuelve enseguida a las potencias fijas
+OK     ...y se quedan fijas
+OK     con el giroscopio caido el avance vuelve a las potencias fijas
+OK     con RUMBO: REVERSE igual que siempre (fijo, sin corregir)
+OK     con RUMBO: LEFT igual que siempre
+OK     con RUMBO: RIGHT igual que siempre
+OK     un __STOP_AUTO del laser no apaga RUMBO
+OK     al conectarse un cliente RUMBO queda apagado
+OK     al desconectarse tambien
+OK     lo aprendido en un avance reduce el error del principio del siguiente
+OK     RUMBO mal escrito no mueve los motores ni cambia el estado
+-- Parte 3: giro_largo por grado --
+OK     tras tres giros chicos, los giros de 90 grados NO se marcan como giro_largo
+OK     un giro de 180 grados tampoco (la duracion se compara por grado)
+62 casos, 0 fallos
+./pruebas_escalonado
+== Arranque escalonado (40 ms) ==
+OK     escalonado: al avanzar entra primero SOLO el motor izquierdo (pin B) a 255
+OK     escalonado: un ms antes del tiempo el derecho todavia no entra
+OK     escalonado: al cumplirse el tiempo entra el derecho (pin A) tambien a 255
+OK     escalonado: al terminar el arranque a plena potencia se aplica el ajuste por lado de siempre (207 y 210)
+OK     escalonado: al retroceder entra primero SOLO el motor izquierdo (pin A) a 255
+OK     escalonado: y luego el derecho (pin B)
+OK     escalonado: retroceso con el ajuste por lado despues del arranque
+OK     escalonado: STOP antes de que entre el segundo motor lo deja todo parado (no entra despues)
+OK     escalonado: girar antes de que entre el segundo motor cancela el escalon (el pivote queda a 255 solo con el derecho)
+OK     escalonado: los pivotes no se escalonan (LEFT usa solo el motor derecho a 255)
+OK     escalonado: RIGHT usa solo el izquierdo a 255
+OK     escalonado con balance: MANUAL 900 llega a 230 (255 x 0.900) a la izquierda y 255 a la derecha
+OK     escalonado: si el programa tarda en volver al loop (pasan el escalon y el arranque a plena potencia de golpe) queda con el ajuste por lado
+OK     escalonado: el watchdog y el heartbeat funcionan igual (a los 400 ms sigue en marcha con el ajuste por lado)
+OK     escalonado: 1001 ms despues del ultimo comando frena
+
+15 casos, 0 fallos
+./pruebas_camara
+-- esperas crecientes --
+OK     la primera espera es de 1 s
+OK     luego 2 s
+OK     luego 4 s
+OK     luego 8 s
+OK     despues se queda en 10 s
+OK     con un numero enorme de intentos sigue en 10 s (sin desbordar)
+-- WiFi: reintentos y reinicio --
+OK     conectado: no hace nada
+OK     sigue sin conexion: reintenta a 1, 3, 7, 15, 25, 35, 45 y 55 s de la caida (esperas 1, 2, 4, 8, 10, 10...)
+OK     antes de 60 s no reinicia
+OK     cuenta los ms sin conexion
+OK     a los 60 s justos todavia no reinicia
+OK     pasados los 60 s reinicia la placa
+OK     al reconectar se olvida la caida
+OK     una caida nueva empieza de cero (1 s de espera, no 10 s)
+OK     caida de 1 s: un reintento y vuelve
+-- WiFi: arranque --
+OK     en el arranque el primer intento tiene 5 s antes del primer reintento
+OK     el siguiente reintento espera 2 s
+OK     sin conectar en el arranque, a los 60 s reinicia (contados desde el primer intento)
+-- WiFi: millis() da la vuelta --
+OK     cruzando el desbordamiento sigue reintentando con las mismas esperas
+OK     y reinicia a los 60 s aunque el reloj haya dado la vuelta
+-- servidor de video --
+OK     responde: nada
+OK     1er fallo: todavia nada
+OK     2do fallo seguido: todavia nada
+OK     3er fallo seguido: reinicia
+OK     si responde entre fallos, la cuenta vuelve a cero
+-- vigilante interno --
+OK     sin demanda de video, el cuadro viejo no importa
+OK     con demanda y cuadro de hace 5 s justos: todavia no
+OK     con demanda y cuadro de hace mas de 5 s: reinicia
+OK     con demanda y cuadros frescos: no
+OK     el cuadro viejo tambien se detecta cruzando la vuelta de millis()
+OK     bucle con senal reciente: bien
+OK     bucle a los 8 s justos: todavia bien
+OK     bucle sin senal mas de 8 s: reinicia
+OK     el bucle tambien se vigila cruzando la vuelta de millis()
+
+34 casos, 0 fallos
+python ../scripts/verificar_pagina.py
+ok     el <script> sigue identico (864c4e0ad293...)
+ok     el archivo completo coincide con pagina.sha256 (aeac3914e404...)
+ok     sin referencias al nombre anterior
+make: Leaving directory 'E:/Dev/fsi_proyecto/pruebas_firmware'
+=== fin: exit=0 (2026-11-24 10:58:10) ===

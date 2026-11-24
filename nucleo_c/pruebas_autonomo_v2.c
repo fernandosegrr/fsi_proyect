@@ -41,7 +41,11 @@ enum {
     E_CAJA20, E_CAJA20_LADO, E_BANQUITO, E_LARGO90, E_SILLA, E_PARED_FINAL, E_DOS, E_PASILLO, E_APARECE, E_BAJO,
     E_CAJA20_SOL, E_BATERIA, E_PARED_FRENTE, E_BAJO_SOLO_COLOR,
     E_CAJA_PARED, E_ESQUINA,
-    E_SIN_ECO, E_DOS_MUEBLES, E_MUEBLE_PARED, E_PASILLO_ANGOSTO, N_ESC
+    E_SIN_ECO, E_DOS_MUEBLES, E_MUEBLE_PARED, E_PASILLO_ANGOSTO, N_ESC_BASE,
+    /* v6: FAMILIA NUEVA de objetos SIN ECO del laser (otros colores, texturas, tamanos, posiciones angulares, con y sin sombra, sobre pisos de otra fotometria) y de pisos con
+     * manchas y reflejos de ventana saturados. Se corre con AV6_FAMILIA=1 (DESARROLLO) o 2 (RESERVADO) y entra en las evaluaciones ciegas. docs/precision/v6/familia_sin_eco.md */
+    E_SE_NEGRO = N_ESC_BASE, E_SE_BORDE, E_SE_SOMBRA, E_SE_BAJO, E_SE_RAYADO, E_SE_PISO_OSCURO, E_SE_PISO_CLARO, E_SE_TRANSP, E_SE_POCO_CONTRASTE,
+    E_SE_MANCHAS, E_SE_REFLEJO, E_SE_CHARCO, N_ESC
 };
 #define N_ESC_LEGACY     23
 #define N_ESC_DESARROLLO 24
@@ -54,7 +58,10 @@ static const struct { const char *nombre; int tipo; } ESC[N_ESC] = {
     { "pared_al_frente", T_IMPOSIBLE }, { "bajo_solo_color", T_LIMITE },
     { "caja_y_pared_al_lado", T_OBSTACULO }, { "caja_antes_de_esquina", T_OBSTACULO },
     { "bloque_sin_eco", T_OBSTACULO }, { "dos_muebles", T_OBSTACULO },
-    { "mueble_con_pared", T_OBSTACULO }, { "pasillo_angosto", T_OBSTACULO }
+    { "mueble_con_pared", T_OBSTACULO }, { "pasillo_angosto", T_OBSTACULO },
+    { "se_negro_mate", T_OBSTACULO }, { "se_pequeno_borde", T_OBSTACULO }, { "se_alto_con_sombra", T_OBSTACULO }, { "se_bajo_oscuro", T_OBSTACULO },
+    { "se_rayado", T_OBSTACULO }, { "se_piso_oscuro", T_OBSTACULO }, { "se_piso_claro", T_OBSTACULO }, { "se_transparente", T_LIMITE },
+    { "se_poco_contraste", T_LIMITE }, { "se_piso_manchas", T_FALSO }, { "se_reflejo_saturado", T_FALSO }, { "se_charco_oscuro", T_FALSO }
 };
 
 static Navegador nav;
@@ -67,6 +74,14 @@ static int op_laser = 0;          /* 0 = normal, 1 = pesimista */
 static int op_ciega = 0;          /* 1 = evaluacion ciega con SplitMix64 (strtoull) */
 static uint64_t op_ciega_semilla = 0ULL;
 static int op_v5_apagado = 0;     /* 1 = AV5_APAGADO=1 (reproduce v3) */
+static int op_ruido = 0;          /* v6: 1 = AV6_RUIDO=1 (ruido perceptivo calibrado con las cajas negras reales) */
+static int op_familia = 0;        /* v6: 1 = AV6_FAMILIA=1 (solo la familia sin eco, DESARROLLO), 2 = RESERVADO */
+static int op_v6_master = 0;      /* v6: AV6_BITS=master = el paquete v6 tal como lo enciende la app (navegador_poner_v6 + obstaculos_config_v6); es lo que se evalua como «v6» */
+static unsigned op_v6_bits = 0;   /* v6: AV6_BITS = banderas de v6 que se ENCIENDEN (0 = v5-fix exacto; "all" = todas): 1 masa solo oscura, 2 masa solo central, 4 rachas delgadas; desde el 8 las banderas NAV_V6_F_* (8 = la primera) */
+static char op_esc[1024];         /* v6: AV6_ESC=nombre1,nombre2 corre SOLO esos escenarios (para explorar rapido); vacio = todos */
+static int op_corridas = 0;       /* v6: AV6_CORRIDAS=1 imprime una linea RUN por corrida (para comparar versiones corrida a corrida con la misma semilla) */
+static int op_v5_bits = 127;      /* v6 (ablacion): AV6_V5_BITS = mascara de las partes de v5 que quedan ENCENDIDAS: 1 coincidencia estable, 2 masa sin eco, 4 patas delgadas,
+                                   * 8 pasillo y pared, 16 fallo seguro, 32 color v5_solido, 64 color v5_rachas. 127 = todas (v5 completo). Solo estudio; no cambia nada por defecto. */
 
 static uint64_t splitmix64_val(uint64_t x)
 {
@@ -85,6 +100,8 @@ static uint32_t semilla_corrida(int e, int i)
 
         return s ? s : 1u;
     }
+    if (op_familia == 1) return 6100000u + (uint32_t)e * 10007u + (uint32_t)i;
+    if (op_familia == 2) return 8300000u + (uint32_t)e * 10007u + (uint32_t)i;
     if (op_conjunto == 1) return 2100000u + (uint32_t)e * 10007u + (uint32_t)i;
     if (op_conjunto == 2) return 4300000u + (uint32_t)e * 10007u + (uint32_t)i;
     return 170000u + (uint32_t)e * 10007u + (uint32_t)i;
@@ -563,6 +580,187 @@ static void armar_escena_reservado(int e, Escena *s, uint32_t semilla)
     s->fondo_medible = 0;
 }
 
+/* v6: colores oscuros de la familia sin eco: DESARROLLO (negro, marron, azul marino, carbon) y RESERVADO (verde, morado, rojo oscuro, verde azulado, pardo casi negro). */
+static void color_oscuro(int res, int *r, int *g, int *b)
+{
+    static const int D[4][3] = { { 22, 22, 26 }, { 58, 40, 30 }, { 20, 28, 58 }, { 46, 48, 50 } };
+    static const int R[5][3] = { { 24, 48, 32 }, { 44, 28, 54 }, { 68, 30, 28 }, { 20, 52, 58 }, { 38, 32, 28 } };
+    int k = res ? entre(0, 4) : entre(0, 3);
+    const int *c = res ? R[k] : D[k];
+
+    *r = c[0] + entre(-6, 6); *g = c[1] + entre(-6, 6); *b = c[2] + entre(-6, 6);
+    if (*r < 8) *r = 8;
+    if (*g < 8) *g = 8;
+    if (*b < 8) *b = 8;
+}
+
+static int clamp255(double v) { return v < 0.0 ? 0 : (v > 255.0 ? 255 : (int)(v + 0.5)); }
+
+/* Familia nueva (v6). `res` = 1 usa otros rangos y otros colores que DESARROLLO: lo que se ajuste con una familia debe valer en la otra. */
+static void armar_escena_familia(int e, Escena *s, uint32_t semilla, int res)
+{
+    double d, w, h, f, cx, cy, lado;
+    int r, g, b, o, k, i;
+
+    mv_iniciar(&mundo, semilla ^ (res ? 0x5EC0DE02u : 0x5EC0DE01u));
+    memset(s, 0, sizeof *s);
+    s->tipo = ESC[e].tipo;
+    s->aparece_obj = -1;
+    ruta_recta(s, 10);
+    luz_normal();
+    if (res) {   /* otra fotometria de piso: mas variacion de albedo y de rotacion de losetas */
+        mundo.foto.albedo[0] = unif(0.50, 0.84);
+        mundo.foto.albedo[1] = mundo.foto.albedo[0] * unif(0.92, 1.02);
+        mundo.foto.albedo[2] = mundo.foto.albedo[0] * unif(0.84, 1.00);
+        mundo.foto.rot_rad = unif(-0.16, 0.16);
+    }
+    d = unif(750.0, 1150.0);
+    switch (e) {
+    case E_SE_NEGRO:         /* caja negra o muy oscura y mate: el laser no devuelve eco y la red no la conoce */
+        color_oscuro(res, &r, &g, &b);
+        w = unif(res ? 130.0 : 160.0, res ? 290.0 : 260.0); h = unif(res ? 130.0 : 150.0, res ? 260.0 : 220.0); f = unif(100.0, 240.0);
+        mv_caja(&mundo, "se_negro", 1000.0 + unif(-70.0, 70.0), s->y0 - d - h / 2.0, w, h, f, r, g, b, unif(0.0, 0.003), unif(0.0, 0.08), 72, 0);
+        break;
+    case E_SE_BORDE:         /* objeto chico en el borde del carril: solo roza el ancho del chasis; el cono del laser lo alcanza a ratos */
+        color_oscuro(res, &r, &g, &b);
+        lado = entre(0, 1) ? 1.0 : -1.0;
+        w = unif(90.0, 150.0); h = unif(90.0, 150.0); f = unif(80.0, 160.0);
+        mv_caja(&mundo, "se_borde", 1000.0 + lado * unif(res ? 70.0 : 80.0, res ? 160.0 : 150.0), s->y0 - d - h / 2.0, w, h, f, r, g, b, unif(0.004, 0.025), unif(0.0, 0.06), 72, 0);
+        break;
+    case E_SE_SOMBRA:        /* objeto alto y oscuro con su sombra sobre el piso (la sombra se ve como una mancha junto a la base) */
+        color_oscuro(res, &r, &g, &b);
+        w = unif(150.0, 260.0); h = unif(150.0, 240.0); f = unif(250.0, 420.0);
+        cx = 1000.0 + unif(-60.0, 60.0); cy = s->y0 - d - h / 2.0;
+        mv_caja(&mundo, "se_alto", cx, cy, w, h, f, r, g, b, unif(0.0, 0.003), unif(0.0, 0.08), 72, 0);
+        mv_parche(&mundo, cx + (entre(0, 1) ? 1.0 : -1.0) * unif(60.0, 140.0), cy - unif(30.0, 120.0), w / 2.0 + unif(20.0, 60.0), h / 2.0 + unif(20.0, 80.0),
+                  unif(-20.0, 20.0), unif(0.55, 0.75), unif(40.0, 90.0));
+        break;
+    case E_SE_BAJO:          /* objeto oscuro y bajo (2.5 a 4.5 cm): queda casi por debajo del haz del laser (5.5 cm) */
+        color_oscuro(res, &r, &g, &b);
+        w = unif(220.0, 330.0); h = unif(180.0, 260.0); f = unif(25.0, 45.0);
+        mv_caja(&mundo, "se_bajo", 1000.0 + unif(-60.0, 60.0), s->y0 - d - h / 2.0, w, h, f, r, g, b, unif(0.0, 0.01), unif(0.03, 0.10), 73, 0);
+        break;
+    case E_SE_RAYADO:        /* textura: franjas alternas oscuras y medias */
+        w = unif(180.0, 280.0); h = unif(150.0, 240.0); f = unif(100.0, 200.0);
+        cx = 1000.0 + unif(-60.0, 60.0); cy = s->y0 - d - h / 2.0;
+        o = mv_objeto(&mundo, "se_rayado", unif(0.0, 0.06), 72, 0, 1);
+        k = entre(4, 6);
+        for (i = 0; i < k; i++) {
+            double x0 = cx - w / 2.0 + w * i / k;
+            int claro = i & 1;
+
+            if (res) mv_prisma(&mundo, o, x0, cy - h / 2.0, x0 + w / k, cy + h / 2.0, 0.0, f, claro ? 25 : 66, claro ? 56 : 30, claro ? 62 : 30, unif(0.0, 0.02));
+            else     mv_prisma(&mundo, o, x0, cy - h / 2.0, x0 + w / k, cy + h / 2.0, 0.0, f, claro ? 92 : 28, claro ? 86 : 28, claro ? 80 : 34, unif(0.0, 0.02));
+        }
+        break;
+    case E_SE_PISO_OSCURO:   /* piso oscuro (albedo 0.26 a 0.40) y objeto gris oscuro */
+        mundo.foto.albedo[0] = unif(0.26, 0.40);
+        mundo.foto.albedo[1] = mundo.foto.albedo[0] * unif(0.95, 1.0);
+        mundo.foto.albedo[2] = mundo.foto.albedo[0] * unif(0.90, 0.98);
+        w = unif(160.0, 280.0); h = unif(150.0, 240.0); f = unif(120.0, 240.0);
+        r = entre(30, 70); g = entre(30, 70); b = entre(30, 70);
+        mv_caja(&mundo, "se_en_piso_oscuro", 1000.0 + unif(-70.0, 70.0), s->y0 - d - h / 2.0, w, h, f, r, g, b, unif(0.0, 0.004), unif(0.0, 0.08), 72, 0);
+        break;
+    case E_SE_PISO_CLARO:    /* piso muy claro (albedo 0.82 a 0.92) y objeto negro: el mayor contraste */
+        mundo.foto.albedo[0] = unif(0.82, 0.92);
+        mundo.foto.albedo[1] = mundo.foto.albedo[0] * unif(0.97, 1.0);
+        mundo.foto.albedo[2] = mundo.foto.albedo[0] * unif(0.93, 0.99);
+        w = unif(160.0, 280.0); h = unif(150.0, 240.0); f = unif(120.0, 240.0);
+        mv_caja(&mundo, "se_en_piso_claro", 1000.0 + unif(-70.0, 70.0), s->y0 - d - h / 2.0, w, h, f, entre(14, 34), entre(14, 34), entre(16, 38), 0.0, unif(0.0, 0.08), 72, 0);
+        break;
+    case E_SE_TRANSP:        /* LIMITE FISICO: acrilico transparente, del color del piso y sin eco: ni el laser ni el color lo pueden ver (solo la red, por casualidad) */
+        w = unif(160.0, 260.0); h = unif(150.0, 230.0); f = unif(100.0, 200.0);
+        mv_caja(&mundo, "se_transparente", 1000.0 + unif(-60.0, 60.0), s->y0 - d - h / 2.0, w, h, f,
+                clamp255(mundo.foto.albedo[0] * 255.0 / 0.9 * unif(0.96, 1.04)), clamp255(mundo.foto.albedo[1] * 255.0 / 0.9 * unif(0.96, 1.04)),
+                clamp255(mundo.foto.albedo[2] * 255.0 / 0.9 * unif(0.96, 1.04)), 0.0, unif(0.0, 0.05), 72, 0);
+        break;
+    case E_SE_POCO_CONTRASTE:/* LIMITE: gris apenas mas oscuro que el piso (0.78 a 0.88 de su brillo) y sin eco */
+        w = unif(160.0, 260.0); h = unif(150.0, 230.0); f = unif(120.0, 220.0);
+        k = clamp255(mundo.foto.albedo[0] * 255.0 / 0.9 * unif(0.78, 0.88));
+        mv_caja(&mundo, "se_poco_contraste", 1000.0 + unif(-60.0, 60.0), s->y0 - d - h / 2.0, w, h, f, k, clamp255(k * 0.95), clamp255(k * 0.92), unif(0.0, 0.006), unif(0.0, 0.06), 72, 0);
+        break;
+    case E_SE_MANCHAS:       /* piso limpio con varias manchas oscuras de borde duro y tono algo pardo (no hay ningun objeto) */
+        k = res ? entre(4, 7) : entre(3, 5);
+        for (i = 0; i < k; i++) {
+            int p = mv_parche(&mundo, 1000.0 + unif(-420.0, 420.0), s->y0 - unif(250.0, 1800.0), unif(40.0, res ? 190.0 : 160.0), unif(40.0, res ? 190.0 : 160.0),
+                              unif(-90.0, 90.0), unif(0.35, 0.70), unif(5.0, 18.0));
+
+            if (p >= 0) {
+                mundo.foto.parche[p].tinte[0] = 1.0 + unif(-0.10, 0.12);
+                mundo.foto.parche[p].tinte[1] = 1.0;
+                mundo.foto.parche[p].tinte[2] = 1.0 - unif(0.0, 0.20);
+            }
+        }
+        break;
+    case E_SE_REFLEJO:       /* reflejo de ventana SATURADO (los pixeles llegan a 255): vent_brillo de 4 a 6, mucho mas que en falso_reflejo */
+        mundo.foto.reflejo = 1;
+        mundo.foto.brillo_piso = unif(0.8, 1.0);
+        mundo.foto.vent_x = 1000.0 + unif(-450.0, 450.0);
+        mundo.foto.vent_y = -unif(1300.0, 2900.0);
+        mundo.foto.vent_nx = 0.0; mundo.foto.vent_ny = 1.0;
+        mundo.foto.vent_semiancho = unif(480.0, 1050.0);
+        mundo.foto.vent_z0 = unif(650.0, 980.0);
+        mundo.foto.vent_z1 = mundo.foto.vent_z0 + unif(850.0, 1350.0);
+        mundo.foto.vent_brillo = unif(4.0, 6.0);
+        break;
+    default:                 /* E_SE_CHARCO: mancha oscura, compacta y parda DENTRO de la linea (piso mojado, cafe derramado): se puede pasar, no hay ningun objeto */
+        k = mv_parche(&mundo, 1000.0 + unif(-60.0, 60.0), s->y0 - d, unif(60.0, 125.0), unif(60.0, 125.0), unif(0.0, 90.0), unif(0.22, 0.40), unif(6.0, 14.0));
+        if (k >= 0) {
+            mundo.foto.parche[k].tinte[0] = 1.12; mundo.foto.parche[k].tinte[1] = 0.95; mundo.foto.parche[k].tinte[2] = 0.78;
+        }
+        break;
+    }
+    s->fondo_medible = 0;
+}
+
+/* v6: RUIDO PERCEPTIVO REAL (AV6_RUIDO=1: estructura a la izquierda + ruido de la red, calibrados con las cajas negras; AV6_RUIDO=2: ademas marcas planas en el piso, que son una
+ * suposicion de esfuerzo y NO salen de las cajas negras). Las 7 cajas negras reales del 15-nov (rectas de 150 cm sobre piso limpio, sin objetos) muestran mucho mas ruido de vision
+ * que el banco heredado: la red marca algo (casi siempre una caja grande y baja, cercania 3) en ~5 % (IZQ), ~28 % (CEN) y ~35 % (DER) de los ticks; el color marca celdas en
+ * la zona izquierda en ~40 % de los ticks (algo que no es piso a la izquierda del carril: pared, mueble o cinta); 6 de 7 corridas hicieron un vistazo y 3 de 7 una pausa breve.
+ * El banco heredado da 1 %, 0 %, 2 de 40 corridas y 0. Este ruido es SOLO perceptivo: ni el laser, ni el contacto, ni la ruta lo ven (solo_vista; ver mundo_v2.h).
+ * Comparacion cuantitativa y valores en docs/precision/v6/calibracion_v6.md. */
+static double envd(const char *nombre, double por_defecto)
+{
+    const char *v = getenv(nombre);
+
+    return (v != NULL && v[0] != '\0') ? atof(v) : por_defecto;
+}
+
+static void ruido_real_aplicar(const Escena *s)
+{
+    double duty, largo = MV_RUIDO_LARGO_MEDIO;
+    double lat0 = envd("AV6_R_LAT0", 250.0), lat1 = envd("AV6_R_LAT1", 450.0), izq_pct = envd("AV6_R_IZQ_PCT", 70.0);
+    double marcas_pct = envd("AV6_R_MARCAS_PCT", op_ruido >= 2 ? 25.0 : 0.0), marca_centro_pct = envd("AV6_R_MARCA_CENTRO_PCT", 10.0), escala = envd("AV6_R_DUTY_ESCALA", 1.2);
+    double alto0 = envd("AV6_R_ALTO0", 80.0), alto1 = envd("AV6_R_ALTO1", 500.0), col0 = envd("AV6_R_COL0", 30.0), col1 = envd("AV6_R_COL1", 120.0);
+    double ancho = envd("AV6_R_ANCHO", 120.0);
+    int o;
+
+    /* 1. Algo que no es piso a la izquierda del carril (en 7 de 10 corridas), fuera del cono del laser y de la huella del chasis. */
+    if ((double)entre(0, 99) < izq_pct && (o = mv_objeto(&mundo, "lab_izquierda", 0.0, 0, 0, 0)) >= 0) {
+        double lat = unif(lat0, lat1);
+
+        mv_prisma_vista(&mundo, o, 1000.0 - lat - ancho, -1500.0, 1000.0 - lat, s->y0 + 800.0, 0.0, unif(alto0, alto1), entre((int)col0, (int)col1), entre((int)col0 - 10, (int)col1 - 10), entre((int)col0 - 20, (int)col1 - 20));
+    }
+    /* 2. Ruido neuronal de fondo: la fraccion de tiempo con una caja inventada varia entre corridas (0 a 60 %; media ~35 %). */
+    duty = ((entre(0, 99) < 30) ? unif(0.0, 0.15) : unif(0.38, 0.62)) * escala;
+    if (duty > 0.85) duty = 0.85;
+    mundo.det_ruido = 1;
+    mundo.det_ruido_cont = 0.5;
+    mundo.det_ruido_inicio = duty > 0.0 ? duty / (largo * (1.0 - duty)) : 0.0;
+    /* 3. A veces una marca plana en el piso (cinta, papel, mancha): casi siempre a un costado, pocas veces sobre la linea. */
+    if ((double)entre(0, 99) < marcas_pct) {
+        int om = mv_objeto(&mundo, "marca_piso", 0.0, 0, 0, 0);
+
+        if (om >= 0) {
+            double lado = entre(0, 1) ? 1.0 : -1.0;
+            double dx = ((double)entre(0, 99) < marca_centro_pct) ? unif(-90.0, 90.0) : lado * unif(150.0, 450.0);
+            double cx = 1000.0 + dx, cy = s->y0 - unif(500.0, 1500.0), hw = unif(30.0, 170.0), hh = unif(25.0, 120.0);
+
+            mv_prisma_vista(&mundo, om, cx - hw, cy - hh, cx + hw, cy + hh, 0.0, 1.0, entre(40, 235), entre(40, 200), entre(20, 160));
+        }
+    }
+}
+
 /* ── Una corrida ───────────────────────────────────────────────────────── */
 
 typedef struct {
@@ -571,6 +769,10 @@ typedef struct {
     int bajo_mueble;   /* entró en la planta de un mueble (pasó por debajo, entre las patas) sin tocar nada físico */
     int vistazos, vistazos_con_eco;
     int categoria;     /* v3: el resultado final de la corrida en UNA sola categoria (CAT_*): las categorias suman las corridas */
+    /* v6: lo que vio el navegador en cada tick (misma lectura que la linea CN de la caja negra real): sirve para calibrar el banco contra
+     * las cajas negras del 15-nov (docs/precision/v6/calibracion_v6.md). Solo se acumula y se imprime con AV6_VIS=1; no cambia ninguna decision. */
+    int vis_ticks, vis_fv_alguna, vis_nz_alguna, vis_hay_alguna, vis_pr_alguna;
+    int vis_fv[3][4], vis_cz[3][4], vis_nz[6];
 } Resultado;
 
 /* v3: categorias EXCLUYENTES del resultado de una corrida, por orden de prioridad (la primera que se cumple). Las banderas de siempre (contacto, bajo_mueble, ayuda)
@@ -629,7 +831,7 @@ static Resultado correr(int e, uint32_t semilla)
     uint32_t prox_captura = 0, det_fin_ms = 0, sens_prog_antes = 0;
     int estado_fin = 0, causa_fin = 0;
     int det_ocupado = 0, hay_det = 0;
-    int v5_cal = (op_conjunto != 0 || op_ciega != 0);
+    int v5_cal = (op_conjunto != 0 || op_ciega != 0 || op_familia != 0);
     int cam_cad_ms = 70, cam_jit_ms = 25, cam_drop_pct = 2;
     int i, t, a, d, zm, delta_ppm, tope_ms, base_avance, cmd_antes = NAV_CMD_STOP;
     double ux, uy;
@@ -641,9 +843,11 @@ static Resultado correr(int e, uint32_t semilla)
     memset(&cuadro, 0, sizeof cuadro);
     azar = semilla;
     mv_iniciar(&mundo, semilla);
-    if (op_conjunto == 2 || op_ciega) armar_escena_reservado(e, &s, semilla);
+    if (e >= N_ESC_BASE) armar_escena_familia(e, &s, semilla, (op_familia == 2 || op_ciega) ? 1 : 0);
+    else if (op_conjunto == 2 || op_ciega) armar_escena_reservado(e, &s, semilla);
     else armar_escena(e, &s);
     if (op_aec_fijo) { mundo.foto.aec_auto = 0; mundo.foto.awb_auto = 0; }
+    if (op_ruido) ruido_real_aplicar(&s);
 
     /* Lo que el navegador cree: la calibración del carro (la de J15/J16). */
     cal_defecto(&cal);
@@ -677,8 +881,23 @@ static Resultado correr(int e, uint32_t semilla)
     if (getenv("AV3_MEMORIA_ECO")) navegador_poner_memoria_eco(&nav, atoi(getenv("AV3_MEMORIA_ECO")));   /* 1 por defecto; 0 = como v2 */
     if (getenv("AV3_ECO_RETROCEDE")) navegador_poner_eco_retroceder(&nav, atoi(getenv("AV3_ECO_RETROCEDE")));
 #endif
+#ifdef NAV_V6
+    /* AV6_BITS=master: exactamente lo que hace la app al encender v6 (incluye v5 completo); si ademas se pide una ablacion de v5, el bloque de abajo la aplica encima. */
+    if (op_v6_master && !op_v5_apagado) navegador_poner_v6(&nav, 1);
+#endif
 #ifdef NAV_V5
     if (op_v5_apagado) navegador_poner_v5(&nav, 0);
+    else if (op_v5_bits != 127) {
+        navegador_poner_coincidencia_estable(&nav, (op_v5_bits & 1) != 0);
+        navegador_poner_masa_sin_eco(&nav, (op_v5_bits & 2) != 0);
+        navegador_poner_patas_delgadas(&nav, (op_v5_bits & 4) != 0);
+        navegador_poner_pasillo_pared(&nav, (op_v5_bits & 8) != 0);
+        navegador_poner_fallo_seguro(&nav, (op_v5_bits & 16) != 0);
+    }
+#endif
+#ifdef NAV_V6
+    /* AV6_BITS: los bits 0, 1 y 2 son del color (obstaculos); de ahi en adelante cada bit es una bandera NAV_V6_F_* (bit 3 = la primera). */
+    if (!op_v5_apagado && !op_v6_master) navegador_poner_v6_flags(&nav, (op_v6_bits >> 3) & NAV_V6_F_TODAS);
 #endif
 #ifdef NAV_PRECAUCION_NUNCA
     if (getenv("AV2_PRECAUCION")) navegador_poner_precaucion(&nav, atoi(getenv("AV2_PRECAUCION")));   /* 0 nunca (por defecto), 1 color cerca, 2 siempre */
@@ -767,6 +986,20 @@ static Resultado correr(int e, uint32_t semilla)
     if (op_v5_apagado) {
         cfg_color.v5_solido = 0;
         cfg_color.v5_rachas = 0;
+    } else if (op_v5_bits != 127) {
+        cfg_color.v5_solido = (op_v5_bits & 32) != 0;
+        cfg_color.v5_rachas = (op_v5_bits & 64) != 0;
+    }
+#endif
+#ifdef OBS_V6
+    if (!op_v5_apagado) {
+        if (op_v6_master) {
+            obstaculos_config_v6(&cfg_color, 1);
+        } else {
+            cfg_color.v6_solo_oscuras = (op_v6_bits & 1u) != 0;
+            cfg_color.v6_solo_central = (op_v6_bits & 2u) != 0;
+            cfg_color.v6_rachas_delgadas = (op_v6_bits & 4u) != 0;
+        }
     }
 #endif
     fusion_config_defecto(&cfg_fusion);
@@ -890,6 +1123,25 @@ static Resultado correr(int e, uint32_t semilla)
             sim.proximo_sens_ms = (sim.t_ms >= (uint32_t)NAV_TICK_MS ? sim.t_ms - (uint32_t)NAV_TICK_MS : 0u) + (uint32_t)dt_sens;
         }
         volcar_diag();
+        {   /* v6: estadistica de vision por tick (equivalente a los campos fv, nz, cz, hay y pr de la linea CN) */
+            int z, fa = 0, na = 0, ha = 0;
+
+            r.vis_ticks++;
+            for (z = 0; z < 3; z++) {
+                int fv = nav.fuentes_vision[z] & 3, nz = nav.zona_celdas[z], cz = nav.color_cercania[z];
+
+                if (fv) fa = 1;
+                if (nz > 0) na = 1;
+                if (nav.zona_hay[z]) ha = 1;
+                r.vis_fv[z][fv]++;
+                r.vis_cz[z][cz < 0 ? 0 : (cz > 3 ? 3 : cz)]++;
+                r.vis_nz[nz <= 0 ? 0 : (nz < 5 ? 1 : (nz < 10 ? 2 : (nz < 20 ? 3 : (nz < 40 ? 4 : 5))))]++;
+            }
+            r.vis_fv_alguna += fa;
+            r.vis_nz_alguna += na;
+            r.vis_hay_alguna += ha;
+            r.vis_pr_alguna += (nav.precaucion != 0);
+        }
         if (depurar > 1 && (t % 500) == 0) {
             printf("   [%6d ms] real=(%.0f,%.0f,%.1f) nav=(%d,%d,%d) estado=%s cmd=%s laser=%d%s\n", t, p.x, p.y, p.rumbo_rad * 57.29578, nav.x_mm, nav.y_mm, nav.rumbo_grados,
                    navegador_texto_estado(nav.estado), navegador_texto_comando(nav.cmd_actual), mm, valido ? "" : " (sin eco)");
@@ -1016,6 +1268,8 @@ typedef struct {
     int cat[CAT_N];
     int causas[32];
     int t_media, t_p95, lat_media, lat_p95, lon_media, lon_p95, desvio_p95, color_cuadros, coinc_cuadros;
+    long vis_ticks, vis_fv_alguna, vis_nz_alguna, vis_hay_alguna, vis_pr_alguna, vis_fv[3][4], vis_cz[3][4], vis_nz[6];   /* v6: ver Resultado */
+    int corridas_con_vistazo, corridas_con_pr;
 } Resumen;
 
 static int comparar(const void *a, const void *b) { return *(const int *)a - *(const int *)b; }
@@ -1049,9 +1303,20 @@ static Resumen monte_carlo(int e, int n)
         s.color_cuadros += r.cuadros_color; s.coinc_cuadros += r.cuadros_coinc;
         s.bajo_mueble += r.bajo_mueble; s.vistazos += r.vistazos; s.vistazos_con_eco += r.vistazos_con_eco;
         s.cat[r.categoria]++;
+        {
+            int z, k;
+
+            s.vis_ticks += r.vis_ticks; s.vis_fv_alguna += r.vis_fv_alguna; s.vis_nz_alguna += r.vis_nz_alguna;
+            s.vis_hay_alguna += r.vis_hay_alguna; s.vis_pr_alguna += r.vis_pr_alguna;
+            for (z = 0; z < 3; z++) for (k = 0; k < 4; k++) { s.vis_fv[z][k] += r.vis_fv[z][k]; s.vis_cz[z][k] += r.vis_cz[z][k]; }
+            for (k = 0; k < 6; k++) s.vis_nz[k] += r.vis_nz[k];
+            s.corridas_con_vistazo += (r.vistazos > 0);
+            s.corridas_con_pr += (r.vis_pr_alguna > 0);
+        }
         if ((r.ayuda || r.error) && r.causa >= 0 && r.causa < 32) s.causas[r.causa]++;
         vdes[i] = r.desvio_max;
         if (r.llego) { vt[k] = r.tiempo_ms; vlat[k] = r.lateral; vlon[k] = r.longitudinal; k++; }
+        if (op_corridas) printf("RUN %s %d cat=%s esq=%d par=%d vis=%d t=%d\n", ESC[e].nombre, i, CAT_NOMBRE[r.categoria], r.esquivas, r.paradas, r.vistazos, r.tiempo_ms);
         if (getenv("AV2_LISTAR") && !r.exito) printf("   corrida %d: llego=%d contacto=%d bajo_mueble=%d ayuda=%d causa=%d error=%d falso_fin=%d esquivas=%d\n", i, r.llego, r.contacto, r.bajo_mueble, r.ayuda, r.causa, r.error, r.terminado_falso, r.esquivas);
     }
     percentiles(vt, k, &s.t_media, &s.t_p95);
@@ -1081,9 +1346,30 @@ static void imprimir(int e, const Resumen *s)
     printf("\n");
 }
 
+/* v6: la estadistica de vision de un escenario, en el mismo formato que docs/precision/v6/calibracion_v6.md compara contra las cajas negras reales. */
+static void imprimir_vis(int e, const Resumen *s)
+{
+    static const char *const ZN[3] = { "IZQ", "CEN", "DER" };
+    int z, k;
+    double t = s->vis_ticks > 0 ? (double)s->vis_ticks : 1.0;
+
+    printf("AV6VIS escenario=%s n=%d ticks=%ld fv_alguna=%.1f%% nz_alguna=%.1f%% hay_alguna=%.1f%% pr_alguna=%.1f%% corridas_con_vistazo=%d corridas_con_pr=%d",
+           ESC[e].nombre, s->n, s->vis_ticks, 100.0 * s->vis_fv_alguna / t, 100.0 * s->vis_nz_alguna / t, 100.0 * s->vis_hay_alguna / t, 100.0 * s->vis_pr_alguna / t,
+           s->corridas_con_vistazo, s->corridas_con_pr);
+    for (z = 0; z < 3; z++) {
+        printf(" | %s fv=", ZN[z]);
+        for (k = 0; k < 4; k++) printf("%s%.1f", k ? "/" : "", 100.0 * s->vis_fv[z][k] / t);
+        printf(" cz=");
+        for (k = 0; k < 4; k++) printf("%s%.1f", k ? "/" : "", 100.0 * s->vis_cz[z][k] / t);
+    }
+    printf(" | nz(0,1-4,5-9,10-19,20-39,40+)=");
+    for (k = 0; k < 6; k++) printf("%s%.1f", k ? "/" : "", 100.0 * s->vis_nz[k] / (3.0 * t));
+    printf("\n");
+}
+
 int main(int argc, char **argv)
 {
-    int n = 40, e, solo = -1, n_esc = N_ESC_LEGACY;
+    int n = 40, e, e0 = 0, solo = -1, n_esc = N_ESC_LEGACY;
     static Resumen res[N_ESC];
     const char *env;
 
@@ -1104,8 +1390,18 @@ int main(int argc, char **argv)
         if (op_ciega_semilla == 0ULL) op_ciega_semilla = 1ULL;
     }
     if ((env = getenv("AV5_APAGADO")) != NULL) op_v5_apagado = atoi(env);
+    if ((env = getenv("AV6_RUIDO")) != NULL) op_ruido = atoi(env);
+    if ((env = getenv("AV6_FAMILIA")) != NULL) op_familia = atoi(env);
+    if ((env = getenv("AV6_V5_BITS")) != NULL) op_v5_bits = atoi(env);
+    if ((env = getenv("AV6_CORRIDAS")) != NULL) op_corridas = atoi(env);
+    if ((env = getenv("AV6_ESC")) != NULL && strlen(env) < 1000) snprintf(op_esc, sizeof op_esc, ",%s,", env);
+    if ((env = getenv("AV6_BITS")) != NULL) {
+        if (strcmp(env, "master") == 0) op_v6_master = 1;
+        else op_v6_bits = (strcmp(env, "all") == 0) ? 0x7FFFu : (unsigned)strtoul(env, NULL, 10);
+    }
 
-    n_esc = (op_ciega || op_conjunto == 2) ? N_ESC : (op_conjunto == 1 ? N_ESC_DESARROLLO : N_ESC_LEGACY);
+    n_esc = op_ciega ? N_ESC : (op_conjunto == 2 ? N_ESC_BASE : (op_conjunto == 1 ? N_ESC_DESARROLLO : N_ESC_LEGACY));
+    if (op_familia) { e0 = N_ESC_BASE; n_esc = N_ESC; }
 
     if (argc > 3 && strcmp(argv[1], "depurar") == 0) {
         depurar = getenv("AV2_TODO") ? 2 : 1;
@@ -1120,7 +1416,10 @@ int main(int argc, char **argv)
         if (n > 5000) n = 5000;
     }
     if (argc > 2) solo = atoi(argv[2]);
-    if (op_ciega) {
+    if (op_familia) {
+        printf("-- Banco v6 FAMILIA SIN ECO %s (SIMULADO / NO MEDIDO en el carro), %d corridas, laser=%s, ruido=%d, semillas %s + indice * 10007 + corrida --\n",
+               op_familia == 2 ? "RESERVADO" : "DESARROLLO", n, op_laser ? "pesimista" : "normal", op_ruido, op_familia == 2 ? "8300000" : "6100000");
+    } else if (op_ciega) {
         printf("-- Banco v5 CIEGO (SIMULADO / NO MEDIDO en el carro), %d corridas, laser=%s, semilla64=%llu --\n",
                n, op_laser ? "pesimista" : "normal", (unsigned long long)op_ciega_semilla);
     } else if (op_conjunto == 1) {
@@ -1132,10 +1431,17 @@ int main(int argc, char **argv)
     } else {
         printf("-- Banco autonomo v2 (SIMULADO / NO MEDIDO en el carro), %d corridas por escenario, semillas 170000 + indice * 10007 + corrida --\n", n);
     }
-    for (e = 0; e < n_esc; e++) {
+    for (e = e0; e < n_esc; e++) {
         if (solo >= 0 && e != solo) continue;
+        if (op_esc[0] != '\0') {
+            char clave[128];
+
+            snprintf(clave, sizeof clave, ",%s,", ESC[e].nombre);
+            if (strstr(op_esc, clave) == NULL) continue;
+        }
         res[e] = monte_carlo(e, n);
         imprimir(e, &res[e]);
+        if (getenv("AV6_VIS")) imprimir_vis(e, &res[e]);
         fflush(stdout);
     }
 #ifdef AV2_ACTUAL

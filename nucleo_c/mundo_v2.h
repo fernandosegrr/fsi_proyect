@@ -46,9 +46,9 @@
 #define MV_COLUMNAS              24
 #define MV_FILAS                 17
 
-#define MV_MAX_PRISMAS           64
-#define MV_MAX_OBJETOS            8
-#define MV_MAX_PARCHES            6
+#define MV_MAX_PRISMAS           96
+#define MV_MAX_OBJETOS           12
+#define MV_MAX_PARCHES           10
 
 typedef struct {
     double x0, y0, x1, y1;      /* planta (mm, ejes del mundo) */
@@ -57,6 +57,7 @@ typedef struct {
     double reflectancia;        /* para el láser: 0 = no devuelve nada (negro mate, vidrio), 0.5 = cartón */
     int objeto;                 /* índice del objeto al que pertenece */
     int fantasma;               /* 1 = solo cuenta para el contacto (la planta de un mueble): ni la cámara ni el láser lo ven */
+    int solo_vista;             /* v6: 1 = solo lo ve la CÁMARA (una pared lejana a un costado, una marca en el piso): ni el láser, ni el contacto, ni la red lo cuentan */
 } MvPrisma;
 
 typedef struct {
@@ -107,6 +108,16 @@ typedef struct {
     int det_falso_vivo;         /* inferencias que le quedan a la caja inventada actual */
     CajaModelo det_falso;
     uint32_t azar;
+    /* v6, RUIDO NEURONAL DE FONDO calibrado con las cajas negras reales del 15-nov (docs/precision/v6/calibracion_v6.md): una caja grande «inventada» (la red del
+     * carro real marca el piso como mesa o sofa en ~30 % de los cuadros sin ningun obstaculo) que empieza con probabilidad det_ruido_inicio por inferencia y sigue
+     * con probabilidad det_ruido_cont. Las rachas son de tres tamaños (cola larga, como en las cajas negras: el 13 % de las rachas, de 1.1 a 1.8 s, tiene el 55 % del tiempo
+ * marcado). Con det_ruido == 0 no hace nada (el banco heredado no cambia). Largo medio de una racha: MV_RUIDO_LARGO_MEDIO inferencias. */
+#define MV_RUIDO_LARGO_MEDIO 3.47
+    int det_ruido;
+    double det_ruido_inicio;      /* probabilidad de que empiece una racha en una inferencia sin racha */
+    double det_ruido_cont;        /* probabilidad de seguir en la siguiente inferencia: la fija el mundo al EMPEZAR la racha (corta, media o larga) */
+    int det_ruido_vivo;
+    CajaModelo det_ruido_caja;
     /* Parametros calibrados / aleatorizados del laser (v5): con laser_param_activo == 0 conserva constantes heredadas. */
     int laser_param_activo;
     double laser_adelante_mm;
@@ -123,6 +134,8 @@ void mv_iniciar(Mundo *m, uint32_t semilla);
 int  mv_objeto(Mundo *m, const char *nombre, double recall, int clase, uint32_t aparece_ms, int en_ruta);
 int  mv_prisma(Mundo *m, int objeto, double x0, double y0, double x1, double y1, double z0, double z1,
                int r, int g, int b, double reflectancia);
+/* v6: igual, pero el prisma lo ve SOLO la cámara (ver MvPrisma.solo_vista). */
+int  mv_prisma_vista(Mundo *m, int objeto, double x0, double y0, double x1, double y1, double z0, double z1, int r, int g, int b);
 /* Atajos: caja maciza; mueble de 4 patas con asiento (banquito) y, si respaldo_mm > 0, respaldo (silla). cx, cy = centro en planta. */
 int  mv_caja(Mundo *m, const char *nombre, double cx, double cy, double ancho, double fondo, double alto,
              int r, int g, int b, double reflectancia, double recall, int clase, uint32_t aparece_ms);

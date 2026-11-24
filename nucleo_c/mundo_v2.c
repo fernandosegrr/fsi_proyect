@@ -96,12 +96,21 @@ int mv_prisma(Mundo *m, int objeto, double x0, double y0, double x1, double y1, 
     q->reflectancia = reflectancia;
     q->objeto = objeto;
     q->fantasma = 0;
+    q->solo_vista = 0;
     o = &m->objetos[objeto];
     if (q->x0 < o->bx0) o->bx0 = q->x0;
     if (q->y0 < o->by0) o->by0 = q->y0;
     if (q->x1 > o->bx1) o->bx1 = q->x1;
     if (q->y1 > o->by1) o->by1 = q->y1;
     return m->n_prismas++;
+}
+
+int mv_prisma_vista(Mundo *m, int objeto, double x0, double y0, double x1, double y1, double z0, double z1, int r, int g, int b)
+{
+    int k = mv_prisma(m, objeto, x0, y0, x1, y1, z0, z1, r, g, b, 0.0);
+
+    if (k >= 0) m->prismas[k].solo_vista = 1;
+    return k;
 }
 
 int mv_caja(Mundo *m, const char *nombre, double cx, double cy, double ancho, double fondo, double alto,
@@ -187,8 +196,14 @@ static int presente(const Mundo *m, const MvPrisma *q, uint32_t t_ms)
     return m->objetos[q->objeto].aparece_ms <= t_ms;
 }
 
-/* Lo que ven la cámara y el láser: los prismas presentes que no son solo de contacto. */
+/* Lo que ven el láser (y el detector): los prismas presentes que no son solo de contacto ni solo de vista. */
 static int visible(const Mundo *m, const MvPrisma *q, uint32_t t_ms)
+{
+    return !q->fantasma && !q->solo_vista && presente(m, q, t_ms);
+}
+
+/* Lo que ve la cámara: además, los prismas «solo vista» (v6). */
+static int visible_cam(const Mundo *m, const MvPrisma *q, uint32_t t_ms)
 {
     return !q->fantasma && presente(m, q, t_ms);
 }
@@ -315,7 +330,7 @@ void mv_render_celdas(Mundo *m, MvPose p, uint32_t t_ms, unsigned char *celdas)
                 for (i = 0; i < m->n_prismas; i++) {
                     double t;
 
-                    if (visible(m, &m->prismas[i], t_ms) && rayo_prisma(&m->prismas[i], ox, oy, oz, dx, dy, dz, &t) && t < t_min) {
+                    if (visible_cam(m, &m->prismas[i], t_ms) && rayo_prisma(&m->prismas[i], ox, oy, oz, dx, dy, dz, &t) && t < t_min) {
                         t_min = t;
                         mejor = i;
                     }
@@ -550,6 +565,30 @@ void mv_detector(Mundo *m, MvPose p, uint32_t t_ms, uint32_t marca_ms, Deteccion
         if (salida->n < FUS_MAX_CAJAS) salida->cajas[salida->n++] = m->det_falso;
         m->det_falso_vivo--;
     }
+    if (m->det_ruido) {   /* v6: ruido neuronal de fondo (una caja grande y baja que dura unas inferencias, como en las cajas negras reales) */
+        if (m->det_ruido_vivo > 0) {
+            m->det_ruido_vivo = (mv_uniforme(m) < m->det_ruido_cont) ? m->det_ruido_vivo : 0;
+        } else if (mv_uniforme(m) < m->det_ruido_inicio) {
+            double g = mv_uniforme(m), xmin, xmax, ymax = 850.0 + 130.0 * mv_uniforme(m), tipo = mv_uniforme(m);
+
+            /* racha corta (70 %: 1 a 2 ticks), media (17 %: ~9 ticks) o larga (13 %: 1 a 1.8 s) */
+            m->det_ruido_cont = (tipo < 0.70) ? 0.25 : ((tipo < 0.87) ? 0.75 : 0.93);
+
+            if (g < 0.60)      { xmin = 420.0 + 180.0 * mv_uniforme(m); xmax = 850.0 + 150.0 * mv_uniforme(m); }   /* centro y derecha */
+            else if (g < 0.86) { xmin = 680.0 + 100.0 * mv_uniforme(m); xmax = 900.0 + 100.0 * mv_uniforme(m); }   /* solo derecha */
+            else if (g < 0.94) { xmin = 200.0 * mv_uniforme(m);         xmax = 850.0 + 150.0 * mv_uniforme(m); }   /* las tres zonas */
+            else if (g < 0.99) { xmin = 250.0 * mv_uniforme(m);         xmax = 450.0 + 200.0 * mv_uniforme(m); }   /* izquierda y centro */
+            else               { xmin = 400.0 + 50.0 * mv_uniforme(m);  xmax = 550.0 + 50.0 * mv_uniforme(m); }    /* solo centro */
+            m->det_ruido_caja.clase = (int)(90.0 * mv_uniforme(m));
+            m->det_ruido_caja.confianza_mil = 600 + (int)(250.0 * mv_uniforme(m));
+            m->det_ruido_caja.xmin_mil = (int)limitar(xmin, 0.0, 1000.0);
+            m->det_ruido_caja.xmax_mil = (int)limitar(xmax, 0.0, 1000.0);
+            m->det_ruido_caja.ymax_mil = (int)limitar(ymax, 0.0, 1000.0);
+            m->det_ruido_caja.ymin_mil = (int)limitar(ymax - (250.0 + 250.0 * mv_uniforme(m)), 0.0, 1000.0);
+            m->det_ruido_vivo = 1;
+        }
+        if (m->det_ruido_vivo > 0 && salida->n < FUS_MAX_CAJAS) salida->cajas[salida->n++] = m->det_ruido_caja;
+    }
 }
 
 /* Proyección de un prisma (rectángulo alineado a los ejes) sobre un eje (ax, ay): centro y semiancho. */
@@ -589,7 +628,7 @@ int mv_contacto(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto)
     for (i = 0; i < m->n_prismas; i++) {
         const MvPrisma *q = &m->prismas[i];
 
-        if (q->z0 >= MV_CARRO_ALTO_MM || !presente(m, q, t_ms)) continue;
+        if (q->z0 >= MV_CARRO_ALTO_MM || q->solo_vista || !presente(m, q, t_ms)) continue;
         if (toca_prisma(q, p, MV_CARRO_LARGO_MM / 2.0, MV_CARRO_ANCHO_MM / 2.0)) {
             if (objeto != NULL) *objeto = q->objeto;
             return 1;
@@ -605,7 +644,7 @@ int mv_contacto_tipo(const Mundo *m, MvPose p, uint32_t t_ms, int *objeto)
     for (i = 0; i < m->n_prismas; i++) {
         const MvPrisma *q = &m->prismas[i];
 
-        if (q->z0 >= MV_CARRO_ALTO_MM || !presente(m, q, t_ms)) continue;
+        if (q->z0 >= MV_CARRO_ALTO_MM || q->solo_vista || !presente(m, q, t_ms)) continue;
         if (toca_prisma(q, p, MV_CARRO_LARGO_MM / 2.0, MV_CARRO_ANCHO_MM / 2.0)) {
             if (!q->fantasma) {
                 if (objeto != NULL) *objeto = q->objeto;

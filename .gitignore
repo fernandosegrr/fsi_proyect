@@ -66,3 +66,8 @@ docs/pruebas_fisicas_20261114.csv
 docs/pruebas_fisicas_20261123.csv
 docs/precision/v5/base_v3_calibrada.json
 
+# v6: mediciones fisicas reales, con cualquier fecha: nunca al repositorio (las plantillas, que no llevan fecha, si se versionan).
+docs/pruebas_fisicas_2026*.csv
+!docs/pruebas_fisicas_20261110.csv
+# v6: resultados crudos del trabajo de calibracion con cajas negras reales: solo estadisticas agregadas se versionan.
+docs/precision/v6/*_real_crudo*

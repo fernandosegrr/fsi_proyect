@@ -1,0 +1,84 @@
+=== todo
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   115/  0/  2 p 18 e 10 f 3 | 127  108/  0/  4 p 28 e 33 f 8
+falso_juntas           | v3   113/  0/  1 p 30 e 15 f 6 | 127  100/  0/ 10 p 28 e 55 f10
+falso_sol              | v3    62/  0/ 31 p333 e145 f27 | 127   49/  0/ 38 p292 e213 f33
+falso_sombra           | v3    59/  0/ 41 p322 e145 f20 | 127   49/  0/ 44 p295 e183 f27
+falso_reflejo          | v3    77/  0/ 31 p392 e157 f12 | 127   72/  0/ 42 p320 e168 f 6
+falso_exposicion       | v3   117/  0/  1 p 13 e  9 f 2 | 127  107/  0/  9 p 20 e 42 f 4
+falso_detector         | v3   115/  0/  2 p 27 e  8 f 3 | 127  105/  0/  9 p 29 e 40 f 6
+pared_tras_el_final    | v3   119/  0/  1 p  5 e  1 f 0 | 127  111/  1/  9 p 24 e 22 f 0
+TOTAL                  | v3    777/   0/ 110 p1140 e 490 | 127   701/   1/ 165 p1036 e 756
+
+=== sin_marcas
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   119/  0/  1 p  4 e  3 f 0 | 127  117/  0/  3 p  7 e 14 f 0
+falso_juntas           | v3   120/  0/  0 p  5 e  0 f 0 | 127  115/  0/  4 p  6 e 20 f 1
+falso_sol              | v3    60/  0/ 28 p367 e142 f32 | 127   53/  0/ 34 p295 e199 f33
+falso_sombra           | v3    62/  0/ 39 p338 e144 f19 | 127   56/  0/ 42 p269 e183 f22
+falso_reflejo          | v3    77/  0/ 33 p358 e151 f10 | 127   76/  0/ 39 p276 e148 f 5
+falso_exposicion       | v3   120/  0/  0 p  9 e  0 f 0 | 127  116/  0/  3 p  5 e 16 f 1
+falso_detector         | v3   120/  0/  0 p  7 e  0 f 0 | 127  118/  0/  2 p  3 e  7 f 0
+pared_tras_el_final    | v3   120/  0/  0 p  1 e  0 f 0 | 127  117/  0/  3 p  8 e  9 f 0
+TOTAL                  | v3    798/   0/ 101 p1089 e 440 | 127   768/   0/ 130 p 869 e 596
+
+=== sin_izq
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   119/  0/  0 p  4 e  1 f 1 | 127  109/  0/  0 p 12 e 13 f11
+falso_juntas           | v3   116/  0/  1 p 18 e  5 f 3 | 127  106/  0/  0 p 24 e 16 f14
+falso_sol              | v3    63/  0/ 19 p310 e116 f38 | 127   55/  0/ 21 p286 e159 f44
+falso_sombra           | v3    55/  0/ 35 p332 e130 f30 | 127   47/  0/ 34 p327 e166 f39
+falso_reflejo          | v3    69/  0/ 31 p453 e172 f20 | 127   65/  0/ 39 p315 e165 f16
+falso_exposicion       | v3   115/  0/  0 p  9 e  5 f 5 | 127  107/  0/  1 p 16 e 14 f12
+falso_detector         | v3   116/  0/  1 p  8 e  5 f 3 | 127  110/  0/  0 p 12 e 14 f10
+pared_tras_el_final    | v3   118/  0/  2 p 13 e  4 f 0 | 127  114/  0/  6 p 18 e 15 f 0
+TOTAL                  | v3    771/   0/  89 p1147 e 438 | 127   713/   0/ 101 p1010 e 562
+
+=== sin_red
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   120/  0/  0 p  1 e  0 f 0 | 127  108/  0/  3 p 15 e 29 f 9
+falso_juntas           | v3   120/  0/  0 p  0 e  0 f 0 | 127  103/  0/  9 p 21 e 48 f 8
+falso_sol              | v3   120/  0/  0 p  8 e  0 f 0 | 127   97/  0/ 16 p 38 e 69 f 7
+falso_sombra           | v3   120/  0/  0 p  6 e  0 f 0 | 127  106/  0/  8 p 26 e 40 f 6
+falso_reflejo          | v3   120/  0/  0 p 11 e  0 f 0 | 127  109/  0/  9 p 21 e 31 f 2
+falso_exposicion       | v3   120/  0/  0 p  0 e  0 f 0 | 127  108/  0/  7 p 18 e 41 f 5
+falso_detector         | v3   118/  0/  1 p 26 e  4 f 1 | 127  107/  0/  9 p 19 e 34 f 4
+pared_tras_el_final    | v3   120/  0/  0 p  0 e  0 f 0 | 127  115/  3/  4 p 12 e 12 f 0
+TOTAL                  | v3    958/   0/   1 p  52 e   4 | 127   853/   3/  65 p 170 e 304
+
+=== solo_marcas
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   120/  0/  0 p  0 e  0 f 0 | 127  109/  0/  0 p 11 e 11 f11
+falso_juntas           | v3   120/  0/  0 p  2 e  0 f 0 | 127  110/  0/  0 p 11 e 10 f10
+falso_sol              | v3   120/  0/  0 p 10 e  0 f 0 | 127  111/  0/  0 p 18 e 10 f 9
+falso_sombra           | v3   120/  0/  0 p 14 e  0 f 0 | 127  111/  0/  2 p 20 e 13 f 7
+falso_reflejo          | v3   120/  0/  0 p  9 e  0 f 0 | 127  112/  0/  0 p 16 e 11 f 8
+falso_exposicion       | v3   120/  0/  0 p  0 e  0 f 0 | 127  107/  0/  0 p 13 e 13 f13
+falso_detector         | v3   118/  0/  0 p 11 e  2 f 2 | 127  110/  0/  0 p 12 e 10 f10
+pared_tras_el_final    | v3   120/  0/  0 p  0 e  0 f 0 | 127  118/  0/  2 p  9 e 13 f 0
+TOTAL                  | v3    958/   0/   0 p  46 e   2 | 127   888/   0/   4 p 110 e  91
+
+=== solo_izq
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   120/  0/  0 p  0 e  0 f 0 | 127  116/  0/  3 p  4 e 14 f 1
+falso_juntas           | v3   120/  0/  0 p  0 e  0 f 0 | 127  115/  0/  4 p  5 e 22 f 1
+falso_sol              | v3   120/  0/  0 p  5 e  0 f 0 | 127  108/  0/ 10 p 19 e 37 f 2
+falso_sombra           | v3   120/  0/  0 p  6 e  0 f 0 | 127  113/  0/  6 p 14 e 23 f 1
+falso_reflejo          | v3   120/  0/  0 p  9 e  0 f 0 | 127  115/  0/  5 p 18 e 17 f 0
+falso_exposicion       | v3   120/  0/  0 p  0 e  0 f 0 | 127  117/  0/  2 p  3 e 13 f 1
+falso_detector         | v3   119/  0/  1 p  4 e  3 f 0 | 127  115/  0/  5 p  5 e 15 f 0
+pared_tras_el_final    | v3   120/  0/  0 p  0 e  0 f 0 | 127  118/  1/  2 p  5 e  5 f 0
+TOTAL                  | v3    959/   0/   1 p  24 e   3 | 127   917/   1/  37 p  73 e 146
+
+=== solo_red
+conj=1 familia=0 laser=0 ruido=1 n=120 ref=actual   (ok/cont/ayuda | paradas esquivas esq_falso)
+libre_limpio           | v3   120/  0/  0 p  0 e  0 f 0 | 127  120/  0/  0 p  0 e  0 f 0
+falso_juntas           | v3   120/  0/  0 p  0 e  0 f 0 | 127  120/  0/  0 p  0 e  0 f 0
+falso_sol              | v3    62/  0/ 18 p308 e113 f40 | 127   59/  0/ 21 p263 e139 f40
+falso_sombra           | v3    57/  0/ 37 p330 e132 f26 | 127   55/  0/ 32 p321 e161 f33
+falso_reflejo          | v3    70/  0/ 32 p469 e174 f18 | 127   71/  0/ 41 p280 e152 f 8
+falso_exposicion       | v3   120/  0/  0 p  0 e  0 f 0 | 127  120/  0/  0 p  0 e  0 f 0
+falso_detector         | v3   120/  0/  0 p  0 e  0 f 0 | 127  120/  0/  0 p  0 e  0 f 0
+pared_tras_el_final    | v3   120/  0/  0 p  0 e  0 f 0 | 127  120/  0/  0 p  0 e  0 f 0
+TOTAL                  | v3    789/   0/  87 p1107 e 419 | 127   785/   0/  94 p 864 e 452
+

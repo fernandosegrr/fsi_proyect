@@ -1,0 +1,132 @@
+=== (cd pruebas_firmware) python probar_servidor_falso.py (2026-11-24 11:00:07); el script lanza servidor_falso.py con ruta relativa: hay que correrlo DESDE pruebas_firmware ===
+OK     PING se contesta con PONG
+OK     los comandos desconocidos no se contestan
+OK     MODO_MANUAL se contesta con ACK_MANUAL
+OK     MODO_MANUAL repetido se contesta igual (idempotente)
+OK     MODO_AUTO se contesta con ACK_AUTO
+OK     BAL? se contesta con los valores por defecto BAL:986:988
+OK     BAL_AUTO:900 se contesta ACK_BAL_AUTO:900
+OK     BAL_MANUAL:1000 se contesta ACK_BAL_MANUAL:1000
+OK     BAL_AUTO:799 se contesta NAK_BAL
+OK     BAL_AUTO:1001 se contesta NAK_BAL
+OK     BAL_AUTO: se contesta NAK_BAL
+OK     BAL_AUTO:abc se contesta NAK_BAL
+OK     BAL_MANUAL:0900 se contesta NAK_BAL
+OK     BAL_AUTO:-900 se contesta NAK_BAL
+OK     BAL_AUTO: 900 se contesta NAK_BAL
+OK     BAL? despues de los cambios: BAL:900:1000 (los NAK no cambiaron nada)
+OK     el balance se conserva al reconectar (como la memoria no volatil del carro)
+OK     un cliente nuevo cierra al anterior
+OK     sensores: CAPS? incluye capacidades, RUMBO=1, escala del giroscopio (J16), SEG=4, TUSO, TOFP y version simulada
+OK     sensores (SEG=4): TOFE? -> TOFE:1,0,0
+OK     sensores: RUMBO:ON -> ACK_RUMBO:1
+OK     sensores: RUMBO:<n> no se contesta y RUMBO? informa encendido, sin avance y el objetivo
+OK     sensores: RUMBO:OFF -> ACK_RUMBO:0
+OK     sensores: IMU_ESCALA:-12500 -> ACK_IMU_ESCALA:-12500 y CAPS con IMUS=-12500
+OK     sensores: IMU_ESCALA? -> IMU_ESCALA:-12500
+OK     sensores: IMU_ESCALA:50001 -> NAK_IMU_ESCALA
+OK     sensores: IMU_ESCALA:abc -> NAK_IMU_ESCALA
+OK     sensores: IMU_ESCALA: -> NAK_IMU_ESCALA
+OK     sensores: SIM_ANGULO:7274 suma el angulo (IMU? dice 7274)
+OK     sensores: ANT? informa los cuatro valores
+OK     sensores: SENS llega solo, cada ~100 ms, con perfil AUTO (8 en menos de 3.2 s)
+OK     sensores: GIRAR:90 incluye angulo, duracion y ANT
+OK     sensores: GIRAR:4 -> GIRO_ERROR:angulo
+OK     sensores: GIRAR:201 -> GIRO_ERROR:angulo
+OK     sensores: GIRAR:abc -> GIRO_ERROR:angulo
+OK     sensores: un GIRAR con otro en curso -> GIRO_ERROR:ocupado
+OK     sensores: STOP informa ANT_IGNORADO
+OK     sensores: STOP a mitad de un giro informa tambien ANT
+OK     sensores: la interrupcion no cambia ANT
+OK     sensores: ANT_BORRAR confirma
+OK     sensores: IMU_CERO -> ACK_IMU_CERO
+OK     sensores: IMU_CAL -> ACK_IMU_CAL y despues IMU_CAL_OK:-47
+OK     sensores: FORWARD con algo a 80 mm -> TOF_PARO:80
+OK     sensores (SEG=2): FORWARD con algo a 170 mm no arranca y contesta TOF_PARO:170 de inmediato
+OK     sensores (SEG=2): con algo a 190 mm el FORWARD arranca (sin TOF_PARO)
+OK     sensores (SEG=2): retroceder con algo a 80 mm no se bloquea
+OK     sensores: TOF_USO:0 -> ACK_TOF_USO:0 y CAPS anuncia TUSO=0
+OK     sensores: con TOF_USO:0 el laser ya no frena
+OK     sensores: TOF? informa la distancia (80 mm, medida valida)
+OK     sensores: el watchdog frena y avisa WD:1
+OK     sensores: en perfil MANUAL no se manda SENS
+OK     firmware viejo (sin --sensores): CAPS? no se contesta (el siguiente mensaje es el PONG)
+OK     el watchdog salta tras FORWARD + solo PING (y otra vez tras el FORWARD sin heartbeat de los perfiles)
+OK     sin --sensores (firmware viejo) el watchdog no avisa WD
+OK     se imprime el comando desconocido y se ignora
+OK     MOVE:FWD:50 se trata como desconocido
+OK     con heartbeat de 250 ms el watchdog no salta de nuevo
+OK     cambiar de perfil con el carro en marcha imprime STOP por cambio de perfil (una vez: MODO_AUTO en marcha)
+OK     el perfil cambia a MANUAL y a AUTO
+OK     se imprimen los ms desde el mensaje anterior
+OK     se imprime la desconexion
+
+--- salida del servidor ---
+11:00:07.976  Servidor falso del carro escuchando en 0.0.0.0:8099/ws (Ctrl+C para salir)
+11:00:08.674  CONEXION desde 127.0.0.1:55212
+11:00:08.674        -     PING
+11:00:08.674  +     0 ms  FORWARD
+11:00:09.188  +   515 ms  PING
+11:00:09.690  WATCHDOG: motores detenidos
+11:00:09.990  +   797 ms  DESCONOCIDO (ignorado): 'HOLA'
+11:00:09.990  +     0 ms  DESCONOCIDO (ignorado): 'MOVE:FWD:50'
+11:00:09.990  +     0 ms  STOP
+11:00:10.191  +   203 ms  PING
+11:00:10.192  +     0 ms  MODO_MANUAL
+11:00:10.192               Perfil: MANUAL
+11:00:10.192  +     0 ms  FORWARD
+11:00:10.193  +     0 ms  MODO_MANUAL
+11:00:10.193  +     0 ms  MODO_AUTO
+11:00:10.193               STOP por cambio de perfil
+11:00:10.193               Perfil: AUTO
+11:00:10.193  +     0 ms  MODO_MANUAL
+11:00:10.193               Perfil: MANUAL
+11:00:10.193  +     0 ms  FORWARD
+11:00:11.225  WATCHDOG: motores detenidos
+11:00:11.508  +  1313 ms  STOP
+11:00:11.610  +   109 ms  REVERSE
+11:00:11.874  +   266 ms  REVERSE
+11:00:12.126  +   250 ms  REVERSE
+11:00:12.390  +   265 ms  REVERSE
+11:00:12.641  +   250 ms  REVERSE
+11:00:12.891  +   250 ms  REVERSE
+11:00:13.157  +   266 ms  REVERSE
+11:00:13.157  +     0 ms  STOP
+11:00:13.458  +   297 ms  BAL?
+11:00:13.459  +     0 ms  BAL_AUTO:900
+11:00:13.459               Balance AUTO: 900
+11:00:13.459  +     0 ms  BAL_MANUAL:1000
+11:00:13.459               Balance MANUAL: 1000
+11:00:13.459  +     0 ms  BAL_AUTO:799
+11:00:13.459               Balance no valido (NAK_BAL)
+11:00:13.460  +     0 ms  BAL_AUTO:1001
+11:00:13.460               Balance no valido (NAK_BAL)
+11:00:13.460  +     0 ms  BAL_AUTO:
+11:00:13.460               Balance no valido (NAK_BAL)
+11:00:13.460  +     0 ms  BAL_AUTO:abc
+11:00:13.460               Balance no valido (NAK_BAL)
+11:00:13.461  +     0 ms  BAL_MANUAL:0900
+11:00:13.461               Balance no valido (NAK_BAL)
+11:00:13.461  +     0 ms  BAL_AUTO:-900
+11:00:13.461               Balance no valido (NAK_BAL)
+11:00:13.462  +     0 ms  BAL_AUTO: 900
+11:00:13.462               Balance no valido (NAK_BAL)
+11:00:13.462  +     0 ms  BAL?
+11:00:13.463  DESCONEXION: motores detenidos
+11:00:13.469  CONEXION desde 127.0.0.1:55213
+11:00:13.469        -     BAL?
+11:00:13.469  +     0 ms  BAL_AUTO:986
+11:00:13.469               Balance AUTO: 986
+11:00:13.471  +     0 ms  BAL_MANUAL:988
+11:00:13.471               Balance MANUAL: 988
+11:00:13.471  DESCONEXION: motores detenidos
+11:00:13.476  CONEXION desde 127.0.0.1:55214
+11:00:13.476  Cliente nuevo: se cierra el anterior (el carro solo acepta uno)
+11:00:13.476  DESCONEXION: motores detenidos
+11:00:13.476  CONEXION desde 127.0.0.1:55215
+11:00:13.476        -     PING
+11:00:13.476  DESCONEXION: motores detenidos
+
+
+61 casos, 0 fallos
+=== fin: exit=0 ===

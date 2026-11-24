@@ -1,0 +1,5 @@
+=== python docs/verificar_enlaces.py (2026-11-24 10:58:00) ===
+Analizando 160 archivos Markdown...
+Total de enlaces analizados: 202
+[OK] Todos los enlaces internos entre documentos Markdown son validos.
+=== fin: exit=0 ===
