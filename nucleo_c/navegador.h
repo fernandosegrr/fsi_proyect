@@ -928,7 +928,7 @@ int navegador_poner_fallo_seguro(Navegador *nav, int activo);
  * v5 tambien apagado (navegador_poner_v5(nav, 0)) exactamente v3. navegador_poner_v6 es el interruptor maestro del carro: encendido = v5 completo + todas las banderas
  * v6; apagado = solo apaga las banderas v6 (v5 lo sigue decidiendo navegador_poner_v5). La capa de color (obstaculos.c) no cambia en v6. docs/autonomo_v6_diseno.md */
 #define NAV_V6                      1
-#define NAV_V6_F_GUARDIA_VOLVER     0x01u   /* el rodeo mira con el laser antes de dar el giro de regreso y antes de pasar en paralelo: con la pared pegada pide ayuda en vez de tocarla */
+#define NAV_V6_F_GUARDIA_VOLVER     0x01u   /* el rodeo mira con el laser MIENTRAS da el giro de regreso (desde el primer tick del giro, no antes de ordenarlo) y antes de pasar en paralelo: con la pared pegada pide ayuda en vez de tocarla */
 #define NAV_V6_F_RACHA_ESTRICTA     0x02u   /* las patas delgadas (rachas verticales) piden su evidencia en el CENTRO: la racha en el centro o a los dos lados, y la red en el mismo centro (no en cualquier zona) */
 #define NAV_V6_F_LATERAL_PERSISTENTE 0x04u  /* una masa solida a un lado (ruido de la imagen, una estructura junto a la ruta) tiene que verse NAV_V6_LATERAL_CUADROS cuadros seguidos antes de actuar, solo mientras SIGUE la ruta; la del centro y las demas fases siguen igual */
 #define NAV_V6_F_TODAS              (NAV_V6_F_GUARDIA_VOLVER | NAV_V6_F_RACHA_ESTRICTA | NAV_V6_F_LATERAL_PERSISTENTE)   /* lo que enciende navegador_poner_v6(nav, 1) */

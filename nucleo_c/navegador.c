@@ -3334,6 +3334,11 @@ static void reinc_cambiar_fase(Navegador *nav, int fase, uint32_t ahora_ms)
 /* Empieza la vuelta a la línea: primero queda quieto NAV_PAUSA_ASENTAR_MS (para que la pose estimada incluya el frenado) y después calcula. */
 static void entrar_reincorporando(Navegador *nav, uint32_t ahora_ms)
 {
+    if ((nav->v6_flags & NAV_V6_F_GUARDIA_VOLVER) && nav->esq_en_giro) {
+        /* v6: un giro interrumpido (ayuda a medio giro y «Continuar») no puede quedar abierto al empezar la vuelta: con esq_en_giro = 1 los cuadros del centro se ignoran hasta el
+         * proximo giro y, si la vuelta avanza sin girar antes, el frenado por camara quedaria ciego (el laser seguiria mandando). Con la bandera apagada se conserva v5-fix exacto. */
+        esq_terminar_giro(nav, ahora_ms);
+    }
     nav->estado = NAV_REINCORPORANDO;
     nav->frames_bloqueado = 0;   /* hacen falta cuadros nuevos para volver a detenerse */
     nav->bloqueo_inmediato = 0;
@@ -6448,7 +6453,11 @@ int navegador_texto_error(const Navegador *nav, char *texto, int capacidad)
         n = snprintf(texto, (size_t)capacidad, "ruta sin cerrar: el laser no confirma el frente libre con el carro detenido");
         break;
     case NAV_CAUSA_FRENTE_ANCHO:
-        n = snprintf(texto, (size_t)capacidad, "pared u objeto muy ancho al frente: el láser lo midió al girar y no hay por dónde rodearlo");
+        if (nav->v6_flags & NAV_V6_F_GUARDIA_VOLVER) {   /* v6: esta causa tambien la dispara el frente pegado al terminar de enderezarse (no se pasa en paralelo) */
+            n = snprintf(texto, (size_t)capacidad, "pared u objeto muy ancho o pegado al frente: el láser lo midió (al girar o al enderezarse) y no hay por dónde rodearlo ni pasar en paralelo");
+        } else {
+            n = snprintf(texto, (size_t)capacidad, "pared u objeto muy ancho al frente: el láser lo midió al girar y no hay por dónde rodearlo");
+        }
         break;
     case NAV_CAUSA_SIN_PERCEPCION:
         n = snprintf(texto, (size_t)capacidad, "el detector de objetos dejó de dar resultados: no se puede confirmar el frente por visión");

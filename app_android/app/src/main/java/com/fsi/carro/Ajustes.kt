@@ -2,7 +2,8 @@
  * Ajustes.kt — Las preferencias de la app que NO son del detector (las del detector están en ConfigVision).
  *
  * GUÍA DE LECTURA
- *  1. Todo se guarda en SharedPreferences ("ajustes"): sobrevive al cerrar la app.
+ *  1. Todo se guarda en SharedPreferences ("ajustes"): sobrevive al cerrar la app. UNA EXCEPCIÓN A PROPÓSITO: autonomoV5 y autonomoV6 son SOLO de sesión (viven en la memoria del
+ *     proceso y NO se guardan): cada vez que arranca la app el carro vuelve a comportarse como v3 hasta que alguien encienda algo a mano en esa sesión (arranque seguro de v6).
  *  2. tema: "oscuro" (predeterminado), "claro" o "sistema" (sigue al teléfono). Lo aplica Diseno.aplicarTema().
  *  3. direccionCarro: el WebSocket del carro (la DevKit); la dirección del video está en ConfigVision.urlVideoCarro.
  *  4. perfilManual: cómo va el carro en la pantalla Manual: "rapido" (perfil MANUAL, 255; el predeterminado) o "lento" (perfil AUTO, 210).
@@ -22,6 +23,10 @@ import android.content.SharedPreferences
 class Ajustes(contexto: Context) {
 
     companion object {
+        // Interruptores v5/v6: SOLO de sesión, en memoria del proceso (ver autonomoV5 y autonomoV6). Un proceso nuevo siempre arranca apagado = v3.
+        @Volatile private var v5DeSesion = false
+        @Volatile private var v6DeSesion = false
+
         const val TEMA_OSCURO = "oscuro"
         const val TEMA_CLARO = "claro"
         const val TEMA_SISTEMA = "sistema"
@@ -78,16 +83,17 @@ class Ajustes(contexto: Context) {
         get() = preferencias.getBoolean("autoridad_laser", true)
         set(valor) = preferencias.edit().putBoolean("autoridad_laser", valor).apply()
 
-    /** v5-carbon (referencia): APAGADO por defecto = comportamiento v3. La clave es nueva a propósito: un valor guardado por una versión anterior (que traía v5 encendido) se ignora,
-     *  así que tras instalar esta versión el carro arranca como v3 hasta que alguien encienda algo a mano. */
+    /** v5-carbon (referencia): SOLO de sesión y APAGADO al arrancar la app = comportamiento v3. NO se guarda en el teléfono (tampoco lo que dejó una versión anterior que traía v5
+     *  encendido): cada vez que arranca la app el carro es v3 hasta que alguien encienda algo a mano en esa sesión. */
     var autonomoV5: Boolean
-        get() = preferencias.getBoolean("autonomo_v5_seguro", false)
-        set(valor) = preferencias.edit().putBoolean("autonomo_v5_seguro", valor).apply()
+        get() = v5DeSesion
+        set(valor) { v5DeSesion = valor }
 
-    /** v6 (candidato para la exposición): APAGADO por defecto. Encendido incluye v5 y sus mejoras; se enciende de un toque para comparar A/B contra v3 en campo. */
+    /** v6 (candidato para la exposición): igual, SOLO de sesión y APAGADO al arrancar la app (no se guarda). Encendido incluye v5 y sus mejoras; se enciende de un toque para comparar
+     *  A/B contra v3 en campo, y al cerrar y abrir la app vuelve a v3. */
     var autonomoV6: Boolean
-        get() = preferencias.getBoolean("autonomo_v6", false)
-        set(valor) = preferencias.edit().putBoolean("autonomo_v6", valor).apply()
+        get() = v6DeSesion
+        set(valor) { v6DeSesion = valor }
 
     var vibracion: Boolean
         get() = preferencias.getBoolean("vibracion", true)

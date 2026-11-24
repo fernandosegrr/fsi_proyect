@@ -390,6 +390,60 @@ static void probar_revision(void) {
     navegador_aporte_sens(&nav,100,1,1,0,2000);navegador_tick(&nav,2000,NULL);
     caso("v6 apagado: la guardia del primer giro se queda como en v3 y v5 (esq_en_giro sigue en 1: se conserva para que apagado sea identico)",
          nav.estado==NAV_AYUDA && nav.esq_en_giro==1);
+    /* Una ayuda a medio giro por otra causa (no una guardia): al pulsar Continuar la vuelta a la linea empieza con el giro CERRADO; si no, el frenado por camara quedaba ciego hasta el proximo giro. */
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_AYUDA;nav.esq_en_giro=1;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("v6: Continuar tras una ayuda a medio giro cierra el giro antes de la vuelta a la linea (esq_en_giro = 0)",nav.estado==NAV_REINCORPORANDO && nav.esq_en_giro==0);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
+    nav.estado=NAV_AYUDA;nav.esq_en_giro=0;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("v6: con el giro ya cerrado, Continuar no cambia nada (esq_en_giro sigue en 0 y entra a la vuelta a la linea)",nav.estado==NAV_REINCORPORANDO && nav.esq_en_giro==0);
+    preparar_revision();
+    nav.estado=NAV_AYUDA;nav.esq_en_giro=1;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("v6 apagado: Continuar tras una ayuda a medio giro deja esq_en_giro como en v5-fix (sigue en 1)",nav.estado==NAV_REINCORPORANDO && nav.esq_en_giro==1);
+    preparar_revision();
+    navegador_poner_v6_flags(&nav,NAV_V6_F_RACHA_ESTRICTA|NAV_V6_F_LATERAL_PERSISTENTE);
+    nav.estado=NAV_AYUDA;nav.esq_en_giro=1;
+    navegador_ayuda_continuar(&nav,3000);
+    caso("v6: sin la bandera de la guardia (solo racha y lateral) el giro tampoco se toca: cada bandera apagada es v5-fix",nav.estado==NAV_REINCORPORANDO && nav.esq_en_giro==1);
+    /* Caso del revisor independiente: el laser cae a mitad del giro de regreso (causa 19, ayuda), el usuario deja el carro apuntando como la linea y pulsa Continuar: la vuelta empieza por AVANZAR y
+     * ningun giro nuevo reinicia esq_en_giro. Con el giro abierto el frenado del centro quedaba ciego todo el tramo (54 ticks de FORWARD sin STOP con algo a 20 cm); cerrado frena en unos ticks. */
+    {
+        ResultadoObstaculos obs;
+        uint32_t tt;
+        int k,avanzando=0,primer_stop=-1,en_ayuda;
+        ComandoNav c;
+
+        preparar_revision();
+        navegador_poner_v6(&nav,1);
+        nav.base_x_mm=nav.x_mm=600;nav.base_y_mm=nav.y_mm=1400;nav.base_rumbo_grados=nav.rumbo_grados=0;nav.base_rumbo_x10=nav.rumbo_x10=0;
+        nav.salida_x_mm=1000;nav.salida_y_mm=1800;nav.salida_rumbo=0;nav.salida_linea_rumbo=0;nav.salida_linea_ok=1;
+        nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=-1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_RIGHT;
+        nav.obstaculo_pendiente=1;nav.fin_obstaculo_mm=1500;nav.lateral_objetivo_mm=400;
+        nav.esq_en_giro=1;
+        nav.tof_visto_vivo=1;nav.tof_caido_desde_ms=1;nav.tof_vivo=0;nav.tof_t_ms=1;
+        navegador_tick(&nav,2000,NULL);   /* el laser lleva caido de sobra: ayuda a mitad del giro */
+        en_ayuda=(nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_SIN_LASER);
+        nav.base_x_mm=nav.x_mm=600;nav.base_y_mm=nav.y_mm=1400;nav.base_rumbo_grados=nav.rumbo_grados=0;nav.base_rumbo_x10=nav.rumbo_x10=0;   /* el usuario lo alinea */
+        nav.tof_vivo=1;
+        navegador_ayuda_continuar(&nav,12000);
+        memset(&obs,0,sizeof obs);obs.columnas=24;obs.filas=17;obs.fila_minima_usada=7;
+        tt=12000;
+        for(k=0;k<60;k++){
+            tt+=50;
+            if(nav.cmd_actual==NAV_CMD_FORWARD)avanzando++;
+            navegador_aporte_sens(&nav,(avanzando>0)?200:1500,1,1,0,tt);   /* algo a 20 cm en cuanto empieza a avanzar */
+            c=navegador_tick(&nav,tt,(k%2==0)?&obs:NULL);                 /* un cuadro de camara cada 100 ms */
+            if(primer_stop<0 && avanzando>0 && c==NAV_CMD_STOP)primer_stop=k;
+        }
+        caso("v6 (caso del revisor): el montaje pide ayuda por causa 19 a mitad del giro de regreso",en_ayuda);
+        caso("v6 (caso del revisor): tras Continuar con el carro alineado y algo a 20 cm, el navegador frena en pocos ticks (sin el cierre: 54 ticks de FORWARD y ningun STOP)",
+             primer_stop>=0 && primer_stop<20 && avanzando<20 && nav.esq_en_giro==0);
+    }
     preparar_revision();
     navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
     nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_VOLVER;nav.lado=1;nav.reintentos=0;nav.angulo_giro=90;nav.angulo_total=90;nav.cmd_actual=NAV_CMD_LEFT;
@@ -411,12 +465,23 @@ static void probar_revision(void) {
     nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;
     navegador_aporte_sens(&nav,200,1,1,0,2000);navegador_tick(&nav,2000,NULL);
     caso("v6 apagado: tras enderezarse con el frente a 20 cm avanza en paralelo como antes",nav.estado==NAV_ESQUIVANDO && nav.fase==NAV_FASE_PARALELO);
+    {
+        char frase16[NAV_DIAG_LARGO];
+        nav.estado=NAV_AYUDA;nav.error_causa=NAV_CAUSA_FRENTE_ANCHO;
+        caso("v6 apagado: la causa 16 conserva exactamente la frase de v3 y v5-fix",
+             navegador_texto_error(&nav,frase16,(int)sizeof frase16)>0 && strcmp(frase16,"pared u objeto muy ancho al frente: el láser lo midió al girar y no hay por dónde rodearlo")==0);
+    }
     preparar_revision();
     navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
     nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;
     navegador_aporte_sens(&nav,200,1,1,0,2000);navegador_tick(&nav,2000,NULL);
     caso("v6 guardia del regreso: con el frente a 20 cm NO avanza en paralelo: ayuda (causa 16, frente ancho)",
          nav.estado==NAV_AYUDA && nav.error_causa==NAV_CAUSA_FRENTE_ANCHO && nav.cmd_actual==NAV_CMD_STOP);
+    {
+        char frase16[NAV_DIAG_LARGO];
+        caso("v6: la causa 16 de este paro dice que el frente quedo pegado al enderezarse (la frase de siempre habla solo de girar)",
+             navegador_texto_error(&nav,frase16,(int)sizeof frase16)>0 && strstr(frase16,"enderezarse")!=NULL && strstr(frase16,"pasar en paralelo")!=NULL && strlen(frase16)<NAV_DIAG_LARGO-1);
+    }
     preparar_revision();
     navegador_poner_v6_flags(&nav,NAV_V6_F_GUARDIA_VOLVER);
     nav.estado=NAV_ESQUIVANDO;nav.fase=NAV_FASE_PAUSA_PASAR;nav.lado=1;nav.ms_fase=NAV_PAUSA_ASENTAR_MS;nav.fin_obstaculo_mm=1500;nav.cmd_actual=NAV_CMD_STOP;

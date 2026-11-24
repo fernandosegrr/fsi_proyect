@@ -9,9 +9,9 @@
     <string name="sens_rumbo_firmware">Sostener el rumbo al avanzar (firmware J16)</string>
     <string name="sens_rumbo_detalle">Experimental, NO MEDIDO en el carro. Con un firmware que lo anuncia (RUMBO=1) y el giroscopio funcionando, el carro corrige solo mientras avanza para no curvarse y vuelve poco a poco a la línea de la ruta. Apagado, las rectas son como antes. Con un firmware anterior no hace nada.</string>
     <string name="sens_autonomo_v5">Autónomo v5-carbon (referencia)</string>
-    <string name="sens_autonomo_v5_detalle">Mejoras v5 (masa sólida sin eco, patas delgadas, pasillo adaptado y detección de atasco). APAGADO por defecto: apagado el carro se comporta como v3. NO MEDIDO en el carro; en la simulación con ruido realista frena y esquiva de más en piso limpio.</string>
+    <string name="sens_autonomo_v5_detalle">Mejoras v5 (masa sólida sin eco, patas delgadas, pasillo adaptado y detección de atasco). APAGADO al abrir la app (no se guarda): apagado el carro se comporta como v3. NO MEDIDO en el carro; en la simulación con ruido realista frena y esquiva de más en piso limpio.</string>
     <string name="sens_autonomo_v6">Autónomo v6 (candidato)</string>
-    <string name="sens_autonomo_v6_detalle">Incluye v5 más tres ajustes: guardia del giro de regreso con el láser, racha de color más estricta y masa lateral que debe persistir 6 cuadros. APAGADO por defecto: con v5 y v6 apagados el carro es v3. Se enciende de un toque para la comparación A/B en campo; la caja negra anota v5= y v6= de cada corrida. SIMULADO, NO MEDIDO en el carro.</string>
+    <string name="sens_autonomo_v6_detalle">Incluye v5 más tres ajustes: guardia del giro de regreso con el láser, racha de color más estricta y masa lateral que debe persistir 6 cuadros. APAGADO al abrir la app (no se guarda): con v5 y v6 apagados el carro es v3. Se enciende de un toque para la comparación A/B en campo; la caja negra anota v5= y v6= de cada corrida. SIMULADO, NO MEDIDO en el carro.</string>
     <string name="sens_titulo">Sensores (giroscopio y láser)</string>
     <string name="sens_titulo_corto">Sensores</string>
     <string name="sens_en_lista_detalle">Giroscopio y sensor de distancia del carro: interruptores, estado y prueba de giro.</string>

@@ -4,7 +4,7 @@
 
 **SIMULADO / NO MEDIDO en el carro.** El carro real no se movió, no se instaló la APK ni se grabó firmware (solo se compilaron la app y los dos firmwares). `main` (`bd1727b`), `feat/autonomo-v3` (`e37f77b`) y las etiquetas anteriores no se tocaron. Diseño, diagnóstico y resultados por compuerta: [autonomo_v6_diseno.md](autonomo_v6_diseno.md); bitácora: [progreso_v6.md](progreso_v6.md); prueba en el carro: [protocolo_prueba_fisica_v6.md](protocolo_prueba_fisica_v6.md).
 
-**Corrección a la sección de v5 (más abajo).** Su `G1: CUMPLE` salió de un banco cuya visión en piso limpio era casi muda; con el simulador calibrado contra las 7 cajas negras reales del 15-nov (ruido 1), `v5-fix` es **peor que `v3` en piso limpio** (`DESARROLLO`, 960 corridas: 768 ok / 130 `AYUDA` / 596 esquives contra 798 / 101 / 440). Por eso la app arranca ahora con v5 y v6 **apagados** (= comportamiento de `v3`); el interruptor de v6 (**Más → Sensores**, incluye v5) es solo para la comparación A/B del protocolo, y la caja negra anota `v5=`, `v6=` y `version=` de cada corrida.
+**Corrección a la sección de v5 (más abajo).** Su `G1: CUMPLE` salió de un banco cuya visión en piso limpio era casi muda; con el simulador calibrado contra las 7 cajas negras reales del 15-nov (ruido 1), `v5-fix` es **peor que `v3` en piso limpio** (`DESARROLLO`, 960 corridas: 768 ok / 130 `AYUDA` / 596 esquives contra 798 / 101 / 440). Por eso la app arranca ahora con v5 y v6 **apagados** (= comportamiento de `v3`), **en cada arranque: los interruptores ya no se guardan**; el interruptor de v6 (**Más → Sensores**, incluye v5) es solo para la comparación A/B del protocolo, y la caja negra anota `v5=`, `v6=` y `version=` de cada corrida.
 
 **Qué agrega v6 (tres banderas del navegador, todas apagadas por defecto; con todas apagadas es `v5-fix` exacto y con v5 apagado es `v3` exacto: 32 de 32 comparaciones idénticas en el banco):**
 
@@ -23,8 +23,10 @@
 
 **Avisos para quien maneje el carro:**
 
-- **No pulsar «Continuar» tras una `AYUDA` con `Causa 18` en `v3` ni en `v5`:** al detener el giro por la guardia, la bandera de giro queda levantada y los cuadros del centro se ignoran hasta el siguiente giro; solo queda el freno del láser del firmware. Hallazgo de la revisión independiente, defecto **heredado de `v3`**: `v6` lo cierra en las dos guardias (con la bandera encendida), no en cualquier otro camino.
-- La guardia del paso en paralelo reutiliza la `Causa 16`, cuya frase no describe exactamente esa situación.
+- **No pulsar «Continuar» tras una `AYUDA` por un giro (`Causa 16`, `17`, `18` o `19`) sin mover antes el carro:** en `v3` y `v5`, tras detener un giro la bandera de giro queda levantada y los cuadros del centro se ignoran hasta el siguiente giro; solo queda el freno del láser del firmware (defecto **heredado de `v3`**, hallado por la revisión independiente). `v6` lo cierra al detener el giro con la guardia y al empezar la vuelta a la línea (con la bandera encendida; SIMULADO). Aun así la ayuda es una **pausa**: continuar sin mover el carro con la pose estimada desviada puede acabar en choque (medido en el banco por el revisor con pasillos y láser pesimista; no corregido: pediría una guardia nueva en `REINCORPORANDO`).
+- **Con v6 hay más contactos que con `v5-fix`** (ruido 1, láser normal, todos los escenarios: `DESARROLLO` 91 contra 75, `RESERVADO` 143 contra 112; `v3` 208 y 271): `RACHA_ESTRICTA` y `LATERAL_PERSISTENTE` quitan o retrasan paradas que `v5-fix` sí hacía ([autonomo_v6_diseno.md](autonomo_v6_diseno.md), §4.4). Solo `GUARDIA_VOLVER` únicamente agrega paradas.
+- `navegador_poner_v6_flags` (solo estudio y pruebas) con v5 apagado deja `GUARDIA_VOLVER` activa y ya no es `v3` exacto; la app no lo llama.
+- La guardia del paso en paralelo usa la `Causa 16`; con v6 encendido su frase dice «al girar o al enderezarse» (apagado, la de siempre).
 - La ventana de «láser fresco» de la guardia es de 400 ms: tras una pérdida breve de lectura puede dar un freno de más (falla segura).
 - La vista previa de rutas de la app (`sim_ruta.c`) usa los valores por defecto del núcleo y **no sigue los interruptores** (no mueve motores).
 

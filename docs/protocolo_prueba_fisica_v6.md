@@ -15,7 +15,7 @@ El protocolo empieza con mediciones quietas de riesgo cero y sube por bloques: *
    - gira más de una vuelta continua sobre sí mismo;
    - en la prueba estática frontal `P0` el freno por láser no detiene antes de tocar;
    - la app se cierra dos veces seguidas.
-3. **Si la app pide ayuda con `Causa 18` (giro bloqueado), no pulses «Continuar»: toma el control manual.** Es un defecto que ya tenían `v3` y `v5` (la revisión independiente de v6 lo encontró): tras esa ayuda, al continuar, el frenado del centro por cámara queda ciego hasta el siguiente giro y solo quedaría el freno del láser del firmware. `v6` lo corrige (SIMULADO, prueba unitaria), pero no lo des por hecho en el carro.
+3. **Si la app pide ayuda con `Causa 16` (frente ancho o pegado), `17`, `18` (giro bloqueado) o `19` (láser caído), no pulses «Continuar» sin antes tomar el control manual y acomodar el carro tú** (apuntando como la línea y lejos de la pared o del objeto). Hay dos razones, las dos de la revisión independiente de v6: (a) la ayuda es una **pausa**: la posición y el rumbo que el carro cree tener ya no son los reales, y continuar sin moverlo puede acabar en choque (en el banco, con pasillos y láser pesimista, el replan desde una pose desviada tocó la pared unos 5 s después); (b) en `v3` y `v5`, tras una ayuda a mitad de giro «Continuar» deja el frenado del centro por cámara ciego hasta el siguiente giro y solo queda el freno del láser del firmware; `v6` lo cierra al empezar la vuelta a la línea (SIMULADO: pruebas unitarias y el caso del revisor), pero no lo des por hecho en el carro. **En las corridas A/B una `AYUDA` es un resultado:** anótala con su causa y repite la corrida desde la posición marcada, en lugar de rescatarla con «Continuar».
 4. **Protección eléctrica y de software:** tres fuentes separadas (USB #1 para la ESP32 del carro, 4×AA solo al `VDD` del `TC1508A` con tierra común, USB #2 para la cámara). No desinstalar la app ni borrar datos del teléfono; no usar `erase_flash`; una sola placa por USB a la vez. **No guardes imágenes reales de la cámara.**
 5. **Privacidad:** las cajas negras y los CSV de estas pruebas se quedan en tu equipo; no se publican en el repositorio.
 
@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compilar_app.ps1
 
 - **Si `adb install -r` falla por la firma (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`): DETENTE.** No desinstales la aplicación: se perderían rutas guardadas, calibración y configuración. Compila con la misma llave de depuración que la APK ya instalada.
 - Tras instalar, abre **Más → Sensores** y comprueba:
-  - Los interruptores **«Autónomo v5-carbon (referencia)»** y **«Autónomo v6 (candidato)»** aparecen **APAGADOS**. Con los dos apagados el carro se comporta como `v3`. (La clave guardada de v5 cambió a propósito: un «encendido» de una versión anterior se ignora. Si alguno aparece encendido, apágalo.)
+  - Los interruptores **«Autónomo v5-carbon (referencia)»** y **«Autónomo v6 (candidato)»** aparecen **APAGADOS**. Con los dos apagados el carro se comporta como `v3`. **Los interruptores ya no se guardan:** cada vez que la app se abre (también tras un cierre, un reinicio de la app o del teléfono) arrancan APAGADOS, así que **v6 se enciende en cada sesión** y se comprueba `version=v6` en la caja negra. (Cambio de la segunda revisión independiente: antes se guardaban y un carro dejado con v6 encendido arrancaba con v6.) Si alguno aparece encendido, apágalo.
   - La calibración previa sigue ahí; **Autoridad del láser** y **Sostener el rumbo** como los tenías.
 - **Firmware: no cambia.** v6 no toca el firmware (`TOF_PARO`, watchdog de 1000 ms y STOP/EBRAKE quedan igual) y es compatible con el firmware que ya tiene el carro. Lo que haya en el carro, se queda.
 
@@ -52,7 +52,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compilar_app.ps1
 |---|---|---|
 | Con los dos interruptores apagados el navegador es `v3` exacto (`AV5_APAGADO=1` ≡ `e37f77b`, línea por línea, 16 matrices = 32 comparaciones idénticas) | `SIMULADO` | [progreso_v6.md](progreso_v6.md) |
 | Con v6 apagado y v5 encendido es `v5-carbon-fix` exacto | `SIMULADO` | [progreso_v6.md](progreso_v6.md) |
-| La app arranca con v5 y v6 apagados y la caja negra anota `version=` | `SIMULADO` (compilado, pruebas del núcleo) y `PENDIENTE` en el teléfono | este protocolo, §1.1 y §3 |
+| La app arranca con v5 y v6 apagados **en cada arranque** (los interruptores no se guardan) y la caja negra anota `version=` | `SIMULADO` (compilado, pruebas del núcleo) y `PENDIENTE` en el teléfono | este protocolo, §1.1 y §3 |
+| Con v6 encendido, tras una `AYUDA` a mitad de giro «Continuar» ya no deja el frenado del centro ciego | `SIMULADO` (pruebas unitarias y el caso del revisor) | [progreso_v6.md](progreso_v6.md) |
+| Con v6 encendido hay **más contactos que con `v5-fix`** en el banco (91 contra 75 y 143 contra 112), pero menos de la mitad que con `v3` | `SIMULADO` | [autonomo_v6_diseno.md](autonomo_v6_diseno.md), §4.4 |
 | v6 reduce contactos con muebles de patas finas y con objetos oscuros sin eco frente a `v3` | `SIMULADO` | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
 | v6 evita el contacto extra de `pared_al_frente` con láser pesimista | `SIMULADO` | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
 | v6 no frena ni esquiva de más que `v3` en piso limpio con ruido realista | **NO CUMPLE en la simulación** (esquives por encima de `v3`); es la pregunta principal de esta prueba | [autonomo_v6_diseno.md](autonomo_v6_diseno.md) |
@@ -69,7 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compilar_app.ps1
 | **B = v6** | «Autónomo v5-carbon (referencia)» **APAGADO** y «Autónomo v6 (candidato)» **ENCENDIDO** (v6 ya incluye v5) | `v5=1 v6=1 version=v6` |
 
 - No uses el interruptor de v5 en las pruebas: **solo `v3` contra `v6`**. Si por error queda encendido solo v5, la caja negra dirá `version=v5`: descarta la corrida y repítela.
-- El cambio entre A y B es **un solo toque** en el interruptor de v6, con el carro quieto y fuera de una ruta en marcha. El interruptor se aplica al cargar la ruta siguiente.
+- El cambio entre A y B es **un solo toque** en el interruptor de v6, con el carro quieto y fuera de una ruta en marcha. El interruptor se aplica al cargar la ruta siguiente. **Si la app se cierra o se reinicia, v6 vuelve a APAGADO** (y sin querer la siguiente corrida sería `v3`): enciéndelo otra vez y confirma `version=v6` en la caja negra.
 - **Comprueba la versión de cada corrida** en la cabecera de la caja negra al terminar (`firmware=... v5=... v6=... version=...`) o, si tienes `adb logcat` conectado, en la línea `SENS_DIAG ruta: ... version=...` que sale al cargar la ruta. Anota en el CSV la versión que dice la caja negra, no la que creías haber puesto. **Si no es la que querías, descarta esa corrida y repítela** (no hace falta abortar la sesión si no hubo riesgo).
 - Con v6 encendido el carro **no** cambia nada más de su lógica: misma ruta, mismo piso, mismo láser, mismo watchdog.
 
@@ -124,7 +126,7 @@ Si `AB1` o `AB2` ya muestran un falso positivo de v6 que `v3` no tuvo en el mism
 
 - **v6 solo es candidato para la exposición si, en el carro:** en `P1` tiene 0 esquives, 0 `AYUDA` y no más paradas que `v3` en cada par; en `P2` y `P4.1` no toca nada; y en `P3.1`, `P4.2` mejora frente a `v3` sin empeorar la seguridad.
 - **Un solo falso positivo de v6 en `P1` que `v3` no tuvo en el par basta para quedarse con `v3`.** Con 3 repeticiones no se puede demostrar paridad estadística; sí se puede detectar que v6 molesta.
-- **Si no se corre este protocolo, el carro se queda como `v3`:** es el arranque por defecto de la app (v5 y v6 apagados).
+- **Si no se corre este protocolo, el carro se queda como `v3`:** es el arranque por defecto de la app (v5 y v6 apagados) y se repite en cada arranque, no solo tras instalar. **Antes de la exposición:** abre la app sin tocar los interruptores y comprueba `version=v3` en la caja negra de una corrida corta.
 - **Revertir en el momento:** apaga el interruptor de v6 en **Más → Sensores**; la corrida siguiente es `v3` exacto.
 - Con 3 repeticiones y un piso, esto es una prueba de humo, no una validación: lo que salga se anota como `MEDIDO EN EL CARRO (n=3, un piso)`.
 
