@@ -2008,16 +2008,13 @@ void navegador_iniciar(Navegador *nav)
     nav->v5_coincidencia_estable = 1;
     nav->v5_masa_sin_eco = 1;
     nav->v5_patas_delgadas = 1;
-    nav->v5_pasillo_pared = 0;
+    nav->v5_pasillo_pared = 1;
     nav->v5_fallo_seguro = 0;
     memset(nav->v5_coinc_hasta_ms, 0, sizeof nav->v5_coinc_hasta_ms);
     memset(nav->v5_coinc_cercania, 0, sizeof nav->v5_coinc_cercania);
     memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
     memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
     memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
-    memset(nav->v5_racha_seguidas, 0, sizeof nav->v5_racha_seguidas);
-    memset(nav->v5_solido_seguidas, 0, sizeof nav->v5_solido_seguidas);
-    memset(nav->v5_solido_hasta_ms, 0, sizeof nav->v5_solido_hasta_ms);
     nav->giro_fw_fallos = 0;
     nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = nav->ancho_rodeo_mm = 0;
     nav->lados_probados = nav->cambio_lado = 0;
@@ -3825,7 +3822,11 @@ static int reinc_ya_paso_el_final(const Navegador *nav)
     if (lado < 0) {
         lado = -lado;
     }
-    return a_lo_largo >= NAV_REINC_PASADO_MM && a_lo_largo <= NAV_REINC_PASADO_MAX_MM && lado <= NAV_REINC_PASADO_LADO_MM;
+    {
+        int min_pasado = (nav->v5_activo && nav->v5_patas_delgadas && nav->obstaculo_pendiente) ? (NAV_SENSOR_FRENTE_MM + 40) : NAV_REINC_PASADO_MM;
+
+        return a_lo_largo >= min_pasado && a_lo_largo <= NAV_REINC_PASADO_MAX_MM && lado <= NAV_REINC_PASADO_LADO_MM;
+    }
 }
 
 /* Siguiente fase de MOVIMIENTO después de `actual` (NAV_RF_PLAN, GIRO1, AVANZAR o GIRO2); -1 si ya no queda ninguna (las que no hacen falta se saltan). */
@@ -3904,7 +3905,8 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
         nav->esquivadas_obstaculo = 0;   /* V2: este obstáculo quedó atrás y verificado: el siguiente tiene su propio presupuesto */
         /* (revisión) Aquí se daban por libres 30 cm «justo detrás» al entrar a la línea, sin que el chasis los hubiera pisado: si la cuenta del paso salía corta, una
          * reversa podía dar contra lo que se acababa de rodear. Se quitó: atras_conocido_mm solo cuenta lo avanzado en recta (en el banco no cambió ningún resultado). */
-        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM >= nav->ruta_largo_original_mm) {
+        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM >= nav->ruta_largo_original_mm &&
+            (!nav->v5_activo || !nav->v5_patas_delgadas || s >= nav->fin_obstaculo_mm)) {
             /* El rodeo obligó a prolongar la última recta y el carro ya entró a la línea más allá del destino dibujado: la ruta termina aquí. */
             diag_escribir(nav, "REINC_DIAG fin tras_el_destino s=%ld destino=%ld: el rodeo termino mas alla del final dibujado", s, nav->ruta_largo_original_mm);
             nav->desde_ayuda = 0;
@@ -3912,7 +3914,7 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
             nav->estado = NAV_TERMINADO;
             return NAV_CMD_STOP;
         }
-        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0) {
+        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM < nav->ruta_largo_original_mm) {
             /* V2: la última recta se había prolongado por si el rodeo terminaba más allá del destino, pero el carro volvió a la línea ANTES del destino dibujado:
              * la prolongación se quita y la ruta termina donde el usuario la dibujó (antes seguía hasta el final prolongado, hasta 60 cm de más). */
             int de_mas = nav->extension_ruta_mm / MM_POR_CELDA;
@@ -4272,6 +4274,13 @@ static int elegir_lado(const Navegador *nav)
     int derecha_libre = !nav->zona_hay[ZONA_DERECHA];
 
     if (izquierda_libre && derecha_libre) {
+        if (nav->v5_activo && nav->v5_pasillo_pared && nav->usa_tof && !nav->sin_margen_paso_j16 &&
+            nav->vistazo_confirmado == 0) {
+            int costo_izq = nav->borde_lejos[0] * 4 + nav->zona_celdas[ZONA_IZQUIERDA];
+            int costo_der = nav->borde_lejos[1] * 4 + nav->zona_celdas[ZONA_DERECHA];
+
+            return (costo_der < costo_izq) ? 1 : -1;
+        }
         return (nav->zona_celdas[ZONA_DERECHA] < nav->zona_celdas[ZONA_IZQUIERDA]) ? 1 : -1;
     }
     if (izquierda_libre) {
@@ -4625,6 +4634,21 @@ static ComandoNav tick_mirar(Navegador *nav, uint32_t ahora_ms)
         if (nav->scan_pared_mm > 0 && nav->scan_pared_mm - NAV_ESCANEO_PARED_HOLGURA_MM < tope) {
             tope = nav->scan_pared_mm - NAV_ESCANEO_PARED_HOLGURA_MM;
         }
+        if (nav->v5_activo && nav->v5_pasillo_pared && lateral > tope && !nav->scan_corte && nav->scan_pared_mm > 0 &&
+            nav->tof_dist_mm > 0 &&
+            (nav->scan_ext_mm > 0 || (nav->scan_n >= 3 && nav->scan_grados[0] <= 32 && !nav->scan_eco[0]))) {
+            int ancho_est = (ancho > 0) ? ancho : 130;
+            int min_lat = ancho_est + 185;
+
+            if (min_lat < 320) {
+                min_lat = 320;
+            }
+            if (tope >= min_lat) {
+                lateral = tope;
+                diag_escribir(nav, "ESQUIVE_DIAG pasillo_adaptado lado=%d lateral_mm=%d ancho_mm=%d pared_mm=%d",
+                              otro ? -nav->lado : nav->lado, lateral, ancho_est, nav->scan_pared_mm);
+            }
+        }
         diag_escribir(nav, "ESQUIVE_DIAG escaneo lado=%d lecturas=%d con_eco=%d ancho_mm=%d sin_final=%d pared_lateral_mm=%d lateral_mm=%d tope_mm=%d", otro ? -nav->lado : nav->lado,
                       nav->scan_n, nav->scan_muestras, nav->scan_ext_mm, nav->scan_corte, nav->scan_pared_mm, lateral, tope);
         if (otro) {
@@ -4781,9 +4805,10 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             ubicar_en_linea(nav, nav->x_mm, nav->y_mm, &tramo_v2, &s_v2, &desvio_v2);
             nav->flanco_s_mm = s_v2;
             if (nav->v5_activo && nav->v5_patas_delgadas && !nav->sin_margen_paso_j16 &&
-                nav->scan_muestras <= 2 && !nav->rodeo_por_vistazo && pista < 520 &&
-                s_v2 + 520 <= nav->ruta_largo_original_mm + NAV_EXTENSION_RUTA_MM - 500) {
-                pista = 520;
+                nav->scan_muestras <= 2 &&
+                ((!nav->rodeo_por_vistazo && pista < 520) || (nav->v5_pasillo_pared && pista < 560)) &&
+                s_v2 + (nav->v5_pasillo_pared ? 560 : 520) <= nav->ruta_largo_original_mm + NAV_EXTENSION_RUTA_MM - 500) {
+                pista = nav->v5_pasillo_pared ? 560 : 520;
             }
             if (nav->paralelo_mm < pista && tramo_paralelo_al_carro(nav, tramo_v2)) {
                 int ultima;
@@ -4853,13 +4878,32 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
                                (long)(nav->y_mm - nav->salida_y_mm) * dir_y_mil(nav->salida_linea_rumbo)) / 1000;
 
                 nav->deshacer_giro = 0;
-                if (avance > 0) {
+                if (avance > 0 && (!nav->v5_activo || !nav->v5_pasillo_pared || nav->tof_dist_mm > 0)) {
                     nav->tof_dist_mm -= (int)avance;   /* la cara quedó más cerca: lo que el centro avanzó con los dos giros */
                     if (nav->tof_dist_mm < 1) {
                         nav->tof_dist_mm = 1;
                     }
                 }
                 if (!arco_cabe(nav, nav->lado, &adelante_mm, &libre_mm)) {
+                    int atras_disp = nav->atras_al_salir_mm + (int)(avance > 0 ? avance : 0);
+
+                    if (nav->v5_activo && nav->v5_pasillo_pared && nav->tof_dist_mm > 0 &&
+                        atras_disp >= NAV_RETROCESO_CM * 10 + 50) {
+                        nav->tof_dist_mm += NAV_RETROCESO_CM * 10;
+                        nav->giro_extra_grados = 0;
+                        nav->angulo_total = 0;
+                        nav->angulo_giro = NAV_ANGULO_ESQUIVAR;
+                        nav->scan_ext_mm = nav->scan_pared_mm = nav->scan_muestras = nav->scan_corte = nav->scan_n = 0;
+                        nav->scan_signo = 1;
+                        nav->salida_x_mm = nav->x_mm;
+                        nav->salida_y_mm = nav->y_mm;
+                        nav->salida_rumbo = nav->rumbo_grados;
+                        nav->otro_lado_libre = 0;
+                        nav->atras_al_salir_mm = 0;
+                        diag_escribir(nav, "ESQUIVE_DIAG otro_lado lado=%d laser_mm=%d: retrocede antes de girar", nav->lado, nav->tof_dist_mm);
+                        nav->fase = NAV_FASE_PAUSA_RETROCEDER;
+                        return NAV_CMD_STOP;
+                    }
                     diag_escribir(nav, "ESQUIVE_DIAG otro_lado lado=%d giro_adelante_mm=%d libre_mm=%d cabe=0: se pide ayuda", nav->lado, adelante_mm, libre_mm);
                     ir_a_error_causa(nav, NAV_MOTIVO_LADOS_BLOQUEADOS, NAV_CAUSA_GIRO_BLOQUEADO);
                     return NAV_CMD_STOP;
@@ -4890,6 +4934,11 @@ static ComandoNav tick_esquivando(Navegador *nav, uint32_t ahora_ms)
             nav->t_mirar_ms = ahora_ms;
             return NAV_CMD_STOP;
         case NAV_FASE_RETROCEDER:   /* terminó de retroceder: quieto un momento y gira más */
+            if (nav->v5_activo && nav->v5_pasillo_pared && nav->reintentos == 0) {
+                nav->salida_x_mm = nav->x_mm;
+                nav->salida_y_mm = nav->y_mm;
+                nav->salida_rumbo = nav->rumbo_grados;
+            }
             nav->fase = NAV_FASE_ASENTAR;
             return NAV_CMD_STOP;
         case NAV_FASE_AVANZAR:      /* terminó de avanzar de lado: quieto un momento y luego se endereza (sin la pausa el giro variaba 30 a 60 grados) */
@@ -5462,7 +5511,7 @@ int navegador_poner_v5(Navegador *nav, int activo)
     nav->v5_coincidencia_estable = on;
     nav->v5_masa_sin_eco = on;
     nav->v5_patas_delgadas = on;
-    nav->v5_pasillo_pared = 0;
+    nav->v5_pasillo_pared = on;
     nav->v5_fallo_seguro = 0;
     return NAV_OK;
 }
@@ -5485,6 +5534,13 @@ int navegador_poner_patas_delgadas(Navegador *nav, int activo)
 {
     if (nav == NULL) return NAV_ERR_ARGUMENTO;
     nav->v5_patas_delgadas = activo ? 1 : 0;
+    return NAV_OK;
+}
+
+int navegador_poner_pasillo_pared(Navegador *nav, int activo)
+{
+    if (nav == NULL) return NAV_ERR_ARGUMENTO;
+    nav->v5_pasillo_pared = activo ? 1 : 0;
     return NAV_OK;
 }
 

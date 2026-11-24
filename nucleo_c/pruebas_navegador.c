@@ -2221,6 +2221,41 @@ static void pruebas_v5_etapa1_etapa2(void)
     }
     caso("v5 patas_delgadas detiene con racha vertical + detector neuronal sin eco ToF",
          nav.estado == NAV_DETENIDO_OBSTACULO && cmd == NAV_CMD_STOP);
+
+    navegador_iniciar(&nav);
+    caso("v5 pasillo_pared activo por defecto y controlable",
+         nav.v5_pasillo_pared == 1 && navegador_poner_pasillo_pared(&nav, 0) == NAV_OK &&
+         nav.v5_pasillo_pared == 0 && navegador_poner_pasillo_pared(&nav, 1) == NAV_OK &&
+         nav.v5_pasillo_pared == 1);
+
+    memset(&obs, 0, sizeof obs);
+    obs.columnas = 24;
+    obs.filas = 17;
+    obs.fila_minima_usada = 7;
+    navegador_iniciar(&nav);
+    navegador_poner_requiere_camara(&nav, 1);
+    navegador_poner_sensor_distancia(&nav, 1);
+    navegador_cargar_ruta(&nav, RECTA_10, N(RECTA_10));
+    navegador_comenzar(&nav, 0);
+    for (t = 0; t <= 1200; t += 50) {
+        navegador_aporte_sens(&nav, 1200, 1, 1, 0, t);
+        navegador_tick(&nav, t, &obs);
+    }
+    /* Pared lejana solo en borde superior izquierdo (3 celdas = costo 12); ambos costados en 0 hay. */
+    obs.no_piso[7][0] = 1;
+    obs.no_piso[7][1] = 1;
+    obs.no_piso[8][0] = 1;
+    obs.zona[ZONA_CENTRO].hay_obstaculo = 1;
+    obs.zona[ZONA_CENTRO].cercania = 3;
+    obs.zona[ZONA_CENTRO].celdas = 25;
+    obs.fuentes_vision[ZONA_CENTRO] = 3;
+    for (; t <= 4500; t += 50) {
+        navegador_aporte_sens(&nav, 300, 1, 1, 0, t);
+        navegador_tick(&nav, t, &obs);
+        if (nav.estado == NAV_ESQUIVANDO) break;
+    }
+    caso("v5 pasillo_pared elige lado contrario a pared lejana en borde_lejos",
+         nav.estado == NAV_ESQUIVANDO && nav.lado == 1);
 }
 
 int main(void)

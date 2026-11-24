@@ -910,6 +910,7 @@ int navegador_poner_v5(Navegador *nav, int activo);
 int navegador_poner_coincidencia_estable(Navegador *nav, int activo);
 int navegador_poner_masa_sin_eco(Navegador *nav, int activo);
 int navegador_poner_patas_delgadas(Navegador *nav, int activo);
+int navegador_poner_pasillo_pared(Navegador *nav, int activo);
 int  navegador_tomar_giro_fw(Navegador *nav, int *grados_izq_positivo);
 int  navegador_giro_fw_en_curso(const Navegador *nav);
 void navegador_aporte_giro(Navegador *nav, int codigo, int real_x10_fw, int ms, int ant, uint32_t ahora_ms);

@@ -53,4 +53,16 @@ Rama base: `feat/autonomo-v3` (`e37f77b`). Identidad de commits: `fernandosegrr 
   - `make -C nucleo_c test`: 0 fallos en toda la suite.
   - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
   - `docs/precision/v5/etapa3.txt`: **G1 `CUMPLE`**, **G3 `CUMPLE`**, **G7 `CUMPLE`**, **G6 `terminado_falso = 0` en `DESARROLLO`** (`1` residual en `RESERVADO` `silla_patas`). `bloque_sin_eco` bajo a **7/40** contactos en `DESARROLLO` y **9/40** en `RESERVADO` (`v3`: 40); `banquito35x45` pesimista bajo de **25 a 6** contactos (`DESARROLLO`) y **11 a 1** (`RESERVADO`, `bm`: 21->9); `dos_muebles` pesimista bajo de **13 a 5** (`bm`: 20->7); `mueble_con_pared` pesimista bajo de **21 a 1** contacto.
-- **Siguiente**: Etapa 4 (`v5_pasillo_pared` para causas 16/18 en `pasillo`, `pasillo_angosto`, `caja_y_pared_al_lado` y muebles con pared).
+
+### Etapa 4: `v5_pasillo_pared` — eleccion de costado y pasillo adaptado (SIMULADO)
+- **Que se hizo**:
+  - `navegador.h/.c`: declarada y activada por defecto `v5_pasillo_pared = 1` con `navegador_poner_pasillo_pared()`, controlada tambien desde `navegador_poner_v5()`.
+  - En `elegir_lado`, cuando ambos costados estan libres y no viene de `vistazo_confirmado`, se suma un costo simetrico de borde lejano (`borde_lejos * 4 + zona_celdas`) para evitar girar hacia paredes lejanas antes de acercarse. Se descarto un sesgo fijo a la izquierda y se descarto activar `deshacer_giro` agresivo en pasillos tras verificar en `DESARROLLO` y `RESERVADO` que aumentaban los contactos (confirmando la advertencia previa de `NAV_DESHACER_GIRO_MAX` en `navegador.h`).
+  - En `tick_mirar`, ajuste lateral adaptativo `pasillo_adaptado` (`lateral = tope`) cuando la lectura ToF inicial midio pared lateral sin corte (`!scan_corte && scan_pared_mm > 0 && tof_dist_mm > 0`) y `tope >= max(320, ancho_est + 185)`, conservando holgura segura para el giro de retorno sin abortar con `NAV_CAUSA_FRENTE_ANCHO`.
+  - Correccion puntual en `deshacer_giro` (`tof_dist_mm > 0` antes de restar avance) y reversa previa recta si `!arco_cabe` tras deshacer giro con camino pisado detras; margen de cola en `PAUSA_PASAR` hasta `560` mm y `min_pasado = 160` mm en `reinc_ya_paso_el_final`.
+  - Prueba unitaria nueva en `pruebas_navegador.c` verificando el desempate por `borde_lejos` y el control por bandera.
+- **Resultados verificados (SIMULADO, 40 corridas)**:
+  - `make -C nucleo_c test`: 0 fallos en todas las suites (`275/0` en `pruebas_esquive_confirmado`, `206/0` en `pruebas_navegador`, `46/0` en `J16`).
+  - `python scripts/compuertas_v5.py --corridas 40 --apagado`: igualdad exacta `SI`.
+  - `docs/precision/v5/etapa4.txt`: **G1 `CUMPLE`**, **G3 `CUMPLE`**, **G7 `CUMPLE`**, **G6 `terminado_falso = 0` en `DESARROLLO`** (`1` residual en `RESERVADO` `silla_patas`). Mejoras en pasillos con **0 contactos**: `pasillo` normal pasa de `22` a `29/40 ok` en `DESARROLLO` (AYUDA `18 -> 11`) y de `36` a `40/40 ok` en `RESERVADO` (`ayuda 4 -> 0`); `pasillo` pesimista pasa de `26` a `32/40 ok` en `DESARROLLO` (`ayuda 14 -> 8`) y `37` a `39/40 ok` en `RESERVADO`; `pasillo_angosto` sube a `37/40 ok` (`ayuda 5 -> 3`); `caja_y_pared_al_lado` mantiene `0` contactos en las 4 matrices (mejorando a `0` vs `1` en `DESARROLLO` normal y bajando `ayuda` en `RESERVADO` de `16->14` y `13->12`).
+- **Siguiente**: Etapa 5 (`v5_fallo_seguro` en `nucleo_c`, mejoras seguras de ToF/I2C `SEG=4` en `firmware_carro`, JNI/toggle UI en `app_android`, compilacion firmware + APK, `scripts/evaluacion_ciega.ps1` probado con semilla 1 y auditoria).
