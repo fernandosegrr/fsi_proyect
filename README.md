@@ -21,7 +21,7 @@
 - Azul Abril Cadena Campos
 
 **Accesos rápidos del repositorio:**
-- **Manual técnico completo en PDF (v1.2, 134 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el archivo `Manual_Proyecto_Carro_FSI_v1.1.pdf` de la raíz es el manual de la v1.1, solo de referencia)
+- **Manual técnico completo en PDF (v1.2, 134 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
 - **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
 - **Artefactos de la v1.1 en `dist/` (la v1.2 no publica binarios nuevos):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
