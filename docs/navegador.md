@@ -1,6 +1,6 @@
 # Navegador del modo semiautónomo
 
-**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
+**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. Esta nota es histórica: la v1.2 (base v3) la incluye y sigue pendiente de validar en el carro. **Constantes que cambiaron respecto del texto de abajo** (código v3, `nucleo_c/navegador.h`): `NAV_MAX_ESQUIVADAS` vale `6` por obstáculo (el texto dice 3) y `NAV_MAX_ESQUIVADAS_RUTA` vale `18` por ruta; `NAV_PASO_MARGEN_MM` vale `150` (el texto dice 100; `NAV_PASO_MARGEN_J15_MM` conserva el `100`); `NAV_OBSTACULO_PROFUNDO_MM` ya no existe.
 
 Código: `nucleo_c/navegador.h` y `navegador.c` (C estándar, solo enteros, sin `malloc`, sin
 recursión). Pruebas: `nucleo_c/pruebas_navegador.c` con un carro simulado

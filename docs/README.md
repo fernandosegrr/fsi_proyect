@@ -1,14 +1,16 @@
-# Centro de Documentación Técnica — Proyecto Carro FSI (base v1.1; revisión pendiente)
+# Centro de Documentación Técnica — Proyecto Carro FSI (v1.2 — base v3; autónomo v3 pendiente de validar en el carro)
 
-**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. No constituye una publicación v1.2.
+**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. Esta nota es histórica: la v1.2 (base v3) la incluye y sigue pendiente de validar en el carro.
 
 Bienvenido al centro de documentación del proyecto **LIDIA (*Carro FSI*)** de la materia **Fundamentos de los Sistemas de Información (FSI)** (Universidad de Guanajuato · DICIS, profesor **Dr. Horacio Rostro González**).
 
 ---
 
-## 1. Manual Técnico en PDF (revisión pendiente)
+## 1. Manual Técnico en PDF (v1.2)
 
-- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`12` figuras, `23` tablas, índice general interactivo): base v1.1 y revisión de software del 11-nov-2026, pendiente de validación física.
+- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`134` páginas, `12` figuras, `64` tablas, índice general interactivo, mapa de una página, glosario y «si te preguntan X, ve a la página Y»): v1.2, base v3; el autónomo v3 es `SIMULADO` y está pendiente de validar en el carro.
+- **[guia_exposicion.md](guia_exposicion.md):** guion de 3 a 5 minutos, preguntas probables por subsistema, quién explica qué (sin nombres), qué decir si la demostración falla y qué está medido y qué simulado.
+- **[pendientes_confirmar.md](pendientes_confirmar.md):** preguntas `CONFIRMAR CON EL EQUIPO` que hay que contestar antes de exponer.
 - **[docs/manual/README.md](manual/README.md):** instrucciones para regenerar el PDF con `python docs/manual/generar_manual.py`, diagnóstico de la versión previa ([manual/diagnostico_v1.md](manual/diagnostico_v1.md)), plan editorial ([manual/plan_final.md](manual/plan_final.md)) y auditoría de afirmaciones ([manual/auditoria_afirmaciones.md](manual/auditoria_afirmaciones.md)).
 - **[docs/figuras/README.md](figuras/README.md):** catálogo y generador reproducible (`docs/figuras/generar_figuras_v2.py`) de los diagramas y láminas del manual.
 
@@ -21,7 +23,7 @@ Toda afirmación técnica distingue explícitamente su grado de evidencia:
 | Etiqueta | Significado técnico |
 |---|---|
 | **`VALIDADO EN EL CARRO` / `VERIFICADO`** | Comprobado físicamente en el carro (en rutas del cierre J16, **únicamente el esquive con reincorporación B6**: 6 corridas el 10-nov-2026, `0/6` toques, `5/6` autónomas completas con error lateral aproximado de `~0` a `~10 cm` y `1/6` en `AYUDA` sin causa identificada) o verificado en las suites automatizadas de PC (`2,267` casos con `0` fallos). |
-| **`SIMULADO`** | Resultado obtenido en el simulador físico-matemático (`simulador_navegador.c`, `50,000` corridas Monte Carlo con semilla fija `0xF51A2026`). No sustituye mediciones en el carro físico. |
+| **`SIMULADO`** | Resultado obtenido en el simulador físico-matemático (`simulador_navegador.c`, `50,000` corridas Monte Carlo con semillas fijas `160000 + índice del escenario × 10007 + corrida`, ver `nucleo_c/pruebas_precision_j16.c`). No sustituye mediciones en el carro físico. |
 | **`NO MEDIDO`** | Implementado y probado en software/simulación, pero sin corridas físicas en el carro (rectas con y sin `RUMBO`, ruta en L, cuadrado, corte de WiFi en marcha, freno láser aislado, caja ancha, calibración en piso de `IMU_ESCALA`, `GPIO 2` y consumo en amperios). |
 | **`PENDIENTE`** | Trabajo futuro identificado (odometría por codificadores, control de 4 canales independientes, bitácora `.jsonl` por corrida). |
 

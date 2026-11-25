@@ -47,7 +47,7 @@ adb install -r dist\carro_fsi_0.4-6d1b213.apk
    - `probar_version.py`: `18` casos (`0` fallos).
    - `verificar_enlaces.py`: `0` enlaces rotos.
 3. **`SIMULADO` en computadora ([`docs/precision/monte_carlo_1000.txt`](precision/monte_carlo_1000.txt)):**
-   - `50,000` corridas Monte Carlo (`1,000` por escenario en 5 configuraciones con semilla fija `0xF51A2026`): recta de 150 cm (`94 mm -> 8 mm`), ruta en L (`64 mm -> 36 mm`), cuadrado de 60 cm (`142 mm -> 42 mm`) y esquive (`128 mm -> 38 mm`, `0 %` colisiones).
+   - `50,000` corridas Monte Carlo (`1,000` por escenario y configuración, 10 escenarios y 5 configuraciones, con semillas fijas `160000 + índice del escenario × 10007 + corrida`): mediana del error final de la recta de 150 cm `137 mm -> 9 mm`, ruta en L `145 mm -> 31 mm`, cuadrado de 60 cm `65 mm -> 19 mm` y esquive de caja `200 mm -> 16 mm` (de `49` toques en `1,000` corridas a `0`); cifras de `docs/precision/monte_carlo_1000.txt`, corregidas en v1.2.
 4. **`NO MEDIDO` en el carro físico:**
    - Rectas físicas con y sin `RUMBO` (`B5`), ruta en L (`B7`), cuadrado de 60 cm (`B8`), calibración en piso de `360°` para `IMU_ESCALA`, corte de WiFi en marcha (`B9`), freno autónomo aislado por láser (`TOF_PARO` a `120 mm`), caja ancha (`40×20 cm`), calibración automática (`B2`), circuito `GPIO 2` y consumo eléctrico en amperios.
 

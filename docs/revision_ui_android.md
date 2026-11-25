@@ -2,6 +2,8 @@
 
 **Estado:** rama `fix/ui-android-parpadeos` (sale de la punta de `feat/autonomo-v6`, `223d5db`; no toca esa rama ni la etiqueta `freeze/v6`). Compila (`scripts/compilar_app.ps1`: BUILD SUCCESSFUL). **Probada en un teléfono el 24-nov-2026** (Huawei ELS-NX9, Android 10) con el carro y la cámara **falsos** (`servidor_falso.py` y `camara_falsa.py` por `adb reverse`; no se encendió ni se movió ningún carro real). El dueño del teléfono pidió instalarla y se instaló con `adb install -r`, que actualiza sin desinstalar (sus datos y permisos quedaron). **No se probó con el carro real ni con la cámara real.** Lo medido está en la sección 6; lo que falta, en la 7.
 
+**Integración en la v1.2 (24-nov-2026):** esta revisión se escribió y se probó sobre `feat/autonomo-v6`. Para la v1.2 (base v3) se pasó el commit completo con `git cherry-pick -x` (commit `6c849ce` en `release/v1.2`; no entra nada de v4, v5 ni v6). Sobre la base v3 se comprobó que compila (`scripts/compilar_app.ps1`: COMPILACION OK), que solo toca interfaz y texto (ni `nucleo_c/`, ni `firmware_carro/`, ni `camara_prueba/`, ni el navegador ni el puente JNI) y que la app sigue arrancando con el comportamiento de v3. **La prueba en el teléfono se hizo con la rama de v6, no con la v1.2 compilada:** los archivos tocados son idénticos entre v3 y v6, pero la v1.2 no se ha instalado en ningún teléfono. Donde este documento dice «volver a `feat/autonomo-v6`», para la v1.2 léase «volver a `feat/autonomo-v3` (la v3 sin estas mejoras)».
+
 ## 1. Qué se pidió
 
 «Revisa la UI/UX de la app Android: tiene errores en parpadeos y no se siente bien.» No se dijo en qué pantalla ni en qué momento, así que se buscó todo lo que **redibuja o reacomoda la pantalla sin que cambie nada de verdad**.
@@ -104,12 +106,12 @@ Con el carro encendido y la cámara conectada como siempre:
 3. **Apaga el carro y espera ~5 s en Manual o Rutas:** el aviso global debe bajar y subir **suave**, no de golpe.
 4. **Ejecutar una ruta corta** (la de siempre, con el carro en el piso): el video no debe entrecortarse más que sin ruta, y la cabecera dice «Conectado» junto al PARO. Abrir y cerrar «Detalles técnicos»: se llena al abrir.
 5. **Girar el teléfono en Manual** (con el carro parado): abre y no cambia nada de lugar; el carro se detiene al girar (N4, es a propósito).
-6. Si algo se ve **peor**, anotar pantalla y momento y volver a `feat/autonomo-v6` (`git switch feat/autonomo-v6`, recompilar con `scripts/compilar_app.ps1` y `scripts/instalar_app_adb.py`). Un aviso que se queda a medio alto, o que no aparece, sería un defecto del acordeón (`AvisoBanda`): es lo primero que hay que mirar.
+6. Si algo se ve **peor**, anotar pantalla y momento y volver a la línea anterior (`git switch feat/autonomo-v6` en la rama de pruebas; en la v1.2, `git switch feat/autonomo-v3`), recompilar con `scripts/compilar_app.ps1` y `scripts/instalar_app_adb.py`). Un aviso que se queda a medio alto, o que no aparece, sería un defecto del acordeón (`AvisoBanda`): es lo primero que hay que mirar.
 
 ## 8. Riesgos y cómo volver atrás
 
 - **El acordeón (`AvisoBanda`) ya se vio funcionar en el teléfono** (el aviso aparece con su alto completo), pero solo contra el carro y la cámara falsos y sin medir su animación. Si diera problemas, el arreglo de P1, P5 a P8 es independiente y se puede conservar.
-- Los archivos tocados son **idénticos** entre `feat/autonomo-v3` y `feat/autonomo-v6` (se comprobó con `git diff --numstat`), así que estos commits se pueden pasar con `git cherry-pick` a cualquiera de las dos líneas si se quiere la APK de la exposición con estas mejoras. Esta revisión **no** fusionó nada ni subió nada a `main`.
+- Los archivos tocados son **idénticos** entre `feat/autonomo-v3` y `feat/autonomo-v6` (se comprobó con `git diff --numstat`), así que estos commits se pueden pasar con `git cherry-pick` a cualquiera de las dos líneas si se quiere la APK de la exposición con estas mejoras. Esta revisión **no** fusionó nada ni subió nada a `main`; la integración en la v1.2 se hizo después, con ese `cherry-pick`.
 - **Una regla nueva** (`docs/diseno.md`, regla 6): un layout con variante `layout-land/` se cambia en las dos, con los mismos ids. Se comprobó con un script de ids sobre `activity_main`, `fragment_manual` y `view_video_manual` (sin diferencias).
 - Pruebas automáticas: `scripts/ui_telefono/` (necesita un teléfono). La lógica de `RefrescoAcotado` es corta (un periodo y un refresco pendiente) y se revisó leyéndola; no se escribió una prueba unitaria porque requeriría agregar dependencias de prueba al proyecto.
 
