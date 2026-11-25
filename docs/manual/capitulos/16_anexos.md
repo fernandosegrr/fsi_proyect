@@ -24,23 +24,23 @@ Este capítulo reúne las referencias de consulta rápida del proyecto: (16.1) e
 
 | Categoría | Comando | Respuesta normal | Descripción rápida |
 |---|---|---|---|
-| **Tracción** | `FORWARD`, `BACKWARD`, `LEFT`, `RIGHT` | `OK` *(o `BLOQUEADO_TOF`)* | Mueve el carro y renueva el *watchdog* de `1000 ms` (latido cada `250 ms`). |
-| **Parada** | `STOP` / `EBRAKE` | `OK` / `OK_EBRAKE` | Paro libre (`LOW/LOW`) o freno activo (`HIGH/HIGH`) con prioridad en cola. |
-| **Perfil** | `MODO_AUTO` / `MODO_MANUAL` / `ESTADO` | `ACK_AUTO` / `ACK_MANUAL` / `AUTO`+`CAPS` | Selecciona `PWM` `207/210` (`AUTO`) o `252/255` (`MANUAL`) y reporta capacidades. |
-| **Enlace y versión** | `PING` / `VERSION?` / `LOOP?` | `PONG` / `FW:6d1b213-20261110` / `LOOP:...` | Sonda de red (`800 ms`), revisión compilada y tiempos de bucle en microsegundos. |
-| **Sensores e IMU** | `SENS?` / `CAL_IMU` | `SENS:<ang_x10>,<mm>,<flags>` / `CAL_OK` | Telemetría en décimas de grado y milímetros (`10 Hz` en `AUTO`) y calibración en reposo. |
-| **Giro y escala** | `GIRO:<g>` / `IMU_ESCALA:<ppm>` / `IMU_ESCALA?` | `GIRO_FIN:<a>` / `IMU_ESCALA_OK:<ppm>` | Giro cerrado en `[-360,360]` (`±2.0°`) y factor de escala en `[-50000,50000] ppm` en `NVS`. |
-| **Rumbo en rectas** | `RUMBO:ON` / `RUMBO:OFF` / `RUMBO:<d>` / `RUMBO?` | `RUMBO_OK:...` / `RUMBO_REF:<d>` / `RUMBO:...` | Activa/desactiva el lazo `PI` en rectas, fija referencia en décimas de grado o consulta estado. |
+| **Tracción** | `FORWARD`, `REVERSE`, `LEFT`, `RIGHT` | *(ninguna)* | Mueve el carro y renueva el *watchdog* de `1000 ms` (latido cada `250 ms`). |
+| **Parada** | `STOP` / `EBRAKE` | *(ninguna)* | Los dos ponen los cuatro `PWM` en `0` y nunca se descartan de la cola. |
+| **Perfil** | `MODO_AUTO` / `MODO_MANUAL` / `CAPS?` | `ACK_AUTO` / `ACK_MANUAL` / `CAPS:...` | Selecciona `PWM` `207/210` (`AUTO`) o `252/255` (`MANUAL`) y consulta las capacidades. |
+| **Enlace y versión** | `PING` / `CAPS?` / `LOOP?` | `PONG` / `CAPS:...,FW:6d1b213-20261110` / `LOOP:<máx µs>,<excesos>` | Sonda de red (`800 ms`), revisión compilada (al final de `CAPS`) y tiempo máximo del bucle. |
+| **Sensores e IMU** | `IMU_CAL` / `IMU_CERO` | `ACK_IMU_CAL` y luego `IMU_CAL_OK:<sesgo×100>` / `ACK_IMU_CERO` | Calibración en reposo y puesta a cero del ángulo; el carro manda solo `SENS:<ang_x10>,<mm>,<flags>` cada `100 ms` en `AUTO`. |
+| **Giro y escala** | `GIRAR:<g>` / `IMU_ESCALA:<ppm>` / `IMU_ESCALA?` | `GIRO_OK:...` / `ACK_IMU_ESCALA:<ppm>` / `IMU_ESCALA:<ppm>` | Giro cerrado de `5` a `200` grados (positivo = izquierda) y factor de escala en `[-50000,50000] ppm` guardado en `NVS`. |
+| **Rumbo en rectas** | `RUMBO:ON` / `RUMBO:OFF` / `RUMBO:<d>` / `RUMBO?` | `ACK_RUMBO:1` / `ACK_RUMBO:0` / *(ninguna)* / `RUMBO:<enc>,<marcha>,<objetivo>,<corr>,<aprendido>` | Activa o desactiva el lazo `PI` en rectas, fija la referencia en décimas de grado o consulta el estado. |
 
 ### Resumen de pines en la placa `ESP32 DevKit` y direcciones de red
 
 | Recurso | Pin / Dirección | Función asignada | Parámetros clave |
 |---|---|---|---|
-| **Motor izquierdo (`IN1`, `IN2`)** | `GPIO 27`, `GPIO 26` | Canal 1 del puente H `TC1508A` | `PWM` `1000 Hz`, 8 bits (`MANUAL=252`, `AUTO=207`). |
-| **Motor derecho (`IN3`, `IN4`)** | `GPIO 25`, `GPIO 33` | Canal 2 del puente H `TC1508A` | `PWM` `1000 Hz`, 8 bits (`MANUAL=255`, `AUTO=210`). |
+| **Motor izquierdo (`IN1`, `IN2`)** | `GPIO 27`, `GPIO 26` | Canal 1 del puente H `TC1508A` | `PWM` `1500 Hz`, 8 bits (`MANUAL=252`, `AUTO=207`). |
+| **Motor derecho (`IN3`, `IN4`)** | `GPIO 25`, `GPIO 33` | Canal 2 del puente H `TC1508A` | `PWM` `1500 Hz`, 8 bits (`MANUAL=255`, `AUTO=210`). |
 | **Bus `I2C` (`SDA`, `SCL`)** | `GPIO 21`, `GPIO 22` | `MPU6050` (`0x68`) y `VL53L0X` (`0x29`) | Reloj `400 kHz`, alimentación `3.3 V`. |
 | **Carga de *powerbank*** | `GPIO 2` | Pulso de `200 ms` cada `8,000 ms` | Declarado en `config.h`; efecto físico `NO MEDIDO`. |
-| **Red `CarroFSI` (carro / cámara)** | `192.168.4.1` / `192.168.4.2` | Control `:80/ws`; video `:81/stream`, `:80/raw`, `UDP :4210` | Un cliente de video simultáneo; paquetes `CEL1` de `1,244 B`. |
+| **Red `CarroFSI` (carro / cámara)** | `192.168.4.1` / `192.168.4.2` | Control `:80/ws`; video `:80/stream`, `:80/raw`, `UDP :4210` | Un cliente de video simultáneo; paquetes `CEL1` de `1,244 B`. |
 
 ## 16.3 Correspondencia entre capítulos y archivos del repositorio
 
@@ -54,7 +54,7 @@ Esta tabla concentra todas las rutas de archivos del repositorio correspondiente
 | **Cap. 6** | Protocolo y pruebas de enlace | `docs/protocolo.md`, `pruebas_firmware/Makefile`, `pruebas_firmware/pruebas.c`, `pruebas_firmware/pruebas_sensores.c`, `pruebas_firmware/pruebas_rumbo.c`, `pruebas_firmware/pruebas_recuperacion.c`, `pruebas_firmware/pruebas_integracion.c`, `pruebas_firmware/probar_servidor_falso.py`. |
 | **Cap. 7** | Núcleo de navegación, calibración y simulación en C99 | `nucleo_c/Makefile`, `nucleo_c/navegador.h`, `nucleo_c/navegador.c`, `nucleo_c/trayectoria.h`, `nucleo_c/trayectoria.c`, `nucleo_c/calibracion.h`, `nucleo_c/calibracion.c`, `nucleo_c/calgiro.h`, `nucleo_c/calgiro.c`, `nucleo_c/ruta_editor.h`, `nucleo_c/ruta_editor.c`, `nucleo_c/simulador_navegador.h`, `nucleo_c/simulador_navegador.c`, `nucleo_c/sim_ruta.h`, `nucleo_c/sim_ruta.c`, `nucleo_c/pruebas_precision_j16.c`, `nucleo_c/pruebas_reincorporacion_j15.c`. |
 | **Cap. 8** | Visión, corredor y puente JNI | `nucleo_c/obstaculos.h`, `nucleo_c/obstaculos.c`, `nucleo_c/corredor.h`, `nucleo_c/corredor.c`, `nucleo_c/fusion.h`, `nucleo_c/fusion.c`, `nucleo_c/cualquiera.h`, `nucleo_c/cualquiera.c`, `nucleo_c/mascara_vision.h`, `nucleo_c/mascara_vision.c`, `nucleo_c/movimiento_piso.c`, `nucleo_c/movimiento_visual.c`, `app_android/app/src/main/cpp/puente.c`, `app_android/app/src/main/cpp/CMakeLists.txt`, `app_android/app/src/main/assets/efficientdet_lite0.tflite`. |
-| **Cap. 9** | Aplicación Android (`Kotlin` y vistas) | `app_android/app/build.gradle.kts`, `app_android/app/src/main/AndroidManifest.xml`, `app_android/app/src/main/java/com/example/carro_ilib/MainActivity.kt`, `InicioFragment.kt`, `ManualFragment.kt`, `RutasFragment.kt`, `EjecutarRutaFragment.kt`, `MasFragment.kt`, `AjustesFragment.kt`, `VisionActivity.kt`, `CalibracionActivity.kt`, `CalibrarGiroActivity.kt`, `SensoresActivity.kt`, `BenchmarkActivity.kt`, `ControlLogica.kt`, `ModoSemiautonomo.kt`, `CalibracionGuardada.kt`, `SesionCarro.kt`, `SesionVideo.kt`, `Enlace.kt`, `DetectorTflite.kt`, `ModeloEnHilo.kt`, `*Nativa.kt`. |
+| **Cap. 9** | Aplicación Android (`Kotlin` y vistas) | `app_android/app/build.gradle.kts`, `app_android/app/src/main/AndroidManifest.xml`, `app_android/app/src/main/java/com/fsi/carro/MainActivity.kt`, `InicioFragment.kt`, `ManualFragment.kt`, `RutasFragment.kt`, `EjecutarRutaFragment.kt`, `MasFragment.kt`, `AjustesFragment.kt`, `VisionActivity.kt`, `CalibracionActivity.kt`, `CalibrarGiroActivity.kt`, `SensoresActivity.kt`, `BenchmarkActivity.kt`, `ControlLogica.kt`, `ModoSemiautonomo.kt`, `CalibracionGuardada.kt`, `SesionCarro.kt`, `SesionVideo.kt`, `Enlace.kt`, `DetectorTflite.kt`, `ModeloEnHilo.kt`, `*Nativa.kt`. |
 | **Cap. 10 a 15** | Scripts, artefactos `dist/`, pruebas físicas y generador del manual | `scripts/cargar.ps1`, `scripts/compilar_app.ps1`, `scripts/verificar_version.py`, `scripts/probar_version.py`, `scripts/verificar_pagina.py`, `dist/carro_fsi_0.4-6d1b213.apk`, `dist/SHA256SUMS.txt`, `dist/FIRMWARE_LOCAL.txt`, `dist/LEEME.txt`, `docs/pruebas_fisicas_20261110.csv`, `docs/precision/monte_carlo_1000.txt`, `docs/precision/calibracion_j14.txt`, `docs/figuras/generar_figuras.py`, `docs/manual/generar_manual.py`, `docs/manual/Manual_Proyecto_Carro_FSI.pdf`. |
 
 ## 16.4 Lista consolidada de pruebas y mediciones pendientes

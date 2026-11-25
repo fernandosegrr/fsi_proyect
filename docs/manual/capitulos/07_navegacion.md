@@ -9,7 +9,7 @@ Este capítulo explica la arquitectura matemática del núcleo de navegación es
 Los cuatro motores `TT` del vehículo carecen de codificadores ópticos o magnéticos (*encoders*) en sus ejes, y el entorno interior tampoco dispone de balizas externas. Por ello, el sistema divide la estimación cinemática en dos variables complementarias:
 
 1. **Distancia longitudinal por tiempo calibrado:** cada milímetro de avance se relaciona con un número de milisegundos de activación de los motores en perfil `AUTO`, compensando el retardo de arranque inicial y el deslizamiento por inercia al frenar.
-2. **Orientación por integración del giroscopio (`MPU6050`):** el ángulo real del vehículo se mide a `200 Hz` en el firmware y se transmite al navegador cada `100 ms` en décimas de grado (`SENS`), lo que permite cerrar los giros por ángulo medido (`GIRO:<grados>`), mantener el rumbo en rectas (`RUMBO:<décimas>`) y proyectar cada incremento de avance en la dirección verdadera a la que apunta el chasis.
+2. **Orientación por integración del giroscopio (`MPU6050`):** el ángulo real del vehículo se mide a `100 Hz` en el firmware y se transmite al navegador cada `100 ms` en décimas de grado (`SENS`), lo que permite cerrar los giros por ángulo medido (`GIRAR:<grados>`), mantener el rumbo en rectas (`RUMBO:<décimas>`) y proyectar cada incremento de avance en la dirección verdadera a la que apunta el chasis.
 
 ### Cuadrícula de planificación (`trayectoria.c` y `ruta_editor.c`)
 
@@ -48,7 +48,7 @@ Por ejemplo, si tras girar exactamente `360.0°` físicos el giroscopio reporta 
 
 ## 7.3 Máquina de estados, integración en décimas de grado y guiado `RUMBO`
 
-El módulo `navegador.c` gobierna la ejecución de la ruta mediante siete estados explícitos:
+El módulo `navegador.c` gobierna la ejecución de la ruta mediante ocho estados explícitos (`NAV_TERMINADO` y `NAV_ERROR` comparten fila):
 
 | Estado (`EstadoNav`) | Comando emitido | Condición de entrada y función principal |
 |---|---|---|
@@ -68,7 +68,7 @@ $$x_{\text{mm}} \leftarrow x_{\text{mm}} - \Delta s \cdot \sin\left(\frac{\text{
 
 *(El signo menos en $x_{\text{mm}}$ obedece a que $\text{rumbo\_x10} = 0$ apunta hacia $+Y$ y los giros positivos $+\theta$ van hacia $-X$, es decir, hacia la izquierda).*
 
-Además, el cierre **J16** corrigió una condición de carrera sutil al caer de giro por giroscopio a giro por tiempo (`descartar_dt`): si el sensor `MPU6050` deja de responder en mitad de un giro (`GIRO_ERR_IMU` o silencio `> 500 ms`), el navegador conmuta a giro por tiempo y activa la bandera `descartar_dt = 1` para que el primer ciclo de respaldo no multiplique el tiempo acumulado previo por la velocidad angular nominal.
+Además, el cierre **J16** corrigió una condición de carrera sutil al caer de giro por giroscopio a giro por tiempo (`descartar_dt`): si el sensor `MPU6050` deja de responder en mitad de un giro (`GIRO_ERROR:sin_imu` o silencio `> 500 ms`), el navegador conmuta a giro por tiempo y activa la bandera `descartar_dt = 1` para que el primer ciclo de respaldo no multiplique el tiempo acumulado previo por la velocidad angular nominal.
 
 ### Guiado continuo en rectas por punto de mira (`RUMBO` — Cierre J16)
 

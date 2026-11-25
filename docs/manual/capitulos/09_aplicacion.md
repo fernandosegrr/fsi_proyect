@@ -1,6 +1,6 @@
 # 9. Aplicación Android
 
-Este capítulo describe la arquitectura de la aplicación móvil **`LIDIA`** (`APP:0.4-6d1b213`, paquete `com.example.carro_ilib`), su organización en cuatro pestañas principales y cinco actividades de pantalla completa, el diseño de las sesiones compartidas (`SesionCarro` y `SesionVideo`) y las mejoras operativas y de seguridad incorporadas en el cierre **J16**: corte del latido `FORWARD` ante `TOF_PARO`, supervisión activa de rutas (`ModoSemiautonomo`), aviso de calibración en `Rutas` y controles en vivo para `RUMBO` y escala del giroscopio en `SensoresActivity`.
+Este capítulo describe la arquitectura de la aplicación móvil **`LIDIA`** (`APP:0.4-6d1b213`, paquete `com.fsi.carro`), su organización en cuatro pestañas principales y cinco actividades de pantalla completa, el diseño de las sesiones compartidas (`SesionCarro` y `SesionVideo`) y las mejoras operativas y de seguridad incorporadas en el cierre **J16**: corte del latido `FORWARD` ante `TOF_PARO`, supervisión activa de rutas (`ModoSemiautonomo`), aviso de calibración en `Rutas` y controles en vivo para `RUMBO` y escala del giroscopio en `SensoresActivity`.
 
 ## 9.1 Estructura de pantallas y sesiones compartidas
 
@@ -14,8 +14,8 @@ La interfaz de usuario se hospeda en `MainActivity`, que presenta una cabecera p
 | **Pestaña 4 — `Más`** | `MasFragment.kt` + `AjustesFragment.kt` | Configuración de direcciones IP (`192.168.4.1` y `192.168.4.2`), modo de cámara (`JPEG`, `RAW`, `CELDAS`), acceso a las cinco actividades completas, ayuda (`AyudaFragment`) e información de compilación (`AcercaFragment`). |
 | **Actividad — `Visión`** | `VisionActivity.kt` | Diagnóstico visual del modelo de piso, superposición de la rejilla `10×10` y del corredor de perspectiva, ajuste de umbrales cromáticos y botón `Aprender piso`. |
 | **Actividad — `Calibración de avance`** | `CalibracionActivity.kt` | Procedimiento guiado para medir tiempo de arranque (`arranque_ms`), pendiente (`ms_por_cm`) y deslizamiento de frenado (`frenado_mm`). |
-| **Actividad — `Calibrar giro`** | `CalibrarGiroActivity.kt` | Calibración de velocidad angular por tiempo, cuerda de pivote excéntrico (`pivote_mm`) y pruebas de giro cerrado `GIRO:<grados>`. |
-| **Actividad — `Sensores`** | `SensoresActivity.kt` | Monitor en vivo de `MPU6050` y `VL53L0X`, calibración de sesgo `CAL_IMU`, interruptor de **control de rumbo en rectas (`RUMBO`)** y asistente de 3 pasos para la **escala del giroscopio (`IMU_ESCALA`)** (J16). |
+| **Actividad — `Calibrar giro`** | `CalibrarGiroActivity.kt` | Calibración de velocidad angular por tiempo, cuerda de pivote excéntrico (`pivote_mm`) y pruebas de giro cerrado `GIRAR:<grados>`. |
+| **Actividad — `Sensores`** | `SensoresActivity.kt` | Monitor en vivo de `MPU6050` y `VL53L0X`, calibración de sesgo `IMU_CAL`, interruptor de **control de rumbo en rectas (`RUMBO`)** y asistente de 3 pasos para la **escala del giroscopio (`IMU_ESCALA`)** (J16). |
 | **Actividad — `Benchmark`** | `BenchmarkActivity.kt` | Medición instrumentada de tiempos de inferencia del detector `TFLite` y del clasificador cromático sobre imágenes de prueba. |
 
 [FIGURA:pantallas|Mapa de pantallas de la aplicación Android: cuatro pestañas en MainActivity, cinco actividades de pantalla completa y sesiones compartidas.]
@@ -43,7 +43,7 @@ El cierre **J16** reforzó cuatro módulos críticos de la aplicación Android p
 
 ### 1. Corte del latido `FORWARD` en conducción manual (`ControlLogica.kt`)
 
-En modo manual, mientras el usuario mantiene el dedo sobre el botón `Adelante`, `ControlLogica` envía `FORWARD` cada `250 ms`. Si el carro frena localmente por el sensor láser y emite `TOF_PARO:<mm>`, `ControlLogica` activa ahora la bandera interna `bloqueadoTof = true` y **suspende de inmediato el reenvío periódico de `FORWARD`** (mostrando la alerta de paro frontal), impidiendo que el latido del botón insista contra el obstáculo; la bandera se limpia en cuanto el usuario suelta el botón o comanda `STOP`, `BACKWARD`, `LEFT` o `RIGHT`.
+En modo manual, mientras el usuario mantiene el dedo sobre el botón `Adelante`, `ControlLogica` envía `FORWARD` cada `250 ms`. Si el carro frena localmente por el sensor láser y emite `TOF_PARO:<mm>`, `ControlLogica` activa ahora la bandera interna `bloqueadoTof = true` y **suspende de inmediato el reenvío periódico de `FORWARD`** (mostrando la alerta de paro frontal), impidiendo que el latido del botón insista contra el obstáculo; la bandera se limpia en cuanto el usuario suelta el botón o comanda `STOP`, `REVERSE`, `LEFT` o `RIGHT`.
 
 ### 2. Vigilancia triple en rutas semiautónomas (`ModoSemiautonomo.kt`)
 
@@ -63,7 +63,7 @@ La pantalla `SensoresActivity` añadió en el cierre **J16** dos tarjetas intera
 
 - **Control de rumbo en rectas:** muestra un interruptor (`Switch`) sincronizado con la capacidad `RUMBO` del carro (`RUMBO:ON` / `RUMBO:OFF`) y un botón de consulta (`RUMBO?`) que presenta en vivo la referencia $\theta_{\text{ref}}$, el error en grados, el ajuste `PWM` en milésimas y el sesgo aprendido (`aprendido_mil`).
 - **Calibración guiada de la escala del giroscopio en 3 pasos (`IMU_ESCALA`):**
-  1. **Paso 1:** el usuario alinea el carro con una marca recta en el piso (por ejemplo, la junta de una baldosa) y pulsa `1. Poner a 0°` (envía `CAL_IMU`).
+  1. **Paso 1:** el usuario alinea el carro con una marca recta en el piso (por ejemplo, la junta de una baldosa) y pulsa `1. Poner a 0°` (envía `IMU_CAL`).
   2. **Paso 2:** gira manualmente el carro **una vuelta completa exacta (`360°`)** hasta volver a coincidir con la misma marca en el piso.
   3. **Paso 3:** pulsa `3. Calcular y guardar`, que lee el ángulo reportado por `SENS`, invoca `CalGiroNativa.escala` (`calgiro_escala`), suma el ajuste a la escala previa dentro de `[-50000, +50000] ppm` y envía `IMU_ESCALA:<ppm>` para persistirlo en `NVS` (además de ofrecer un botón `Restablecer a 0 ppm`).
 

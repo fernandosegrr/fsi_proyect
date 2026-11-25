@@ -23,10 +23,10 @@ En un robot móvil que avanza en modo `AUTO` a una velocidad típica de `~20 cm/
 
 En una cámara de red convencional, si los cuadros capturados se depositan en una cola FIFO de varios elementos (`fb_count > 1` con retención) y el enlace `WiFi` sufre una pausa momentánea, el consumidor lee cuadros atrasados acumulados en memoria. Para evitarlo, `camara_prueba.ino` implementa una arquitectura de **buzón de último cuadro (*latest-frame mailbox*)** repartida entre los dos núcleos del `ESP32-WROVER`:
 
-1. **Tarea de captura (`Core 1`):** extrae continuamente el buffer del driver `esp_camera` (`fb_count = 2`, modo `CAMERA_GRAB_LATEST`), copia o comprime el cuadro en un doble buffer en `PSRAM` protegido por semáforo mutex y actualiza el puntero al cuadro más reciente, descartando cualquier cuadro anterior que aún no haya sido enviado.
-2. **Tareas de red (`Core 0`):** atienden las peticiones `HTTP` y el transmisor `UDP`, leyendo siempre la última instantánea disponible en el buzón sin bloquear la captura del siguiente cuadro.
+1. **Tarea de captura (`Core 0`):** extrae continuamente el buffer del driver `esp_camera` (`fb_count = 2`, modo `CAMERA_GRAB_LATEST`), copia o comprime el cuadro en un doble buffer en `PSRAM` protegido por semáforo mutex y actualiza el puntero al cuadro más reciente, descartando cualquier cuadro anterior que aún no haya sido enviado.
+2. **Tareas de red (`Core 1`):** atienden las peticiones `HTTP` y el transmisor `UDP`, leyendo siempre la última instantánea disponible en el buzón sin bloquear la captura del siguiente cuadro.
 
-Además, el servidor de video continuo (`:81/stream`) acepta deliberadamente **un solo cliente a la vez**: si un segundo dispositivo intentara abrir otro flujo `MJPEG` simultáneo, degradaría el ancho de banda del canal `WiFi` compartido con el control del carro. En la aplicación Android, `SesionVideo` comparte ese único flujo entre todas las pantallas.
+Además, el servidor de video continuo (`:80/stream`) acepta deliberadamente **un solo cliente a la vez**: si un segundo dispositivo intentara abrir otro flujo `MJPEG` simultáneo, degradaría el ancho de banda del canal `WiFi` compartido con el control del carro. En la aplicación Android, `SesionVideo` comparte ese único flujo entre todas las pantallas.
 
 [FIGURA:camara_modos|Los tres modos de transmisión de la cámara Freenove: flujo MJPEG para vista humana y red neuronal, cuadro crudo RGB565 y rejilla compacta de celdas por UDP.]
 
@@ -36,7 +36,7 @@ La cámara se conecta como estación (`STA`) a la red `CarroFSI` solicitando la 
 
 | Servicio / Endpoint | Protocolo y puerto | Formato de salida | Tamaño por entrega | Uso dentro del sistema |
 |---|---|---|---|---|
-| `/stream` | `HTTP` `:81` | `multipart/x-mixed-replace` (`MJPEG`) | `~4.8 KB` / cuadro | Flujo principal en vivo en la aplicación Android (vista humana, `obstaculos.c` y `DetectorTflite`). |
+| `/stream` | `HTTP` `:80` | `multipart/x-mixed-replace` (`MJPEG`) | `~4.8 KB` / cuadro | Flujo principal en vivo en la aplicación Android (vista humana, `obstaculos.c` y `DetectorTflite`). |
 | `/capture` | `HTTP` `:80` | `image/jpeg` (cuadro único) | `~4.8 KB` | Captura puntual y pruebas de conectividad. |
 | `/raw` | `HTTP` `:80` | `application/octet-stream` (`RGB565`) | `84,480 B` (`240×176×2`) | Procesamiento sin artefactos de compresión `JPEG` y cabeceras `X-Width`, `X-Height`, `X-Frame-Seq`. |
 | `/stats` | `HTTP` `:80` | `application/json` | `~220 B` | Telemetría interna de tiempos de captura, compresión, envío, RSSI y memoria libre. |

@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-11-10T22:57:46.167127</dc:date>
+    <dc:date>2026-11-24T21:46:27.099061</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -40,7 +40,7 @@ Q 14.50944 32.337936 14.50944 36.013608
 L 14.50944 122.533272 
 Q 14.50944 126.208944 22.63392 126.208944 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #e9f1f7; stroke: #163c60; stroke-width: 1.4; stroke-linejoin: miter"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #e9f1f7; stroke: #163c60; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 178.87392 126.208944 
@@ -53,7 +53,7 @@ Q 170.74944 32.337936 170.74944 36.013608
 L 170.74944 122.533272 
 Q 170.74944 126.208944 178.87392 126.208944 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #e6f5f3; stroke: #00877e; stroke-width: 1.4; stroke-linejoin: miter"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #e6f5f3; stroke: #00877e; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 335.11392 126.208944 
@@ -66,7 +66,7 @@ Q 326.98944 32.337936 326.98944 36.013608
 L 326.98944 122.533272 
 Q 326.98944 126.208944 335.11392 126.208944 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #fef4e8; stroke: #d9822b; stroke-width: 1.4; stroke-linejoin: miter"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #fef4e8; stroke: #d9822b; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 491.35392 126.208944 
@@ -79,7 +79,7 @@ Q 483.22944 32.337936 483.22944 36.013608
 L 483.22944 122.533272 
 Q 483.22944 126.208944 491.35392 126.208944 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #fdeee9; stroke: #d95f43; stroke-width: 1.4; stroke-linejoin: miter"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #fdeee9; stroke: #d95f43; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 60.13152 261.926064 
@@ -92,7 +92,7 @@ Q 52.00704 173.709936 52.00704 177.385608
 L 52.00704 258.250392 
 Q 52.00704 261.926064 60.13152 261.926064 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #e8f5ee; stroke: #2d6a4f; stroke-width: 1.4; stroke-linejoin: miter"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #e8f5ee; stroke: #2d6a4f; stroke-width: 1.4; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(56.603766 63.689625)">App Android</text>
@@ -105,7 +105,7 @@ z
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(199.998141 63.689625)">Enlace WebSocket</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(196.285219 72.542454)">ws://192.168.4.1/ws</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(198.688594 81.395284)">Cola de 32 ranuras</text>
-    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(202.995047 90.248113)">• Prioridad STOP</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(191.009859 90.248113)">• STOP no se descarta</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(192.671625 99.100943)">• Descarta PING viejo</text>
    </g>
    <g id="text_3">
@@ -113,11 +113,11 @@ z
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(351.687328 72.542454)">carro.c + sensores.c</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(350.547797 81.395284)">• Watchdog 1000 ms</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(347.2785 90.309051)">• Lazo PI RUMBO (J16)</text>
-    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(352.776281 99.16188)">• Giro cerrado GIRO</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(350.070656 99.16188)">• Giro cerrado GIRAR</text>
    </g>
    <g id="text_4">
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(521.997797 63.720094)">Tracción PWM</text>
-    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(516.083813 72.572923)">TC1508A (1 kHz)</text>
+    <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(511.888875 72.572923)">TC1508A (1.5 kHz)</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(497.959172 81.425753)">• Arranque 255 (250 ms)</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(510.974203 90.278582)">• MANUAL 252/255</text>
     <text style="fill: #163c60; font: 700 7.8px 'DejaVu Sans'" transform="translate(505.86825 99.131411)">• AUTO 207/210 ± Δu</text>
@@ -125,62 +125,62 @@ z
    <g id="text_5">
     <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(208.341125 210.42634)">Canal de retorno en tiempo real (ESP32 → App Android)</text>
     <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(87.435328 219.778188)">• SENS:&lt;ang_x10&gt;,&lt;mm&gt;,&lt;flags&gt; cada 100 ms en AUTO (décimas de grado + distancia láser + banderas bit 0..4)</text>
-    <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(87.130437 229.349753)">• Avisos asíncronos de seguridad: WD:&lt;n&gt; (vencimiento de watchdog), TOF_PARO:&lt;mm&gt;, GIRO_FIN:&lt;ang&gt; y CAPS</text>
+    <text style="fill: #163c60; font: 7.9px 'DejaVu Sans'" transform="translate(91.488398 229.349753)">• Avisos asíncronos de seguridad: WD:&lt;n&gt; (vencimiento de watchdog), TOF_PARO:&lt;mm&gt;, GIRO_OK:&lt;...&gt; y CAPS</text>
    </g>
    <g id="patch_7">
     <path d="M 154.625899 79.27344 
 Q 162.000392 79.27344 167.362423 79.27344 
-" clip-path="url(#p1832dad66c)" style="fill: none; stroke: #163c60; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: none; stroke: #163c60; stroke-width: 1.8; stroke-linecap: round"/>
     <path d="M 162.562423 76.87344 
 L 167.362423 79.27344 
 L 162.562423 81.67344 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #163c60; stroke: #163c60; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #163c60; stroke: #163c60; stroke-width: 1.8; stroke-linecap: round"/>
    </g>
    <g id="patch_8">
     <path d="M 310.865899 79.27344 
 Q 318.240392 79.27344 323.602423 79.27344 
-" clip-path="url(#p1832dad66c)" style="fill: none; stroke: #00877e; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: none; stroke: #00877e; stroke-width: 1.8; stroke-linecap: round"/>
     <path d="M 318.802423 76.87344 
 L 323.602423 79.27344 
 L 318.802423 81.67344 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #00877e; stroke: #00877e; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #00877e; stroke: #00877e; stroke-width: 1.8; stroke-linecap: round"/>
    </g>
    <g id="patch_9">
     <path d="M 467.105899 79.27344 
 Q 474.480392 79.27344 479.842423 79.27344 
-" clip-path="url(#p1832dad66c)" style="fill: none; stroke: #d95f43; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: none; stroke: #d95f43; stroke-width: 1.8; stroke-linecap: round"/>
     <path d="M 475.042423 76.87344 
 L 479.842423 79.27344 
 L 475.042423 81.67344 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #d95f43; stroke: #d95f43; stroke-width: 1.8; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #d95f43; stroke: #d95f43; stroke-width: 1.8; stroke-linecap: round"/>
    </g>
    <g id="patch_10">
     <path d="M 396.36 127.92408 
 Q 396.36 149.958784 396.36 170.204633 
-" clip-path="url(#p1832dad66c)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 398.76 165.404633 
 L 396.36 170.204633 
 L 393.96 165.404633 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="patch_11">
     <path d="M 129.353049 172.558079 
 Q 107.314552 149.957955 86.524951 128.638555 
-" clip-path="url(#p1832dad66c)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: none; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 88.157823 133.750671 
 L 86.524951 128.638555 
 L 91.594367 130.399527 
 z
-" clip-path="url(#p1832dad66c)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p68dd8ceefd)" style="fill: #2d6a4f; stroke: #2d6a4f; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
   </g>
  </g>
  <defs>
-  <clipPath id="p1832dad66c">
+  <clipPath id="p68dd8ceefd">
    <rect x="5.76" y="5.76" width="624.96" height="282.744"/>
   </clipPath>
  </defs>

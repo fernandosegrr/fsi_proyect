@@ -32,7 +32,7 @@ Propósito: verificar contra el código fuente, los registros CSV y los reportes
 
 ### 1.5 Error reportado en la Ruta en L histórica (J14) vs estado en J16
 - **Contexto:** en `docs/precision/calibracion_j14.txt` (antes de J16), la corrida física de la ruta en L (`(0,0) -> (0,600) -> (600,600) mm`) reportó un error estimado por el navegador de `dx = 9 mm, dy = 3 mm, err = 9 mm`, pero esa cifra comparaba la pose integrada contra el punto intermedio `(0, 200) mm` donde la corrida terminó en `AYUDA` tras un esquive, no contra una medición con cinta métrica en `(600, 600) mm`. Además, tras incorporar los cambios de J16 (`RUMBO` en rectas, pose en décimas de grado `rumbo_x10`, margen `150 mm`), la ruta en L **no se volvió a correr en el carro**.
-- **Resolución en el manual v1.1:** se distingue con total transparencia: la ruta en L con el cierre J16 está **`SIMULADA`** (1,000 corridas Monte Carlo: mediana `36 mm`, p95 `65 mm`, 100 % de éxito en simulación) y **`NO MEDIDA` en el carro**; y cuando se menciona el antecedente histórico J14 se aclara qué midió exactamente aquel registro.
+- **Resolución en el manual v1.1:** se distingue con total transparencia: la ruta en L con el cierre J16 está **`SIMULADA`** (1,000 corridas Monte Carlo: mediana `31 mm`, p95 `68 mm`, `1,000` de `1,000` llegan a la meta; cifras corregidas en v1.2 contra `docs/precision/monte_carlo_1000.txt`) y **`NO MEDIDA` en el carro**; y cuando se menciona el antecedente histórico J14 se aclara qué midió exactamente aquel registro.
 
 ---
 
@@ -50,10 +50,10 @@ Propósito: verificar contra el código fuente, los registros CSV y los reportes
 | **Pruebas del servidor falso (`probar_servidor_falso.py`)** | `54` casos, `0` fallos | `VERIFICADO` | `pruebas_firmware/probar_servidor_falso.py` |
 | **Pruebas del verificador de versión (`probar_version.py`)** | `18` casos, `0` fallos | `VERIFICADO` | `scripts/probar_version.py` |
 | **Esquive con reincorporación B6 en el carro (2026-11-10)** | `6` corridas: `0/6` toques de caja, `5/6` completas autónomas con error lateral aproximado entre `~0` y `~10 cm` (`~10, ~10, ~5, ~0, ~0 cm`), `1/6` en `AYUDA` en punto `4/10` sin toque y sin causa identificada | `VALIDADO EN EL CARRO` | `docs/pruebas_fisicas_20261110.csv`, `docs/estado_20261110.md`, `docs/reporte_J16.md` |
-| **Monte Carlo J16 — Recta 150 cm (sin `RUMBO` vs con `RUMBO`)** | Mediana de error lateral final: `94 mm -> 8 mm` (p95: `150 mm -> 16 mm`; éxito: `68.5 % -> 100.0 %` en 1,000 corridas) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
-| **Monte Carlo J16 — Ruta en L (con J16 completo)** | Mediana de error final: `36 mm` (p95: `65 mm`; éxito: `100.0 %` en 1,000 corridas) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
-| **Monte Carlo J16 — Cuadrado 60 cm (con J16 + escala IMU ±1.5 %)** | Mediana de error final: `42 mm` (p95: `81 mm`; éxito: `98.4 %` en 1,000 corridas) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
-| **Monte Carlo J16 — Esquive de caja a 60 cm (con J16 completo)** | `0` colisiones (`0.0 %`), éxito `99.9 %`, mediana de error final `38 mm` (p95 `72 mm`) en 1,000 corridas | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
+| **Monte Carlo J16 — Recta 150 cm (sin `RUMBO` vs con `RUMBO`)** | Mediana de error lateral final: `137 mm -> 9 mm` (p95: `232 mm -> 26 mm`; `1,000` de `1,000` llegan en ambos casos; v1.2 corrigió las cifras `94 -> 8` que no están en el archivo) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
+| **Monte Carlo J16 — Ruta en L (con J16 completo)** | Mediana de error final: `31 mm` (p95: `68 mm`; `1,000` de `1,000` llegan; con `RUMBO` e `IMU_ESCALA`) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
+| **Monte Carlo J16 — Cuadrado 60 cm (con J16 + escala IMU ±1.5 %)** | Mediana de error final: `19 mm` (p95: `43 mm`; `1,000` de `1,000` llegan; con `RUMBO` e `IMU_ESCALA`) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
+| **Monte Carlo J16 — Esquive de caja `20×20 cm` (con J16 completo)** | `0` toques en `1,000` corridas (base J14: `49`), mediana de error lateral final `16 mm` (p95 `40 mm`) | `SIMULADO` | `docs/precision/monte_carlo_1000.txt` |
 | **Pines PWM del puente H TC1508A** | Izquierdo: `GPIO 27` (`IN1`), `GPIO 26` (`IN2`); Derecho: `GPIO 25` (`IN3`), `GPIO 33` (`IN4`); `1000 Hz`, `8 bits` | `VERIFICADO` | `firmware_carro/config.h` |
 | **Bus I2C en ESP32 DevKit** | `SDA = GPIO 21`, `SCL = GPIO 22`, `400 kHz`; `MPU6050 = 0x68`, `VL53L0X = 0x29` | `VERIFICADO` | `firmware_carro/config.h` |
 | **Perfiles PWM y arranque** | `MANUAL`: `252` izq / `255` der; `AUTO`: `207` izq (`VALIDADO EN EL CARRO` en B6; balance en recta aislada `NO MEDIDO`) / `210` der; arranque `255` durante `250 ms` | `VERIFICADO` | `firmware_carro/config.h`, `firmware_carro/carro.c` |
