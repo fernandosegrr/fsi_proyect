@@ -22,7 +22,7 @@ El orden de encendido es importante porque el firmware de la `ESP32 DevKit` cali
 | **2. Energizar `ESP32 DevKit`** | Conectar la **Powerbank USB #1** a la placa `ESP32 DevKit` sin tocar ni mover el chasis durante `2 segundos`. | La placa crea la red `CarroFSI` (`192.168.4.1`) y completa la calibración inicial de `MPU6050` (`imu_calibrada = 1`). |
 | **3. Energizar cámara `Freenove`** | Conectar la **Powerbank USB #2** (propia de la cámara) a la placa `Freenove ESP32-WROVER`. | La cámara se une como cliente a `CarroFSI` con la IP `192.168.4.2` y activa `/stream` (`:81`) y `UDP :4210`. |
 | **4. Conectar el teléfono Android** | Unir el teléfono a la red WiFi `CarroFSI` (desactivando el cambio automático a datos móviles) y abrir la app **`LIDIA`**. | La pestaña `Inicio` muestra estado `Conectado`, imagen en vivo de la cámara y versión `FW:6d1b213-20261110`. |
-| **5. Verificar `Sensores`** | Abrir `Más → Sensores` y revisar ángulo, distancia láser y banderas (`flags = 7`). Si el carro se movió al conectarlo, pulsar `Calibrar IMU` (`IMU_CAL`). | El ángulo marca `0.0°` estable en reposo, el láser mide la distancia real en milímetros y `RUMBO` aparece habilitado (`ON`). |
+| **5. Verificar `Sensores`** | Abrir `Más → Calibración → Abrir sensores` y revisar ángulo, distancia láser y banderas (`flags = 7`). Si el carro se movió al conectarlo, pulsar `Calibrar IMU` (`IMU_CAL`). | El ángulo marca `0.0°` estable en reposo, el láser mide la distancia real en milímetros y `RUMBO` aparece habilitado (`ON`). |
 | **6. Energizar tracción (`4×AA`)** | Pasar el interruptor del portapilas `4×AA` a **`ON`**. | El puente H `TC1508A` recibe potencia y el vehículo queda listo para moverse. |
 
 ## 11.3 Operación en modo manual y ejecución supervisada de rutas
@@ -44,7 +44,7 @@ El orden de encendido es importante porque el firmware de la `ESP32 DevKit` cali
 
 Ante cualquier comportamiento inesperado, el sistema dispone de cuatro mecanismos de detención ordenados por inmediatez:
 
-1. **Paro por liberación o botón `PARO` en pantalla (`< 50 ms`):** soltar el control manual o tocar el botón rojo **`PARO`** envía `STOP` con prioridad máxima en la cola del firmware.
+1. **Paro por liberación o botón `PARO` en pantalla (`< 50 ms`):** soltar el control manual o tocar el botón rojo **`PARO`** envía `STOP`, que en la cola del firmware nunca se descarta.
 2. **Paro automático por láser frontal (local, sin pasar por el teléfono):** cualquier objeto dentro del cono del `VL53L0X` a menos de `120 mm` (firmware v1.1; `150 mm` en `SEG=3`) detiene los motores en el propio microcontrolador tras dos lecturas válidas seguidas (≈ 66 ms entre lecturas más el ciclo del lazo; el tiempo total NO está medido aislado, ver M5 del protocolo).
 3. **Paro por *watchdog* o silencio de sensores (`1.0 s` a `1.5 s`):** apagar la pantalla del teléfono, cerrar la aplicación o desconectar el WiFi detiene el carro a lo sumo en `1,000 ms` (`WD:<n>`).
 4. **Corte físico de energía (`instantáneo`):** apagar el interruptor del portapilas `4×AA` corta directamente la alimentación `VDD` del puente H `TC1508A` sin apagar el microcontrolador ni perder la sesión de diagnóstico.

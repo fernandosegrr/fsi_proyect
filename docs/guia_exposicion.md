@@ -198,12 +198,12 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **R:** Primero medir en el carro con el protocolo ya escrito: M8, M1, M5 y M6 con el firmware actual; luego M2, M3, M4, M7, M9 y M10, y los bloques A y B. Después, decidir si se graba `SEG=3`. De diseño siguen sin hacerse un tope global de continuaciones tras AYUDA, leer el estado de la medición del láser y detectar atascos. (Manual: H.2)
 
 **P:** ¿Qué parte hizo cada quien?  
-**R:** El repositorio no lo dice: los 270 commits salen con una sola cuenta y la documentación no reparte el trabajo. No contesten con nombres que no puedan respaldar: cada persona dice qué parte hizo y la explica con su capítulo del manual (sección 3). Si algo lo hizo una herramienta de IA, díganlo (sección 6). (Manual: I.2)
+**R:** El repositorio no lo dice: los 269 commits anteriores a la v1.2 salen con una sola cuenta y la documentación no reparte el trabajo. No contesten con nombres que no puedan respaldar: cada persona dice qué parte hizo y la explica con su capítulo del manual (sección 3). Si algo lo hizo una herramienta de IA, díganlo (sección 6). (Manual: I.2)
 
 > CONFIRMAR CON EL EQUIPO: ¿Quién hizo qué parte?
 
 **P:** ¿Usaron herramientas de inteligencia artificial?  
-**R:** El repositorio muestra agentes de código: 169 de 270 commits traen la línea `Co-Authored-By` de Claude. Hay que decirlo tal cual y poder explicar qué decidió y revisó el equipo. Los hechos y lo que solo el equipo puede contestar están en la sección 6. (Manual: I.2, y sección 6 de esta guía)
+**R:** El repositorio muestra agentes de código: 168 de los 269 commits anteriores a la v1.2 traen la línea `Co-Authored-By` de Claude. Hay que decirlo tal cual y poder explicar qué decidió y revisó el equipo. Los hechos y lo que solo el equipo puede contestar están en la sección 6. (Manual: I.2, y sección 6 de esta guía)
 
 ## 3. Quién explica qué
 
@@ -313,8 +313,8 @@ Cada cifra de esta guía lleva una etiqueta. Este es el resumen para no sobreven
 
 Lo que muestra el repositorio (revisado con `git log` el 24-nov-2026):
 
-- El historial tiene 270 commits en todas las ramas y etiquetas. Los 270 tienen el mismo nombre de autor, `fernandosegrr`: una sola cuenta de GitHub.
-- 169 commits llevan un trailer `Co-Authored-By`: 150 de «Claude Sonnet 5.5», 10 de «Claude Opus 5.5» y 9 de «Claude Fable 5.2».
+- Antes de la v1.2 el historial tenía 269 commits en todas las ramas y etiquetas; los de la v1.2 se suman a esos. Los 269 tienen el mismo nombre de autor, `fernandosegrr`: una sola cuenta de GitHub.
+- De esos 269, 168 llevan un trailer `Co-Authored-By`: 149 de «Claude Sonnet 5.5», 10 de «Claude Opus 5.5» y 9 de «Claude Fable 5.2». Los commits de la v1.2 también lo llevan.
 - Existe la rama remota `copilot/fsi-proyect`. Sus commits también salen con ese mismo autor y todos están ya en `main`.
 - `docs/bitacora.md` (línea 359) y `docs/validacion_sensores.md` (líneas 41 y 62) mencionan a Claude: la regla «Claude no mueve el carro» y pruebas del 20-oct «hechas por Claude con la app por adb». Los dos textos no coinciden del todo.
 - El repositorio muestra agentes de código usados para escribir y revisar código, documentación y pruebas.

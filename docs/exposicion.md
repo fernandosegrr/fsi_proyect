@@ -46,7 +46,7 @@
 - **Núcleo C99 (`nucleo_c`):** Código portátil sin librerías externas que corre tanto en Android (vía JNI) como en PC para pruebas unitarias.
 - **Máquina de estados finitos:** 8 estados predecibles (`ESPERANDO`, `SIGUIENDO`, `DETENIDO`, `ESQUIVANDO`, `REINCORPORANDO`, etc.).
 - **Percepción:** Corredor trapezoidal de paso proyectado en la cámara; los objetos fuera del corredor no detienen la marcha.
-- **Rigor de ingeniería:** 2045 casos de prueba en PC con 0 fallos, pruebas de estrés con 100 000 comandos continuos y watchdog de 1000 ms.
+- **Rigor de ingeniería:** 1,901 casos del núcleo y 567 del firmware en PC con 0 fallos (corrida del 24-nov-2026, v1.2), pruebas de estrés con 100 000 comandos continuos y watchdog de 1000 ms.
 
 ### Minuto 11:00 a 13:00 — Demostración práctica
 - Encendido de placas, conexión a la red WiFi del carro (`192.168.4.1`).
@@ -85,7 +85,7 @@
 **Respuesta:** En las simulaciones del escenario B6 (esquivar una caja de 20 cm en una ruta), se observó que el carro llegaba al final con un error lateral promedio de 13.2 cm. El diagnóstico reveló que el estimador de pose proyectaba los avances asumiendo que el vehículo mantenía el rumbo inicial de la ruta, sin considerar que un giro intermedio introduce pequeñas perturbaciones angulares. En J15 se corrigió el algoritmo en `navegador.c` para integrar el rumbo instantáneo medido por el giroscopio durante el avance. En simulación computacional (400 rutas), el error se redujo drásticamente a 1.9 cm. Sin embargo, para ser rigurosos con la verdad científica, **aclaramos que esta corrección no se llegó a probar en el vehículo físico real (permanece como NO MEDIDA)**.
 
 ### P8: ¿Por qué escribieron el núcleo de navegación en C puro en vez de hacerlo en Kotlin dentro de Android?
-**Respuesta:** Desarrollar los algoritmos en C99 estándar permitió desacoplar totalmente la lógica matemática del sistema operativo móvil. El mismo código fuente compilado en Android vía JNI se compila de manera nativa en computadoras con GCC, lo que nos permitió crear una batería de 21 suites de prueba con 1598 casos unitarios y ejecutar simulaciones Montecarlo de miles de rutas en pocos segundos sin necesidad de encender un emulador de Android ni agotar las baterías del carro.
+**Respuesta:** Desarrollar los algoritmos en C99 estándar permitió desacoplar totalmente la lógica matemática del sistema operativo móvil. El mismo código fuente compilado en Android vía JNI se compila de manera nativa en computadoras con GCC, lo que nos permitió crear una batería de 29 programas de prueba con 2,468 casos (24 con 1,901 del núcleo y 5 con 567 del firmware; corrida del 24-nov-2026, v1.2) y ejecutar simulaciones Montecarlo de miles de rutas en pocos segundos sin necesidad de encender un emulador de Android ni agotar las baterías del carro.
 
 ### P9: Si la cámara y el láser ToF detectan cosas distintas, ¿cuál tiene la autoridad?
 **Respuesta:** El **sensor ToF láser VL53L0X tiene la máxima autoridad de parada física**. La cámara puede fallar ante sombras, cambios de luz o retrasos de red, pero el láser emite fotones a la velocidad de la luz y mide distancias reales en milímetros con determinismo temporal. Si el láser detecta un objeto a menos del umbral de seguridad, el microcontrolador ESP32 frena los motores en el acto (`TOF_PARO`), independientemente de lo que la app o la cámara estén procesando.
