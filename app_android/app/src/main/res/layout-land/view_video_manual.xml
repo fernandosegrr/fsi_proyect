@@ -77,4 +77,15 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/e1" />
     </LinearLayout>
+
+    <!-- El aviso del video va ENCIMA del video, abajo (igual que en vertical): al aparecer o irse no mueve nada. OJO: este archivo es la variante -land de
+         layout/view_video_manual.xml; los dos deben tener los mismos ids (ManualFragment busca manual_aviso en ambos; sin él la app se cierra al abrir Manual de lado). -->
+    <com.fsi.carro.AvisoBanda
+        android:id="@+id/manual_aviso"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/e1"
+        app:layout_constraintBottom_toBottomOf="@id/manual_video"
+        app:layout_constraintEnd_toEndOf="@id/manual_video"
+        app:layout_constraintStart_toStartOf="@id/manual_video" />
 </androidx.constraintlayout.widget.ConstraintLayout>

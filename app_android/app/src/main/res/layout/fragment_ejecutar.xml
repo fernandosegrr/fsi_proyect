@@ -192,10 +192,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
+                    <!-- «Resultado» es la columna que más ancho necesita (el chip «Terminado» con su punto): se queda con el ancho de su chip y las otras dos
+                         reparten el resto. Con tres columnas iguales el chip salía cortado en el teléfono («Terminad»). -->
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
+                        android:layout_marginEnd="@dimen/e2"
                         android:orientation="vertical">
 
                         <TextView

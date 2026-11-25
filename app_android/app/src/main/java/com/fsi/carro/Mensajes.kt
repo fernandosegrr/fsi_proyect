@@ -18,9 +18,27 @@ data class Mensaje(val quePaso: String, val queHacer: String)
 
 object RedCarro {
 
-    /** true si el teléfono tiene una conexión WiFi con dirección 192.168.4.x (la red del carro). Solo mira las redes; no pide permiso de ubicación. */
-    @Suppress("DEPRECATION")
+    private const val VIGENCIA_MS = 1000L
+    private var consultadoMs = 0L
+    private var ultimaRespuesta = false
+
+    /**
+     * true si el teléfono tiene una conexión WiFi con dirección 192.168.4.x (la red del carro). Solo mira las redes; no pide permiso de ubicación.
+     * La respuesta se recuerda 1 s: las pantallas la piden en cada refresco (varias veces por segundo) mientras no hay conexión y cada consulta son varias llamadas al sistema.
+     */
+    @Synchronized
     fun enRedDelCarro(contexto: Context): Boolean {
+        val ahora = android.os.SystemClock.elapsedRealtime()
+        if (consultadoMs != 0L && ahora - consultadoMs < VIGENCIA_MS) {
+            return ultimaRespuesta
+        }
+        ultimaRespuesta = consultarRedes(contexto)
+        consultadoMs = ahora
+        return ultimaRespuesta
+    }
+
+    @Suppress("DEPRECATION")
+    private fun consultarRedes(contexto: Context): Boolean {
         val cm = contexto.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         for (red in cm.allNetworks) {
             val capacidades = cm.getNetworkCapabilities(red) ?: continue
@@ -74,6 +92,15 @@ object Mensajes {
     fun sinVideo(contexto: Context) = Mensaje(
         "La cámara no responde",
         "Se intentó con ${direccionDeLaCamara(contexto)} y se reintenta sola cada 3 s. Puedes seguir manejando sin video; si sigue igual, apaga y enciende la cámara."
+    )
+
+    /**
+     * Versión corta de sinVideo() para el aviso que va ENCIMA del video de Manual: en horizontal el video mide unos 430 px de alto y la frase larga (con la IP y el consejo de apagar
+     * la cámara) no cabía; en vertical tapaba casi todo el video con un párrafo de 9 renglones. El detalle largo sigue en sinVideo() y en Ayuda («El video no llega»).
+     */
+    fun sinVideoEnManual() = Mensaje(
+        "La cámara no responde",
+        "Se reintenta sola cada 3 s. Puedes seguir manejando sin video."
     )
 
     /** La IP (o nombre) de la cámara a la que intenta conectarse el video, sin puerto ni ruta. */

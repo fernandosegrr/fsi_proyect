@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Guía de lectura: el VIDEO de Manual (se incluye en vertical y en horizontal). Proporción 240:176 (la de la cámara). Capas, de abajo hacia arriba:
-  la imagen con esquinas redondeadas, los números de la detección (solo dibujan encima, la imagen no se toca), el aviso «Sin video» y los chips de retraso y fps.
+  la imagen con esquinas redondeadas, los números de la detección (solo dibujan encima, la imagen no se toca), el aviso «Sin video», los chips de retraso y fps y, arriba de
+  todo, el aviso en banda del video (manual_aviso: solo en Manual).
 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -77,4 +78,14 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/e1" />
     </LinearLayout>
+    <!-- El aviso del video (la cámara no responde, el modo no manda imagen...) va ENCIMA del video, abajo: al aparecer o irse no mueve nada (ni la cruceta ni el tamaño
+         del video). Antes estaba entre el video y los interruptores y empujaba toda la pantalla de manejo. Solo lo usa Manual; Ejecutar ruta tiene el suyo (ej_aviso). -->
+    <com.fsi.carro.AvisoBanda
+        android:id="@+id/manual_aviso"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/e1"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/manual_video"
+        app:layout_constraintStart_toStartOf="@id/manual_video" />
 </androidx.constraintlayout.widget.ConstraintLayout>

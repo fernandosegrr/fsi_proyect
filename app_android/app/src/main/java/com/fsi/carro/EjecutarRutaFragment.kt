@@ -15,7 +15,9 @@
  *     (NavegadorNativa.ayudaComando; soltar = STOP), que sigue estimando la posición. «Continuar la ruta» (ayudaContinuar) hace que vuelva solo a la línea y siga. El PARO cancela la ruta.
  *  4. Al terminar (o al cancelar) se muestra un RESUMEN (resultado, duración y obstáculos esquivados) y se anota en el historial (AlmacenRutas).
  *  5. Al salir de la pantalla la ruta se cancela (STOP) y se suelta el video. Los detalles técnicos (posición estimada, cuadros, la prueba de obstáculos) están
- *     detrás del botón «Detalles técnicos».
+ *     detrás del botón «Detalles técnicos» (solo se arman con el panel abierto).
+ *  6. ANTI-PARPADEO: con la ruta en marcha el ciclo avisa cada 50 ms. La pantalla se rehace como mucho cada 100 ms (RefrescoAcotado) y cada texto, chip y aviso solo cambia si
+ *     es distinto de lo que ya se ve (docs/diseno.md, «Parpadeos»).
  */
 package com.fsi.carro
 
@@ -153,10 +155,13 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         }
     }
 
-    private val alCambiar: () -> Unit = { actualizar() }
+    // Mientras corre la ruta el modo semiautónomo avisa cada 50 ms (y los sensores del carro cada 100 ms): la pantalla se rehace como mucho cada 100 ms (RefrescoAcotado).
+    // Las llamadas directas a actualizar() (un toque de botón, un cambio de fase) siguen siendo inmediatas.
+    private val refresco = RefrescoAcotado(100L) { actualizar() }
+    private val alCambiar: () -> Unit = { refresco.pedir() }
     private val reloj = object : Runnable {
         override fun run() {
-            actualizar()
+            refresco.pedir()
             principal.postDelayed(this, 250)
         }
     }
@@ -231,6 +236,9 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
             val abrir = avanzado.visibility != View.VISIBLE
             avanzado.visibility = if (abrir) View.VISIBLE else View.GONE
             botonDetalles.setIconResource(if (abrir) R.drawable.ic_expand_less else R.drawable.ic_expand_more)
+            if (abrir) {
+                actualizar()   // los detalles no se arman con el panel plegado: se llenan ahora
+            }
         }
 
         if (arguments?.getBoolean("auto_iniciar") == true) {
@@ -276,6 +284,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         pisoFijoRuta = false
         cancelarSalida()
         principal.removeCallbacks(reloj)
+        refresco.cancelar()
         SesionCarro.dejarDeEscuchar(alCambiar)
         SesionVideo.dejarDeEscuchar(alCambiar)
         val semi = SesionCarro.semi
@@ -488,7 +497,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         tarjetaAyuda.visibility = if (enAyuda) View.VISIBLE else View.GONE
         if (enAyuda) {
             // Autónomo v2: siempre con el código de la causa delante («Causa 16: ...») para poder anotarlo y buscarlo en el manual.
-            textoAyudaCausa.text = "Causa ${NavegadorNativa.causa()}: " + NavegadorNativa.textoError().replaceFirstChar { it.uppercase() }
+            textoAyudaCausa.ponerSiCambia("Causa ${NavegadorNativa.causa()}: " + NavegadorNativa.textoError().replaceFirstChar { it.uppercase() })
             if (!ayudaAvisada) {
                 ayudaAvisada = true
                 Haptica.obstaculo(requireContext())
@@ -517,19 +526,19 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         val total = (e[NavegadorNativa.E_PUNTOS] - 1).coerceAtLeast(1)
         val objetivo = if (semi.activo) e[NavegadorNativa.E_OBJETIVO].coerceIn(1, total) else if (terminada && resultadoFinal == "TERMINADO") total else 0
         barra.setProgressCompat(if (semi.activo || terminada) objetivo * 100 / total else 0, true)
-        progreso.text = if (semi.activo || terminada) getString(R.string.ejecutar_progreso, objetivo, total) else ""
+        progreso.ponerSiCambia(if (semi.activo || terminada) getString(R.string.ejecutar_progreso, objetivo, total) else "")
         progreso.visibility = if (progreso.text.isEmpty()) View.GONE else View.VISIBLE
 
         // Botones
         botonIniciar.visibility = if (corriendo) View.GONE else View.VISIBLE
-        botonIniciar.setText(if (fase == Fase.CONFIRMAR) R.string.ejecutar_confirmar else if (terminada) R.string.ejecutar_repetir else R.string.ejecutar_iniciar)
+        botonIniciar.ponerSiCambia(if (fase == Fase.CONFIRMAR) R.string.ejecutar_confirmar else if (terminada) R.string.ejecutar_repetir else R.string.ejecutar_iniciar)
         botonCancelar.visibility = if (fase == Fase.CONFIRMAR) View.VISIBLE else View.GONE
         ayudaConfirmar.visibility = if (fase == Fase.CONFIRMAR) View.VISIBLE else View.GONE
         botonParo.visibility = if (corriendo) View.VISIBLE else View.GONE
         botonAprender.visibility = if (corriendo) View.GONE else View.VISIBLE
         ayudaAprender.visibility = if (corriendo) View.GONE else View.VISIBLE
         botonVolver.visibility = if (terminada && !corriendo) View.VISIBLE else View.GONE
-        piso.text = if (corriendo) "" else textoPiso()
+        piso.ponerSiCambia(if (corriendo) "" else textoPiso())
 
         // Video
         placeholder.visibility = if (hayVideo && (visor?.cuadrosMostrados ?: 0L) > 0L) View.GONE else View.VISIBLE
@@ -549,7 +558,10 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         } else if (!terminada && !avisoDelFlujo) {
             aviso.ocultar()
         }
-        detalles.text = textoDetalles(e)
+        // Los detalles técnicos están plegados casi siempre: armarlos (y leer la carpeta de la caja negra en el hilo principal) varias veces por segundo no le servía a nadie.
+        if (avanzado.visibility == View.VISIBLE) {
+            detalles.ponerSiCambia(textoDetalles(e))
+        }
     }
 
     private fun palabraEstado(e: IntArray): String = when (e[NavegadorNativa.E_ESTADO]) {

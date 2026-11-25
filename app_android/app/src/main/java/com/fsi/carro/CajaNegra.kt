@@ -48,12 +48,27 @@ object CajaNegra {
     /** La carpeta de las cajas negras como texto (para decirle al usuario dónde están), o "" si no hay almacenamiento. */
     fun carpeta(): String = raiz?.absolutePath ?: ""
 
-    /** Cuántos archivos hay guardados. */
-    fun cuantas(): Int = raiz?.listFiles { f -> f.isFile && f.name.startsWith("cn_") }?.size ?: 0
+    private var contadasMs = 0L
+    private var contadas = 0
+
+    /**
+     * Cuántos archivos hay guardados. Lee la carpeta como mucho cada 2 s: la pantalla de la ruta lo pedía varias veces por segundo desde el hilo principal y cada vez era
+     * una lectura del disco (no se midió cuánto tarda en el teléfono, pero un acceso a disco en el hilo principal puede dar tirones y no hacía falta repetirlo).
+     */
+    @Synchronized
+    fun cuantas(): Int {
+        val ahora = SystemClock.elapsedRealtime()
+        if (contadasMs == 0L || ahora - contadasMs > 2000L) {
+            contadas = raiz?.listFiles { f -> f.isFile && f.name.startsWith("cn_") }?.size ?: 0
+            contadasMs = ahora
+        }
+        return contadas
+    }
 
     /** Empieza el archivo de una corrida. `cabecera` son líneas «clave=valor» (se escriben como CAB). Si ya había una abierta, se cierra primero. */
     fun abrir(cabecera: List<String>) {
         val carpeta = raiz ?: return
+        contadasMs = 0L
         val nombre = "cn_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
         inicioMs = SystemClock.elapsedRealtime()
         lineas = 0
