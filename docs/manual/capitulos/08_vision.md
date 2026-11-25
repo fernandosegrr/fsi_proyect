@@ -12,7 +12,7 @@ En un entorno interior real, confiar la detección de obstáculos a un solo prin
 
 Al combinar las tres fuentes dentro de un marco geométrico común (**el corredor de perspectiva**), el vehículo aprovecha la cobertura espacial de la cámara (`240×176` píxeles) junto con la certidumbre de distancia del láser frontal.
 
-[FIGURA:percepcion|Tubería multimodal de visión y percepción: clasificador de piso YCbCr/RGB, red neuronal EfficientDet-Lite0, corredor de perspectiva y láser VL53L0X integrados bajo candado_vision.]
+[FIGURA:percepcion|Tubería multimodal de visión y percepción: clasificador de piso por distancia RGB y crominancia normalizada, red neuronal EfficientDet-Lite0, corredor de perspectiva y láser VL53L0X integrados bajo candado_vision.]
 
 ## 8.2 Clasificador cromático de piso multiclúster (`obstaculos.c`) y máscara fija
 
@@ -42,16 +42,18 @@ Un objeto visible cerca de los bordes izquierdo o derecho de la imagen no estorb
 
 Como resultado de la perspectiva cónica, el corredor proyectado forma un **trapecio** que abarca desde las columnas `2 a 7` en la parte inferior cercana (`fila 9`, junto a las ruedas) hasta estrecharse en las columnas centrales (`4 a 5`) cerca del horizonte (`filas 3 y 4`).
 
-### Reglas de decisión en `fusion.c` y autoridad del láser
+### Reglas de decisión: revisión del 12-nov, solo simulada
 
-El módulo `fusion.c` cruza las celdas anómalas del clasificador de piso y las cajas vigentes de la red neuronal contra el trapecio del corredor:
+`fusion.c` conserva las fuentes por zona: color=1, red=2, coincidencia=3. No recibe el láser; el navegador lo combina después. Solo color no basta aunque marque cercanía 3. El flujo no sustituye a la red como confirmación. Un modelo con más de 300 ms de edad no confirma.
 
-| Condición observada en las fuentes | Salida de `fusion_decidir` | Acción resultante en `navegador.c` |
-|---|---|---|
-| Sin anomalías en el corredor ni cajas vigentes | `FUSION_LIBRE` (`0`) | Continúa avanzando por la ruta con control `RUMBO`. |
-| Objeto o anomalía detectada solo fuera del trapecio del corredor | `FUSION_FUERA_CORREDOR` (`1`) | Muestra aviso visual en pantalla pero **no frena** el avance recto. |
-| Anomalía de piso o caja de red neuronal dentro del corredor en filas de riesgo (`fila >= 5`) | `FUSION_EN_CORREDOR` (`2`) + `lado_libre` (`+1` izq / `-1` der) | Pasa a `NAV_DETENIDO_OBSTACULO`, confirma durante `300 ms` y lanza el esquive hacia el costado más despejado. |
-| **Autoridad opcional del láser frontal (`usar_tof_en_ruta = 1`):** `VL53L0X` mide `< 400 mm` (`NAV_TOF_ESQUIVE_MM`) | Inyecta obstáculo en columnas centrales (`3 a 6`, `fila 7`) | Garantiza la detención y el inicio del esquive aunque la caja sea del mismo color que el piso y la red neuronal no la reconozca. |
+| Observación | Decisión |
+|---|---|
+| Láser válido fresco a 400 mm o menos | Confirma obstáculo frontal. |
+| Láser libre y solo color o solo red | Continúa sin STOP ni AYUDA. |
+| Color y red coinciden en una zona, láser libre o sin eco | Precaución, STOP según cercanía y esquive usando banda visual o medida láser disponible. |
+| Láser sin eco/vencido y una sola fuente | Continúa con precaución. |
+
+Las bandas no miden centímetros. La precaución aplica tandas de avance de 700 ms y pausa de 300 ms cuando no hay distancia frontal utilizable; no cambia PWM. La app exige Aprender piso para esta iluminación antes de la ruta. El láser puede perder patas y ambas fuentes de cámara pueden fallar juntas; este diseño no garantiza detectar todo objeto.
 
 ## 8.5 Sincronización multihilo en JNI (`candado_vision` — Cierre J16)
 
@@ -60,3 +62,24 @@ En la aplicación Android intervienen concurrentemente varios hilos que invocan 
 En la auditoría previa al cierre **J16** se identificó que las estructuras globales de visión en `puente.c` (`g_obs`, `g_cfg_corredor`, `g_cfg_fusion`, `g_cfg_cualq` y `g_mascara`) podían ser leídas y modificadas al mismo tiempo desde dos hilos de Kotlin sin exclusión mutua. Para eliminar cualquier riesgo de corrupción de memoria o lectura desgarrada (*torn read*), el cierre **J16** introdujo en `puente.c` un **candado mutex multiplataforma (`candado_vision`)** —implementado con `pthread_mutex_t` en Android/Linux y `CRITICAL_SECTION` en Windows— junto con las primitivas `vision_lock()` y `vision_unlock()` que envuelven todas las entradas `JNI` de visión y aprendizaje de suelo.
 
 Dónde está en el código: `obstaculos.h`, `obstaculos.c`, `corredor.h`, `corredor.c`, `fusion.h`, `fusion.c`, `cualquiera.c`, `mascara_vision.c`, `puente.c`, `DetectorTflite.kt`, `ModeloEnHilo.kt`.
+
+## 8.6 Autónomo v2: consenso temporal, salud del detector y telemetría (`SIMULADO`)
+
+Rama `feat/autonomo-v2`. Las reglas de fusión aprobadas no cambian; cambia cuándo se aplican.
+
+- **Coincidencia de color y red:** cuenta desde el segundo cuadro seguido (en el centro y en la banda más cercana, desde el primero), y para esquivar sin láser hacen falta tres cuadros con el carro detenido (cuatro y 0.8 s si lo detuvo un solo cuadro). Una caja inventada por la red sobre una mancha de color suele durar un cuadro.
+- **Una sola fuente de visión** con el láser libre o sin eco no detiene ni hace avanzar a ratos. Lo que ve a un lado se resuelve con el vistazo del láser (7.6).
+- **Salud del detector de objetos:** si la ruta cuenta con él y pasan 2.5 s sin un resultado vigente, el carro se detiene y pide ayuda con la causa 17. Al iniciar, la app avisa si la ruta sale sin láser, sin detector o sin cámara.
+- **Telemetría numérica** (`nucleo_c/vision_tele.c`): cada cuadro se resume en una línea `VTEL` con el histograma de distancias de color al piso aprendido, brillo, celdas quemadas y negras, y celdas «no piso» por zona, banda y fila. Nunca se guarda la imagen.
+
+Cómo leer un falso positivo en la caja negra: si **todo** el histograma se corre a la vez, la cámara cambió su exposición o el piso se aprendió con otra luz; si solo suben unas celdas de una zona, es una mancha de sol, una sombra o un reflejo. Esta lectura es una hipótesis del banco: `NO MEDIDO` en el carro.
+
+## 8.7 Hallazgos de la investigación de visión (v3)
+
+Documentos: `docs/investigacion_autonomo/05_vision_monocular.md` y `07_detector_efficientdet.md`.
+
+- **El clasificador de color no es `YCbCr`:** `obstaculos.c` usa distancia RGB (suma de valores absolutos) más una regla de crominancia normalizada, con hasta **4 grupos** de piso (`OBS_MAX_GRUPOS`). Las versiones anteriores del manual decían `YCbCr` con 3 grupos; está corregido.
+- **Una pata delgada de 30 mm** ocupa 2 a 4 celdas a 50 cm y ninguna a 80 cm (cálculo `SIMULADO` con campo 56°, altura 115 mm e inclinación 12° SUPUESTOS), frente a `MIN_CELDAS` = 7: el color no ve patas más allá de ~50 cm. La expansión de la imagen al acercarse (*looming*) tampoco ayuda con patas lejanas.
+- **Constantes de geometría inconsistentes:** `corredor.h` usa 10 cm de altura, 20° de inclinación y 60° de campo; el manual, 115 mm, 12° y 56°; la altura entra en centímetros enteros. Hay que medir la cámara y unificar antes de tocar el clasificador.
+- **Detector:** la documentación habla de cajas `[top, left, right, bottom]` y el código usa `[ymin, xmin, ymax, xmax]` (puede ser el orden del modelo exacto); se propone verificarlo con una imagen **sintética**. El detector estira 240×176 a 320×320, usa NMS con IoU 0.5, máximo 25 cajas y un solo umbral de 0.6.
+- **Sombras, manchas de sol y reaprender el piso** no están medidos (M4 del protocolo); no se cambió el clasificador sin esa medición.

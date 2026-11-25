@@ -13,6 +13,8 @@
  *  7. Primera vez: se muestra el asistente de 3 pantallas (se puede saltar y se vuelve a ver desde Ayuda).
  *  8. Para pruebas se puede abrir una pantalla directo con adb:
  *       adb shell am start -n com.fsi.carro/.MainActivity --es pantalla manual     (inicio, manual, rutas, mas, ajustes, ayuda, acerca, prueba, asistente)
+ *  9. ANTI-PARPADEO: las sesiones avisan hasta 20 veces por segundo; la cabecera se rehace como mucho cada 100 ms (RefrescoAcotado) y cada pieza solo cambia cuando
+ *     cambia de verdad (el punto de conexión no reinicia su respiración, la bandera de pantalla encendida se pide solo al cambiar). Ver docs/diseno.md, «Parpadeos».
  */
 package com.fsi.carro
 
@@ -47,7 +49,10 @@ class MainActivity : AppCompatActivity() {
     private var sincronizando = false
     private var conectadoDesdeMs = 0L
 
-    private val alCambiar: () -> Unit = { actualizarCabecera() }
+    // Las sesiones avisan hasta 20 veces por segundo (ruta en marcha, sensores, PONG): la cabecera se rehace como mucho cada 100 ms (RefrescoAcotado).
+    private val refrescoCabecera = RefrescoAcotado(100L) { actualizarCabecera() }
+    private val alCambiar: () -> Unit = { refrescoCabecera.pedir() }
+    private var pantallaEncendida = false   // lo que ya se le pidió a la ventana (FLAG_KEEP_SCREEN_ON): repetirlo en cada refresco hacía que Android volviera a medir toda la ventana
 
     private val receptorBateria = object : BroadcastReceiver() {
         override fun onReceive(contexto: Context, intento: Intent) {
@@ -177,6 +182,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         SesionCarro.salir(SesionNativa.USUARIO_MAS)
         SesionCarro.dejarDeEscuchar(alCambiar)
+        refrescoCabecera.cancelar()
         try { unregisterReceiver(receptorBateria) } catch (e: IllegalArgumentException) { /* ya estaba suelto */ }
         super.onStop()
     }
@@ -258,7 +264,7 @@ class MainActivity : AppCompatActivity() {
         cabecera.visibility = if (completo) View.GONE else View.VISIBLE
         barra.visibility = if (completo) View.GONE else View.VISIBLE
         if (completo) {
-            avisoGlobal.visibility = View.GONE
+            avisoGlobal.ocultarYa()
         }
     }
 
@@ -303,24 +309,24 @@ class MainActivity : AppCompatActivity() {
         when (logica.conexion) {
             ControlLogica.Conexion.CONECTADO -> {
                 puntoConexion.nivel = Nivel.OK
-                textoConexion.setText(R.string.conexion_conectado)
+                textoConexion.ponerSiCambia(R.string.conexion_conectado)
                 if (conectadoDesdeMs == 0L) {
                     conectadoDesdeMs = android.os.SystemClock.elapsedRealtime()
                 }
             }
             ControlLogica.Conexion.RECONECTANDO -> {
                 puntoConexion.nivel = Nivel.AVISO
-                textoConexion.setText(R.string.conexion_reconectando)
+                textoConexion.ponerSiCambia(R.string.conexion_reconectando)
                 conectadoDesdeMs = 0L
             }
             ControlLogica.Conexion.DESCONECTADO -> {
                 conectadoDesdeMs = 0L
                 if (logica.msSinConexion > 0) {
                     puntoConexion.nivel = Nivel.AVISO
-                    textoConexion.setText(R.string.conexion_conectando)
+                    textoConexion.ponerSiCambia(R.string.conexion_conectando)
                 } else {
                     puntoConexion.nivel = Nivel.NEUTRO
-                    textoConexion.setText(R.string.conexion_sin)
+                    textoConexion.ponerSiCambia(R.string.conexion_sin)
                 }
             }
         }
@@ -333,10 +339,16 @@ class MainActivity : AppCompatActivity() {
         }
         val enMarcha = semi.activo || semi.esperandoPerfil
         botonParo.visibility = if (enMarcha) View.VISIBLE else View.GONE
-        if (enMarcha || logica.moviendo || pestanaActual == R.id.pestana_manual) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Con el PARO en la fila, el chip de velocidad (no cambia durante la ruta) se esconde: sin eso la frase de conexión quedaba en «Co…» (se vio en el teléfono).
+        chipPerfil.visibility = if (enMarcha) View.GONE else View.VISIBLE
+        val mantenerEncendida = enMarcha || logica.moviendo || pestanaActual == R.id.pestana_manual
+        if (mantenerEncendida != pantallaEncendida) {
+            pantallaEncendida = mantenerEncendida
+            if (mantenerEncendida) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
         actualizarAvisoGlobal()
     }

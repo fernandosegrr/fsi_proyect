@@ -62,3 +62,15 @@ pruebas_firmware/pruebas_*
 !pruebas_firmware/pruebas_*.c
 fotos_entrada/
 
+# --- Datos y binarios que NO se publican (release v1.2) ---
+# Cajas negras reales de las corridas y CSV de pruebas fisicas con datos medidos (las plantillas *_plantilla.csv si se versionan)
+cajas_negras/
+docs/pruebas_fisicas_2*.csv
+# Binarios de firmware compilados
+*.bin
+*.elf
+*.hex
+*.uf2
+# Secretos en cualquier carpeta (solo se versiona secretos.ejemplo.h)
+secretos.h
+.env

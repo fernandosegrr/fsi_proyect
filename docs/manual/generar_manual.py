@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-generar_manual.py — Genera el Manual Técnico del Carro FSI (Versión final 1.1).
+generar_manual.py — Genera el Manual Técnico del Carro FSI (v1.2, base v3).
 
 Uso reproducible en un solo comando:
-    python docs/manual/generar_manual.py
+    python docs/manual/generar_manual.py              (regenera también las figuras)
+    python docs/manual/generar_manual.py --sin-figuras  (reutiliza las figuras existentes)
 
 Produce:
     docs/manual/Manual_Proyecto_Carro_FSI.pdf
+
+Novedades v1.2:
+  - Los bloques de código conservan los espacios (sirven para diagramas ASCII).
+  - {{pag:CLAVE}} en cualquier texto o tabla se sustituye por el número de página real del
+    encabezado CLAVE y se vuelve un enlace dentro del PDF. Claves: A..I (subsistema), A.3
+    (sección 3 del subsistema A), c7 y c7.2 (capítulo 7 y su sección 2), mapa, glosario, indice.
+    El PDF se arma las veces necesarias hasta que los números de página dejan de cambiar.
 """
 from pathlib import Path
 import html
@@ -40,6 +48,18 @@ ROOT = Path(__file__).resolve().parents[2]
 MANUAL = ROOT / "docs" / "manual"
 CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
+
+# Texto de versión (portada, encabezado de página y metadatos del PDF)
+VERSION_LARGA = "v1.2 (autónomo v3, pendiente de validar en el carro)"
+TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2 — base v3 · autónomo v3 pendiente de validar en el carro"
+
+# Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
+PAGINAS = {}          # clave real del encabezado -> página donde aparece
+ALIAS = {}            # clave corta ("A.2", "c7", "mapa") -> clave real del encabezado
+REFERENCIAS = set()   # claves cortas pedidas desde el texto (para avisar si alguna no existe)
+ADVERTENCIAS = []     # avisos no fatales (p. ej. líneas de código demasiado anchas)
+MAX_ANCHO_CODIGO = 84
 
 # Registro de fuentes DejaVu con soporte completo de acentos y símbolos matemáticos Unicode
 FONTS_DIR = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
@@ -343,6 +363,18 @@ def limpiar_latex_inline(expr):
 
 def formatear_inline(texto):
     """Convierte Markdown inline (**negrita**, *cursiva*, `código`, $math$) a XML de ReportLab."""
+    # DejaVu no trae caracteres chinos (p. ej. el título de una fuente de la bibliografía): se sustituyen en el PDF
+    texto = re.sub(r"[\u3400-\u9fff]+", "[título en chino]", texto)
+    # Referencias de página {{pag:CLAVE}} (se restauran al final como enlace interno)
+    partes_pag = []
+
+    def _guardar_pag(m):
+        idx = len(partes_pag)
+        partes_pag.append(m.group(1).strip())
+        return f"@@PAG{idx}@@"
+
+    texto = re.sub(r"\{\{pag:([^}]+)\}\}", _guardar_pag, texto)
+
     # Primero sustituir bloques matemáticos inline $...$
     partes_math = []
 
@@ -383,6 +415,14 @@ def formatear_inline(texto):
             f"@@MATH{idx}@@",
             f'<font name="DejaVuMono" color="#163c60">{html.escape(m_str)}</font>',
         )
+    for idx, alias in enumerate(partes_pag):
+        REFERENCIAS.add(alias)
+        clave = ALIAS.get(alias, alias)
+        pagina = PAGINAS.get(clave)
+        s = s.replace(
+            f"@@PAG{idx}@@",
+            f'<a href="#{html.escape(clave, quote=True)}" color="#163c60">{pagina if pagina else "?"}</a>',
+        )
     return s
 
 
@@ -400,6 +440,7 @@ class ManualDocTemplate(SimpleDocTemplate):
             texto = flowable.getPlainText()
             self.canv.bookmarkPage(key)
             self.canv.addOutlineEntry(texto, key, level=level, closed=(level > 0))
+            PAGINAS[key] = self.page
             if in_toc and level <= 1:
                 self.notify("TOCEntry", (level, texto, self.page, key))
 
@@ -412,7 +453,7 @@ def crear_encabezado(texto, nivel, key, in_toc=True):
 
 
 def dibujar_marco_pagina(canvas, doc):
-    canvas.setTitle("Manual técnico del Carro FSI (LIDIA) — Versión final 1.1")
+    canvas.setTitle(TITULO_PDF)
     canvas.setAuthor(
         "Jaime Fernando Guerrero Segoviano; Melanie Contreras Solis; "
         "Vitto Eduardo Rangel Fortuna; Azul Abril Cadena Campos"
@@ -428,7 +469,7 @@ def dibujar_marco_pagina(canvas, doc):
         canvas.drawString(
             doc.leftMargin,
             A4[1] - 36,
-            "Carro FSI (LIDIA) · Manual técnico · Versión final 1.1",
+            CABECERA_PAGINA,
         )
         canvas.setStrokeColor(BORDE_TABLA)
         canvas.setLineWidth(0.6)
@@ -438,7 +479,6 @@ def dibujar_marco_pagina(canvas, doc):
 
 
 def construir_portada(story):
-    rev_corta = git("rev-parse", "--short=7", "HEAD")
     story.append(Spacer(1, 28))
     story.append(Paragraph("UNIVERSIDAD DE GUANAJUATO", STYLES["cover_inst"]))
     story.append(
@@ -464,7 +504,14 @@ def construir_portada(story):
             STYLES["cover_sub"],
         )
     )
-    story.append(Paragraph("Versión final 1.1", STYLES["cover_ver"]))
+    story.append(Paragraph(html.escape(VERSION_LARGA), STYLES["cover_ver"]))
+    story.append(
+        Paragraph(
+            "Autónomo v3 (investigación, revisión y endurecimiento): <b>SIMULADO</b>; <b>NO MEDIDO</b> en el carro.<br/>"
+            "Lo validado en el carro físico es la v1.1 (cierre del 10-nov-2026).",
+            STYLES["cover_sub"],
+        )
+    )
     linea_inf = Table([[""]], colWidths=[ANCHO_UTIL * 0.55], rowHeights=[1.5])
     linea_inf.setStyle(
         TableStyle([("BACKGROUND", (0, 0), (-1, -1), VERDE), ("ALIGN", (0, 0), (-1, -1), "CENTER")])
@@ -493,11 +540,11 @@ def construir_portada(story):
             ),
         ],
         [
-            Paragraph("<b>Fecha de cierre:</b>", STYLES["td"]),
+            Paragraph("<b>Cierre físico histórico:</b>", STYLES["td"]),
             Paragraph("10 de noviembre de 2026", STYLES["td"]),
         ],
         [
-            Paragraph("<b>Artefactos validados:</b>", STYLES["td"]),
+            Paragraph("<b>Artefactos del cierre físico (v1.1):</b>", STYLES["td"]),
             Paragraph(
                 '<font name="DejaVuMono" size="8.2">APP:0.4-6d1b213</font> · '
                 '<font name="DejaVuMono" size="8.2">FW:6d1b213-20261110</font>',
@@ -505,10 +552,13 @@ def construir_portada(story):
             ),
         ],
         [
-            Paragraph("<b>Revisión del repositorio:</b>", STYLES["td"]),
+            Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
             Paragraph(
-                f'<font name="DejaVuMono" size="8.2">v1.1 ({html.escape(rev_corta)})</font> · '
-                "https://github.com/fernandosegrr/fsi_proyect",
+                "<b>v1.2 — base v3.</b> Código: autónomo v3 (rama "
+                '<font name="DejaVuMono" size="8.2">feat/autonomo-v3</font>, punto de partida '
+                '<font name="DejaVuMono" size="8.2">e37f77b</font>) más la revisión de la interfaz de la app Android. '
+                "El autónomo v3 es SIMULADO y está pendiente de validar en el carro; la base validada es v1.1 "
+                '(<font name="DejaVuMono" size="8.2">bd1727b</font>, 10-nov-2026).',
                 STYLES["td"],
             ),
         ],
@@ -613,7 +663,20 @@ def agregar_figura(story, slug, pie_txt, num_fig):
     return num_fig
 
 
+def _linea_codigo(linea, ruta_md, num_linea):
+    """Línea de un bloque de código lista para ReportLab: conserva espacios iniciales y dobles
+    (diagramas ASCII); un espacio simple sigue pudiendo partir la línea."""
+    linea = linea.expandtabs(4).rstrip()
+    if len(linea) > MAX_ANCHO_CODIGO:
+        ADVERTENCIAS.append(
+            f"{ruta_md.name}:{num_linea}: línea de código de {len(linea)} caracteres (máximo {MAX_ANCHO_CODIGO})"
+        )
+    esc = html.escape(linea)
+    return re.sub(r"^ +| {2,}", lambda m: "&nbsp;" * len(m.group(0)), esc)
+
+
 def procesar_capitulo(story, idx_cap, ruta_md, num_fig, num_tabla):
+    # idx_cap es la clave del capítulo: el nombre del archivo sin extensión
     # Cada capítulo inicia siempre en página nueva
     story.append(PageBreak())
 
@@ -634,26 +697,26 @@ def procesar_capitulo(story, idx_cap, ruta_md, num_fig, num_tabla):
         # Encabezados
         if ln_strip.startswith("# "):
             titulo = ln_strip[2:].strip()
-            story.append(crear_encabezado(titulo, 0, f"cap{idx_cap}"))
+            story.append(crear_encabezado(titulo, 0, f"{idx_cap}"))
             i += 1
             continue
         if ln_strip.startswith("## "):
             num_sec += 1
             num_subsec = 0
             titulo = ln_strip[3:].strip()
-            story.append(crear_encabezado(titulo, 1, f"cap{idx_cap}_s{num_sec}"))
+            story.append(crear_encabezado(titulo, 1, f"{idx_cap}.{num_sec}"))
             i += 1
             continue
         if ln_strip.startswith("### "):
             num_subsec += 1
             titulo = ln_strip[4:].strip()
-            story.append(crear_encabezado(titulo, 2, f"cap{idx_cap}_s{num_sec}_{num_subsec}"))
+            story.append(crear_encabezado(titulo, 2, f"{idx_cap}.{num_sec}.{num_subsec}"))
             i += 1
             continue
         if ln_strip.startswith("#### "):
             num_subsec += 1
             titulo = ln_strip[5:].strip()
-            story.append(crear_encabezado(titulo, 2, f"cap{idx_cap}_s{num_sec}_{num_subsec}"))
+            story.append(crear_encabezado(titulo, 2, f"{idx_cap}.{num_sec}.{num_subsec}"))
             i += 1
             continue
 
@@ -670,12 +733,14 @@ def procesar_capitulo(story, idx_cap, ruta_md, num_fig, num_tabla):
             i += 1
             cod_lineas = []
             while i < n and not lineas[i].strip().startswith("```"):
-                cod_lineas.append(html.escape(lineas[i].rstrip()))
+                cod_lineas.append(_linea_codigo(lineas[i], ruta_md, i + 1))
                 i += 1
             if i < n:
                 i += 1
             if cod_lineas:
-                story.append(Paragraph("<br/>".join(cod_lineas), STYLES["codeblock"]))
+                bloque = Paragraph("<br/>".join(cod_lineas), STYLES["codeblock"])
+                # Un diagrama no se parte entre dos páginas si cabe en una
+                story.append(KeepTogether([bloque]) if len(cod_lineas) <= 42 else bloque)
             continue
 
         # Fórmulas en bloque $$...$$
@@ -796,29 +861,33 @@ def limpiar_helvetica_sin_uso(ruta_pdf):
     tmp.replace(ruta_pdf)
 
 
-def main():
-    # Paso 1: Regenerar todas las figuras vectoriales y láminas
-    subprocess.run(
-        [sys.executable, str(ROOT / "docs" / "figuras" / "generar_figuras.py")],
-        cwd=ROOT,
-        check=True,
-    )
+def registrar_alias(archivos_cap):
+    """Claves cortas para {{pag:...}}: A..I y A.3 (subsistemas), c7 y c7.2 (capítulos numerados),
+    mapa, glosario e indice (portada de la guía)."""
+    fijos = {"01a_mapa_general": "mapa", "01b_glosario_general": "glosario", "01c_si_te_preguntan": "indice"}
+    for ruta_md in archivos_cap:
+        stem = ruta_md.stem
+        if stem in fijos:
+            ALIAS[fijos[stem]] = stem
+        m = re.match(r"^01[d-l]_subsistema_([A-I])_", stem)
+        if m:
+            letra = m.group(1)
+            ALIAS[letra] = stem
+            for n in range(1, 10):
+                ALIAS[f"{letra}.{n}"] = f"{stem}.{n}"
+        m = re.match(r"^(\d\d)_", stem)
+        if m:
+            num = int(m.group(1))
+            ALIAS[f"c{num}"] = stem
+            for n in range(1, 30):
+                ALIAS[f"c{num}.{n}"] = f"{stem}.{n}"
 
-    out_pdf = MANUAL / "Manual_Proyecto_Carro_FSI.pdf"
-    doc = ManualDocTemplate(
-        str(out_pdf),
-        pagesize=A4,
-        leftMargin=MARGEN_X,
-        rightMargin=MARGEN_X,
-        topMargin=MARGEN_TOP,
-        bottomMargin=MARGEN_BOT,
-        title="Manual técnico del Carro FSI (LIDIA) — Versión final 1.1",
-    )
 
+def construir_historia(archivos_cap):
     story = []
     construir_portada(story)
 
-    # Índice general automático (dos pasadas con multiBuild)
+    # Índice general automático (multiBuild repite las pasadas necesarias)
     story.append(crear_encabezado("Índice general", 0, "indice_general", in_toc=False))
     toc = TableOfContents()
     toc.levelStyles = [
@@ -826,7 +895,7 @@ def main():
             "toc0",
             fontName="DejaVu-Bold",
             fontSize=8.8,
-            leading=11.0,
+            leading=10.6,
             textColor=AZUL,
             leftIndent=0,
             firstLineIndent=0,
@@ -836,7 +905,7 @@ def main():
             "toc1",
             fontName="DejaVu",
             fontSize=8.1,
-            leading=9.7,
+            leading=9.3,
             textColor=TEXTO,
             leftIndent=12,
             firstLineIndent=0,
@@ -846,11 +915,53 @@ def main():
 
     num_fig = 0
     num_tabla = 0
-    archivos_cap = sorted(CAPITULOS.glob("*.md"))
-    for idx_cap, ruta_md in enumerate(archivos_cap, 1):
-        num_fig, num_tabla = procesar_capitulo(story, idx_cap, ruta_md, num_fig, num_tabla)
+    for ruta_md in archivos_cap:
+        num_fig, num_tabla = procesar_capitulo(story, ruta_md.stem, ruta_md, num_fig, num_tabla)
+    return story, num_fig, num_tabla
 
-    doc.multiBuild(story, onFirstPage=dibujar_marco_pagina, onLaterPages=dibujar_marco_pagina)
+
+def main():
+    # --sin-figuras conserva las láminas existentes en revisiones solo de texto.
+    if "--sin-figuras" not in sys.argv:
+        subprocess.run(
+            [sys.executable, str(ROOT / "docs" / "figuras" / "generar_figuras.py")],
+            cwd=ROOT,
+            check=True,
+        )
+
+    out_pdf = MANUAL / "Manual_Proyecto_Carro_FSI.pdf"
+    archivos_cap = sorted(CAPITULOS.glob("*.md"))
+    registrar_alias(archivos_cap)
+
+    # Los números de página citados con {{pag:...}} salen del propio PDF: se arma de nuevo
+    # hasta que ninguno cambia (normalmente dos armados).
+    for intento in range(1, 6):
+        previas = dict(PAGINAS)
+        ADVERTENCIAS.clear()
+        REFERENCIAS.clear()
+        doc = ManualDocTemplate(
+            str(out_pdf),
+            pagesize=A4,
+            leftMargin=MARGEN_X,
+            rightMargin=MARGEN_X,
+            topMargin=MARGEN_TOP,
+            bottomMargin=MARGEN_BOT,
+            title=TITULO_PDF,
+        )
+        story, num_fig, num_tabla = construir_historia(archivos_cap)
+        doc.multiBuild(story, onFirstPage=dibujar_marco_pagina, onLaterPages=dibujar_marco_pagina)
+        print(f"  armado {intento}: {len(PAGINAS)} encabezados, {len(REFERENCIAS)} referencias de página distintas")
+        if PAGINAS == previas:
+            break
+    else:
+        raise SystemExit("Los números de página no se estabilizaron en 5 armados")
+
+    faltan = sorted(a for a in REFERENCIAS if ALIAS.get(a, a) not in PAGINAS)
+    if faltan:
+        raise SystemExit("Referencias {{pag:...}} sin encabezado: " + ", ".join(faltan))
+    for aviso in ADVERTENCIAS:
+        print("AVISO:", aviso)
+
     limpiar_helvetica_sin_uso(out_pdf)
 
     pdf_check = pymupdf.open(out_pdf)

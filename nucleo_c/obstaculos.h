@@ -194,6 +194,7 @@ typedef struct {
 
 typedef struct {
     ZonaObstaculo zona[OBS_ZONAS];
+    int fuentes_vision[OBS_ZONAS]; /* bits por zona: 1 color, 2 detector neuronal; 3 coincidencia */
     int ref_r, ref_g, ref_b;   /* color de referencia del piso (promedio de la franja) */
     int columnas, filas;       /* tamaño de la cuadrícula de ESTE análisis (solo se usa [0..filas-1][0..columnas-1]) */
     int fila_minima_usada;     /* fila (desde arriba) donde empieza la zona de avance en este análisis */

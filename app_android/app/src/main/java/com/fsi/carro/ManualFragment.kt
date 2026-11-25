@@ -6,7 +6,7 @@
  *     manda STOP ya. NINGUNO depende del video: si el video falla, se maneja igual.
  *  2. El video es la sesión compartida (SesionVideo, usuario MANUAL): el VisorJpeg decodifica cada JPEG y lo pone en la imagen con esquinas redondeadas.
  *     Dos chips encima: el retraso (≈ 0.3 s, medido en docs/latencia.md) y los cuadros por segundo. Si el video falla, un aviso en banda dice qué pasó y
- *     ofrece «Reintentar».
+ *     ofrece «Reintentar»; el aviso va ENCIMA del video (no empuja la cruceta: los botones de manejo no se mueven nunca).
  *  3. «Ver detección» abre además la detección de obstáculos sobre el mismo video (CamaraObstaculos, usuario DETECCION) y dibuja encima SOLO los números:
  *     zona, corredor y cercanía (VistaNumerosDeteccion). La imagen no se modifica. En Manual la detección NO frena el carro: manda el usuario.
  *  4. El interruptor «Video» apaga el video (se recuerda en Ajustes). docs/manual_video.md explica cuándo conviene dejarlo apagado por defecto.
@@ -54,10 +54,16 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
     private var cuentaPong = 0
     private var maxPong = 0L
 
-    private val alCambiar: () -> Unit = { actualizar() }
+    // Las sesiones avisan muchas veces por segundo (PONG, sensores, tick del video): la pantalla se rehace como mucho cada 100 ms (RefrescoAcotado).
+    private val refresco = RefrescoAcotado(100L) { actualizar() }
+
+    // true desde el primer fallo del video hasta que vuelve a fluir. La sesión reabre sola cada 3 s y en cada reintento pasa por ABRIENDO: si el aviso solo mirara FALLO,
+    // se escondería y volvería a salir en cada reintento (medido en el teléfono: un parpadeo del aviso cada ~4 s). Así se queda mientras no haya video.
+    private var videoFallando = false
+    private val alCambiar: () -> Unit = { refresco.pedir() }
     private val reloj = object : Runnable {
         override fun run() {
-            actualizar()
+            refresco.pedir()
             registrarSiToca()
             principal.postDelayed(this, 250)
         }
@@ -140,6 +146,7 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
 
     override fun onStop() {
         principal.removeCallbacks(reloj)
+        refresco.cancelar()
         SesionCarro.dejarDeEscuchar(alCambiar)
         SesionVideo.dejarDeEscuchar(alCambiar)
         // Al irse de la pantalla el carro se detiene (STOP) y se sueltan las pantallas de la sesión.
@@ -196,13 +203,18 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
         val estado = SesionVideo.estado
         val hayVideo = videoEncendido && estado == SesionNativa.ABIERTA && SesionVideo.fps > 0.5
         val modo = ConfigVision(requireContext()).modoVideo
+        if (!videoEncendido || hayVideo) {
+            videoFallando = false
+        } else if (estado == SesionNativa.FALLO) {
+            videoFallando = true
+        }
 
         // Placeholder y chips
         placeholder.visibility = if (hayVideo && (visor?.cuadrosMostrados ?: 0L) > 0L) View.GONE else View.VISIBLE
-        placeholderTexto.setText(
+        placeholderTexto.ponerSiCambia(
             when {
                 !videoEncendido -> R.string.manual_video_apagado
-                estado == SesionNativa.FALLO -> R.string.manual_camara_no_responde
+                videoFallando -> R.string.manual_camara_no_responde
                 else -> R.string.manual_sin_video
             }
         )
@@ -212,15 +224,23 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
             chipFps.poner(Nivel.NEUTRO, String.format(java.util.Locale.US, "%.0f fps", SesionVideo.fps))
         }
 
-        // Aviso en banda: el video falló (se sigue manejando sin video)
-        if (videoEncendido && (estado == SesionNativa.FALLO)) {
-            val m = Mensajes.sinVideo(requireContext())
+        // Aviso en banda: el video falló (se sigue manejando sin video). Va SOBRE el video (está dentro de view_video_manual), no entre el video y la cruceta:
+        // antes empujaba los botones de manejo hacia abajo (y en horizontal encogía el video) cada vez que el video fallaba o volvía.
+        val hayAviso = videoEncendido && (videoFallando || (modo == ModoVideo.RAW && estado == SesionNativa.ABIERTA))
+        if (videoEncendido && videoFallando) {
+            val m = Mensajes.sinVideoEnManual()
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer, getString(R.string.reintentar)) { SesionVideo.reintentar() }
         } else if (videoEncendido && modo == ModoVideo.RAW && estado == SesionNativa.ABIERTA) {
             val m = Mensajes.videoSinImagenEnModo(modo)
             aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
         } else {
             aviso.ocultar()
+        }
+        // Con el aviso encima, la frase del centro diría lo mismo y se encimaría con él: queda solo el icono (INVISIBLE conserva el sitio: el icono no se mueve).
+        placeholderTexto.visibility = if (hayAviso) View.INVISIBLE else View.VISIBLE
+        // Con el aviso corto (ya no tapa todo el video) el borde de arriba del icono asomaba por encima del aviso (se vio en el teléfono): con aviso, el icono tampoco hace falta.
+        if (hayAviso) {
+            placeholder.visibility = View.INVISIBLE
         }
 
         // Detección encima del video

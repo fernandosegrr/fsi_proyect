@@ -23,10 +23,10 @@ En un robot móvil que avanza en modo `AUTO` a una velocidad típica de `~20 cm/
 
 En una cámara de red convencional, si los cuadros capturados se depositan en una cola FIFO de varios elementos (`fb_count > 1` con retención) y el enlace `WiFi` sufre una pausa momentánea, el consumidor lee cuadros atrasados acumulados en memoria. Para evitarlo, `camara_prueba.ino` implementa una arquitectura de **buzón de último cuadro (*latest-frame mailbox*)** repartida entre los dos núcleos del `ESP32-WROVER`:
 
-1. **Tarea de captura (`Core 1`):** extrae continuamente el buffer del driver `esp_camera` (`fb_count = 2`, modo `CAMERA_GRAB_LATEST`), copia o comprime el cuadro en un doble buffer en `PSRAM` protegido por semáforo mutex y actualiza el puntero al cuadro más reciente, descartando cualquier cuadro anterior que aún no haya sido enviado.
-2. **Tareas de red (`Core 0`):** atienden las peticiones `HTTP` y el transmisor `UDP`, leyendo siempre la última instantánea disponible en el buzón sin bloquear la captura del siguiente cuadro.
+1. **Tarea de captura (`Core 0`):** extrae continuamente el buffer del driver `esp_camera` (`fb_count = 2`, modo `CAMERA_GRAB_LATEST`), copia o comprime el cuadro en un doble buffer en `PSRAM` protegido por semáforo mutex y actualiza el puntero al cuadro más reciente, descartando cualquier cuadro anterior que aún no haya sido enviado.
+2. **Tareas de red (`Core 1`):** atienden las peticiones `HTTP` y el transmisor `UDP`, leyendo siempre la última instantánea disponible en el buzón sin bloquear la captura del siguiente cuadro.
 
-Además, el servidor de video continuo (`:81/stream`) acepta deliberadamente **un solo cliente a la vez**: si un segundo dispositivo intentara abrir otro flujo `MJPEG` simultáneo, degradaría el ancho de banda del canal `WiFi` compartido con el control del carro. En la aplicación Android, `SesionVideo` comparte ese único flujo entre todas las pantallas.
+Además, el servidor de video continuo (`:80/stream`) acepta deliberadamente **un solo cliente a la vez**: si un segundo dispositivo intentara abrir otro flujo `MJPEG` simultáneo, degradaría el ancho de banda del canal `WiFi` compartido con el control del carro. En la aplicación Android, `SesionVideo` comparte ese único flujo entre todas las pantallas.
 
 [FIGURA:camara_modos|Los tres modos de transmisión de la cámara Freenove: flujo MJPEG para vista humana y red neuronal, cuadro crudo RGB565 y rejilla compacta de celdas por UDP.]
 
@@ -36,7 +36,7 @@ La cámara se conecta como estación (`STA`) a la red `CarroFSI` solicitando la 
 
 | Servicio / Endpoint | Protocolo y puerto | Formato de salida | Tamaño por entrega | Uso dentro del sistema |
 |---|---|---|---|---|
-| `/stream` | `HTTP` `:81` | `multipart/x-mixed-replace` (`MJPEG`) | `~4.8 KB` / cuadro | Flujo principal en vivo en la aplicación Android (vista humana, `obstaculos.c` y `DetectorTflite`). |
+| `/stream` | `HTTP` `:80` | `multipart/x-mixed-replace` (`MJPEG`) | `~4.8 KB` / cuadro | Flujo principal en vivo en la aplicación Android (vista humana, `obstaculos.c` y `DetectorTflite`). |
 | `/capture` | `HTTP` `:80` | `image/jpeg` (cuadro único) | `~4.8 KB` | Captura puntual y pruebas de conectividad. |
 | `/raw` | `HTTP` `:80` | `application/octet-stream` (`RGB565`) | `84,480 B` (`240×176×2`) | Procesamiento sin artefactos de compresión `JPEG` y cabeceras `X-Width`, `X-Height`, `X-Frame-Seq`. |
 | `/stats` | `HTTP` `:80` | `application/json` | `~220 B` | Telemetría interna de tiempos de captura, compresión, envío, RSSI y memoria libre. |
@@ -60,3 +60,23 @@ Dado que la cámara opera con su propia batería portátil y sobre un enlace `Wi
 3. **Inactividad prolongada sin producir cuadros:** si transcurren **`10,000 ms`** (`RECUP_SIN_CUADRO_MS`) sin que la tarea de captura logre actualizar el buzón, dispara un reinicio completo para destrabar el bus `I2S/DMA` de la cámara.
 
 Dónde está en el código: `camara_prueba.ino`, `recuperacion.h`, `recuperacion.c`, `paquete_celdas.h`, `paquete_celdas.c`.
+
+## 5.5 Autónomo v2: telemetría fotométrica y autoprueba (`COMPILADO`, no grabado)
+
+Rama `feat/autonomo-v2`. Este firmware de la cámara (`cam-v2`) **solo se compiló** (1 084 349 bytes, 82 %); no se grabó en la placa ni se probó con el sensor.
+
+- `/stats` agrega tres claves **al final** del JSON, que un cliente anterior ignora: `"fw":"cam-v2"`, `"caps":["foto"]` y `"foto":{...}`.
+- `foto` trae solo números: `medidas`, `hace_ms`, la media de rojo, verde y azul de todo el cuadro (`r`, `g`, `b`) y de su mitad de abajo, que es el piso (`r_abajo`, `g_abajo`, `b_abajo`), y las milésimas de muestras quemadas y oscuras. Se mide un cuadro cada 500 ms saltando de 8 en 8 píxeles. No sale ninguna imagen.
+- Sirve para saber si la cámara cambió su exposición o su balance de blancos entre «Aprender piso» y la ruta: la app copia estos números a la cabecera de la caja negra.
+- `AUTOPRUEBA` queda en 0. Encendida, un minuto después de cada arranque pedía `size=qvga`, cambiaba el compresor y no restauraba nada.
+
+El bloqueo de exposición y de balance de blancos quedó en diseño: el firmware no escribe ningún registro del sensor (`PENDIENTE`). *Corrección del 16-nov-2026:* existe una copia de la hoja de datos del `GC0308` (V1.0, 2010; copia de un tercero, marcada confidencial, no oficial; se enlaza y no se copia al repositorio); lo que faltaba era leerla contra el controlador que usa el firmware (ver la siguiente sección).
+
+## 5.6 Investigación del `GC0308` (v3, solo lectura de documentación)
+
+Documento completo: `docs/investigacion_autonomo/06_gc0308_camara.md`. Nada de esto se probó con el sensor real.
+
+- **El controlador y la hoja de datos discrepan** en el bit de exposición automática (AEC), en el de ganancia automática (AGC) y en la disposición del registro de exposición manual. Solo el bit de balance de blancos automático coincide en la hoja, el controlador `esp32-camera` y el núcleo de Linux. Por eso **no se deben llamar `set_exposure_ctrl`, `set_gain_ctrl` ni `set_aec_value` sin leer antes los registros** (confianza alta en la discrepancia; el sensor real no se consultó).
+- Varias funciones (`set_awb_gain`, `set_gainceiling`, `set_brightness`, `set_quality`) son esqueletos vacíos en la rama principal del controlador; no se pudo saber qué versión del controlador trae el firmware compilado.
+- **HQVGA (240×176) usa solo ~75 % del ancho del sensor** en el modo de submuestreo por omisión, así que el campo horizontal de 56° supuesto no puede valer a la vez para HQVGA y QVGA. Hay que medirlo por modo de video.
+- **Sobre bloquear exposición y balance de blancos:** sigue sin decidirse hasta medir (M4 del protocolo). Si hace falta, lo de menor riesgo es fijar primero **solo el balance de blancos**, con lectura antes de escribir, un latido por UDP, un plazo con restauración, y reinicio del sensor o del chip como último recurso; sin guardar nada en la memoria no volátil.

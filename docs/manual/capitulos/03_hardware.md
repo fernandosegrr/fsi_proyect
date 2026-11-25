@@ -7,7 +7,7 @@ Este capítulo describe los componentes mecánicos, electrónicos y sensores que
 El vehículo utiliza un chasis rígido de cuatro ruedas omnidireccionales (*mecanum*) acopladas a cuatro motoreductores de corriente directa tipo **TT** (relación de reducción típica 1:48, tensión nominal de `3 V` a `6 V`). A diferencia de un vehículo con dirección tipo Ackermann, la orientación del carro se modifica por **tracción diferencial** entre el costado izquierdo y el costado derecho:
 
 - **Avance recto (`FORWARD`):** los dos motores izquierdos y los dos motores derechos giran hacia adelante.
-- **Retroceso (`BACKWARD`):** ambos costados giran hacia atrás.
+- **Retroceso (`REVERSE`):** ambos costados giran hacia atrás.
 - **Giro sobre su propio eje (`LEFT` / `RIGHT`):** un costado gira hacia adelante y el costado opuesto gira hacia atrás (pivote diferencial).
 - **Freno activo (`EBRAKE`):** ambos terminales de cada canal se ponen en alto (`HIGH` / `HIGH`) para cortocircuitar la fuerza contraelectromotriz del inducido y detener el giro con rapidez.
 - **Paro libre (`STOP`):** ambos terminales se ponen en bajo (`LOW` / `LOW`), cortando toda corriente hacia los motores.
@@ -34,10 +34,10 @@ Todas las asignaciones de pines del microcontrolador de control están centraliz
 
 | Pin en `ESP32 DevKit` | Constante en firmware | Destino físico | Nivel / Protocolo | Observaciones de montaje |
 |---|---|---|---|---|
-| `GPIO 27` | `PIN_MOTOR_IZQ_A` | `TC1508A IN1` | `PWM` `1000 Hz` (canal `0`) | Avance del par de motores izquierdos. |
-| `GPIO 26` | `PIN_MOTOR_IZQ_B` | `TC1508A IN2` | `PWM` `1000 Hz` (canal `1`) | Retroceso del par de motores izquierdos. |
-| `GPIO 25` | `PIN_MOTOR_DER_A` | `TC1508A IN3` | `PWM` `1000 Hz` (canal `2`) | Avance del par de motores derechos. |
-| `GPIO 33` | `PIN_MOTOR_DER_B` | `TC1508A IN4` | `PWM` `1000 Hz` (canal `3`) | Retroceso del par de motores derechos. |
+| `GPIO 27` | `PIN_MOTOR_IZQ_A` | `TC1508A IN1` | `PWM` `1500 Hz` (canal `0`) | Avance del par de motores izquierdos. |
+| `GPIO 26` | `PIN_MOTOR_IZQ_B` | `TC1508A IN2` | `PWM` `1500 Hz` (canal `1`) | Retroceso del par de motores izquierdos. |
+| `GPIO 25` | `PIN_MOTOR_DER_A` | `TC1508A IN3` | `PWM` `1500 Hz` (canal `2`) | Avance del par de motores derechos. |
+| `GPIO 33` | `PIN_MOTOR_DER_B` | `TC1508A IN4` | `PWM` `1500 Hz` (canal `3`) | Retroceso del par de motores derechos. |
 | `GPIO 21` | `PIN_I2C_SDA` | `SDA` de `MPU6050` y `VL53L0X` | `I2C` `400 kHz` (`3.3 V`) | Línea de datos compartida en protoboard. |
 | `GPIO 22` | `PIN_I2C_SCL` | `SCL` de `MPU6050` y `VL53L0X` | `I2C` `400 kHz` (`3.3 V`) | Línea de reloj compartida en protoboard. |
 | `GPIO 2` | `PIN_CARGA_POWERBANK` | LED interno / carga opcional | Salida digital (`3.3 V`) | Pulso de `200 ms` cada `8,000 ms`; circuito externo y efecto real **`NO MEDIDOS`**. |

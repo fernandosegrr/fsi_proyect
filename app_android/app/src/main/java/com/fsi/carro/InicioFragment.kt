@@ -6,7 +6,8 @@
  *  2. Entra a la conexión del carro (SesionCarro) y al video (SesionVideo) como usuario INICIO: la tarjeta de la cámara necesita el video abierto
  *     para saber los cuadros por segundo y la latencia de la red (la cámara atiende un solo cliente, por eso se comparte la sesión).
  *  3. «Conectar» abre la conexión de nuevo ya. Si falla, el aviso en banda dice qué pasó y qué hacer (Mensajes.kt).
- *  4. Se refresca con los avisos de las sesiones y con un reloj de 500 ms (latencia y cuadros cambian solos).
+ *  4. Se refresca con los avisos de las sesiones y con un reloj de 500 ms (latencia y cuadros cambian solos), siempre a través de RefrescoAcotado (como mucho cada 100 ms):
+ *     los avisos llegan hasta 10 veces por segundo (sensores del carro) y cada uno rehacía todos los textos y chips.
  *  5. SALIR RÁPIDO: «Repetir la última ruta» y las plantillas «Recta 1 m», «En L» e «Ida y vuelta» abren Ejecutar ruta con esa ruta ya cargada: 1 toque aquí, «Iniciar ruta» (2) y
  *     «Confirmar y salir» (3). Las plantillas se piden al código en C sin tocar el borrador del editor de Rutas.
  */
@@ -35,10 +36,13 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
     private lateinit var botonConectar: MaterialButton
     private var intentoManualMs = 0L   // hora en que se tocó «Conectar» (para esperar un poco antes de decir que falló)
 
-    private val alCambiar: () -> Unit = { actualizar() }
+    // Las sesiones avisan muchas veces por segundo (PONG, sensores, tick del video): la pantalla se rehace como mucho cada 100 ms (RefrescoAcotado).
+    // El reloj de 500 ms cubre lo que cambia solo (latencia y cuadros por segundo).
+    private val refresco = RefrescoAcotado(100L) { actualizar() }
+    private val alCambiar: () -> Unit = { refresco.pedir() }
     private val reloj = object : Runnable {
         override fun run() {
-            actualizar()
+            refresco.pedir()
             principal.postDelayed(this, 500)
         }
     }
@@ -101,6 +105,7 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
 
     override fun onStop() {
         principal.removeCallbacks(reloj)
+        refresco.cancelar()
         SesionCarro.dejarDeEscuchar(alCambiar)
         SesionVideo.dejarDeEscuchar(alCambiar)
         SesionVideo.salir(SesionNativa.USUARIO_INICIO)
@@ -124,8 +129,8 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
             ControlLogica.Conexion.DESCONECTADO -> chipCarro.poner(if (logica.msSinConexion > 0) Nivel.AVISO else Nivel.ERROR,
                 getString(if (logica.msSinConexion > 0) R.string.conexion_conectando else R.string.conexion_sin))
         }
-        carroLatencia.text = logica.latenciaMs?.let { "$it ms" } ?: getString(R.string.valor_sin_dato)
-        carroPerfil.text = if (conectado) textoPerfil(logica.perfilConfirmado) else getString(R.string.valor_sin_dato)
+        carroLatencia.ponerSiCambia(logica.latenciaMs?.let { "$it ms" } ?: getString(R.string.valor_sin_dato))
+        carroPerfil.ponerSiCambia(if (conectado) textoPerfil(logica.perfilConfirmado) else getString(R.string.valor_sin_dato))
 
         // Tarjeta de la cámara
         when {
@@ -134,8 +139,8 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
             estadoVideo == SesionNativa.ABRIENDO -> chipCamara.poner(Nivel.AVISO, getString(R.string.camara_abriendo))
             else -> chipCamara.poner(Nivel.NEUTRO, getString(R.string.camara_en_espera))
         }
-        camaraFps.text = if (videoBien) String.format(java.util.Locale.US, "%.1f", SesionVideo.fps) else getString(R.string.valor_sin_dato)
-        camaraLatencia.text = if (videoBien && SesionVideo.rttMs > 0) String.format(java.util.Locale.US, "%.0f ms", SesionVideo.rttMs) else getString(R.string.valor_sin_dato)
+        camaraFps.ponerSiCambia(if (videoBien) String.format(java.util.Locale.US, "%.1f", SesionVideo.fps) else getString(R.string.valor_sin_dato))
+        camaraLatencia.ponerSiCambia(if (videoBien && SesionVideo.rttMs > 0) String.format(java.util.Locale.US, "%.0f ms", SesionVideo.rttMs) else getString(R.string.valor_sin_dato))
 
         // Lo grande
         when {
@@ -143,7 +148,7 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
             conectado -> poner(R.string.inicio_solo_carro, R.string.inicio_solo_carro_detalle)
             else -> poner(R.string.inicio_sin_carro, R.string.inicio_sin_carro_detalle)
         }
-        botonConectar.setText(if (conectado) R.string.boton_reconectar_inicio else R.string.boton_conectar_inicio)
+        botonConectar.ponerSiCambia(if (conectado) R.string.boton_reconectar_inicio else R.string.boton_conectar_inicio)
 
         // Aviso en banda si el carro no responde (una frase de qué pasó y una de qué hacer)
         val esperaMs = logica.msSinConexion
@@ -168,10 +173,8 @@ class InicioFragment : Fragment(R.layout.fragment_inicio) {
     }
 
     private fun poner(grande: Int, detalle: Int) {
-        if (estadoGrande.text != getString(grande)) {
-            estadoGrande.setText(grande)
-        }
-        estadoDetalle.setText(detalle)
+        estadoGrande.ponerSiCambia(grande)
+        estadoDetalle.ponerSiCambia(detalle)
     }
 
     private fun textoPerfil(perfil: ControlLogica.Perfil?): String = when (perfil) {

@@ -42,6 +42,7 @@
 #include "latencia_video.h"
 #include "ruta_editor.h"
 #include "sim_ruta.h"
+#include "vision_tele.h"
 
 #define TAMANO_TEXTO 8192   /* de sobra para MAX_PASOS líneas de ~40 caracteres */
 
@@ -325,6 +326,11 @@ static unsigned char ultimo_no_piso[OBS_MAX_FILAS][OBS_MAX_COLUMNAS];
  * y el navegador podía leer el tamaño de un cuadro con las celdas de otro. Cada lado toma el candado solo para copiar (unos pocos kB), nunca durante el análisis. */
 static pthread_mutex_t candado_vision = PTHREAD_MUTEX_INITIALIZER;
 
+/* Autónomo v2: telemetría NUMÉRICA de la visión para la caja negra (vision_tele.h). Solo se calcula mientras una ruta la pide (telemetriaActiva). */
+static volatile int tele_activa = 0;
+static char ultima_tele[VT_TEXTO_MAX];                                       /* protegida por candado_vision */
+static unsigned char tele_celdas[OBS_MAX_COLUMNAS * OBS_MAX_FILAS * 3];      /* solo la toca el hilo que analiza */
+
 static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray celdas, jint columnas, jint filas,
                                        jint ancho, jint alto, jintArray config,
                                        jboolean avanzando, jlong ahora_ms)
@@ -396,6 +402,41 @@ static jintArray analizar_config_comun(JNIEnv *env, jbyteArray rgb, jbyteArray c
     }
     llenar_resumen(salida, codigo, &resultado);
     largo = ENTEROS_ENCABEZADO_DETALLE;
+    if (codigo == OBS_OK && tele_activa) {
+        /* Autónomo v2: los números de este cuadro para la caja negra. Con el modo CELDAS ya vienen promediadas; con una imagen se promedian aquí (lo mismo que hace
+         * el detector por dentro). Nunca se guarda la imagen. */
+        int tc = 0, tf = 0, listo = 0;
+
+        if (celdas != NULL) {
+            jsize n = (*env)->GetArrayLength(env, celdas);
+
+            if (columnas > 0 && filas > 0 && (long)columnas * filas * 3 <= (long)sizeof tele_celdas && n >= columnas * filas * 3) {
+                (*env)->GetByteArrayRegion(env, celdas, 0, columnas * filas * 3, (jbyte *)tele_celdas);
+                tc = columnas;
+                tf = filas;
+                listo = 1;
+            }
+        } else if (rgb != NULL && (*env)->GetArrayLength(env, rgb) >= ancho * alto * 3) {
+            jbyte *p = (jbyte *)(*env)->GetPrimitiveArrayCritical(env, rgb, NULL);
+
+            if (p != NULL) {
+                listo = (obstaculos_promediar((const unsigned char *)p, ancho, alto, tele_celdas, (int)sizeof tele_celdas, &tc, &tf) == OBS_OK);
+                (*env)->ReleasePrimitiveArrayCritical(env, rgb, p, JNI_ABORT);
+            }
+        }
+        if (listo) {
+            static VisionTele tele;                 /* solo el hilo que analiza */
+            char linea[VT_TEXTO_MAX];
+
+            if (vision_tele_calcular(tele_celdas, tc, tf, &modelo_global, &cfg, &resultado, &tele) == VT_OK) {
+                vision_tele_texto(&tele, linea, (int)sizeof linea);
+                pthread_mutex_lock(&candado_vision);
+                memcpy(ultima_tele, linea, sizeof ultima_tele);
+                ultima_tele[sizeof ultima_tele - 1] = '\0';
+                pthread_mutex_unlock(&candado_vision);
+            }
+        }
+    }
     if (codigo == OBS_OK) {
         salida[10] = resultado.columnas;
         salida[11] = resultado.filas;
@@ -693,7 +734,7 @@ Java_com_fsi_carro_MovimientoVisualNativa_reiniciar(JNIEnv *env, jobject objeto)
 /* ── Fusión del detector de color con el modelo de objetos ─────────────── */
 
 #define ENTEROS_CONFIG_FUSION     10
-#define ENTEROS_RESULTADO_FUSION  22
+#define ENTEROS_RESULTADO_FUSION  25
 #define ENTEROS_POR_CAJA           6
 
 /* Configuración por defecto de la fusión (10 enteros):
@@ -813,6 +854,7 @@ Java_com_fsi_carro_FusionNativa_decidir(JNIEnv *env, jobject objeto, jintArray c
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
             }
             salida[7] = datos_detector[7];    /* el color del piso del detector, para que el formato sea el mismo */
             salida[8] = datos_detector[8];
@@ -1082,6 +1124,7 @@ Java_com_fsi_carro_FusionNativa_decidirCualquiera(JNIEnv *env, jobject objeto, j
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
             }
             salida[7] = datos_detector[7];
             salida[8] = datos_detector[8];
@@ -1127,10 +1170,10 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
         datos[i] = 0;
     }
     salida[19] = -1;
-    if (fusion == NULL || (*env)->GetArrayLength(env, fusion) < 21 || flujo == NULL || (*env)->GetArrayLength(env, flujo) < 3 * OBS_ZONAS) {
+    if (fusion == NULL || (*env)->GetArrayLength(env, fusion) < ENTEROS_RESULTADO_FUSION || flujo == NULL || (*env)->GetArrayLength(env, flujo) < 3 * OBS_ZONAS) {
         salida[0] = FUS_ERR_ARGUMENTO;
     } else {
-        (*env)->GetIntArrayRegion(env, fusion, 0, 21, datos);
+        (*env)->GetIntArrayRegion(env, fusion, 0, ENTEROS_RESULTADO_FUSION, datos);
         (*env)->GetIntArrayRegion(env, flujo, 0, 3 * OBS_ZONAS, datos_flujo);
         fusion_config_defecto(&cfg);
         memset(&resultado, 0, sizeof resultado);
@@ -1139,6 +1182,7 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
             resultado.zona[z].celdas = (int)datos[7 + z];
+            resultado.fuentes_vision[z] = (int)datos[22 + z];
             zonas[z].piso_consistente = (int)datos_flujo[3 * z];
             zonas[z].hay_cerca = (int)datos_flujo[3 * z + 1];
             zonas[z].cercania = (int)datos_flujo[3 * z + 2];
@@ -1160,6 +1204,7 @@ Java_com_fsi_carro_FusionNativa_aplicarFlujo(JNIEnv *env, jobject objeto, jintAr
             for (z = 0; z < OBS_ZONAS; z++) {
                 salida[1 + 2 * z] = resultado.zona[z].hay_obstaculo;
                 salida[2 + 2 * z] = resultado.zona[z].cercania;
+                salida[22 + z] = resultado.fuentes_vision[z];
                 salida[7 + z] = resultado.zona[z].celdas;
             }
             salida[10] = resultado.severidad;
@@ -2440,12 +2485,15 @@ Java_com_fsi_carro_NavegadorNativa_tick(JNIEnv *env, jobject objeto, jlong ahora
     jint datos[ENTEROS_RESULTADO_OBSTACULOS];
     const ResultadoObstaculos *cuadro = NULL;
     int z;
+    jint fuentes[OBS_ZONAS] = {0, 0, 0};
 
     (void)objeto;
     memset(&resultado, 0, sizeof resultado);   /* todo en cero: el navegador también lee el tamaño de la cuadrícula (filas, columnas) y estos campos no se llenan aquí */
     if (hay_cuadro && obs != NULL && (*env)->GetArrayLength(env, obs) >= ENTEROS_RESULTADO_OBSTACULOS) {
         (*env)->GetIntArrayRegion(env, obs, 0, ENTEROS_RESULTADO_OBSTACULOS, datos);
+        if ((*env)->GetArrayLength(env, obs) >= 13) (*env)->GetIntArrayRegion(env, obs, 10, 3, fuentes);
         for (z = 0; z < OBS_ZONAS; z++) {
+            resultado.fuentes_vision[z] = (int)fuentes[z];
             resultado.zona[z].hay_obstaculo = (int)datos[1 + 2 * z];
             resultado.zona[z].cercania = (int)datos[2 + 2 * z];
             resultado.zona[z].celdas = (celdas_zona_global[z] >= 0) ? celdas_zona_global[z] : (resultado.zona[z].hay_obstaculo ? MIN_CELDAS : 0);
@@ -2677,6 +2725,64 @@ Java_com_fsi_carro_NavegadorNativa_diagnostico(JNIEnv *env, jobject objeto)
         texto[0] = '\0';
     }
     return (*env)->NewStringUTF(env, texto);
+}
+
+/* Autónomo v2: enciende o apaga la telemetría numérica de la visión (la pide la ruta en curso para su caja negra). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_ObstaculosNativa_telemetriaActiva(JNIEnv *env, jobject objeto, jboolean activa)
+{
+    (void)env;
+    (void)objeto;
+    pthread_mutex_lock(&candado_vision);
+    ultima_tele[0] = '\0';
+    pthread_mutex_unlock(&candado_vision);
+    tele_activa = activa ? 1 : 0;
+}
+
+/* La línea «VTEL ...» del último cuadro analizado (solo números), o "" si no hay una nueva desde la última vez que se pidió. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_ObstaculosNativa_telemetria(JNIEnv *env, jobject objeto)
+{
+    char texto[VT_TEXTO_MAX];
+
+    (void)objeto;
+    pthread_mutex_lock(&candado_vision);
+    memcpy(texto, ultima_tele, sizeof texto);
+    ultima_tele[0] = '\0';
+    pthread_mutex_unlock(&candado_vision);
+    texto[sizeof texto - 1] = '\0';
+    return (*env)->NewStringUTF(env, texto);
+}
+
+/* Autónomo v2: salud del detector de objetos (navegador_aporte_modelo). */
+JNIEXPORT void JNICALL
+Java_com_fsi_carro_NavegadorNativa_aporteModelo(JNIEnv *env, jobject objeto, jboolean requerido, jboolean vigente, jlong ahora_ms)
+{
+    (void)env;
+    (void)objeto;
+    navegador_aporte_modelo(obtener_navegador(), requerido ? 1 : 0, vigente ? 1 : 0, (uint32_t)ahora_ms);
+}
+
+/* Autónomo v2: la línea «CN ...» de la caja negra con el estado del navegador en este tick (navegador_caja_negra). */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_NavegadorNativa_cajaNegra(JNIEnv *env, jobject objeto, jlong ahora_ms)
+{
+    char texto[NAV_CAJA_NEGRA_MAX];
+
+    (void)objeto;
+    if (navegador_caja_negra(obtener_navegador(), (uint32_t)ahora_ms, texto, (int)sizeof texto) == 0) {
+        texto[0] = '\0';
+    }
+    return (*env)->NewStringUTF(env, texto);
+}
+
+/* Autónomo v2: el código de la causa (NAV_CAUSA_*, 0 = ninguna) por la que el navegador pidió ayuda o se detuvo. */
+JNIEXPORT jint JNICALL
+Java_com_fsi_carro_NavegadorNativa_causa(JNIEnv *env, jobject objeto)
+{
+    (void)env;
+    (void)objeto;
+    return (jint)obtener_navegador()->error_causa;
 }
 
 /* La causa concreta del ERROR del navegador, con los números ("se agotaron los 2 reintentos, el obstáculo seguía en el centro"), o "" si no hay error. */

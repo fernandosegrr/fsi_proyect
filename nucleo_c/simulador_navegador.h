@@ -20,6 +20,7 @@
 #include "calibracion.h"
 
 #define SIM_MAX_EVENTOS   8
+#define SIM_REALISMO_V2   1   /* este simulador trae los campos v2_* (jitter de comandos y giros por tiempo realistas) */
 #define SIM_MAX_CAMBIOS 256
 
 /* Un obstáculo programado: visible en una zona entre t_ini_ms (incluido) y t_fin_ms (excluido). */
@@ -114,6 +115,8 @@ typedef struct {
     int laser_externo;        /* J15: distancia calculada contra una caja del mundo, independiente de la cámara */
     int laser_externo_mm;
     int tof_perdido;           /* 1 = el láser está caído (SENS con láser muerto) */
+    int tof_sin_eco;           /* 1 = lectura invalida; 0 = fondo medible a 1200 mm si no hay caja */
+    const ResultadoObstaculos *vision_externa; /* banco con color y red independientes, ya fusionados */
     int tof_paro_hecho;        /* cuántas paradas de emergencia hizo el láser */
     int tof_parado;            /* 1 mientras el firmware mantiene el carro frenado por TOF_PARO (hasta que el navegador cambia de comando) */
     int tof_cerca_seguidas;
@@ -154,6 +157,21 @@ typedef struct {
     int  j16_rumbo_t_ms, j16_rumbo_dt_acum;
     int  j16_rumbo_objetivos;        /* cuántos RUMBO:<n> recibió */
 
+    /* AUTÓNOMO V2: realismo extra, todo opcional (con los dos en 0 el simulador hace exactamente lo de antes). SUPUESTOS, no mediciones.
+     *  - v2_jitter_cmd_pct: porcentaje de los comandos que llegan al carro un tick (50 ms) antes o después de su retraso habitual (WiFi).
+     *  - v2_giro_tiempo_real: un giro POR TIEMPO (LEFT/RIGHT sin giroscopio) arranca entre 0.4 y 1.1 veces el retardo calibrado y, al soltarlo, sigue girando
+     *    entre 0.8 y 1.5 veces el frenado calibrado: así un micro-giro de 4 grados puede salir de 5 a 18 (lo medido en B6: 4 a 18 y 4 a 5 por tiempo).
+     *  - v2_azar: semilla propia de estos dos (la pone el banco en cada corrida para que una corrida suelta se repita igual). */
+    int  v2_jitter_cmd_pct;
+    int  v2_giro_tiempo_real;
+    int  v2_sens_coherente;          /* 1 = el láser de SENS viaja con el mismo atraso que el ángulo (j16_latencia_sens_ms) más un tick: en el firmware la distancia es la mediana de las 3 últimas lecturas (~50 ms) */
+    int  v2_hist_laser[16], v2_hist_laser_ok[16];
+    uint32_t v2_azar;
+    ComandoNav v2_hist_cmd[16];
+    int  v2_n_cmd, v2_retraso;
+    ComandoNav v2_ultimo_nav;
+    int  v2_arranque_giro_ms, v2_frenado_giro_pct;
+
     /* Cámara simulada. */
     EventoObstaculo eventos[SIM_MAX_EVENTOS];
     int n_eventos;
@@ -171,6 +189,7 @@ typedef struct {
 
 /* Coloca el carro en el centro de la celda (columna, fila) mirando hacia `rumbo_grados`. */
 void sim_iniciar(Simulador *sim, int columna, int fila, int rumbo_grados);
+void sim_sembrar_azar_fw(uint32_t semilla);   /* V2: siembra el ruido del giro del firmware simulado (ver simulador_navegador.c) */
 
 /* Agrega un obstáculo programado. Devuelve 0 si cupo, -1 si no. */
 int sim_agregar_obstaculo(Simulador *sim, uint32_t t_ini_ms, uint32_t t_fin_ms, int zona, int cercania);

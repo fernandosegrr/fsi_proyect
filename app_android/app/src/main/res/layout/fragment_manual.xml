@@ -23,12 +23,6 @@
 
         <include layout="@layout/view_video_manual" />
 
-        <com.fsi.carro.AvisoBanda
-            android:id="@+id/manual_aviso"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/e1" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

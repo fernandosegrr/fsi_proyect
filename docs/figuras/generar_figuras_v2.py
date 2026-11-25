@@ -109,13 +109,13 @@ def fig_arquitectura():
     fig, ax = _lienzo(11.2, 5.5)
     # Tres nodos principales arriba
     _caja(ax, 2, 60, 27, 34,
-          "Teléfono Android\nApp LIDIA (Kotlin + JNI)\n• Núcleo de navegación C99\n• Visión YCbCr + TFLite\n• Supervisión activa J16",
+          "Teléfono Android\nApp LIDIA (Kotlin + JNI)\n• Núcleo de navegación C99\n• Visión RGB+croma + TFLite\n• Supervisión activa J16",
           AZUL_CLARO, AZUL, fs=8.0, bold=True)
     _caja(ax, 37, 60, 26, 34,
           "ESP32 DevKit (Carro)\nAP WiFi CarroFSI\n192.168.4.1 (:80 /ws)\n• Cola 32 órdenes + WDT\n• Lazo PI RUMBO y GIRO",
           VERDE_CLARO, VERDE, fs=8.0, bold=True)
     _caja(ax, 71, 60, 27, 34,
-          "Freenove ESP32-WROVER\nCámara GC0308 (STA)\n192.168.4.2\n• HQVGA 240×176 @ 20 MHz\n• HTTP :80/:81 y UDP :4210",
+          "Freenove ESP32-WROVER\nCámara GC0308 (STA)\n192.168.4.2\n• HQVGA 240×176 @ 20 MHz\n• HTTP :80 y UDP :4210",
           AMBAR_CLARO, AMBAR, fs=8.0, bold=True)
 
     # Enlaces inalámbricos
@@ -136,7 +136,7 @@ def fig_arquitectura():
     _flecha(ax, (50, 59), (50, 44), BOSQUE, lw=1.7, estilo="<|-|>")
     _etiqueta(ax, 44.0, 47.0, "I2C 400 kHz", BOSQUE, fs=7.3)
     _flecha(ax, (63.5, 63), (71.5, 44), CORAL, lw=1.7)
-    _etiqueta(ax, 68.5, 47.0, "PWM 1 kHz", CORAL, fs=7.3)
+    _etiqueta(ax, 68.5, 47.0, "PWM 1.5 kHz", CORAL, fs=7.3)
 
     # Tres fuentes de energía abajo del todo
     _caja(ax, 2, 3, 27, 14,
@@ -213,13 +213,13 @@ def fig_comandos():
           "App Android\nControlLogica /\nModoSemiautonomo\n• Latido cada 250 ms\n• PING cada 800 ms",
           AZUL_CLARO, AZUL, fs=7.8, bold=True)
     _caja(ax, 27, 58, 21, 32,
-          "Enlace WebSocket\nws://192.168.4.1/ws\nCola de 32 ranuras\n• Prioridad STOP\n• Descarta PING viejo",
+          "Enlace WebSocket\nws://192.168.4.1/ws\nCola de 32 ranuras\n• STOP no se descarta\n• Descarta PING viejo",
           VERDE_CLARO, VERDE, fs=7.8, bold=True)
     _caja(ax, 52, 58, 21, 32,
-          "Lazo loop() en C99\ncarro.c + sensores.c\n• Watchdog 1000 ms\n• Lazo PI RUMBO (J16)\n• Giro cerrado GIRO",
+          "Lazo loop() en C99\ncarro.c + sensores.c\n• Watchdog 1000 ms\n• Lazo PI RUMBO (J16)\n• Giro cerrado GIRAR",
           AMBAR_CLARO, AMBAR, fs=7.8, bold=True)
     _caja(ax, 77, 58, 21, 32,
-          "Tracción PWM\nTC1508A (1 kHz)\n• Arranque 255 (250 ms)\n• MANUAL 252/255\n• AUTO 207/210 ± Δu",
+          "Tracción PWM\nTC1508A (1.5 kHz)\n• Arranque 255 (250 ms)\n• MANUAL 252/255\n• AUTO 207/210 ± Δu",
           CORAL_CLARO, CORAL, fs=7.8, bold=True)
 
     _flecha(ax, (23.5, 74), (26.5, 74), AZUL, lw=1.8)
@@ -230,7 +230,7 @@ def fig_comandos():
     _caja(ax, 8, 10, 84, 30,
           "Canal de retorno en tiempo real (ESP32 → App Android)\n"
           "• SENS:<ang_x10>,<mm>,<flags> cada 100 ms en AUTO (décimas de grado + distancia láser + banderas bit 0..4)\n"
-          "• Avisos asíncronos de seguridad: WD:<n> (vencimiento de watchdog), TOF_PARO:<mm>, GIRO_FIN:<ang> y CAPS",
+          "• Avisos asíncronos de seguridad: WD:<n> (vencimiento de watchdog), TOF_PARO:<mm>, GIRO_OK:<...> y CAPS",
           BOSQUE_CLARO, BOSQUE, fs=7.9)
     _flecha(ax, (62.5, 57.5), (62.5, 40.5), BOSQUE, lw=1.6)
     _flecha(ax, (20, 40.5), (12.5, 57.5), BOSQUE, lw=1.6)
@@ -269,7 +269,7 @@ def fig_navegacion():
           "2. Guiar en recta\nRUMBO:<décimas> (J16)\n• Punto de mira 400 mm\n• Tope ±12° sobre recta\n• Suprime giros ≤ 8°\n• Lazo PI a 50 Hz",
           VERDE_CLARO, VERDE, fs=7.8, bold=True)
     _caja(ax, 52, 54, 21, 36,
-          "3. Cerrar giros\nGIRO:<grados> + IMU\n• MPU6050 a 200 Hz\n• Escala en ppm (NVS)\n• Freno proporcional\n• Respaldo por tiempo",
+          "3. Cerrar giros\nGIRAR:<grados> + IMU\n• MPU6050 a 100 Hz\n• Escala en ppm (NVS)\n• Freno por anticipación\n• Respaldo por tiempo",
           AMBAR_CLARO, AMBAR, fs=7.8, bold=True)
     _caja(ax, 77, 54, 21, 36,
           "4. Integrar pose\nrumbo_x10 (J15/J16)\n• Décimas de grado\n• Cuerda de pivote\n  2R·sin(Δθ/2)\n• Descarte dt en fallo",
@@ -329,7 +329,7 @@ def fig_esquive():
 def fig_percepcion():
     fig, ax = _lienzo(11.2, 5.2)
     _caja(ax, 2, 69, 27, 24,
-          "1. Clasificador de piso\nobstaculos.c (YCbCr/RGB)\n• Hasta 3 clústeres de suelo\n• Regla J10c en filas < 7\n• Máscara de artefactos",
+          "1. Clasificador de piso\nobstaculos.c (RGB + croma)\n• Hasta 4 grupos de suelo\n• Regla J10c en filas < 7\n• Máscara de artefactos",
           VERDE_CLARO, VERDE, fs=7.8, bold=True)
     _caja(ax, 2, 37, 27, 24,
           "2. Red neuronal de objetos\nDetectorTflite + ModeloEnHilo\n• EfficientDet-Lite0 (90 clases)\n• Hilo propio (vigencia 300 ms)\n• Modo opcional obj-any",
@@ -398,7 +398,7 @@ def fig_desarrollo():
          "Cuadrícula 20 cm,\ncalibración y\nsuite en PC",
          VERDE_CLARO, VERDE),
         (42, "Etapa 3\nCámara HQVGA\ny visión",
-         "GC0308 a 12.4 fps,\npiso YCbCr, TFLite\ny corredor",
+         "GC0308 a 12.4 fps,\npiso RGB+croma, TFLite\ny corredor",
          AMBAR_CLARO, AMBAR),
         (62, "Etapa 4\nSensores I2C\ny pose en C",
          "Giro MPU6050,\nfreno láser 120 mm\ne integración",

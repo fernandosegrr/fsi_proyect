@@ -40,7 +40,6 @@ class ModoSemiautonomo(
         const val SILENCIO_SENS_MS = 1500L    // J16: un firmware con sensores manda SENS cada 100 ms en AUTO; sin SENS durante este tiempo se cancela la ruta
         const val VIGILAR_CARRO_J16 = true    // J16: detener la ruta sin SENS, con WD (watchdog del carro) o con un TOF_PARO que el navegador no atendió; false = como antes
         const val PERFIL_ESPERA_MS = 1000L    // tiempo máximo para que el carro confirme el perfil AUTO antes de arrancar una ruta
-        const val CONFIRMAR_PISO_MS = 10000L  // tiempo para confirmar (tocando Iniciar otra vez) que se usa el último piso aprendido
 
         // Rutas de prueba: [columna0, fila0, columna1, fila1, ...], cada punto vecino del anterior.
         // Cuadrado de 2 celdas por lado (40 cm) y zigzag de escalones de 1 celda.
@@ -56,6 +55,7 @@ class ModoSemiautonomo(
         val NOMBRE_ZONA = arrayOf("IZQUIERDA", "CENTRO", "DERECHA")
     }
 
+    private var modeloVigente = false          // autónomo v2: lo último que dijo la fusión sobre el detector de objetos
     private val manejador = Handler(Looper.getMainLooper())
     private var ultimoComando = NavegadorNativa.CMD_STOP
     private var giroPorAnguloAntes = false   // el giro del tick anterior lo hacía el firmware (J11)
@@ -73,7 +73,6 @@ class ModoSemiautonomo(
     private var ultimoCuadroMs = 0L
     private var ultimoEstadoCentro = -1
     private var inicioUltimaRutaMs = 0L           // hora en que empezó la última ruta (el piso aprendido antes de esa hora ya se "gastó")
-    private var confirmarUltimoPisoHasta = 0L      // hasta cuándo un segundo toque en Iniciar confirma usar el último piso
     private var ultimaFaseLog = -1      // para escribir en el log solo cuando cambia la maniobra de esquivar
     private var ultimosReintentosLog = -1
 
@@ -138,23 +137,20 @@ class ModoSemiautonomo(
             alCambiar()
             return false
         }
-        // El piso: cada ruta exige haberlo APRENDIDO (botón «Aprender piso») desde la ruta anterior, o confirmar usar el último (tocar Iniciar otra vez en 10 s).
+        // Cada ruta exige aprender con la luz actual; repetir Iniciar no sustituye el aprendizaje.
         // Con la fuente de botones no hay cámara y no se pide.
         val camaraPiso = camara
         if (camaraPiso != null) {
-            val ahora = SystemClock.elapsedRealtime()
             val aprendidoParaEstaRuta = camaraPiso.pisoAprendidoMs != 0L && camaraPiso.pisoAprendidoMs > inicioUltimaRutaMs
             if (camaraPiso.aprendiendoPiso) {
                 mensaje = "Todavía se está aprendiendo el piso (~1 s): espera y vuelve a tocar Iniciar."
                 alCambiar()
                 return false
             }
-            if (!aprendidoParaEstaRuta && ahora > confirmarUltimoPisoHasta) {
-                confirmarUltimoPisoHasta = ahora + CONFIRMAR_PISO_MS
-                mensaje = "Antes de la ruta hay que APRENDER EL PISO: con el carro quieto sobre el piso de la ruta toca «Aprender piso». " +
-                    "O toca Iniciar otra vez (en 10 s) para usar el último piso" +
-                    (camaraPiso.informePiso?.let { " aprendido (${it.grupos} color(es), brillo medio ${it.brilloMedio})" } ?: " (todavía no se aprendió ninguno: se usará lo que ve la tira de abajo)") + "."
-                Log.i(ETIQUETA, "ruta pendiente: falta aprender el piso o confirmar el último")
+            if (!aprendidoParaEstaRuta) {
+                mensaje = "Falta Aprender piso para esta ruta con la iluminación actual. " +
+                    "Con el carro quieto y el piso libre, toca «Aprender piso». Si cambia la luz, repítelo antes de iniciar."
+                Log.i(ETIQUETA, "ruta pendiente: falta aprender el piso con la luz actual")
                 alCambiar()
                 return false
             }
@@ -212,13 +208,15 @@ class ModoSemiautonomo(
         logica.alSens = { angulo, mm, banderas -> NavegadorNativa.aporteSens(mm, banderas and 2 != 0, banderas and 4 != 0, angulo, SystemClock.elapsedRealtime(), banderas and 1 != 0 && banderas and 8 == 0) }
         logica.alImu = { angulo -> NavegadorNativa.aporteImu(angulo, SystemClock.elapsedRealtime()) }
         logica.alTofParo = { mm ->
+            CajaNegra.linea("EV TOF_PARO mm=$mm")
             NavegadorNativa.aporteTofParo(mm, SystemClock.elapsedRealtime())
             if (VIGILAR_CARRO_J16 && activo && avanzando) {
                 tofParoSinAtender = true   // el firmware frenó y ControlLogica dejó de repetir el FORWARD: el navegador tiene que enterarse
             }
         }
         // J16: el watchdog del carro lo frenó (1 s sin comandos). El navegador seguiría contando un avance que no ocurrió, y el siguiente comando lo arrancaría desde otro lugar.
-        logica.alWatchdog = { _ ->
+        logica.alWatchdog = { n ->
+            CajaNegra.linea("EV WD n=$n")
             if (VIGILAR_CARRO_J16 && activo) {
                 cancelar("El carro se frenó solo: no le llegaron comandos en 1 s (WiFi o teléfono ocupado). Reposiciona el carro y vuelve a iniciar la ruta.")
             }
@@ -245,7 +243,16 @@ class ModoSemiautonomo(
         }
         Log.i(ETIQUETA, "ruta iniciada (${ruta.size / 2} puntos)")
         inicioUltimaRutaMs = SystemClock.elapsedRealtime()
-        confirmarUltimoPisoHasta = 0L
+        // Autónomo v2: la caja negra de esta corrida (solo números y palabras, ninguna imagen).
+        CajaNegra.abrir(listOf(
+            "ruta=${nombre.ifEmpty { "sin_nombre" }} puntos=${ruta.size / 2} celdas=${ruta.joinToString(",")}",
+            "firmware=${logica.versionFirmware} giroscopio=${logica.giroscopioActivo} laser=${logica.laserActivo} autoridad_laser=${logica.autoridadLaser}",
+            "camara=${if (fuente == null) "ninguna" else if (fuente.esVideoCarro) "video_carro" else "telefono"} latencia_visual_ms=${fuente?.latenciaVisualMs ?: 0} " +
+                "detector_objetos=${fuente?.modelo != null}",
+            "config_vision=${fuente?.cuadroTomado?.config?.joinToString(",") ?: ""}",
+            "camara_stats=${fuente?.textoCamaraCarro ?: ""}",
+            "telefono=${android.os.Build.MODEL} android=${android.os.Build.VERSION.RELEASE}"))
+        ObstaculosNativa.telemetriaActiva(fuente != null)
         mensaje = ""
         // El retroceso de los reintentos de esquive es CIEGO (no hay cámara atrás): se avisa siempre, y si no se calibró, que usa el del avance.
         val calAtras = leerCalibracion()
@@ -260,6 +267,24 @@ class ModoSemiautonomo(
             Log.w(ETIQUETA, "retroceso SIN calibrar: los reintentos de esquive retroceden con los ms por cm del avance")
             mensaje = if (mensaje.isEmpty()) "Aviso: retroceso sin calibrar (usa el valor del avance). Si hay que esquivar un objeto grande el carro puede retroceder hasta 15 cm: deja libre el espacio de atrás."
                       else "$mensaje · Retroceso sin calibrar (usa el valor del avance)."
+        }
+        // Autónomo v2: la ruta sale, pero se dice con qué percepción sale. Sin el láser nada frena por distancia y nada confirma lo que ve la cámara; sin el
+        // detector de objetos, lo que solo ve el color no detiene al carro (queda el láser). Antes esto no se avisaba.
+        val falta = mutableListOf<String>()
+        if (!logica.laserActivo) {
+            falta.add("sin láser (no frena por distancia ni confirma obstáculos)")
+        }
+        if (fuente != null && fuente.modelo == null) {
+            falta.add("sin detector de objetos (lo que solo vea el color no detiene)")
+        }
+        if (fuente == null) {
+            falta.add("sin cámara")
+        }
+        if (falta.isNotEmpty()) {
+            val aviso = "Percepción incompleta: " + falta.joinToString("; ")
+            Log.w(ETIQUETA, aviso)
+            CajaNegra.linea("EV percepcion_incompleta " + falta.joinToString("; "))
+            mensaje = if (mensaje.isEmpty()) "Aviso: $aviso" else "$mensaje · $aviso"
         }
         ultimaFaseLog = -1
         ultimosReintentosLog = -1
@@ -282,6 +307,10 @@ class ModoSemiautonomo(
         activo = false
         tofParoSinAtender = false
         manejador.removeCallbacks(tarea)
+        if (estabaActivo) {
+            ObstaculosNativa.telemetriaActiva(false)
+            CajaNegra.cerrar("estado=CANCELADO causa=${NavegadorNativa.causa()} mensaje=$motivo")
+        }
         NavegadorNativa.cancelar()
         apagarRumbo()
         escribirResumenDePrueba()
@@ -334,6 +363,7 @@ class ModoSemiautonomo(
         if (fuente != null) {
             cuadro = fuente.tomarCuadroNuevo()
             if (cuadro != null) {
+                if (cuadro[0] != 0) { cancelar("Visión sin datos válidos: ruta detenida"); return }
                 ultimoCuadroMs = ahora
                 registrarCambioDeCamara(cuadro)
                 seguirBloqueo(fuente.cuadroTomado, cuadro)
@@ -362,7 +392,7 @@ class ModoSemiautonomo(
             val c = info?.corredor
             if (c != null && info.resultado.size > ObstaculosNativa.CERCANIA_DERECHA) {
                 val det = info.resultado
-                fun igual(zona: Int) = cuadro[1 + 2 * zona] == det[1 + 2 * zona] && cuadro[2 + 2 * zona] == det[2 + 2 * zona]
+                fun igual(zona: Int) = cuadro[10 + zona] != 3 && cuadro[1 + 2 * zona] == det[1 + 2 * zona] && cuadro[2 + 2 * zona] == det[2 + 2 * zona]
                 NavegadorNativa.ponerCorredor(
                     if (igual(0)) c[CorredorNativa.FUERA] else 0, if (igual(1)) c[CorredorNativa.FUERA + 1] else 0, if (igual(2)) c[CorredorNativa.FUERA + 2] else 0,
                     if (igual(0)) c[CorredorNativa.CERCANIA] else 0, if (igual(1)) c[CorredorNativa.CERCANIA + 1] else 0, if (igual(2)) c[CorredorNativa.CERCANIA + 2] else 0)
@@ -370,8 +400,24 @@ class ModoSemiautonomo(
                 NavegadorNativa.ponerCorredor(0, 0, 0, 0, 0, 0)
             }
         }
+        // Autónomo v2: salud del detector de objetos. Si la ruta cuenta con él (está activo) y deja de dar resultados vigentes, el navegador se detiene y lo dice.
+        if (fuente != null) {
+            val requerido = fuente.modelo != null
+            val fusion = fuente.cuadroTomado?.fusion
+            if (fusion != null && fusion.size > FusionNativa.R_MODELO_VIGENTE) {
+                modeloVigente = fusion[FusionNativa.R_MODELO_VIGENTE] != 0
+            } else if (!requerido) {
+                modeloVigente = false
+            }
+            NavegadorNativa.aporteModelo(requerido, modeloVigente, ahora)
+        }
         val comando = NavegadorNativa.tick(ahora, cuadro != null, cuadro ?: IntArray(10))
         val estado = NavegadorNativa.estado()[NavegadorNativa.E_ESTADO]
+        // Autónomo v2, caja negra: el estado de este tick, lo que mandó el carro y, si hubo cuadro nuevo, los números de la visión.
+        CajaNegra.linea(NavegadorNativa.cajaNegra(ahora) + " ang=${logica.anguloX10} mm=${logica.distanciaMm} bs=${logica.banderasSens}")
+        if (cuadro != null && fuente != null) {
+            CajaNegra.linea(ObstaculosNativa.telemetria())
+        }
 
         // J11: un giro por ángulo se le pide al firmware una sola vez (GIRAR:<grados>) y no se manda LEFT ni RIGHT mientras lo hace; si el giro cae al método por tiempo hay que mandar el LEFT/RIGHT que faltaba.
         val girarGrados = NavegadorNativa.tomarGiroFw()
@@ -423,6 +469,8 @@ class ModoSemiautonomo(
             }
             Log.i(ETIQUETA, "fin: $mensaje")
             escribirResumenDePrueba()
+            ObstaculosNativa.telemetriaActiva(false)
+            CajaNegra.cerrar("estado=${NavegadorNativa.textoEstado(estado)} causa=${NavegadorNativa.causa()} mensaje=$mensaje")
         }
         alCambiar()
     }
@@ -437,6 +485,7 @@ class ModoSemiautonomo(
             }
             val etiqueta = linea.substringBefore(' ')
             Log.i(if (etiqueta == "CONTRADICCION_LASER_CAMARA" || etiqueta.endsWith("_DIAG")) etiqueta else "ESQUIVE_DIAG", linea)
+            CajaNegra.linea(linea)
         }
     }
 
@@ -566,13 +615,14 @@ class ModoSemiautonomo(
         }
     }
 
-    /** Arma los 10 enteros que espera el navegador con los obstáculos simulados (cercanía 3 = muy cerca). */
+    /** Zonas y fuentes del simulador: el botón representa un obstáculo confirmado (cercanía 3). */
     private fun armarCuadro(): IntArray {
-        val cuadro = IntArray(10)
+        val cuadro = IntArray(13)
         for (zona in 0..2) {
             if (obstaculoSimulado[zona]) {
                 cuadro[1 + 2 * zona] = 1   // hay obstáculo
                 cuadro[2 + 2 * zona] = 3   // muy cerca
+                cuadro[10 + zona] = 3     // boton de simulacion: obstaculo confirmado, sin sensores reales
             }
         }
         return cuadro

@@ -6,9 +6,9 @@ Este capítulo documenta los requisitos de herramientas, los comandos exactos pa
 
 El repositorio está preparado para compilarse y probarse en Windows (con `PowerShell`) o entornos POSIX sin depender de servicios en la nube:
 
-1. **Compilador C99 y Make (`gcc` / `MinGW-w64` y `GNU Make`):** compila los 22 ejecutables de prueba del núcleo (`nucleo_c`) y los 5 ejecutables de lógica del firmware (`pruebas_firmware`).
+1. **Compilador C99 y Make (`gcc` / `MinGW-w64` y `GNU Make`):** compila los 24 ejecutables de prueba del núcleo (`nucleo_c`) y los 5 ejecutables de lógica del firmware (`pruebas_firmware`).
 2. **Arduino CLI (`arduino-cli`) con núcleo `esp32:esp32` (`3.3.7`):** compila y carga tanto `firmware_carro/firmware_carro.ino` (`FQBN esp32:esp32:esp32`) como `camara_prueba/camara_prueba.ino` (`FQBN esp32:esp32:esp32wrover`).
-3. **Android SDK, NDK (`27.0.12077973`), CMake (`3.22.1`) y JDK 17 (`Gradle`):** compila la biblioteca nativa `libcarro_nucleo.so` desde `nucleo_c/*.c` más `puente.c` y empaqueta la aplicación Android (`app-debug.apk`).
+3. **Android SDK, NDK (`30.0.16248370`), CMake (`4.1.2`) y JDK 17 (`Gradle`):** compila la biblioteca nativa `libcarro_nucleo.so` desde `nucleo_c/*.c` más `puente.c` y empaqueta la aplicación Android (`app-debug.apk`).
 4. **Python 3 (`>= 3.9`):** ejecuta los verificadores de versión (`verificar_version.py`, `probar_version.py`), el servidor falso (`probar_servidor_falso.py`), el verificador de enlaces (`verificar_enlaces.py`) y el generador reproducible de este manual (`generar_manual.py` con `reportlab` y `pymupdf`).
 
 ## 10.2 Compilación y carga del firmware del carro y de la cámara

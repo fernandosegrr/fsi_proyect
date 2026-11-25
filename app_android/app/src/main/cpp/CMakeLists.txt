@@ -43,6 +43,7 @@ add_library(carro_nativo SHARED
     ${NUCLEO_C}/ruta_editor.c
     ${NUCLEO_C}/sim_ruta.c
     ${NUCLEO_C}/simulador_navegador.c
+    ${NUCLEO_C}/vision_tele.c
 )
 
 target_include_directories(carro_nativo PRIVATE ${NUCLEO_C})

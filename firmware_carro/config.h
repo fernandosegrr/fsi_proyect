@@ -246,8 +246,27 @@
  * Tres errores seguidos, o más de TOF_SIN_DATOS_MS sin ninguna lectura, marcan el sensor como caído. */
 #define TOF_PERIODO_MS           33       /* tiempo de medida del sensor (el valor por defecto de la librería de Pololu) */
 #define TOF_SONDEO_MS            4        /* mientras espera la medida, pregunta si está lista cada tantos ms (no en cada vuelta, para no llenar el bus) */
-#define TOF_PARO_MM              120
+/* Autónomo v3 (SEG=3): TOF_PARO_MM 150 y TOF_BLOQUEO_MM 180 (antes 120 y 150). El pulso de arranque a plena potencia (250 ms, ~9.5 cm) y la distancia del sensor al frente del carro (e,
+ * NO MEDIDA) hacen que 120 mm pueda no alcanzar si e es de 2 cm o más (docs/investigacion_autonomo/10_seguridad_funcional.md, modelo propio). Más conservador, nunca menos;
+ * se pueden volver a los valores anteriores compilando con -DTOF_PARO_MM=120 -DTOF_BLOQUEO_MM=150. */
+#ifndef TOF_PARO_MM
+#define TOF_PARO_MM              150
+#endif
 #define TOF_PARO_LECTURAS        2
+/* Autónomo v2 (SEG=2): con el frente confirmado a menos de TOF_BLOQUEO_MM (TOF_PARO_LECTURAS lecturas válidas seguidas), un FORWARD en perfil AUTO NO arranca los
+ * motores: se contesta TOF_PARO:<mm>, igual que el freno. Antes cada reintento de avance daba un pulso a plena potencia contra el obstáculo antes de que el freno lo
+ * cortara. El margen sobre TOF_PARO_MM (histéresis) evita que el carro quede arrancando y frenando en el borde. Retroceder y girar no se bloquean. */
+#ifndef TOF_BLOQUEO_MM
+#define TOF_BLOQUEO_MM           180
+#endif
+#if TOF_BLOQUEO_MM <= TOF_PARO_MM
+#error "TOF_BLOQUEO_MM debe ser mayor que TOF_PARO_MM (la histeresis evita arrancar y frenar en el borde)"
+#endif
+/* Autónomo v3 (SEG=3): cuántos «sin eco» SEGUIDOS se toleran dentro de una racha de «cerca» sin romperla (una pata o un borde delgado devuelve un «sin eco» entre dos
+ * lecturas cercanas). Con 0 se vuelve al comportamiento anterior (cualquier «sin eco» rompe la racha). Una lectura válida lejana siempre la rompe. */
+#ifndef TOF_PERDIDAS_TOLERADAS
+#define TOF_PERDIDAS_TOLERADAS   1
+#endif
 #define TOF_LIBRE_MM             1200
 #define TOF_MIN_VALIDO_MM        8        /* menos de esto es basura del sensor: se ignora (ni libre ni cerca) */
 #define TOF_ERRORES_MAX          3

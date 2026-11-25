@@ -1,6 +1,6 @@
 # 1. Introducción y cómo leer el manual
 
-Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance funcional de su **Versión final 1.1** y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
+Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance de la **versión 1.2** (autónomo v3, pendiente de validar en el carro) y de la **versión 1.1** (la validada en el carro) y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
 
 ## 1.1 Propósito del proyecto y arquitectura del sistema
 
@@ -14,7 +14,7 @@ En lugar de concentrar la adquisición de video, la visión por computadora, la 
 
 Esta partición permite que el mismo código en `C99` que toma decisiones dentro del teléfono se compile y verifique en una computadora personal mediante miles de pruebas automatizadas antes de mover el vehículo físico.
 
-## 1.2 Alcance de la Versión final 1.1 (cierre J16)
+## 1.2 Alcance de la Versión final 1.1 (cierre J16), la validada en el carro
 
 La **Versión final 1.1** consolida el trabajo acumulado desde la primera entrega etiquetada (`v1.0`, commit `eb88151`) hasta el cierre de precisión e integración **J16** fusionado en `main`. Los artefactos validados que corresponden a esta edición son:
 
@@ -47,5 +47,16 @@ El manual está organizado en dieciséis capítulos agrupados en cuatro bloques 
 - **Evolución, diagnóstico y consulta rápida (Capítulos 14 a 16):** sintetiza la evolución técnica del proyecto, ofrece una guía sistemática de solución de problemas e incluye los anexos de glosario, comandos, pines, correspondencia completa de archivos del repositorio y lista de tareas abiertas.
 
 Para mantener una lectura fluida, el cuerpo de los capítulos no intercala rutas de carpetas ni números de línea. Al final de cada capítulo del 1 al 15 se incluye una sola línea titulada **Dónde está en el código** con los nombres de los archivos fuente principales, mientras que el **Anexo 16.3** presenta la tabla completa con las rutas exactas dentro del repositorio.
+
+## 1.5 Qué trae la v1.2 y cómo está organizada esta edición
+
+La **v1.2** es el autónomo v3 (`feat/autonomo-v3`, punto de partida `e37f77b`) más la revisión de la interfaz de la app Android. **Lo único validado en el carro físico sigue siendo la v1.1** (10-nov-2026): el firmware v3 y la app v1.2 solo se compilaron, y el autónomo v3 está `SIMULADO` y `NO MEDIDO` en el carro. Por eso las cifras de la sección 1.2 y de las tablas de evidencia son las de la v1.1; las de la v1.2 se dan aparte (en v1.2 las suites de PC dieron `1,901` casos en `24` programas del núcleo, `567` en `5` programas del firmware, `60` en el servidor falso y `21` en el verificador de versiones, todos sin fallos).
+
+Esta edición se puede leer de dos maneras:
+
+- **Para exponer:** el mapa de una página (página {{pag:mapa}}), el glosario general (página {{pag:glosario}}), el índice «si te preguntan X, ve a la página Y» (página {{pag:indice}}) y los nueve subsistemas A a I (el A empieza en la página {{pag:A}} y el I en la {{pag:I}}). Cada subsistema repite siempre siete secciones: qué es, cómo funciona, cómo lo hicimos, cómo lo probamos, límites, términos clave y preguntas probables del profesor.
+- **Para consultar a fondo:** los capítulos 2 a 16 y la bibliografía, con el detalle técnico.
+
+Lo que no estaba en el código ni en los documentos del repositorio quedó marcado con la frase `CONFIRMAR CON EL EQUIPO` seguida de la pregunta concreta, y todas se reúnen en `docs/pendientes_confirmar.md`. La guía para la exposición está en `docs/guia_exposicion.md`.
 
 Dónde está en el código: `README.md`, `entrega.md`, `estado_20261110.md`, `limites_conocidos.md`.

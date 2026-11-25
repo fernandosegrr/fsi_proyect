@@ -1,0 +1,9 @@
+caja20_laser t=22400 pose=(996,-8,0) estado=TERMINADO causa=0 esquivas=1 disparo_ms=2600 dist_mm=395 fin_plan=1319 paralelo=919 cola_s=1888 fin_real=1120 paso=1 toque=0
+banquito35x45_laser t=14100 pose=(604,664,82) estado=AYUDA causa=14 esquivas=1 disparo_ms=2600 dist_mm=395 fin_plan=1319 paralelo=919 cola_s=1216 fin_real=1370 paso=0 toque=0
+falso_sin_objeto t=1300 pose=(1000,2000,0) estado=AYUDA causa=13 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=-120 fin_real=920 paso=-1 toque=0
+falso_objeto80_ruta60 t=1300 pose=(1000,2000,0) estado=AYUDA causa=13 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=-120 fin_real=1370 paso=0 toque=0
+patas_sin_eco t=3300 pose=(1000,1556,0) estado=AYUDA causa=13 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=324 fin_real=1370 paso=0 toque=0
+vision_sin_laser t=1300 pose=(1000,2000,0) estado=AYUDA causa=13 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=-120 fin_real=670 paso=0 toque=0
+objeto_cerca_final t=800 pose=(1000,2000,0) estado=AYUDA causa=14 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=-120 fin_real=670 paso=0 toque=0
+objeto_mayor_90cm t=13300 pose=(604,664,26) estado=AYUDA causa=14 esquivas=1 disparo_ms=2600 dist_mm=395 fin_plan=1319 paralelo=919 cola_s=1216 fin_real=1820 paso=0 toque=0
+falso_tres_zonas t=1300 pose=(1000,2000,0) estado=AYUDA causa=13 esquivas=0 disparo_ms=-1 dist_mm=-1 fin_plan=-1 paralelo=0 cola_s=-120 fin_real=920 paso=-1 toque=0

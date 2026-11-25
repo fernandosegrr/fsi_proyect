@@ -66,9 +66,14 @@ uint32_t sensores_loop_excesos(void);
 
 /* Cuántas paradas de emergencia hizo el láser. */
 uint32_t sensores_paros_tof(void);
+uint32_t sensores_bloqueos_tof(void);   /* SEG=2: avances que no se dejaron arrancar por el frente bloqueado (sensores_frente_bloqueado) */
 
 /* Deja todo como recién encendido (para las pruebas). */
 void sensores_reiniciar_estado(void);
+
+/* Autónomo v2 (SEG=2). ¿Puede ARRANCAR un avance? Devuelve 0 si sí; si el láser tiene el frente confirmado a menos de TOF_BLOQUEO_MM (con el freno láser en uso y en
+ * perfil AUTO) devuelve esa distancia y avisa TOF_PARO:<mm> a la app, como el freno. Lo llama carro.c antes de energizar los motores con FORWARD. */
+int sensores_frente_bloqueado(void);
 
 #ifdef __cplusplus
 }

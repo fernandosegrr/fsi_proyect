@@ -125,7 +125,7 @@ Además existe `Texto.Grande` (32 sp): **la única cosa grande de la pantalla** 
 | **Cabecera** | `view_cabecera.xml` | Fija arriba: punto de conexión + estado, perfil de velocidad (chip) y batería del teléfono. El PARO rojo aparece a la derecha mientras el carro se mueve. |
 | **Estado vacío** | `view_estado_vacio.xml` | Icono grande suave, una frase de qué falta y un botón con la acción. Ejemplo: «Todavía no hay rutas guardadas». |
 | **Diálogo de confirmación** | `Dialogos.confirmar(...)` | Título corto, una frase y dos botones (la acción y «Cancelar»). Para borrar, limpiar o salir de una ruta. |
-| **Aviso en banda** | `AvisoBanda` | `aviso.mostrar(Nivel.ERROR, "Qué pasó", "Qué hacer", "Reintentar") { ... }`. Siempre con las dos frases. |
+| **Aviso en banda** | `AvisoBanda` | `aviso.mostrar(Nivel.ERROR, "Qué pasó", "Qué hacer", "Reintentar") { ... }`. Siempre con las dos frases. Aparece y se va como acordeón (el alto crece o baja), nunca de golpe, y es idempotente (repetir el mismo aviso no hace nada). En Manual va **encima del video**, no entre el video y la cruceta. |
 
 ### Mensajes de error (regla)
 
@@ -133,7 +133,7 @@ Todo error se escribe en dos frases: **qué pasó** («No llega el video de la c
 
 ## 5. Movimiento
 
-- Transiciones de **150 a 250 ms** (`Movimiento.RAPIDO` 150, `NORMAL` 200, `LENTO` 250): fundidos al mostrar y ocultar avisos y cambios de pantalla.
+- Transiciones de **150 a 250 ms** (`Movimiento.RAPIDO` 150, `NORMAL` 200, `LENTO` 250): fundidos en los cambios de pantalla y, en los avisos en banda, un acordeón (el alto crece o baja para que lo de abajo se deslice y no salte).
 - **Respuesta al tocar:** ondulación (ripple) de Material y, en la cruceta y los botones grandes, un achique del 3 % mientras se mantiene el dedo (`Movimiento.respuestaAlTocar`).
 - **Vibración corta** (18 ms) en las acciones importantes (conectar, iniciar o terminar una ruta) y dos pulsos en un obstáculo (`Haptica`); se puede apagar en Ajustes.
 - **El indicador de conexión «respira»** (fundido lento entre 100 % y 35 %) solo cuando hay conexión: es la señal de que todo está vivo.
@@ -207,6 +207,20 @@ Cada pantalla se capturó en el teléfono (`scripts/qa_captura.py`, con la cáma
 - Contraste revisado también en modo claro (Inicio): textos, chips y botón sin problema.
 - Las capturas de pantalla solo se toman si la app está al frente (si el usuario usa otra pantalla del teléfono, el script no captura).
 - **El título de una pantalla en horizontal puede quedar sin ancho** (se cortaba «Visión y diagnóstico»): usar un título corto en la barra y el nombre completo en «Más».
+
+### Parpadeos: causas y reglas (revisión del 24-nov-2026)
+
+Se reportaron «parpadeos». La causa común: las sesiones avisan hasta 20 veces por segundo (la ruta cada 50 ms, los sensores del carro cada 100 ms, el PONG cada 800 ms, el video cada 250 ms) y cada aviso rehacía la pantalla, reiniciaba animaciones y empujaba el contenido. El informe completo (cada hallazgo, lo que NO se cambió y cómo comprobarlo en el teléfono) está en [revision_ui_android.md](revision_ui_android.md). Se probó en un teléfono (24-nov-2026) con el carro y la cámara **falsos**; con el carro y la cámara reales **falta** probarlo.
+
+Reglas que quedan para cualquier pantalla nueva:
+
+1. **Todo lo que se llame desde un refresco es idempotente.** Repetir lo mismo no hace nada: `ChipEstado.poner()` con el mismo nivel y texto, `AvisoBanda.mostrar()` con el mismo aviso, `PuntoConexion.nivel` con el mismo nivel, `TextView.ponerSiCambia()` con el mismo texto. Nada de `setText`, `setBackground` ni animaciones que se reinicien en cada vuelta.
+2. **Los refrescos que vienen de avisos de las sesiones pasan por `RefrescoAcotado`** (como mucho uno cada 100 ms; el primero tras un rato sin avisos es inmediato). Las llamadas directas por un toque de botón siguen siendo inmediatas.
+3. **Lo que mueve el carro no se mueve.** Ningún aviso, chip ni texto se inserta en el flujo encima o entre los botones de manejo: los avisos de Manual van encima del video. Y todo aviso aparece y se va como acordeón, nunca de golpe.
+4. **Nada de disco ni de red en un refresco de pantalla** (en el hilo principal): si hay que leer algo, se guarda la respuesta unos segundos (`RedCarro`, `CajaNegra.cuantas()`) o se hace en otro hilo.
+5. **Lo plegado no se calcula**: los «Detalles técnicos» de Ejecutar ruta solo se arman con el panel abierto.
+6. **Un layout que tiene variante `layout-land/` se cambia en las dos**, con los mismos ids. Un aviso que solo se agregó a la versión vertical hizo que Manual se cerrara al abrirse de lado (`findViewById(...) must not be null`); lo encontró la prueba en el teléfono, no la lectura del código. `scripts/ui_telefono/prueba_telefono.py galeria` abre cada pantalla en vertical y en horizontal y avisa de la que no abre.
+7. **Un aviso que depende de un estado con pasos intermedios se queda hasta que llegue el estado bueno.** La sesión de video reintenta sola cada 3 s y en cada reintento pasa por «abriendo»: si el aviso solo miraba «falló», se escondía y volvía a salir con cada reintento (un parpadeo cada ~4 s). `ManualFragment.videoFallando` lo mantiene hasta que el video vuelve a fluir.
 
 ## 9. Licencias de lo incluido
 

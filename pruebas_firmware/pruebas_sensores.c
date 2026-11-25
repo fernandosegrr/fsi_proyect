@@ -900,7 +900,7 @@ static void prueba_laser_reintentos(void)
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? conserva TOFR=2 y agrega IMUR y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0," FW_VERSION) == 0);
+    caso("CAPS? conserva TOFR=2 y agrega IMUR, SEG=3, TUSO, TOFP y version", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=2,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
 
     /* 3. Los 5 intentos fallan: 4 reintentos, el laser queda caido... y se recupera solo. */
     reiniciar_carro_con_laser(5, 1);
@@ -1189,12 +1189,51 @@ static void prueba_laser_lecturas(void)
     tof_probar_lectura(500, 5u);
     tof_probar_lectura(500, 6u);
 
+    /* SEG=3: un «sin eco» aislado no rompe la racha de «cerca»; dos seguidos o una lectura lejana REAL sí. */
+    tof_probar_lectura(500, 20u);
+    tof_probar_lectura(500, 21u);
+    tof_probar_lectura(90, 22u);
+    tof_probar_lectura(8190, 23u);
+    tof_probar_lectura(90, 24u);
+    caso("SEG=3: cercana, sin eco, cercana confirma la racha de cerca (un sin eco aislado no la rompe)", TOF_PERDIDAS_TOLERADAS < 1 || tof_cerca_confirmada() == 90);
+    tof_probar_lectura(500, 30u);
+    tof_probar_lectura(90, 31u);
+    tof_probar_lectura(8190, 32u);
+    tof_probar_lectura(65535, 33u);
+    tof_probar_lectura(90, 34u);
+    caso("SEG=3: cercana, dos sin eco seguidos, cercana: la racha se rompe", tof_cerca_confirmada() == 0);
+    tof_probar_lectura(500, 40u);
+    tof_probar_lectura(90, 41u);
+    tof_probar_lectura(500, 42u);
+    tof_probar_lectura(90, 43u);
+    caso("SEG=3: cercana, lejana REAL, cercana: la racha se rompe al instante", tof_cerca_confirmada() == 0);
+
     /* Lecturas basura (menos de 8 mm) se ignoran. */
     tof_probar_lectura(300, 7u);
     tof_probar_lectura(300, 8u);
     tof_probar_lectura(300, 9u);
     tof_probar_lectura(3, 10u);
     caso("una lectura de 3 mm es basura y se ignora (la distancia sigue en 300)", tof_mm() == 300);
+
+    /* Revisión independiente: tras más de 1000 lecturas cercanas seguidas (unos 33 s frente a algo) la cuenta se detiene en 1000 y, usada como índice, dejaba una
+     * casilla de «las últimas» sin renovar: la distancia confirmada podía ser una vieja. Ahora las últimas son de verdad las últimas. */
+    {
+        uint32_t t;
+
+        for (t = 0; t < 1200u; t++) {
+            tof_probar_lectura(110, 100u + t);
+        }
+        caso("1200 lecturas a 110 mm: cerca confirmada a 110", tof_cerca_confirmada() == 110);
+        caso("1200 lecturas a 110 mm: bloqueo confirmado a 110", tof_bloqueo_confirmado() == 110);
+        tof_probar_lectura(60, 2000u);
+        tof_probar_lectura(60, 2001u);
+        caso("y dos lecturas nuevas a 60 mm: la distancia confirmada es la nueva (antes quedaba una de 110)", tof_cerca_confirmada() == 60);
+        caso("lo mismo para el bloqueo de arranque", tof_bloqueo_confirmado() == 60);
+        tof_probar_lectura(500, 2002u);
+        tof_probar_lectura(500, 2003u);
+        tof_probar_lectura(500, 2004u);
+        caso("al alejarse deja de estar confirmada", tof_cerca_confirmada() == 0 && tof_bloqueo_confirmado() == 0);
+    }
 }
 
 /* Prepara el carro avanzando en AUTO con el láser libre. */
@@ -1215,7 +1254,7 @@ static void prueba_laser_paro(void)
     avanzando_en_auto();
     falso_tof_mm = 350;
     avanzar_ms(250);
-    caso("J13: el umbral de autoridad de la app no cambia el freno firmware de 120 mm", TOF_PARO_MM == 120 && carro_avanzando() && sensores_paros_tof() == 0);
+    caso("J13/SEG=3: el umbral de autoridad de la app no cambia el freno firmware de 150 mm", TOF_PARO_MM == 150 && TOF_BLOQUEO_MM == 180 && carro_avanzando() && sensores_paros_tof() == 0);
     avanzando_en_auto();
     caso("avanza en AUTO con el laser libre", carro_avanzando());
     falso_tof_mm = 100;
@@ -1240,16 +1279,16 @@ static void prueba_laser_paro(void)
     avanzar_ms(200);
     caso("una lectura cercana suelta no frena", carro_avanzando() && sensores_paros_tof() == 0);
 
-    /* Cercana, libre, cercana, libre... nunca hay 2 seguidas. */
-    for (i = 0; i < 8; i++) {
-        falso_tof_mm = (i % 2 == 0) ? 100 : 8190;
+    /* Cercana y DOS «sin eco» seguidos, de nuevo cercana...: la racha se rompe y nunca hay 2 cercanas seguidas (SEG=3: un solo «sin eco» no la rompe, dos sí). */
+    for (i = 0; i < 9; i++) {
+        falso_tof_mm = (i % 3 == 0) ? 100 : 8190;
         avanzar_ms(35);
         if (i % 4 == 0) orden("FORWARD");
     }
-    caso("cercana/libre alternadas (nunca 2 seguidas cercanas) no frenan", carro_avanzando() && sensores_paros_tof() == 0);
+    caso("cercana + dos sin eco seguidos (la racha se rompe) no frenan", carro_avanzando() && sensores_paros_tof() == 0);
 
-    /* 130 mm no es menor de 120. */
-    falso_tof_mm = 130;
+    /* 160 mm no es menor de TOF_PARO_MM (150). */
+    falso_tof_mm = 160;
     avanzar_ms(200);
     orden("FORWARD");
     avanzar_ms(100);
@@ -1323,9 +1362,48 @@ static void prueba_laser_paro(void)
     falso_tof_mm = 100;
     avanzar_ms(150);
     caso("primer paro", motores_parados() && sensores_paros_tof() == 1);
+    /* SEG=2 (autónomo v2): con el obstáculo todavía ahí, otro FORWARD ya NO energiza los motores ni un instante (antes daba un pulso a plena potencia y el freno lo
+     * cortaba una vuelta después): se rechaza y se contesta TOF_PARO:<mm>. */
+    {
+        int avances_antes = (int)carro_avances(), paros_antes = contar_mensajes("TOF_PARO:", 0), escrituras_antes = escrituras_pwm;
+
+        orden("FORWARD");
+        caso("SEG=2: con el obstaculo todavia ahi, otro FORWARD no arranca los motores (ni una escritura con potencia)",
+             motores_parados() && escrituras_pwm == escrituras_antes && (int)carro_avances() == avances_antes);
+        avanzar_ms(100);
+        caso("... sigue parado, no cuenta como otro paro del freno y avisa TOF_PARO otra vez", motores_parados() && sensores_paros_tof() == 1 &&
+             contar_mensajes("TOF_PARO:", 0) == paros_antes + 1 && sensores_bloqueos_tof() == 1u);
+        caso("... el aviso lleva la distancia medida (TOF_PARO:100)", ultimo_mensaje("TOF_PARO:100") != NULL);
+        orden("REVERSE");
+        avanzar_ms(60);
+        caso("... retroceder NO se bloquea (es la salida)", carro_motores_en_marcha() && !carro_avanzando());
+        orden("STOP");
+        orden("LEFT");
+        avanzar_ms(60);
+        caso("... girar tampoco", carro_motores_en_marcha());
+        orden("STOP");
+        orden("MODO_MANUAL");
+        orden("FORWARD");
+        avanzar_ms(60);
+        caso("... y en perfil MANUAL el FORWARD arranca (el usuario manda, como siempre)", carro_avanzando());
+        orden("STOP");
+        orden("MODO_AUTO");
+        avanzar_ms(20);
+    }
+    /* Histéresis: entre TOF_PARO_MM (150) y TOF_BLOQUEO_MM (180) tampoco arranca; a 180 o más, sí. */
+    falso_tof_mm = 170;
+    avanzar_ms(150);
     orden("FORWARD");
-    avanzar_ms(100);
-    caso("con el obstaculo todavia ahi, otro FORWARD vuelve a frenar de inmediato", motores_parados() && sensores_paros_tof() == 2);
+    avanzar_ms(60);
+    caso("SEG=3: a 170 mm (entre el freno y el bloqueo) el FORWARD no arranca", motores_parados());
+    falso_tof_mm = 190;
+    avanzar_ms(150);
+    orden("FORWARD");
+    avanzar_ms(60);
+    caso("SEG=3: a 190 mm el FORWARD arranca (y el freno de 150 mm sigue vigilando)", carro_avanzando());
+    falso_tof_mm = 100;
+    avanzar_ms(150);
+    caso("... y al acercarse a 100 mm frena", motores_parados() && sensores_paros_tof() == 2);
     falso_tof_mm = 8190;
     avanzar_ms(120);
     orden("FORWARD");
@@ -1334,6 +1412,63 @@ static void prueba_laser_paro(void)
         orden("FORWARD");
     }
     caso("quitado el obstaculo, FORWARD sigue avanzando", carro_avanzando() && sensores_paros_tof() == 2);
+    /* Con el freno láser apagado (TOF_USO:0) tampoco hay bloqueo: apagado = como antes. */
+    orden("STOP");
+    orden("TOF_USO:0");
+    falso_tof_mm = 100;
+    avanzar_ms(150);
+    orden("FORWARD");
+    avanzar_ms(60);
+    caso("SEG=2: con TOF_USO:0 el FORWARD arranca aunque haya algo a 10 cm, y CAPS lo dice (TUSO=0)", carro_avanzando());
+    orden("CAPS?");
+    avanzar_ms(5);
+    caso("... CAPS anuncia TUSO=0", ultimo_mensaje("CAPS:") != NULL && strstr(ultimo_mensaje("CAPS:"), "TUSO=0") != NULL);
+    orden("STOP");
+    orden("TOF_USO:1");
+
+    /* SEG=2, la carrera que dejaba el freno láser desarmado (auditoría F-A1): el STOP del freno y un FORWARD recién llegado se atienden en la MISMA vuelta de loop().
+     * Hasta v1.1 el FORWARD volvía a energizar los motores con «paro ya enviado» puesto, y como nadie veía al carro quieto el freno no volvía a actuar nunca. */
+    avanzando_en_auto();
+    falso_tof_mm = 100;
+    for (i = 0; i < 400 && sensores_paros_tof() == 0; i++) {
+        paso_modelo_1ms();
+        falso_us += 1000u;
+        sensores_actualizar();
+        if (sensores_paros_tof() == 1) {
+            orden("FORWARD");                 /* llega justo después de que el freno encoló su STOP */
+        }
+        carro_procesar_cola();
+        carro_vigilar_comunicacion();
+        carro_actualizar_keepalive();
+        juntar_mensajes();
+    }
+    caso("SEG=2, carrera freno + FORWARD en la misma vuelta: el carro queda parado (el FORWARD se rechaza con el frente bloqueado)",
+         sensores_paros_tof() == 1 && motores_parados());
+    avanzar_ms(100);
+    caso("... y sigue parado", motores_parados());
+
+    /* La misma carrera, pero el láser alcanza a dar una lectura lejana entre el freno y el FORWARD (el FORWARD sí arranca): el freno tiene que estar ARMADO otra vez
+     * para ese avance nuevo, aunque sensores_actualizar nunca haya visto al carro quieto. */
+    avanzando_en_auto();
+    falso_tof_mm = 100;
+    t = 0;
+    for (i = 0; i < 400 && !t; i++) {
+        paso_modelo_1ms();
+        falso_us += 1000u;
+        sensores_actualizar();
+        if (sensores_paros_tof() == 1) {
+            tof_probar_lectura(400, hw_millis());   /* una lectura lejana: ya no hay bloqueo */
+            orden("FORWARD");
+            t = 1;
+        }
+        carro_procesar_cola();
+        carro_vigilar_comunicacion();
+        carro_actualizar_keepalive();
+        juntar_mensajes();
+    }
+    caso("SEG=2: tras el freno, con una lectura lejana el FORWARD siguiente arranca en la misma vuelta (2 avances)", t == 1 && carro_avanzando() && carro_avances() == 2u);
+    avanzar_ms(150);
+    caso("... y con el obstaculo otra vez a 100 mm el freno vuelve a actuar (antes quedaba desarmado)", motores_parados() && sensores_paros_tof() == 2);
 }
 
 static void prueba_laser_fallos(void)
@@ -1427,13 +1562,16 @@ static void prueba_mensajes(void)
     orden("CAPS?");
     una_vuelta_loop();
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0," FW_VERSION) == 0);
+    caso("CAPS? recien encendido incluye estado calibrando e IMUR=0", m != NULL && strcmp(m, "CAPS:IMU=0,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=1,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
     caso("al iniciar se escribe en el registro serie lo que se encontro (IMU y TOF)", registro_n >= 2 && strstr(registro[0], "WHO_AM_I=0x68") != NULL);
     avanzar_ms(3200);
     orden("CAPS?");
     avanzar_ms(5);
     m = ultimo_mensaje("CAPS:");
-    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0," FW_VERSION) == 0);
+    caso("CAPS? con todo listo incluye IMUR y motivo", m != NULL && strcmp(m, "CAPS:IMU=1,TOF=1,TOFR=0,IMUR=0,IMUM=0,IMUE=2,RUMBO=1,IMUS=0,SEG=3,TUSO=1,TOFP=150," FW_VERSION) == 0);
+    caso("SEG=3: las claves nuevas de CAPS van antes de FW: y no repiten «IMU=», «TOF=» ni «RUMBO=» (la app v1.1 busca esas subcadenas)",
+         m != NULL && strstr(m, "SEG=3,TUSO=1,TOFP=150,FW:") != NULL && strstr(strstr(m, "SEG=3"), "IMU=") == NULL && strstr(strstr(m, "SEG=3"), "TOF=") == NULL &&
+         strstr(strstr(m, "SEG=3"), "RUMBO=") == NULL);
     caso("J13: CAPS incluye la version compilada sin truncarla", m && strstr(m, FW_VERSION) && strlen(m) < MENSAJE_SALIDA_MAX);
     orden("IMU?");
     avanzar_ms(5);
