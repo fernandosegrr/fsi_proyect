@@ -58,4 +58,4 @@ Las preguntas que el equipo debe contestar antes de exponer están en [../pendie
 - [plan_final.md](plan_final.md): estructura de 16 capítulos, fuentes verificadas y catálogo de figuras y tablas de la versión 1.1 (histórico).
 - [auditoria_afirmaciones.md](auditoria_afirmaciones.md): trazabilidad de las afirmaciones técnicas, cifras y etiquetas de evidencia de la versión 1.1.
 
-El archivo `Manual_Proyecto_Carro_FSI_v1.1.pdf` de la raíz del repositorio es el PDF de la versión anterior (v1.1) y se conserva solo como referencia; el manual vigente es el de esta carpeta.
+El PDF de la versión anterior (v1.1) ya no está en esta carpeta: se conserva en la etiqueta `v1.1` del repositorio, en la misma ruta (`docs/manual/Manual_Proyecto_Carro_FSI.pdf`), solo como referencia. Una copia suelta llamada `Manual_Proyecto_Carro_FSI_v1.1.pdf` puede existir en el equipo de quien armó la entrega, pero no forma parte del repositorio (no está versionada). El manual vigente es el de esta carpeta.
