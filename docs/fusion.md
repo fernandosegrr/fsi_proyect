@@ -1,99 +1,49 @@
 # Fusión: detector de color + modelo de objetos
 
-Código: `nucleo_c/fusion.c/.h` (C puro, probado en PC con `pruebas_fusion.c`), `ModeloEnHilo.kt` (el modelo en su
-propio hilo), `FusionNativa.kt` (JNI) y la integración en `CamaraObstaculos.kt` y `VisionActivity.kt`.
+Código: `nucleo_c/fusion.c/.h` (C puro, probado en PC con `pruebas_fusion.c`: 86 casos, 0 fallos en la corrida del 25-nov-2026), `FusionNativa.kt` (JNI) y la integración en `CamaraObstaculos.kt`. La versión anterior de este documento describía otra regla («el detector manda» y el modelo podía frenar solo con confianza de 0.6); el código de la v3 usa **consenso por zona**, y es lo que se describe aquí. Si algo no coincide, manda el código.
 
 ## Para qué
 
-- El **detector de color** (`obstaculos.c`, ~7 ms por cuadro) ve cualquier cosa que no se parezca al piso (una caja, una
-  pared) pero no sabe qué es y no ve objetos casi del color del piso.
-- El **modelo de objetos** (EfficientDet-Lite0 con TensorFlow Lite, CPU 1 hilo, ~45 ms) reconoce personas, mascotas, sillas,
-  botellas... aunque tengan el color del piso, pero tarda más, a veces se equivoca y no conoce todo.
-- La fusión los junta: **el detector manda en seguridad**; el modelo ayuda cuando el detector duda o no ve.
+- El **detector de color** (`obstaculos.c`, ~7 ms por cuadro) ve cualquier cosa que no se parezca al piso (una caja, una pared) pero no sabe qué es.
+- El **modelo de objetos** (EfficientDet-Lite0 con TensorFlow Lite) reconoce personas, mascotas, sillas, botellas... aunque tengan el color del piso, pero tarda más y a veces se equivoca.
+- La fusión pide que los dos coincidan en la misma zona antes de frenar por visión. Un falso positivo de uno solo no detiene el carro; lo que ve una sola fuente se anota como aviso.
 
-```
-cámara ──cuadro──► hilo de la cámara:  detector de color (~7 ms) ───────────────┐
-                        │  ofrecer(cuadro)  (no espera)                          ▼
-                        └──────────────►  hilo "modelo-objetos" (≤ 10 por s) ─► fusion_decidir ─► zonas fusionadas ─► navegador
-                                          preparar → inferir → postprocesar        ▲                (mismo formato que el detector)
-                                          resultado con hora del cuadro  ─────────┘ (se ignora si tiene más de 300 ms)
-```
+## Reglas (en el orden en que las aplica `fusion_decidir`)
 
-## Reglas (en orden de importancia)
+1. **El resultado del modelo debe estar vigente.** Si tiene más de `vigencia_ms` (300 ms) de edad respecto a la hora de ahora, se ignora por completo (`modelo_vigente = 0`). Una caja con confianza menor que `confianza_min_mil` (600, es decir 60 %) o con tamaño nulo tampoco cuenta.
+2. **Cada caja se proyecta a las tres zonas** (izquierda, centro, derecha: tercios del ancho). La caja cuenta en una zona si la cubre al menos `solape_camino_mil` (60 milésimas del ancho). La cercanía (1 a 3) sale del borde de abajo de la caja con los mismos límites del detector (`OBS_MEDIA_MIL` = 667 y `OBS_CERCA_MIL` = 834): desde 834 es 3, desde 667 es 2, si no 1. Una caja grande (`area_grande_mil` = 200, es decir 20 % del cuadro) sube una cercanía, hasta 3.
+3. **Consenso por zona.** En cada zona se guarda de dónde viene la evidencia (`fuentes_vision`: bit 1 = color, bit 2 = modelo). Solo cuando el detector de color y el modelo ven algo **en la misma zona**, esa zona queda con obstáculo, con la mayor de las dos cercanías. Esto vale también en las zonas laterales.
+4. **Una fuente sola solo avisa.** Si únicamente el color o únicamente el modelo ve algo en una zona, la zona fusionada queda sin obstáculo y se anota un aviso (`aviso`, con zona y cercanía). Según el comentario de `fusion.h`, el navegador aplica después la autoridad del láser: un láser cercano confirma y un láser libre descarta los positivos aislados.
+5. **Severidad.** De las zonas fusionadas: cercanía 3 es `PARAR`, 2 es `FRENAR`, 1 es `AVISO`; se toma la mayor. Si no hay obstáculo pero sí un aviso, la severidad es `AVISO`.
+6. **Quién decidió** (`fuente`): color, modelo o ambos, según los bits de las zonas.
 
-1. **El detector manda en seguridad.** Si el detector ve un obstáculo cerca (cercanía 2 o 3), la salida es esa y el carro se
-   detiene **sin esperar al modelo** (`detector_solo_decide` = 1). Si el modelo dice otra cosa, está caducado o ni existe,
-   da igual: la fusión **nunca baja** lo que ve el detector (probado: el modelo ve el objeto "lejos" y el detector "muy cerca"
-   → se queda en muy cerca).
-2. **Modelo ve un objeto EN EL CAMINO y el detector duda → sube la severidad.** "Duda" es: el detector ve algo pero menos cerca
-   que el modelo, o tiene unas pocas celdas "no piso" que no llegan al mínimo (`MIN_CELDAS`). La zona sube a la cercanía del
-   modelo (fuente: ambos).
-3. **Modelo ve un objeto LEJANO que el detector no ve → solo avisa**, no frena.
-4. **Modelo ve un objeto CERCANO (cercanía 2 o 3) que el detector no ve en absoluto → frena solo si el modelo está muy seguro**
-   (confianza de 0.6 o más); si no, solo avisa. (Decisión mía: la frase pedida solo cubre el caso lejano.)
-5. **Un resultado del modelo más viejo que 300 ms se ignora por completo** (`vigencia_ms`, ajustable en `ConfigFusion`). Si el
-   modelo se cuelga, el detector de color sigue decidiendo solo y el carro frena igual.
-6. Una caja con confianza menor que 0.4 no cuenta.
-
-## De la caja del modelo a zona y cercanía
-
-El modelo da una caja en milésimas del cuadro (0 a 1000, origen arriba a la izquierda).
-
-- **Zona**: la caja está **en el camino** si cruza la zona central (333 a 667) al menos 60 milésimas del ancho (`solape_camino_mil`);
-  entonces es zona CENTRO. Si no, es IZQUIERDA o DERECHA según su centro.
-- **Cercanía** (1 a 3): por el **borde de abajo** de la caja, con los mismos límites del detector de color (`OBS_MEDIA_MIL` = 667
-  y `OBS_CERCA_MIL` = 834): desde 834 es 3, desde 667 es 2, si no 1. Una caja **grande** (que ocupa 20 % o más del cuadro,
-  `area_grande_mil` = 200) sube una cercanía (hasta 3): una persona muy cerca llena el cuadro aunque su borde de abajo no baje tanto.
-- Es solo una aproximación (no mide centímetros): igual que la cercanía del detector.
+Campos que quedan solo por compatibilidad: `detector_solo_decide` siempre vale 0 y `confianza_frenar_mil` ya no hace que el modelo frene solo.
 
 ## Clases de interés
 
-Configurables con `fusion_marcar_clase` (en la app, por nombre: persona, gato, perro, botella, silla, mesa; ver
-`FusionNativa.CLASES_DE_INTERES`). Las clases de interés **fuera del camino** generan un aviso (por ejemplo, una persona a un lado);
-las demás clases fuera del camino se ignoran. **Cualquier clase cuenta igual cuando está en el camino**: el modelo no necesita
-"conocer" el objeto para que frene.
+Se pueden marcar con `fusion_marcar_clase` (por defecto: persona, gato, perro, botella, silla y mesa; la app las busca por nombre en las etiquetas del modelo). En el código actual sirven para configuración y presentación: **cualquier clase** con confianza suficiente puede confirmar al color.
 
-## El modelo en su propio hilo (`ModeloEnHilo`)
+## Otras entradas
 
-- Hilo aparte ("modelo-objetos"); abre el intérprete, lo usa y lo cierra en ese mismo hilo.
-- `ofrecer(cuadro)` desde el hilo de la cámara **no espera**: deja el cuadro más reciente como pendiente (reemplaza al anterior si no
-  se había tomado: nunca se acumulan cuadros viejos).
-- Corre **como máximo 10 veces por segundo** (`INTERVALO_MIN_MS` = 100 ms) y publica un resultado inmutable con las tres etapas medidas.
-- La marca de tiempo del resultado es la del **cuadro**, no la de cuando terminó: así los 300 ms de vigencia ya incluyen lo que
-  tardó el modelo.
-- Si el modelo no abre o falla, queda un mensaje de error y el resto sigue con el detector de color.
+- `fusion_decidir_cualquiera`: recibe zonas del modo «cualquier objeto» (`nucleo_c/cualquiera.c`) ya filtradas por persistencia y aplica el mismo consenso con el detector de color.
+- `fusion_aplicar_flujo`: el flujo del piso (`movimiento_piso.c`) solo aporta avisos; no crea consenso ni borra uno existente.
 
 ## En la app
 
-Pantalla de visión: botón «Modelo de objetos (fusión): SÍ/no» (guardado; **encendido por defecto** desde J14) y,
-cuando está encendido, un texto con **quién decidió** (detector, modelo o ambos), la severidad, si el detector frena solo, la edad del
-resultado del modelo, los avisos y los **milisegundos de cada etapa**: detector (conversión + análisis), modelo (preparar + inferir +
-postprocesar y cada cuánto sale un resultado) y fusión. En la imagen se dibujan en celeste las cajas del modelo con su nombre y
-confianza y las zonas de abajo son las fusionadas. El modo semiautónomo usa el mismo ajuste (`ConfigVision.usarModelo`).
+`ConfigVision.usarModelo` decide si además del detector de color se usa el modelo de objetos (por defecto sí, según el comentario del archivo). El modelo corre aparte del hilo de la cámara, para que el detector de color no espere por él. Los detalles del hilo y de la pantalla de visión están en el código de `CamaraObstaculos.kt` y `ConfigVision.kt`.
 
-## Pruebas en PC (`pruebas_fusion.c`, 67 casos, todos pasan)
+## Pruebas en PC
 
-Configuración y clases (bits de las 96 clases); caja → zona (solapes de 47 y 67 milésimas, cajas fuera de la imagen) y cercanía (límites
-834/833, 667/666, caja grande); el detector manda (sin modelo, con modelo vacío, con **contradicciones**); **modelo caducado** (300 ms vigente,
-301 caducado, vigencia configurable, reloj atrasado y reloj de 32 bits que da la vuelta); el modelo sube lo que el detector duda; modelo ve algo
-que el detector no ve (frena con confianza 0.9, solo avisa con 0.5 o si es lejano); clases de interés; errores; y una **línea de tiempo** con cuadros
-cada 80 ms y resultados del modelo cada 120 ms (se manda PARAR en el primer cuadro en que el detector ve el obstáculo, 1040 ms, sin esperar al modelo; si el
-modelo se cuelga, su último resultado caduca a los 300 ms y el detector sigue frenando solo).
+`pruebas_fusion.c` (86 casos): configuración y clases, caja a zona y a cercanía, caducidad del modelo, consenso y avisos, flujo y modo «cualquier objeto». Es una prueba **SIMULADA** de la lógica; no se midió con el modelo y objetos reales en el carro.
 
 ## PENDIENTE HARDWARE
 
-1. Instalar la app y encender «Modelo de objetos (fusión)» en la pantalla de visión: comprobar que no se cae y leer las etapas en pantalla.
-2. Medir en el Huawei: ms del modelo (se esperan ~45 ms), cada cuánto sale un resultado (se esperan ~100 ms), si los fps del detector de color
-   bajan al encender el modelo (el hilo del modelo usa otro núcleo), y el estado térmico tras varios minutos.
-3. Probar con objetos reales: una persona o una silla en el camino y a un lado; una botella; un objeto del color del piso. Anotar qué clase
-   sale, la cercanía que calcula la fusión y si frena a tiempo.
-4. Ajustar `vigencia_ms`, `confianza_frenar_mil`, `solape_camino_mil` y `area_grande_mil` con las pruebas (están en `ConfigFusion`).
+- Medir en el teléfono los milisegundos del modelo, cada cuánto sale un resultado y el efecto sobre los fps del detector de color.
+- Probar con objetos reales (una persona o una silla en el camino y a un lado, un objeto del color del piso) y anotar la clase, la cercanía y si frena a tiempo.
+- Ajustar `vigencia_ms`, `confianza_min_mil`, `solape_camino_mil` y `area_grande_mil` (están en `ConfigFusion`) con esas pruebas.
 
 ## Límites
 
-- La cercanía del modelo sale del borde de abajo de la caja: un objeto alto y lejano con la base cortada parece cercano, y uno que no toca el piso
-  (colgado) tendrá una cercanía engañosa.
-- A 12 fps y con el modelo a 10 por segundo, el resultado del modelo puede tener de 0 a ~145 ms más de edad que el cuadro del detector
-  (hay 300 ms de vigencia).
-- El modelo se equivoca (falsos positivos con confianza baja): por eso solo frena por su cuenta con 0.6 o más y con el objeto cerca.
-- Las etiquetas del modelo son las de COCO (80 clases): no conoce muchos objetos de un salón (cables, mochilas pequeñas...); para eso está el detector de color.
+- La cercanía del modelo sale del borde de abajo de la caja: un objeto alto y lejano con la base cortada parece cercano, y uno que no toca el piso tendrá una cercanía engañosa.
+- Como se exige consenso, un objeto que **solo** ve el modelo (por ejemplo, del color del piso) no frena por visión: queda como aviso y depende del láser y de las demás capas de seguridad.
+- Las etiquetas del modelo son las de COCO: no conoce muchos objetos de un salón (cables, mochilas pequeñas...); para eso está el detector de color.

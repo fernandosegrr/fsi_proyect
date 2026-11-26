@@ -39,15 +39,17 @@ Sin `--sin-figuras`, el script ejecuta antes `docs/figuras/generar_figuras.py` y
 
 Los capítulos `02_` a `17_` y varios documentos de `docs/` vienen de la base v1.1. En la v1.2 se corrigió lo que el código desmentía y se pudo comprobar: PWM de `1500 Hz`, giroscopio a `100 Hz` con calibración de `250` muestras, NDK `30.0.16248370` y CMake `4.1.2`, los ocho estados del navegador, los nombres reales de los comandos y respuestas del protocolo (`REVERSE`, `GIRAR`, `IMU_CAL`, `ACK_*`, `GIRO_OK`; capítulo 6 y anexo 16), las banderas de `SENS` y la cadena `CAPS`, el controlador de giro (`GIRAR` frena por anticipación, no por una ventana de `±2.0°`), el nombre `TIEMPO_WATCHDOG_MS`, el puerto `80` y los núcleos de la cámara, el paquete `com.fsi.carro`, la caja negra (ya existe), las constantes del navegador (nota al inicio de `docs/navegador.md`) y las cifras del Monte Carlo contra `docs/precision/monte_carlo_1000.txt`.
 
-Quedan sin corregir estas diferencias que reportó la revisión hecha al escribir los capítulos A a I (quien armó el release no las comprobó una por una). **Ante cualquier duda manda el código y, después, los capítulos A a I:**
+El 25-nov-2026 se corrigieron además las siete diferencias que había reportado la revisión de los capítulos A a I, cada una contra el código:
 
-- `docs/camara_prueba.md`: la resolución por defecto que cita no coincide con la del código de la cámara.
-- `docs/latencia.md`: el hueco de video que usa el texto (`500 ms`) no coincide con el del código (`700 ms`).
-- `capitulos/05_camara.md`: las constantes `RECUP_*` y varios tiempos de recuperación de la cámara.
-- `capitulos/07_navegacion.md`: nombres de constantes que no existen en `nucleo_c/navegador.h`.
-- `capitulos/09_aplicacion.md`: los botones de giro de `±90°` que describe no coinciden con la interfaz actual.
-- `docs/codigo/puente.md`: describe otra API de `puente.c` y `3,467` líneas contra las `3,644` del código.
-- `docs/fusion.md`: describe una fusión de percepción anterior a la de v3.
+- `docs/camara_prueba.md`: nota inicial que dice que el código arranca en HQVGA (`CONFIG_DEFECTO`) y que el QVGA del texto es la decisión del 13-oct.
+- `docs/latencia.md`: el hueco de video es `NAV_MAX_HUECO_VIDEO_MS` = `700 ms` (eran `500`).
+- `capitulos/05_camara.md`: tabla del barrido con las cifras medidas de `docs/camara_prueba.md`, compresor `frame2jpg`, `fb_count = 3`, cabeceras de `/raw`, paquete `CEL1` y constantes `REC_*` de `recuperacion.h` (no existen `RECUP_*`).
+- `capitulos/07_navegacion.md`: `NAV_RUMBO_CORR_MAX` = 12° y `NAV_RUMBO_FW_SIN_GIRO` = 8° (no existían `NAV_RUMBO_MAX_CORR_X10` ni `NAV_GIRO_EN_MARCHA_MAX_X10`).
+- `capitulos/09_aplicacion.md`: la pestaña Manual no tiene botones de giro de `±90°`; tiene la cruceta y `PARO`.
+- `docs/codigo/puente.md`: reescrito (3,644 líneas, 145 funciones JNI en 17 clases, una sola instancia estática del navegador, sin `malloc`).
+- `docs/fusion.md`: reescrito con el consenso por zona de la v3 (color y modelo deben coincidir; una fuente sola solo avisa).
+
+Estas correcciones se hicieron punto por punto; el resto de cada documento no se releyó entero contra el código. **Ante cualquier duda manda el código y, después, los capítulos A a I.** Si se encuentra otra diferencia, debe anotarse aquí.
 
 Las preguntas que el equipo debe contestar antes de exponer están en [../pendientes_confirmar.md](../pendientes_confirmar.md).
 
