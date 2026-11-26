@@ -53,10 +53,10 @@ Lo que sí se puede hacer:
 
 ## Vigilancia del video (fail-safe)
 
-Si la cámara de obstáculos pasa más de **`NAV_MAX_HUECO_VIDEO_MS` = 500 ms** sin mandar un cuadro (ya habiendo mandado alguno en la ruta), el
-navegador manda STOP y queda en ERROR por falta de video. **No reanuda solo cuando el video vuelve**: el carro se queda detenido hasta que
-se inicie otra ruta (`pruebas_navegador.c`: un hueco de 300 ms no frena, uno de ~800 ms sí, y con el video de vuelta 5 s después sigue en
-STOP). Con la fuente de botones, o si nunca llegó un cuadro, no se vigila (no hay video que perder). La app además cancela la ruta si pasan
+Si la cámara de obstáculos pasa más de **`NAV_MAX_HUECO_VIDEO_MS` = 700 ms** sin mandar un cuadro (ya habiendo mandado alguno en la ruta), el
+navegador manda STOP y queda en ERROR por falta de video. (Antes eran 500 ms; el código lo subió a 700 después de que, en la prueba real del 16 oct, un hueco de 503 ms detuvo
+la ruta con huecos normales de 250 a 330 ms; `nucleo_c/navegador.h`.) **No reanuda solo cuando el video vuelve**: el carro se queda detenido hasta que
+se inicie otra ruta (`pruebas_navegador.c` prueba el comportamiento con huecos de la prueba y con el video de vuelta; las cifras exactas de esas pruebas son de la época de los 500 ms, así que conviene releerlas en el código). Con la fuente de botones, o si nunca llegó un cuadro, no se vigila (no hay video que perder). La app además cancela la ruta si pasan
 1000 ms sin cuadros (respaldo en `ModoSemiautonomo`).
 
 ## Los tropiezos del video

@@ -102,7 +102,7 @@ El orden completo entre capas va en el subsistema G. Esto es lo que vigila la ap
 - **Girar el teléfono o mandarlo a segundo plano detiene el carro**, a propósito (N4).
 - **Pendientes de interfaz sin decidir.** El aviso global empuja el contenido (575 px, 22 % de la pantalla de prueba; N3) y en Manual horizontal el botón «atrás» se corta 42 px en ese teléfono (N8).
 - **La app no detecta sola un cambio de luz** después de aprender el piso (`docs/limites_conocidos.md`).
-- **Documentos desactualizados.** El capítulo 9 (paquete `com.example.carro_ilib`, botones ±90° en Manual), `docs/instalar_app_huawei.md` (un esqueleto) y `docs/codigo/puente.md` (otra API) no coinciden con el código.
+- **Documentos desactualizados.** `docs/instalar_app_huawei.md` es un esqueleto. El capítulo 9 (botones ±90° en Manual) y `docs/codigo/puente.md` (otra API) se corrigieron contra el código el 25-nov-2026.
 
 ## D.6 Términos clave
 

@@ -1,66 +1,45 @@
 # Recorrido de código: Puente JNI (`puente.c`)
 
-**Ubicación:** `app_android/app/src/main/cpp/puente.c` (3467 líneas)  
-**Lenguaje:** C estándar con cabeceras de la API JNI de Android (`<jni.h>`)  
-**Propósito:** Servir como adaptador bidireccional entre la máquina virtual Android (Kotlin/JVM) y las bibliotecas matemáticas y algorítmicas en C99 de [`nucleo_c/`](file:///e:/Dev/fsi_proyecto/nucleo_c/README.md).
+**Ubicación:** `app_android/app/src/main/cpp/puente.c` (3,644 líneas)
+**Lenguaje:** C con la API JNI de Android (`<jni.h>`)
+**Propósito:** adaptador entre Kotlin y los módulos en C de [`nucleo_c/`](../../nucleo_c/README.md). La versión anterior de este documento describía otra API (paquetes `navegacion`, `trayectoria`, punteros `jlong`, `malloc`); lo que sigue sale del código actual. Si algo no coincide, manda el código.
 
 ---
 
-## 1. Justificación arquitectónica
+## 1. Por qué existe
 
-En aplicaciones móviles de robótica con visión e inferencia concurrente, delegar el cómputo cinemático y la máquina de estados en el recolector de basura de la JVM introduce riesgos de pausas (*GC pauses*) de duración impredecible.
-
-`puente.c` permite:
-- Ejecutar la máquina de navegación a velocidad nativa sin sobrecarga de memoria gestionada.
-- Compilar los mismos archivos fuente de `nucleo_c/` en Android sin mantener copias duplicadas de los algoritmos.
-- Convertir tipos de datos primitivos de Java (arreglos de flotantes, enteros y cadenas) en estructuras C fuertemente tipadas (`Punto`, `CalibracionCarro`, `ResultadoObstaculos`).
+Los cálculos de navegación, visión y calibración viven en C puro dentro de `nucleo_c/`, donde se prueban en la PC. `puente.c` permite compilar esos mismos archivos para Android sin copiarlos y convierte los tipos de Java (arreglos, enteros, cadenas) a las estructuras de C y de vuelta. Kotlin no interpreta nada: casi todo regresa como enteros o como texto listo para mostrar.
 
 ---
 
-## 2. Convenciones de enlace y manejo de punteros
+## 2. Convenciones
 
-Cada función expuesta sigue la convención estándar de nomenclatura de exportación JNI:
-`Java_<paquete>_<clase>_<metodo>`.
-
-Para mantener el estado del navegador a lo largo del tiempo sin recrear estructuras en cada ciclo, se utiliza el patrón de **puntero nativo opaco**:
-1. Kotlin solicita inicializar el objeto (`iniciarNative()`).
-2. `puente.c` reserva memoria con `malloc(sizeof(Navegador))`, inicializa la estructura con `navegador_iniciar()` y retorna el puntero convertido en un entero de 64 bits (`jlong`) hacia Kotlin.
-3. En cada llamada subsecuente (`tickNative`, `aporteSensNative`), Kotlin envía ese `jlong`.
-4. El puente valida que el puntero no sea nulo, realiza un *cast* de retorno a `(Navegador *)` y opera sobre la instancia.
-5. Al destruir el componente, `destruirNative()` libera la memoria con `free()`.
+- Cada función exportada sigue la regla de JNI `Java_<paquete>_<clase>_<método>`. Todas son del paquete `com.fsi.carro` (por ejemplo `Java_com_fsi_carro_NavegadorNativa_tick`).
+- **No hay `malloc`** (lo dice la guía de lectura del propio archivo): todo usa arreglos de tamaño fijo.
+- **El navegador es una sola instancia**: `static Navegador navegador_global`, que usa solo el hilo principal de la app. Por eso las funciones de `NavegadorNativa` no reciben un puntero.
+- La parte de visión comparte configuración entre hilos y la protege con un candado (`candado_vision`, `pthread_mutex_t`).
+- Los arreglos de píxeles o de celdas se leen con `GetPrimitiveArrayCritical` y se liberan con `JNI_ABORT`, porque no se modifican.
 
 ---
 
-## 3. Módulos y funciones clave implementadas
+## 3. Funciones exportadas: 145 en 17 clases
 
-### 3.1 Enlace con el Navegador (`NavegadorNativa.kt`)
-- `Java_com_fsi_carro_navegacion_NavegadorNativa_iniciarNative(JNIEnv *env, jobject thiz)`: Reserva e inicializa una instancia de `Navegador`.
-- `Java_com_fsi_carro_navegacion_NavegadorNativa_cargarRutaNative(JNIEnv *env, jobject thiz, jlong ptr, jfloatArray xs, jfloatArray ys, jint n)`:
-  - Extrae los arreglos primitivos de coordenadas métricas usando `(*env)->GetFloatArrayElements`.
-  - Construye el arreglo nativo `Punto puntos[n]`.
-  - Invoca `navegador_cargar_ruta()`.
-  - Libera los buffers temporales con `JNI_ABORT` para evitar copias innecesarias.
-- `Java_com_fsi_carro_navegacion_NavegadorNativa_tickNative(JNIEnv *env, jobject thiz, jlong ptr, jlong ahora_ms, ...)`:
-  - Deserializa las banderas de obstáculos reportadas por la cámara.
-  - Ejecuta `navegador_tick()`.
-  - Retorna un código entero correspondiente al comando `ComandoNav` (`0 = STOP`, `1 = FORWARD`, `2 = REVERSE`, `3 = LEFT`, `4 = RIGHT`).
-- `Java_com_fsi_carro_navegacion_NavegadorNativa_aporteSensNative(...)`: Traslada la telemetría `SENS` del WebSocket hacia `navegador_aporte_sens()`.
+Cuenta de funciones `Java_` por clase en `puente.c`:
 
-### 3.2 Enlace de Planificación de Rutas (`TrayectoriaNativa.kt`)
-- `Java_com_fsi_carro_trayectoria_TrayectoriaNativa_calcularPasosNative(...)`:
-  - Recibe la secuencia de waypoints dibujados por el usuario sobre la cuadrícula.
-  - Llama a `trayectoria_calcular_pasos()`.
-  - Construye y retorna un objeto compuesto de Java con la lista de pasos temporizados y sus orientaciones correspondientes.
-
-### 3.3 Enlace de Calibración (`CalibracionNativa.kt`)
-- Transfiere los valores de milisegundos por centímetro, balance de tracción y constantes de giro calculadas en las pantallas de calibración hacia estructuras nativas `CalibracionCarro` utilizadas por el navegador.
-
-### 3.4 Enlace de Visión y Celdas (`VisionNativa.kt`)
-- Procesa buffers de píxeles o paquetes de celdas UDP (`CEL1`) llamando a `obstaculos_analizar_celdas()` y `corredor_verificar_interseccion()`.
+- `NavegadorNativa` (36): maneja el navegador del modo semiautónomo (`navegador.c`): `cargarRuta`, `comenzar`, `cancelar`, `tick`, `estado`, `aporteVisual`, `aporteSens`, `aporteImu`, `aporteTofParo`, `aporteModelo`, `ponerCalibracion`, `ponerCeldas`, `ponerCorredor`, `ponerRumboFw`, `tomarRumboFw`, `tomarGiroFw`, `cajaNegra`, `textoEstado`, `textoError`, `textoComando`, entre otras.
+- `CalibracionNativa` (28) y `CalGiroNativa` (8): calibración del carro y del giro (`calibracion.c`, `calgiro.c`).
+- `RutaEditorNativa` (19): editor de rutas (`ruta_editor.c`).
+- `ObstaculosNativa` (13): detector de obstáculos por color de piso (`obstaculos.c`).
+- `SesionNativa` (8): sesión compartida de conexión y video (`sesion_compartida.c`).
+- `SimRutaNativa` (7): simulación de rutas sin el carro (`sim_ruta.c`).
+- `PruebaObstaculoNativa` (5), `VideoStatsNativa` (3), `LatenciaVideoNativa` (3): cuentas de la prueba de obstáculos, estadística del video y comparación de latencia.
+- `FusionNativa` (4), `CualquieraNativa` (3), `FlujoNativa` (2), `MovimientoVisualNativa` (2): fusión de color y modelo, modo «cualquier objeto», flujo del piso y giro entre cuadros.
+- `TrayectoriaNativa` (2): `calcular` recibe el arreglo plano `[columna0, fila0, columna1, fila1, ...]` y devuelve un **texto** con la lista de pasos o un mensaje de error.
+- `PaqueteCeldasNativa` (1) y `CorredorNativa` (1): lectura del paquete `CEL1` y corredor de trayectoria.
 
 ---
 
 ## 4. Conexión con el sistema
 
-- **Archivo de construcción:** Compilado por el NDK de Android mediante `app_android/app/src/main/cpp/CMakeLists.txt`.
-- **Bibliotecas enlazadas:** Enlaza directamente los archivos fuente ubicados en `../../../../nucleo_c/` (`navegador.c`, `calibracion.c`, `trayectoria.c`, `obstaculos.c`, `corredor.c`, etc.).
+- **Construcción:** el NDK compila `puente.c` con `app_android/app/src/main/cpp/CMakeLists.txt`, que crea la biblioteca `carro_nativo`.
+- **Fuentes enlazadas** (de `nucleo_c/`, por ruta, sin copiar): `trayectoria.c`, `obstaculos.c`, `mascara_vision.c`, `navegador.c`, `calibracion.c`, `calgiro.c`, `fusion.c`, `movimiento_visual.c`, `video_stats.c`, `prueba_obstaculo.c`, `corredor.c`, `cualquiera.c`, `movimiento_piso.c`, `paquete_celdas.c`, `sesion_compartida.c`, `latencia_video.c`, `ruta_editor.c`, `sim_ruta.c`, `simulador_navegador.c` y `vision_tele.c`.

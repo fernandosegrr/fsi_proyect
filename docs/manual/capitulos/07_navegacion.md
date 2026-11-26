@@ -76,8 +76,8 @@ Incluso si el controlador `PI` del firmware mantiene un ángulo constante, un pe
 
 1. Proyecta la pose actual $(x_{\text{mm}}, y_{\text{mm}})$ sobre el vector unitario del tramo para obtener la coordenada longitudinal alcanzada y el error transversal respecto a la línea.
 2. Ubica el punto objetivo $P_{\text{mira}}$ a `400 mm` por delante sobre la recta original y calcula su acimut deseado $\theta_{\text{mira}}$.
-3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_MAX_CORR_X10 = 120`) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
-4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8.0°`** (`NAV_GIRO_EN_MARCHA_MAX_X10 = 80`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
+3. Acota la corrección máxima a **`±12.0°`** (`NAV_RUMBO_CORR_MAX = 12`, en grados) respecto al rumbo nominal del tramo para evitar virajes bruscos, y envía la consigna **`RUMBO:<décimas>`** al firmware.
+4. **Supresión de giros detenidos pequeños ($\le 8.0^\circ$):** al llegar al inicio de un nuevo tramo en `NAV_SIGUIENDO`, si el carro tiene `RUMBO` disponible y el cambio de orientación requerido no supera **`8°`** (`NAV_RUMBO_FW_SIN_GIRO = 8`), el navegador **omite el paso `PASO_GIRAR` detenido** (que antes perdía precisión por la banda muerta de `±2°` y el frenado/arranque extra) y deja que el controlador `PI` de `RUMBO` absorba esa pequeña desviación suavemente en marcha.
 
 ## 7.4 Esquive iterativo (revisión de autonomía del 12-nov)
 

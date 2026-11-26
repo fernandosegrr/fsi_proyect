@@ -3,6 +3,8 @@
 Programa: `camara_prueba/camara_prueba.ino`. Se carga con `.\scripts\cargar.ps1 camara` (ver `docs/hardware_cargar.md`).
 La cámara se conecta como cliente a la red del carrito (la que emite la DevKit), con IP fija **192.168.4.2**, y sirve video por HTTP.
 
+> **Nota de la v1.2 (25-nov-2026):** este documento es el registro de las pruebas de octubre y su texto dice que QVGA es el valor por defecto. **El código actual usa HQVGA 240x176**: `CONFIG_DEFECTO = { 20 MHz, RGB565, HQVGA, calidad 50 }` en `camara_prueba/camara_prueba.ino` (y `camara_prueba/README.md` lo declara vigente). Las cifras de QVGA de abajo siguen siendo válidas como medidas de entonces; donde dice «por defecto» o «elegido» para QVGA, léase «decisión del 13-oct». Además hay tres modos de video (`/control?modo=jpeg|raw|celdas`) y el compresor puede cambiarse con `/control?comp=`; el de siempre es `frame2jpg`. No sé quién decidió pasar a HQVGA ni con qué prueba (CONFIRMAR CON EL EQUIPO, ya anotado en el subsistema C del manual).
+
 ## Resumen del trabajo H3 (13/10/2026)
 
 - **Antes**: QVGA con JPEG por software a **6,7 fps** (captura sola 9,9 fps), todo en una sola tarea: capturar, comprimir y enviar uno detrás de otro.
@@ -12,7 +14,7 @@ La cámara se conecta como cliente a la red del carrito (la que emite la DevKit)
 - **Lo que limita ahora**: (1) el sensor GC0308 da unos 10 fps a 20 MHz (los fps de captura suben y bajan con el reloj: 5, 8 y 10 fps a 10, 16 y 20 MHz en
   QVGA) y (2) la compresión por software tarda ~107 ms por cuadro de QVGA, casi lo mismo que el periodo del sensor (~106 ms). Con 20 MHz, QVGA no pasa de ~9 a 10 fps.
 - **No pudo hacerse mejor sin cambiar de resolución**: HQVGA 240x176 da 12,4 fps y 137 ms de edad (+41 % de fps, 46 % menos edad) pero tiene el 55 % de los píxeles y el
-  detector de obstáculos (`nucleo_c/obstaculos.c`) espera 320x240. Se queda QVGA como valor por defecto; HQVGA se puede elegir con `/control?size=hqvga`.
+  detector de obstáculos (`nucleo_c/obstaculos.c`) espera 320x240. En esa fecha se quedó QVGA como valor por defecto y HQVGA se elegía con `/control?size=hqvga` (hoy el código arranca en HQVGA; ver la nota de arriba).
 
 ## Cómo está hecho (H3)
 
@@ -58,7 +60,7 @@ Conclusiones del barrido:
 - La calidad 50 contra 70 casi no cambia el tiempo (107 y 109 ms), pero baja el JPEG ~23 % (por ejemplo 6254 contra 8138 B): se queda 50. Para el detector de color de piso
   da igual, porque promedia celdas de 10x10 píxeles (y el JPEG solo cambia los bordes finos).
 - QVGA no mejora con 16 MHz (8,0 fps y edad parecida); 20 MHz es lo máximo que se probó.
-- **Elegido (por defecto)**: 20 MHz, RGB565, QVGA 320x240, calidad 50.
+- **Elegido el 13-oct (hoy el código usa HQVGA, ver la nota de arriba)**: 20 MHz, RGB565, QVGA 320x240, calidad 50.
 - Con la configuración elegida, en el arranque: 8,6 a 9,1 fps, 105 a 107 ms de compresión, edad 252 a 255 ms, 5 a 8 cuadros descartados de 100 (la compresión es apenas
   más lenta que el sensor).
 

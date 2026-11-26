@@ -96,7 +96,7 @@ Lo que NO se ha medido: el retraso del video con el carro en marcha, el WiFi rea
 - **Lo que la cámara ve mal.** Las patas delgadas, que el color ve tarde, y una pared clara sobre un piso claro, que no distingue (`docs/limites_conocidos.md`, **SIMULADO**). Por eso la cámara no es la única capa de seguridad (subsistema G).
 - **La cámara se ha colgado y su recuperación tiene huecos.** En J14 (27-oct-2026) dejó de responder en el puerto 80 aunque el ping seguía y se recuperó apagándola y encendiéndola (`docs/reporte_J14.md`); no se sabe si el vigilante estaba cargado ni si habría actuado. Además, si el sensor no inicia al arrancar la placa no se reinicia sola, y si la radio queda colgada pero `WiFi.status()` dice «conectado» no se nota (`docs/camara_prueba.md`).
 - **Modo celdas.** No tiene giro visual, ni modelo de objetos, ni «Aprender piso» (`docs/latencia_modos.md`).
-- **Capítulo 5 del manual.** Trae datos que no coinciden con el código (puerto del `/stream`, núcleos, compresor, cabeceras de `/raw`, paquete y constantes de recuperación). Aquí se usan los del código.
+- **Capítulo 5 del manual.** En la v1.2 se corrigió contra el código (compresor, `fb_count`, cabeceras de `/raw`, paquete `CEL1` y constantes `REC_*` de recuperación). `docs/camara_prueba.md` sigue siendo el registro de octubre, con una nota que dice que el código arranca en HQVGA.
 
 ## C.6 Términos clave
 
