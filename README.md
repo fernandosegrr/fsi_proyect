@@ -1,7 +1,7 @@
-# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2 — autónomo v3 pendiente de validar en el carro)
+# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial)
 
 [![CI Tests](https://github.com/fernandosegrr/fsi_proyect/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandosegrr/fsi_proyect/actions)
-[![Versión 1.2](https://img.shields.io/badge/Versi%C3%B3n-1.2%20(base%20v3)-blue.svg)](docs/estado_v3_pendiente_pruebas.md)
+[![Versión 1.2.1](https://img.shields.io/badge/Versi%C3%B3n-1.2.1%20(v3%20%2B%2026--nov)-blue.svg)](docs/correcciones_fisicas_20261126.md)
 [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green.svg)](LICENSE)
 
 ## Para abrir el manual
@@ -42,19 +42,22 @@
 
 ---
 
-## 2. Estado de validación (la v1.2 hereda la validación física de la v1.1)
+## 2. Estado de validación (pruebas físicas del 25–26 nov-2026 + histórico v1.1)
 
-La v1.2 agrega el autónomo v3 (**SIMULADO**) y la revisión de interfaz de la app; no se hizo ninguna prueba física nueva con ellas. Lo validado en el carro sigue siendo lo de la v1.1 (cierre J16).
+La **v1.2.1** incorpora las correcciones físicas del 26-nov en `nucleo_c/navegador.c` y `ManualFragment.kt`, junto con las mediciones y pruebas físicas ejecutadas el 25–26 de noviembre de 2026 (`FW:b396390`, `SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`, cámara `cam-v2`, app `0.4-b396390` + correcciones). Las corridas posteriores a las correcciones se presentan como **con las correcciones del 26-nov; mismos escenarios donde ocurrió la falla; `n` pequeño**, no como validación independiente.
 
-En estricto apego a la honestidad técnica, el repositorio separa lo validado físicamente en el carro, lo verificado en software/simulación y lo que permanece no medido:
-
-### 2.1 VALIDADO EN EL CARRO (pruebas físicas)
-- **Esquive autónomo con reincorporación (Escenario B6 — 10 de noviembre de 2026):** validado físicamente en el carro con el firmware `FW:6d1b213-20261110` y la aplicación `APP:0.4-6d1b213` ([docs/pruebas_fisicas_20261110.csv](docs/pruebas_fisicas_20261110.csv) y [docs/estado_20261110.md](docs/estado_20261110.md)):
-  - **6 corridas físicas ejecutadas** (`J16_B6_r1` a `J16_B6_r6`).
-  - **`0/6` toques o contactos con la caja** (`100 %` de seguridad anticolisión).
-  - **`5/6` corridas autónomas completas (`TERMINADO`, `10/10` pasos)** con desviación lateral final respecto a la línea recta original de **`~0 cm` a `~10 cm` hacia la derecha** (`~10 cm`, `~10 cm`, `~5 cm`, `~0 cm` y `~0 cm`; **medidas aproximadas** observadas en pista).
-  - **`1/6` corrida (`J16_B6_r5`) detenida de forma segura en estado `AYUDA`** (paso `4/10`) sin tocar la caja y con espacio físico suficiente, **sin causa identificada**.
-- **Caracterización física de base (sesiones J13/J14):** balance `PWM` en perfil `MANUAL` (`252/255`) que redujo el desvío en recta de `150 cm` de `14.5 cm` a `3.0 cm`, tiempos reales de `loop()` (`~690 us` promedio) y cadencia de cámara `HQVGA` (`12.4 fps`, edad media `137 ms`).
+### 2.1 VALIDADO EN EL CARRO (pruebas físicas del 25–26 nov-2026 e histórico v1.1)
+- **Pruebas físicas 25–26 nov-2026 (`FW:b396390`, `cam-v2`, app `0.4-b396390` + correcciones del 26-nov; ver [docs/correcciones_fisicas_20261126.md](docs/correcciones_fisicas_20261126.md) y capítulo 12.8 del manual):**
+  - **Línea base recta 2 m (`IMU+RUMBO`, `n=3`):** `3/3` OK, `186 cm`, `28.5 cm/s`, deriva `0 / 11 / 0 cm`, `0` falsos positivos (2 corridas previas sin IMU por cable SCL roto derivaron `+43 cm`).
+  - **M8 AUTO (`n=5`):** `5/5`, `140 cm` en `4.82–4.91 s`, media `28.7 cm/s`, deriva `0 cm` en `5/5`.
+  - **M5 frenado láser (`TOFP=150`, `n=10`):** `10/10` sin contacto, `TOF_PARO` media `144.7 mm`, margen del chasis `8.0–10.0 cm` (media `9.1 cm`), desde la punta del láser `4.5–6.5 cm` (media `5.6 cm`).
+  - **M6 bloqueo (`TOF_BLOQUEO=180`, `n=3`/distancia):** a `20` y `18 cm` la primera corrida avanzó `355–415 ms` sin tocar y frenó a `9–10 cm`, las otras bloqueo instantáneo (`6–19 ms`); a `16 cm`, `3/3` bloqueo instantáneo. Sesgo positivo del `VL53L0X` de `+40` a `+51 mm` (`+67` a `+102 mm` con tela negra mate).
+  - **M1 deriva del giroscopio (`n=1`):** `0.0°` en `0, 1, 2, 5 y 10 min` quieto; `0.0°` tras `32.3 s` acumulados en AUTO (`10.0 Hz`).
+  - **M3 pared lateral a 30 cm (`n=20`/ángulo):** `0°` `100 %` libre; `~20°` `85 %` libre; `~31°`, `~43°` y `~61°` `0 %` libre (detectada).
+  - **Mochila negra mate (42×14 cm):** estático `20–80 cm` (`n=100`), `100/100` con eco sólido. Dinámico con `main` original (`n=3`): r1 sin tocar, r2 `AYUDA` causa 14, r3 fallo grave con contacto. Dinámico **con correcciones del 26-nov** (mismo escenario, `n=3`): `3/3` terminado, `0` contactos, `0` `AYUDA`, reincorporación a `1–2 cm` de la línea.
+  - **Objetos bajos (2 y 6 cm):** láser los vio en `20/20` a `40 cm` (`aprenderPiso` rechaza a `40 cm`: `18 % > 5 %`). Dinámicos a `90 cm`: `2 cm` (`n=3`) `3/3` terminado, `0` contactos; `6 cm` (`n=3`): r1 `AYUDA` causa 2 sin contacto (antes de corrección), r2 y r3 terminados con `0` contactos (con corrección del 26-nov).
+  - **Piso limpio 1.5 m (`n=5`):** `5/5` terminado, `0/5` falsos positivos, `0` paradas falsas, `0` esquives; recorrió `133–139 cm` de `150` por desgaste de pilas (recalibración `ms_por_cm_x10=355` aplicada después, sin repetirlas).
+- **Histórico v1.1 (10-nov-2026, `FW:6d1b213-20261110`, `APP:0.4-6d1b213`):** esquive B6 (`6/6` sin contacto, `5/6` completas; `1/6` en `AYUDA`). **v1.1 no es respaldo seguro**: su paro a `120 mm` deja solo `1.5–3.5 cm` de margen.
 
 ### 2.2 VERIFICADO en software y SIMULADO en PC
 - **Suites deterministas de software en PC (`100 %` en verde, `0` fallos):**
@@ -70,13 +73,12 @@ En estricto apego a la honestidad técnica, el repositorio separa lo validado f�
   - Esquive `20×20 cm`: la mediana del error lateral final baja de `200 mm` (con `49` toques a la caja en `1,000` corridas, base J14) a **`16 mm`** con **`0` toques**.
   - Corregido en v1.2: las cifras que traían el README y el manual v1.1 (`94 → 8 mm`, `64 → 36 mm`, `142 → 42 mm`, `128 → 38 mm` y porcentajes de éxito) no aparecen en ese archivo; las de arriba sí salen de él (mediana `p50` de `error_mm`). Son `SIMULADO`.
 
-### 2.3 NO MEDIDO en el carro físico
-Permanecen como **`NO MEDIDO`** en el vehículo físico (contando únicamente con verificación en software o simulación):
-- Rectas físicas de `150 cm` comparando `RUMBO:OFF` contra `RUMBO:ON` (`B5`).
-- Ruta en L (`B7`) y cuadrado de `60 cm` (`B8`) con el cierre J16.
-- Calibración física de vuelta completa (`360°`) en piso para `IMU_ESCALA`.
-- Corte inducido de WiFi en plena marcha (`B9`) y serie aislada con cinta métrica del freno autónomo por láser (`TOF_PARO` a `120 mm` en v1.1 y `150 mm` en v3).
-- Obstáculo ancho (`40×20 cm`), calibración automática (`B2`), consumo eléctrico en amperios y prueba física de `RUMBO:ON` en modo Manual (`PENDIENTE`). En `GPIO 2` no hay nada conectado.
+### 2.3 NO MEDIDO o PENDIENTE en el carro físico
+Permanecen como **`NO MEDIDO`**, **`SIMULADO`** o **`PENDIENTE`** en el vehículo físico:
+- M8 en modo Manual (límite de seguridad) y prueba física de `RUMBO:ON` en modo Manual (**PENDIENTE**).
+- M2 (patas reales; sigue **SIMULADO** en banco) y objeto con `0 %` de eco IR (**SIMULADO**).
+- Bloques C y D (luz cambiante, ruta en L, cuadrado), M4, M7, M9 y corte inducido de WiFi en marcha (`B9`).
+- Calibración física de vuelta completa (`360°`) en piso para `IMU_ESCALA`, inclinación/FOV de cámara, inclinación del láser y consumo eléctrico en amperios. En `GPIO 2` no hay nada conectado.
 
 ---
 
