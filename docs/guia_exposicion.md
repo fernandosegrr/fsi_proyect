@@ -1,6 +1,6 @@
-# Guía de exposición — Carro FSI v1.2.2 (1 de diciembre de 2026)
+# Guía de exposición — Carro FSI v1.2.3 (1 de diciembre de 2026)
 
-- **Versión:** v1.2.2 — autónomo v3 con correcciones del 26-nov (`navegador.c` y `ManualFragment.kt`); firmware en el carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`); cámara `cam-v2`; app `0.4-b396390` + correcciones del 26-nov; validación física parcial (25–26 nov-2026); 1 fallo conocido en `pruebas_sim_ruta`.
+- **Versión:** v1.2.3 — autónomo v3 con correcciones del 26-nov (`navegador.c` y `ManualFragment.kt`); firmware en el carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`); cámara `cam-v2`; app `0.4-b396390` + correcciones del 26-nov; validación física parcial (25–26 nov-2026); 1 fallo conocido en `pruebas_sim_ruta`.
 - **Decisión para la exposición (Opción 1 con condiciones):** exponer v3 autónomo con `FW:b396390` y las dos correcciones del 26-nov. **Plan B:** el mismo firmware v3 con el autónomo apagado (modo manual o semiautónomo). **No usar v1.1 como respaldo seguro:** su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
 - **Condiciones operativas:** pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante (`aprenderPiso` rechaza a 40–80 cm); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir.
 - **Cómo usarla:** léanla completa una vez. El guion (sección 1) se dice en voz alta, las preguntas (sección 2) van por subsistema y la sección 4 es para cuando algo falle en vivo. Cada respuesta cierra con `(Manual: X.n)`, la sección del manual que la explica.
@@ -321,17 +321,12 @@ Lo que muestra el repositorio:
 
 ## 7. Lo que aún no validamos
 
-Para decir en voz alta. Nada de la v3 se ha movido en el piso; el protocolo físico está escrito y dice que nada se ha ejecutado ([`limites_conocidos.md`](limites_conocidos.md), [`estado_v3_pendiente_pruebas.md`](estado_v3_pendiente_pruebas.md)).
+Para decir en voz alta. El autónomo v3 con las correcciones del 26-nov tiene **validación física PARCIAL** en el carro (25–26 nov: M1, M3, M5, M6, M8 AUTO, piso limpio, mochila negra y bajos de 2 y 6 cm; las corridas buenas con obstáculo son posteriores a las correcciones y con `n` pequeño en los mismos escenarios donde ocurrió la falla). Lo siguiente sigue **SIMULADO**, **NO MEDIDO** o **PENDIENTE**:
 
-- Todavía no hemos probado en el piso el autónomo v3 completo, ni grabado su firmware (`SEG=3`).
-- Todavía no hemos probado el esquive con cada tipo de obstáculo: caja corrida, banquito con patas, objeto largo, caja con pared al lado. Solo hay seis corridas con una caja de 20×20 cm, y con la v1.1.
-- Todavía no hemos medido el paro por láser con cinta métrica: ni la distancia real de frenado (M5) ni el arranque junto a una pared (M6).
-- Todavía no hemos cortado el WiFi con el carro en marcha, ni tapado la cámara 2 segundos (bloque D).
-- Todavía no hemos calibrado la escala del giroscopio con una vuelta completa en el piso; hoy está en cero.
-- Todavía no hemos probado la visión con otra luz u otro piso: sombra, sol, linterna, aprender el piso con una luz y correr con otra (bloque C y M4).
-- Todavía no sabemos si el láser ve patas reales (M2) ni cómo ve una pared de lado (M3).
-- Todavía no hemos medido la velocidad real en AUTO (M8), la latencia de extremo a extremo (M9), el ritmo del láser (M10), la deriva del giroscopio (M1) ni los giros cortos (M7).
-- Todavía no hemos probado rutas con giros en el piso con la v3: en L, cuadrado, caja antes de una esquina.
-- Todavía no hemos probado la interfaz nueva con el carro real y su cámara; solo con carro y cámara falsos.
-- Todavía no sabemos qué pasó en la corrida 5 del 10-nov, ni qué hace «Continuar» tras una AYUDA sin mover el carro.
-- Todavía no hemos medido corrientes, tensión de las pilas ni autonomía.
+- Objetos laterales fuera del haz del láser (`pruebas_sim_ruta` tiene 1 fallo conocido; el haz del `VL53L0X` es estrecho, ~25°).
+- Muebles con patas en el carro real (M2, omitido; sigue **SIMULADO** en banco).
+- Objeto con 0 % de eco IR (la mochila dio `100/100` eco sólido; el caso de 0 % de eco sigue **SIMULADO**).
+- Velocidad real en modo Manual (M8 Manual, **NO MEDIDO** por límite de seguridad) y `RUMBO:ON` en modo Manual (**PENDIENTE**).
+- Bloques C y D del protocolo: luz cambiante (M4), corte de WiFi en marcha (B9), tapar la cámara 2 s, ruta en L, cuadrado y giros cortos (M7).
+- Latencia de extremo a extremo (M9), inclinación del láser e inclinación/FOV de la cámara, escala del giroscopio con vuelta completa (`IMUS=0`), corrientes, tensión de las pilas y autonomía.
+- Causa exacta de la corrida 5 de v1.1 (10-nov) y el comportamiento de «Continuar» tras `AYUDA` sin mover el carro.

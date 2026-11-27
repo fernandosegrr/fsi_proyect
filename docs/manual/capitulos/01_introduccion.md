@@ -1,6 +1,6 @@
 # 1. Introducción y cómo leer el manual
 
-Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance de la **versión 1.2.2** (autónomo v3 con `FW:b396390` y las correcciones físicas del 26-nov-2026; validación física parcial y 1 fallo conocido en `pruebas_sim_ruta`) y de la **versión 1.1** (cierre J16 del 10-nov-2026) y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
+Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance de la **versión 1.2.3** (autónomo v3 con `FW:b396390` y las correcciones físicas del 26-nov-2026; validación física parcial y 1 fallo conocido en `pruebas_sim_ruta`) y de la **versión 1.1** (cierre histórico del 10-nov-2026) y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
 
 ## 1.1 Propósito del proyecto y arquitectura del sistema
 
@@ -48,9 +48,9 @@ El manual está organizado en dieciséis capítulos agrupados en cuatro bloques 
 
 Para mantener una lectura fluida, el cuerpo de los capítulos no intercala rutas de carpetas ni números de línea. Al final de cada capítulo del 1 al 15 se incluye una sola línea titulada **Dónde está en el código** con los nombres de los archivos fuente principales, mientras que el **Anexo 16.3** presenta la tabla completa con las rutas exactas dentro del repositorio.
 
-## 1.5 Qué trae la v1.2.2, decisión para la exposición y reparto del equipo
+## 1.5 Qué trae la v1.2.3, decisión para la exposición y reparto del equipo
 
-La **v1.2.2** parte de la v1.2.1 (autónomo v3 + revisión de interfaz Android + correcciones físicas del 26-nov en `navegador.c` y `ManualFragment.kt` + resultados físicos agregados del 25–26 nov) y documenta el **fallo conocido** en `pruebas_sim_ruta` (objetos laterales fuera del haz estrecho del láser `VL53L0X`, ~25°, que no disparan esquive solo con visión cuando el ToF está fresco; **PENDIENTE** en el carro, solo **SIMULADO**).
+La **v1.2.3** parte de la v1.2.2 (autónomo v3 + revisión de interfaz Android + correcciones físicas del 26-nov en `navegador.c` y `ManualFragment.kt` + resultados físicos agregados del 25–26 nov) y documenta el **fallo conocido** en `pruebas_sim_ruta` (objetos laterales fuera del haz estrecho del láser `VL53L0X`, ~25°, que no disparan esquive solo con visión cuando el ToF está fresco; **PENDIENTE** en el carro, solo **SIMULADO**).
 
 - **Decisión para la exposición (Opción 1 con condiciones):** exponer v3 autónomo con el firmware del carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), la cámara `cam-v2` y la app `0.4-b396390` más las dos correcciones del 26-nov. **Plan B:** el mismo firmware v3 con el autónomo apagado (modo manual o semiautónomo). **v1.1 no es respaldo seguro**: su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
 - **Condiciones operativas obligatorias:** pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante (límite conocido de `aprenderPiso`); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir.

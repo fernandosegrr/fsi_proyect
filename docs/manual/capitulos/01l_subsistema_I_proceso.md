@@ -2,7 +2,7 @@
 
 ## I.1 Qué es y para qué sirve
 
-Este capítulo cuenta cómo se construyó el carro: qué versiones hubo, en qué fechas, cómo se probó cada una y por qué algunas se descartaron. Sirve para contestar «¿cómo lo hicieron?» con evidencia y sin inflar nada. Lo validado en el carro es lo de la v1.1 (cierre del 10-nov-2026); el autónomo v3 (base de la v1.2) y las versiones v4, v5 y v6 solo se probaron en simulador: **SIMULADO**.
+Este capítulo cuenta cómo se construyó el carro: qué versiones hubo, en qué fechas, cómo se probó cada una y por qué algunas se descartaron. Sirve para contestar «¿cómo lo hicieron?» con evidencia y sin inflar nada. La v1.1 tuvo su cierre físico el 10-nov-2026; el autónomo v3 con las correcciones del 26-nov cuenta con validación física **PARCIAL** en el carro (pruebas del 25–26 nov-2026 con `FW:b396390`, `cam-v2` y app `0.4-b396390` + correcciones), mientras las versiones v4, v5 y v6 solo se probaron en simulador (**SIMULADO**).
 
 Más detalle: capítulo 14 del manual (`docs/manual/capitulos/14_desarrollo.md`) y `docs/historia.md`.
 
@@ -126,7 +126,7 @@ Los resultados de v5 y v6 salen de `docs/evaluacion_ciega_resultados.txt`, `docs
 
 ## I.7 Preguntas probables del profesor
 
-1. **¿Cómo saben que lo que dicen que funciona, funciona?** Cada resultado lleva una etiqueta de evidencia. Lo validado en el carro es lo de la v1.1: B6 con 6 corridas el 10-nov y 7 rectas el 15-nov. Del autónomo v3 solo hay simulador y pruebas de PC; su protocolo físico no se ha ejecutado.
+1. **¿Cómo saben que lo que dicen que funciona, funciona?** Cada resultado lleva una etiqueta de evidencia. En el carro: v3 con `FW:b396390` y las correcciones del 26-nov tiene validación física **PARCIAL** (25–26 nov: M5 10/10, M8 AUTO 5/5, M1, M3, mochila negra 3/3 tras corrección y bajos 2 y 6 cm; `n` pequeño), además del histórico v1.1 (10-nov, 6/6 sin tocar la caja y 5/6 completas). Siguen **SIMULADO** o **PENDIENTE** objetos laterales fuera del haz del láser, M2, 0 % de eco, M8 Manual, `RUMBO:ON` Manual y bloques C y D.
 2. **¿Por qué la v1.2 usa la v3 y no la v6, que es más nueva?** Porque ninguna versión nueva cumplió las compuertas a ciegas. v4 subía las AYUDA, v5 y v5-fix bajaron contactos pero fallaron compuertas, y v6 es peor que v3 en piso limpio. Todo eso es simulador: ninguna se probó en el carro.
 3. **¿Por qué simulan en vez de probar siempre en el carro?** En el banco se repiten mil rutas por escenario con la misma semilla; en el carro cada corrida necesita una persona, piso y pilas. Pero el banco se calibró con 7 rectas, así que sirve para comparar versiones y no para prometer resultados en el piso.
 4. **¿Qué cambió en la app para la v1.2?** Solo la interfaz: se quitaron redibujos y saltos. En un teléfono con carro y cámara falsos, los cuadros lentos pasaron de 19.2 % a 3.3 % o menos. No se probó con el carro real, y la prueba fue con la rama de v6; la v1.2 solo se compiló.

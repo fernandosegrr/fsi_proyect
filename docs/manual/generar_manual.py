@@ -50,9 +50,9 @@ CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
 
 # Texto de versión (portada, encabezado de página y metadatos del PDF)
-VERSION_LARGA = "v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+VERSION_LARGA = "v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
-CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 
 # Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
 PAGINAS = {}          # clave real del encabezado -> página donde aparece
@@ -500,15 +500,15 @@ def construir_portada(story):
     story.append(
         Paragraph(
             "Arquitectura distribuida, firmware de control y visión, núcleo de navegación en C99,<br/>"
-            "aplicación Android y evidencia de cierre J16",
+            "aplicación Android y evidencia física y de simulación (incluyendo cierre histórico J16 en simulador)",
             STYLES["cover_sub"],
         )
     )
     story.append(Paragraph(html.escape(VERSION_LARGA), STYLES["cover_ver"]))
     story.append(
         Paragraph(
-            "Autónomo v3 (investigación, revisión y endurecimiento): <b>SIMULADO</b>; <b>NO MEDIDO</b> en el carro.<br/>"
-            "Lo validado en el carro físico es la v1.1 (cierre del 10-nov-2026).",
+            "Autónomo v3 con las correcciones del 26-nov: validación física <b>PARCIAL</b> en el carro (pruebas del 25–26 nov).<br/>"
+            "Lo no probado en el carro (objetos laterales fuera del haz del láser, patas, objeto sin eco total, modo Manual con RUMBO:ON, bloques C y D) sigue <b>SIMULADO</b> o <b>PENDIENTE</b>. Validado antes: v1.1 (cierre físico del 10-nov-2026).",
             STYLES["cover_sub"],
         )
     )
@@ -555,7 +555,7 @@ def construir_portada(story):
         [
             Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
             Paragraph(
-                "<b>v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
+                "<b>v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
                 "Decisión de exposición: Opción 1 con condiciones (v3 + "
                 '<font name="DejaVuMono" size="8.2">FW:b396390</font> + correcciones del 26-nov en '
                 '<font name="DejaVuMono" size="8.2">navegador.c</font> y '
