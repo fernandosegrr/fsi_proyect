@@ -1,6 +1,6 @@
 # 1. Introducción y cómo leer el manual
 
-Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance de la **versión 1.2.3** (autónomo v3 con `FW:b396390` y las correcciones físicas del 26-nov-2026; validación física parcial y 1 fallo conocido en `pruebas_sim_ruta`) y de la **versión 1.1** (cierre histórico del 10-nov-2026) y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
+Este capítulo presenta el propósito del sistema robótico móvil **LIDIA** (*Carro FSI*), define el alcance de la **versión 1.2.4** (autónomo v3 con `FW:b396390` y las correcciones físicas del 26-nov-2026; validación física parcial; reparto de exposición actualizado; 1 fallo conocido en `pruebas_sim_ruta`) y de la **versión 1.1** (cierre histórico del 10-nov-2026) y establece las convenciones de lectura que rigen todo el documento. Su objetivo es que cualquier integrante del equipo, docente evaluador o desarrollador futuro pueda distinguir con exactitud qué funciones están comprobadas en el vehículo físico, cuáles provienen de modelos de simulación y cuáles permanecen como mediciones abiertas.
 
 ## 1.1 Propósito del proyecto y arquitectura del sistema
 
@@ -48,21 +48,24 @@ El manual está organizado en dieciséis capítulos agrupados en cuatro bloques 
 
 Para mantener una lectura fluida, el cuerpo de los capítulos no intercala rutas de carpetas ni números de línea. Al final de cada capítulo del 1 al 15 se incluye una sola línea titulada **Dónde está en el código** con los nombres de los archivos fuente principales, mientras que el **Anexo 16.3** presenta la tabla completa con las rutas exactas dentro del repositorio.
 
-## 1.5 Qué trae la v1.2.3, decisión para la exposición y reparto del equipo
+## 1.5 Qué trae la v1.2.4, decisión para la exposición y reparto del equipo
 
-La **v1.2.3** parte de la v1.2.2 (autónomo v3 + revisión de interfaz Android + correcciones físicas del 26-nov en `navegador.c` y `ManualFragment.kt` + resultados físicos agregados del 25–26 nov) y documenta el **fallo conocido** en `pruebas_sim_ruta` (objetos laterales fuera del haz estrecho del láser `VL53L0X`, ~25°, que no disparan esquive solo con visión cuando el ToF está fresco; **PENDIENTE** en el carro, solo **SIMULADO**).
+La **v1.2.4** parte de la v1.2.3 (autónomo v3 + revisión de interfaz Android + correcciones físicas del 26-nov en `navegador.c` y `ManualFragment.kt` + resultados físicos agregados del 25–26 nov + fallo conocido en `pruebas_sim_ruta`) y actualiza el reparto de exposición del equipo para la presentación del martes 1 de diciembre de 2026.
 
 - **Decisión para la exposición (Opción 1 con condiciones):** exponer v3 autónomo con el firmware del carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), la cámara `cam-v2` y la app `0.4-b396390` más las dos correcciones del 26-nov. **Plan B:** el mismo firmware v3 con el autónomo apagado (modo manual o semiautónomo). **v1.1 no es respaldo seguro**: su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
-- **Condiciones operativas obligatorias:** pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante (límite conocido de `aprenderPiso`); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir.
+- **Condiciones operativas obligatorias:** pilas AA alcalinas nuevas y un juego de repuesto; piso despejado con al menos 100 cm libres al arrancar (límite conocido de `aprenderPiso`); velocidad como en las pruebas (unos 28 cm/s, confirmando una recta de 1.5 m en unos 5 s antes de empezar); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir. El frenado se midió a unos 28 cm/s con pilas ya gastadas; con pilas nuevas el carro va más rápido y ese margen no está probado.
 
-### Quién explica qué en la exposición
+### Área para exponer por integrante
 
-El principio rector es que **todos deben entender todo y cada quien se especializa en lo suyo** (presentación general: todos):
+El principio rector es que **todos deben entender todo el sistema; cada quien profundiza en su área para exponer** (portada, cierre y preguntas: todos). Quien expone un tema no es necesariamente quien lo construyó; todos deben poder explicar todo el sistema.
 
-- **Jaime Fernando Guerrero Segoviano:** hardware, conexiones y firmware del carro (subsistemas A y B), navegación autónoma y visión (E y F), simulador y pruebas (H) y proceso de desarrollo (I); opera el carro en la demostración (y lo operó en las pruebas físicas; armó e integró el sistema base del carro y su lógica).
-- **Vitto Eduardo Rangel Fortuna:** aplicación Android (subsistema D).
-- **Melanie Contreras Solis:** módulo de cámara (subsistema C) y red propia `CarroFSI`.
-- **Azul Abril Cadena Campos:** seguridad del sistema (subsistema G).
+- **Jaime Fernando Guerrero Segoviano:** qué lleva el carro (hardware y firmware; subsistemas A y B) y cómo se conecta (red WiFi `CarroFSI`, WebSocket, comunicación carro-teléfono-cámara). Corre el carro durante la demostración en vivo mientras Vitto explica (y operó el carro en las pruebas físicas; armó e integró el sistema base del carro y su lógica).
+- **Vitto Eduardo Rangel Fortuna:** el reto (planteamiento del problema) y la demostración en vivo, explicando la app Android (subsistema D) y los tres modos (manual, semiautónomo, autónomo), mientras Jaime corre el carro.
+- **Melanie Contreras Solis:** cómo ve (cámara y láser; subsistemas C y F) y cómo decide (el ciclo del navegador en C: ve, compara, decide, pide ayuda; subsistema E).
+- **Azul Abril Cadena Campos:** seguridad (capas de protección; subsistema G) y lo que sí medimos (resultados de las pruebas físicas, con sus límites; subsistema H).
+- **Todos:** portada, cierre y preguntas.
+
+La presentación consta de 10 diapositivas en este orden: (1) Portada — todos; (2) El reto — Vitto; (3) Lo que lleva el carro — Jaime; (4) Cómo se conecta — Jaime; (5) Cómo ve — Melanie; (6) Cómo decide — Melanie; (7) Seguridad — Azul Abril; (8) Lo que sí medimos — Azul Abril; (9) Demostración en vivo — Vitto (explica) y Jaime (corre el carro); (10) Cierre y preguntas — todos.
 
 ### Lo que todos deben saber (10 puntos)
 
@@ -77,12 +80,12 @@ El principio rector es que **todos deben entender todo y cada quien se especiali
 9. Exponemos v3 con `FW:b396390` y las correcciones del 26-nov (Plan B: mismo firmware en manual); v1.1 no es respaldo seguro.
 10. Toda cifra lleva etiqueta de evidencia (`VALIDADO EN EL CARRO`, `SIMULADO`, `NO MEDIDO`, `PENDIENTE`); las corridas buenas tras el 26-nov tienen `n=3` en los mismos escenarios donde ocurrió la falla.
 
-### Su especialidad (3 preguntas más probables por integrante)
+### Área para exponer (3 preguntas más probables por integrante)
 
-- **Jaime (A, B, E, F, H, I):** (1) ¿Por qué cambió la autoridad del láser el 26-nov y qué corrige en `PARALELO`? (2) ¿Por qué se usa v3 con `SEG=3` (150/180 mm) y no v1.1 (120 mm) ni v4–v6? (3) ¿Qué está validado físicamente (M1, M3, M5, M6, M8 AUTO, mochila, bajos) y qué sigue pendiente (M2, `RUMBO:ON` Manual, C y D)?
-- **Vitto (D · App Android):** (1) ¿Qué decide Kotlin frente al núcleo en C por JNI? (2) ¿Qué vigila la app (`SENS`, video, `WD`, `TOF_PARO`) y qué hace `ManualFragment` con `RUMBO`? (3) ¿Qué cambió en la revisión de interfaz (de 19.2 % a ≤ 3.3 % cuadros lentos en simulado) y qué guarda la caja negra?
-- **Melanie (C · Cámara y red `CarroFSI`):** (1) ¿Por qué una placa aparte para la cámara y por qué RGB565 en HQVGA con `frame2jpg`? (2) ¿Cómo funciona la red `CarroFSI` (canal 1, IP `.1` y `.2`, DHCP `.10–.20`) y cómo evita acumular retraso (~320 ms)? (3) ¿Qué hace el vigilante de `recuperacion.c` cuando cae WiFi, servidor o captura?
-- **Azul (G · Seguridad):** (1) ¿En qué orden actúan las capas de paro desde el láser (decenas de ms) hasta el portapilas? (2) ¿Por qué el freno láser solo actúa en AUTO y cómo funciona `TOF_BLOQUEO=180`? (3) ¿Qué pasa si se cae el WiFi, se congela la app o se toca «Continuar» tras `AYUDA` sin mover el carro?
+- **Jaime (Hardware, firmware y conexión):** (1) ¿Cómo se conectan los tres nodos en la red propia `CarroFSI` (canal 1, IP `.1` y `.2`, DHCP `.10–.20`, WebSocket `ws://192.168.4.1/ws`)? (2) ¿Por qué se usa v3 con `SEG=3` (150/180 mm) y no v1.1 (120 mm) ni v4–v6? (3) ¿Por qué hay fuentes separadas (*powerbank* compartida para DevKit y cámara; 4 pilas AA para motores) y giroscopio en lugar de *encoders*?
+- **Vitto (App Android, el reto y demostración):** (1) ¿Cuál es el reto del proyecto y qué hacen los tres modos (manual, semiautónomo, autónomo)? (2) ¿Qué vigila la app (`SENS`, video, `WD`, `TOF_PARO`) frente al núcleo en C por JNI, y qué hace `ManualFragment` con `RUMBO`? (3) ¿Qué cambió en la revisión de interfaz (de 19.2 % a ≤ 3.3 % cuadros lentos en simulado) y qué guarda la caja negra?
+- **Melanie (Cámara, láser y cómo decide el navegador):** (1) ¿Por qué una placa aparte para la cámara (RGB565 HQVGA con `frame2jpg`, ~320 ms de retraso) y cómo se combinan color, red neuronal y láser (`solo_laser` y `PARALELO` del 26-nov)? (2) ¿Cómo estima el navegador su posición sin *encoders* y cuáles son sus ocho estados? (3) ¿Qué hace el ciclo del navegador (ve, compara, decide, pide ayuda) y qué pasa si se toca «Continuar» tras `AYUDA` sin mover el carro?
+- **Azul Abril (Seguridad y resultados de las pruebas):** (1) ¿En qué orden actúan las capas de paro desde el láser (`SEG=3`, 150/180 mm) hasta el portapilas, y qué pasa si cae el WiFi? (2) ¿Qué está validado físicamente (M1, M3, M5 10/10, M6, M8 AUTO, mochila 3/3 y bajos 6 cm 2/2 con `n` pequeño)? (3) ¿Qué aún no se probó en el carro (objetos al costado fuera del haz del láser, patas de mueble, modo manual con corrección de rumbo `RUMBO:ON`, objetos que no devuelven eco)?
 
 Esta edición se puede leer de dos maneras:
 

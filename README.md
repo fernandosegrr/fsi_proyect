@@ -1,14 +1,14 @@
-# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial)
+# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado)
 
 [![CI Tests](https://github.com/fernandosegrr/fsi_proyect/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandosegrr/fsi_proyect/actions)
-[![Versión 1.2.3](https://img.shields.io/badge/Versi%C3%B3n-1.2.3%20(v3%20%2B%2026--nov)-blue.svg)](docs/correcciones_fisicas_20261126.md)
+[![Versión 1.2.4](https://img.shields.io/badge/Versi%C3%B3n-1.2.4%20(v3%20%2B%2026--nov)-blue.svg)](docs/correcciones_fisicas_20261126.md)
 [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green.svg)](LICENSE)
 
 ## Para abrir el manual
 
-- **Manual en PDF (v1.2.3, 139 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
-- **Guía de exposición (guion de 3 a 5 minutos, preguntas probables, qué decir si algo falla):** [docs/guia_exposicion.md](docs/guia_exposicion.md)
-- **Versión y estado:** v1.2.3 — autónomo v3 con `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), cámara `cam-v2`, app `0.4-b396390` y las correcciones del 26-nov (`navegador.c`, `ManualFragment.kt`). **VALIDADO EN EL CARRO (validación física PARCIAL, 25–26 nov-2026):** velocidad AUTO (`n=5`, `n=3`), frenado M5 (`n=10`, `10/10`), bloqueo M6, deriva M1, pared lateral M3 (`n=20`/ángulo), mochila negra (estático `n=100`, dinámico `n=3` tras corrección), bajos 2 y 6 cm, piso limpio (`n=5`, `5/5`). **SIMULADO / PENDIENTE:** objetos laterales fuera del haz del láser (1 fallo conocido en `pruebas_sim_ruta`), patas M2, 0 % de eco IR, M8 Manual, `RUMBO:ON` en Manual (**PENDIENTE**), M4, M7, M9, bloques C y D, inclinación de láser y cámara. Validado antes: v1.1 (10-nov-2026, [estado](docs/estado_20261110.md); no es respaldo seguro).
+- **Manual en PDF (v1.2.4, 139 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
+- **Guía de exposición (guion de 3 a 5 minutos, reparto de 10 diapositivas, preguntas probables, qué decir si algo falla):** [docs/guia_exposicion.md](docs/guia_exposicion.md)
+- **Versión y estado:** v1.2.4 — autónomo v3 con `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), cámara `cam-v2`, app `0.4-b396390` y las correcciones del 26-nov (`navegador.c`, `ManualFragment.kt`), con reparto de exposición actualizado. **VALIDADO EN EL CARRO (validación física PARCIAL, 25–26 nov-2026):** velocidad AUTO (`n=5`, `n=3`), frenado M5 (`n=10`, `10/10`), bloqueo M6, deriva M1, pared lateral M3 (`n=20`/ángulo), mochila negra (estático `n=100`, dinámico `n=3` tras corrección), bajos 2 y 6 cm, piso limpio (`n=5`, `5/5`). **SIMULADO / PENDIENTE:** objetos laterales fuera del haz del láser (1 fallo conocido en `pruebas_sim_ruta`), patas M2, 0 % de eco IR, M8 Manual, `RUMBO:ON` en Manual (**PENDIENTE**), M4, M7, M9, bloques C y D, inclinación de láser y cámara. Validado antes: v1.1 (10-nov-2026, [estado](docs/estado_20261110.md); no es respaldo seguro).
 - **Lo que el equipo todavía debe confirmar:** [docs/pendientes_confirmar.md](docs/pendientes_confirmar.md).
 
 **Institución:** Universidad de Guanajuato · División de Ingenierías · Campus Irapuato-Salamanca (DICIS)  
@@ -21,12 +21,12 @@
 - Azul Abril Cadena Campos
 
 **Accesos rápidos del repositorio:**
-- **Manual técnico completo en PDF (v1.2.3, 139 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
+- **Manual técnico completo en PDF (v1.2.4, 139 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
 - **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
-- **Artefactos de la v1.1 en `dist/` (la v1.2/v1.2.3 no publica binarios nuevos):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
+- **Artefactos de la v1.1 en `dist/` (la v1.2/v1.2.4 no publica binarios nuevos):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
 - **Autónomo v2 (registro histórico del 14-nov-2026; incluido en v3):** [estado](docs/estado_20261113.md), [auditoría](docs/auditoria_autonomo_v2.md), [diseño y resultados](docs/autonomo_v2_diseno.md), [protocolo de prueba física](docs/protocolo_prueba_fisica_autonomo_v2.md) y [plantilla CSV](docs/pruebas_fisicas_plantilla.csv)
-- **Autónomo v3 (base de v1.2.3; validación física PARCIAL el 25–26 nov-2026 + [correcciones del 26-nov](docs/correcciones_fisicas_20261126.md)):** [estado histórico del 16-nov](docs/estado_20261116.md), [investigación (11 áreas, fuentes con confianza)](docs/investigacion_autonomo/00_mapa.md), [hallazgos de la revisión](docs/investigacion_autonomo/90_hallazgos.md), [límites](docs/limites_conocidos.md) y [bloque de mediciones baratas M1–M10](docs/protocolo_prueba_fisica_autonomo_v2.md#10-bloque-m--mediciones-baratas-v3).
+- **Autónomo v3 (base de v1.2.4; validación física PARCIAL el 25–26 nov-2026 + [correcciones del 26-nov](docs/correcciones_fisicas_20261126.md)):** [estado histórico del 16-nov](docs/estado_20261116.md), [investigación (11 áreas, fuentes con confianza)](docs/investigacion_autonomo/00_mapa.md), [hallazgos de la revisión](docs/investigacion_autonomo/90_hallazgos.md), [límites](docs/limites_conocidos.md) y [bloque de mediciones baratas M1–M10](docs/protocolo_prueba_fisica_autonomo_v2.md#10-bloque-m--mediciones-baratas-v3).
 - **Revisión de la interfaz de la app Android (24-nov-2026; integrada en la v1.2; probada en un teléfono con carro y cámara falsos, falta el carro real):** [revisión: parpadeos, causas, arreglos y cómo comprobarlos](docs/revision_ui_android.md) y [reglas anti-parpadeo del sistema de diseño](docs/diseno.md)
 - **Ramas y etiquetas de archivo, NO integradas en la v1.2:** v4 (`archive/feat-autonomo-v4-a200df4`), v5-carbon (`freeze/v5-carbon`, `freeze/v5-carbon-fix`) y v6 (`freeze/v6`); por qué no se usaron está en el subsistema I del manual.
 
