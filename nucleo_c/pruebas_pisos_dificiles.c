@@ -672,6 +672,122 @@ static void pruebas_reglas(void)
     }
 }
 
+/* A3: aprenderPiso con segunda opinión del láser (ToF) ante sombras y obstáculos reales. */
+static void pruebas_aprender_sombras_tof(void)
+{
+    static AcumuladorPiso ac_sombra, ac_limpio;
+    ConfigObstaculos cfg;
+    ModeloPiso mod;
+    InformePiso inf;
+    LecturaTofPiso tof;
+    int i, x, y, codigo;
+
+    config_nuevo(&cfg);
+    cfg.grupos_piso = 3;
+
+    /* Escena con piso claro uniforme y sombra oscura fuerte (~25 % de la zona de avance, arriba de filas 8-9). */
+    obstaculos_aprender_iniciar(&ac_sombra);
+    obstaculos_aprender_iniciar(&ac_limpio);
+    for (i = 0; i < 6; i++) {
+        EscenaSintetica e = base(PS_LISO);
+
+        e.sigma = 4;
+        e.semilla = (unsigned long)(i + 1) * 53UL;
+        ps_dibujar(&e, imagen);
+        obstaculos_aprender_cuadro(&ac_limpio, &cfg, imagen, PS_ANCHO, PS_ALTO);
+
+        /* Sombra oscura (mismo tono pero mucho más oscura) sobre filas 85..135, columnas 40..190. */
+        for (y = 85; y < 135; y++) {
+            for (x = 40; x < 190; x++) {
+                imagen[(y * PS_ANCHO + x) * 3] = 45;
+                imagen[(y * PS_ANCHO + x) * 3 + 1] = 43;
+                imagen[(y * PS_ANCHO + x) * 3 + 2] = 40;
+            }
+        }
+        obstaculos_aprender_cuadro(&ac_sombra, &cfg, imagen, PS_ANCHO, PS_ALTO);
+    }
+
+    /* 1. Sombras con ToF libre >= 600 mm (900 mm): arranca, modelo robusto sin contaminarse con la sombra. */
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 1; tof.distancia_mm = 900; tof.edad_ms = 100;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    printf("     sombras ToF=900 mm: estado=%d desc=%d %% grupos=%d color0=(%d,%d,%d) msg=\"%s\"\n",
+           inf.estado_arranque, inf.descartado_pct, inf.grupos, inf.color[0][0], inf.color[0][1], inf.color[0][2], inf.mensaje_estado);
+    caso("sombras con ToF libre >= 600 mm (900 mm): permite iniciar, mensaje con 90 cm y modelo limpio sin sombra",
+         codigo == OBS_OK && inf.descartado_pct > 5 && inf.estado_arranque == OBS_APRENDER_OK_SOMBRAS_TOF &&
+         inf.tof_cm == 90 && mod.valido && mod.grupos >= 1 && inf.color[0][0] >= 95 && inf.color[0][1] >= 80 &&
+         strstr(inf.mensaje_estado, "Piso con sombras") != NULL &&
+         strstr(inf.mensaje_estado, "90 cm") != NULL &&
+         strstr(inf.mensaje_estado, "autoridad") != NULL);
+
+    /* 2a. Límite exacto en 600 mm (OBS_APRENDER_TOF_LIBRE_MM): permite iniciar. */
+    tof.distancia_mm = OBS_APRENDER_TOF_LIBRE_MM; tof.edad_ms = OBS_APRENDER_TOF_FRESCO_MS;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("sombras con ToF libre justo en 600 mm (limite exacto): permite iniciar y avisa 60 cm",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_OK_SOMBRAS_TOF && inf.tof_cm == 60 &&
+         strstr(inf.mensaje_estado, "60 cm") != NULL);
+
+    /* 2b. Límite exacto en 599 mm (OBS_APRENDER_TOF_LIBRE_MM - 1): NO permite iniciar. */
+    tof.distancia_mm = OBS_APRENDER_TOF_LIBRE_MM - 1; tof.edad_ms = 100;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("sombras/obstaculo con ToF en 599 mm (limite exacto): rechaza con distancia redondeada",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_OBJETO && inf.tof_cm == 60 &&
+         strcmp(inf.mensaje_estado, "Tienes un objeto a 60 cm, muévelo") == 0);
+
+    /* 3. Obstáculo real a 40-55 cm con ToF < 600 mm: no arranca y mensaje trae distancia correcta redondeada. */
+    tof.distancia_mm = 400; tof.edad_ms = 80;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("obstaculo real a 40 cm (400 mm < 600 mm): rechaza con 'Tienes un objeto a 40 cm, muévelo'",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_OBJETO && inf.tof_cm == 40 &&
+         strcmp(inf.mensaje_estado, "Tienes un objeto a 40 cm, muévelo") == 0);
+
+    tof.distancia_mm = 456; tof.edad_ms = 80;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("obstaculo real a 456 mm (< 600 mm): redondea a 46 cm en el mensaje",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_OBJETO && inf.tof_cm == 46 &&
+         strcmp(inf.mensaje_estado, "Tienes un objeto a 46 cm, muévelo") == 0);
+
+    /* 4. Sin ToF fresco o sin eco o error: rechaza con mensaje claro de que no se pudo confirmar con el láser. */
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 0; tof.distancia_mm = 900; tof.edad_ms = 50;
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("sin eco en el laser (valido=0): rechaza y avisa que no se pudo confirmar con el laser",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_SIN_TOF && inf.tof_cm == 0 &&
+         strstr(inf.mensaje_estado, "no se pudo confirmar") == NULL &&
+         strstr(inf.mensaje_estado, "No se pudo confirmar el frente con el láser") != NULL);
+
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 1; tof.distancia_mm = 900; tof.edad_ms = OBS_APRENDER_TOF_FRESCO_MS + 1;
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("ToF vencido (edad > 400 ms): rechaza y avisa que no se pudo confirmar con el laser",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_SIN_TOF && inf.tof_cm == 0 &&
+         strstr(inf.mensaje_estado, "No se pudo confirmar el frente con el láser") != NULL);
+
+    tof.disponible = 1; tof.vivo = 0; tof.valido = 1; tof.distancia_mm = 900; tof.edad_ms = 50;
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_sombra, &cfg, &tof, &mod, &inf);
+    caso("ToF caido (vivo=0): rechaza y avisa que no se pudo confirmar con el laser",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_SIN_TOF &&
+         strstr(inf.mensaje_estado, "No se pudo confirmar el frente con el láser") != NULL);
+
+    /* 5. Piso limpio sin sombras (y sin obstáculo cercano en el láser): comportamiento sin cambios. */
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 0; tof.distancia_mm = 0; tof.edad_ms = 9999;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_limpio, &cfg, &tof, &mod, &inf);
+    caso("piso limpio sin sombras: estado OK, sin mensaje extra, comportamiento sin cambios",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_OK && inf.muy_variado == 0 &&
+         inf.descartado_pct <= 5 && inf.mensaje_estado[0] == '\0' && mod.valido);
+
+    /* 6. Objeto cercano en el láser (< 600 mm) incluso si la cámara no descartó > 5 %: el láser rechaza igual. */
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 1; tof.distancia_mm = 435; tof.edad_ms = 75;
+    obstaculos_modelo_iniciar(&mod);
+    codigo = obstaculos_aprender_terminar_con_tof(&ac_limpio, &cfg, &tof, &mod, &inf);
+    caso("objeto a 435 mm (< 600 mm) aunque la camara no descarte > 5 %: el laser rechaza con 44 cm",
+         codigo == OBS_OK && inf.estado_arranque == OBS_APRENDER_RECHAZA_OBJETO && inf.tof_cm == 44 &&
+         strcmp(inf.mensaje_estado, "Tienes un objeto a 44 cm, muévelo") == 0);
+}
+
 int main(void)
 {
     pruebas_piso_negro();
@@ -679,6 +795,7 @@ int main(void)
     pruebas_exposicion();
     pruebas_objetos();
     pruebas_aprender();
+    pruebas_aprender_sombras_tof();
     pruebas_reglas();
 
     printf("\n%d casos, %d fallos\n", casos, fallos);

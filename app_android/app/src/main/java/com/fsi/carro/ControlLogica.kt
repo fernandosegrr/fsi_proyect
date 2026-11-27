@@ -138,6 +138,7 @@ class ControlLogica(
     val rumboActivo: Boolean get() = usarRumbo && capsRumbo == true && giroscopioActivo
 
     /** Lo último que dijo SENS: ángulo del giroscopio en décimas de grado, distancia del láser en mm y las banderas (1 IMU lista, 2 láser vivo, 4 medida válida, 8 IMU calibrando, 16 giro en curso). */
+    private val candadoTof = Any()
     var anguloX10 = 0
         private set
     var distanciaMm = 0
@@ -146,6 +147,19 @@ class ControlLogica(
         private set
     var ultimoSensMs = 0L
         private set
+
+    /** Instantánea segura entre hilos de la última lectura del láser (ToF): [disponible, vivo, valido, mm, edadMs]. */
+    fun lecturaTofActual(ahoraMs: Long = android.os.SystemClock.elapsedRealtime()): IntArray = synchronized(candadoTof) {
+        val disponible = if (laserActivo) 1 else 0
+        val vivo = if (banderasSens and 2 != 0) 1 else 0
+        val valido = if (banderasSens and 4 != 0) 1 else 0
+        val edadMs = if (ultimoSensMs > 0L && ahoraMs >= ultimoSensMs) {
+            (ahoraMs - ultimoSensMs).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        } else {
+            Int.MAX_VALUE
+        }
+        intArrayOf(disponible, vivo, valido, distanciaMm, edadMs)
+    }
 
     /** El sesgo del giroscopio (centésimas de grado/s) que dijo IMU_CAL_OK o IMU?; null = no se sabe. */
     var sesgoX100: Int? = null
@@ -479,6 +493,11 @@ class ControlLogica(
         capsGiroscopio = null            // los sensores se vuelven a preguntar en cada conexión (un firmware viejo no contesta = sin sensores)
         capsLaser = null
         capsRumbo = null
+        synchronized(candadoTof) {
+            distanciaMm = 0
+            banderasSens = 0
+            ultimoSensMs = 0L
+        }
         ultimoRumbo = ""
         escalaImuPpm = null
         girandoPorAngulo = false
@@ -547,6 +566,11 @@ class ControlLogica(
         capsGiroscopio = null
         capsLaser = null
         capsRumbo = null
+        synchronized(candadoTof) {
+            distanciaMm = 0
+            banderasSens = 0
+            ultimoSensMs = 0L
+        }
         escalaImuPpm = null
         esperandoPong = false
         latenciaMs = null
@@ -571,11 +595,17 @@ class ControlLogica(
                 texto.startsWith("SENS:") -> {
                     val p = texto.substring(5).split(",")
                     if (p.size == 3) {
-                        anguloX10 = p[0].toInt()
-                        distanciaMm = p[1].toInt()
-                        banderasSens = p[2].toInt()
-                        ultimoSensMs = android.os.SystemClock.elapsedRealtime()
-                        alSens?.invoke(anguloX10, distanciaMm, banderasSens)
+                        val ang = p[0].toInt()
+                        val mm = p[1].toInt()
+                        val bs = p[2].toInt()
+                        val ahora = android.os.SystemClock.elapsedRealtime()
+                        synchronized(candadoTof) {
+                            anguloX10 = ang
+                            distanciaMm = mm
+                            banderasSens = bs
+                            ultimoSensMs = ahora
+                        }
+                        alSens?.invoke(ang, mm, bs)
                         alCambiar()
                     }
                 }

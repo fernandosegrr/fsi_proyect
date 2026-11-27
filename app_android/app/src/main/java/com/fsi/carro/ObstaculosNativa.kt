@@ -99,7 +99,7 @@ object ObstaculosNativa {
     const val CFG_PISO_FIJO = 11           // 1 = durante una ruta: no se reaprende el piso ni se agregan colores
     const val ENTEROS_CONFIG = 12
 
-    // Resultado de aprenderPisoTerminar (23 enteros).
+    // Resultado de aprenderPisoTerminar (23 enteros) y aprenderPisoTerminarConTof (25 enteros).
     const val APR_CODIGO = 0
     const val APR_GRUPOS = 1
     const val APR_BRILLO_MEDIO = 2
@@ -109,6 +109,13 @@ object ObstaculosNativa {
     const val APR_CUADROS = 6
     const val APR_COLORES = 7        // R, G, B de hasta 4 grupos: 7..18
     const val APR_PESOS_PCT = 19     // % de celdas de cada color: 19..22
+    const val APR_ESTADO_ARRANQUE = 23   // OBS_APRENDER_*
+    const val APR_TOF_CM = 24            // distancia medida por el láser en cm (0 si sin lectura fresca/válida)
+
+    const val APR_ESTADO_OK = 0
+    const val APR_ESTADO_OK_SOMBRAS_TOF = 1
+    const val APR_ESTADO_RECHAZA_OBJETO = 2
+    const val APR_ESTADO_RECHAZA_SIN_TOF = 3
 
     /** Texto corto de los motivos de un cuadro (para PISO_DIAG). */
     fun textoMotivo(motivo: Int): String {
@@ -149,6 +156,12 @@ object ObstaculosNativa {
 
     /** Termina de aprender el piso con lo acumulado y deja ese modelo (23 enteros, posiciones APR_*). Solo desde el hilo de la cámara. */
     external fun aprenderPisoTerminar(config: IntArray): IntArray
+
+    /** Termina de aprender el piso consultando la lectura del láser (ToF) como segunda opinión (25 enteros, posiciones APR_*). Solo desde el hilo de la cámara. */
+    external fun aprenderPisoTerminarConTof(config: IntArray, tofDisponible: Int, tofVivo: Int, tofValido: Int, tofMm: Int, tofEdadMs: Int): IntArray
+
+    /** Mensaje en español generado por el núcleo al terminar aprenderPiso. Solo desde el hilo de la cámara. */
+    external fun aprenderPisoMensaje(): String
 
     /** Olvida el piso aprendido: el siguiente cuadro vuelve a aprender los colores del piso desde la franja de referencia. */
     external fun reiniciarModelo()

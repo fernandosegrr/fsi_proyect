@@ -102,7 +102,10 @@ class InformePisoAprendido(
     val descartadoPct: Int,
     val cuadros: Int,
     val colores: List<IntArray>,    // R, G, B de cada color aprendido
-    val pesosPct: List<Int>         // % de la zona de avance que respalda cada color
+    val pesosPct: List<Int>,        // % de la zona de avance que respalda cada color
+    val estadoArranque: Int = ObstaculosNativa.APR_ESTADO_OK,
+    val tofCm: Int = 0,
+    val mensajeEstado: String = ""
 ) {
     /** El texto para la pantalla: cuántos colores aprendió, su brillo medio y los avisos. */
     fun texto(): String {
@@ -113,7 +116,9 @@ class InformePisoAprendido(
         if (muyOscuro) {
             sb.append("\n⚠ El piso es MUY OSCURO: un obstáculo oscuro casi no se distingue de él.")
         }
-        if (muyVariado) {
+        if (mensajeEstado.isNotEmpty()) {
+            sb.append("\n⚠ $mensajeEstado")
+        } else if (muyVariado) {
             sb.append("\n⚠ El piso es MUY VARIADO ($descartadoPct % de la zona quedó en colores de poco apoyo): revisa que no haya objetos y que la luz sea pareja.")
         }
         return sb.toString()
@@ -245,6 +250,10 @@ class CamaraObstaculos(
     @Volatile
     var pisoAprendidoMs = 0L
         private set
+
+    /** Proveedor opcional de la lectura del láser (ToF) para segunda opinión en aprenderPiso: [disponible, vivo, valido, mm, edadMs]. */
+    @Volatile
+    var proveedorTof: (() -> IntArray)? = null
 
     /** Pide aprender el piso: el carro debe estar QUIETO sobre el piso por el que va a pasar y sin objetos en la zona de abajo. */
     fun aprenderPiso() {
@@ -1126,7 +1135,13 @@ class CamaraObstaculos(
     /** Cierra el aprendizaje del piso (en C) y guarda el informe. */
     private fun terminarDeAprenderPiso(config: IntArray) {
         aprendiendoHasta = 0L
-        val r = ObstaculosNativa.aprenderPisoTerminar(config)
+        val tof = proveedorTof?.invoke()
+        val r = if (tof != null && tof.size >= 5) {
+            ObstaculosNativa.aprenderPisoTerminarConTof(config, tof[0], tof[1], tof[2], tof[3], tof[4])
+        } else {
+            ObstaculosNativa.aprenderPisoTerminarConTof(config, 0, 0, 0, 0, Int.MAX_VALUE)
+        }
+        val mensajeEstado = ObstaculosNativa.aprenderPisoMensaje()
         aprendiendoPiso = false
         if (r[ObstaculosNativa.APR_CODIGO] != 0) {
             errorAprender = "No se pudo aprender el piso (código ${r[ObstaculosNativa.APR_CODIGO]}): llegaron muy pocos cuadros; revisa la cámara y vuelve a intentarlo."
@@ -1139,12 +1154,17 @@ class CamaraObstaculos(
             intArrayOf(r[ObstaculosNativa.APR_COLORES + 3 * g], r[ObstaculosNativa.APR_COLORES + 3 * g + 1], r[ObstaculosNativa.APR_COLORES + 3 * g + 2])
         }
         val pesos = (0 until grupos).map { g -> r[ObstaculosNativa.APR_PESOS_PCT + g] }
+        val estadoArranque = r[ObstaculosNativa.APR_ESTADO_ARRANQUE]
+        val tofCm = r[ObstaculosNativa.APR_TOF_CM]
         val informe = InformePisoAprendido(grupos, r[ObstaculosNativa.APR_BRILLO_MEDIO], r[ObstaculosNativa.APR_MUY_OSCURO] == 1,
-            r[ObstaculosNativa.APR_MUY_VARIADO] == 1, r[ObstaculosNativa.APR_DESCARTADO_PCT], r[ObstaculosNativa.APR_CUADROS], colores, pesos)
+            r[ObstaculosNativa.APR_MUY_VARIADO] == 1, r[ObstaculosNativa.APR_DESCARTADO_PCT], r[ObstaculosNativa.APR_CUADROS],
+            colores, pesos, estadoArranque, tofCm, mensajeEstado)
         informePiso = informe
-        pisoAprendidoMs = SystemClock.elapsedRealtime()
+        val puedeArrancar = (estadoArranque == ObstaculosNativa.APR_ESTADO_OK || estadoArranque == ObstaculosNativa.APR_ESTADO_OK_SOMBRAS_TOF)
+        pisoAprendidoMs = if (puedeArrancar) SystemClock.elapsedRealtime() else 0L
         Log.i(ETIQUETA, "piso| aprendido: grupos=$grupos brillo_medio=${informe.brilloMedio} muy_oscuro=${informe.muyOscuro} " +
-            "muy_variado=${informe.muyVariado} descartado_pct=${informe.descartadoPct} cuadros=${informe.cuadros}")
+            "muy_variado=${informe.muyVariado} descartado_pct=${informe.descartadoPct} cuadros=${informe.cuadros} " +
+            "estado_arranque=$estadoArranque tof_cm=$tofCm tof_raw=${tof?.joinToString(",") ?: "sin_proveedor"} mensaje=$mensajeEstado")
     }
 
     /** Copia los tres planos del cuadro a arreglos, reduce a ancho x alto y llena `rgb` (bytes) y `pixeles` (ARGB). */

@@ -548,6 +548,8 @@ Java_com_fsi_carro_PaqueteCeldasNativa_leer(JNIEnv *env, jobject objeto, jbyteAr
     return arreglo;
 }
 
+static char ultimo_mensaje_aprender[OBS_APRENDER_MSG_MAX];
+
 /* Empieza a aprender el piso: desde el siguiente cuadro, cada cuadro analizado se suma al acumulador. Solo desde el hilo de la cámara. */
 JNIEXPORT void JNICALL
 Java_com_fsi_carro_ObstaculosNativa_aprenderPisoIniciar(JNIEnv *env, jobject objeto)
@@ -555,28 +557,23 @@ Java_com_fsi_carro_ObstaculosNativa_aprenderPisoIniciar(JNIEnv *env, jobject obj
     (void)env;
     (void)objeto;
     obstaculos_aprender_iniciar(&acumulador_piso);
+    ultimo_mensaje_aprender[0] = '\0';
     aprendiendo_piso = 1;
 }
 
-/* Termina de aprender el piso con lo acumulado: agrupa los colores de toda la zona de avance, deja ese modelo del piso y avisa qué aprendió.
- * `config` son los mismos 10 o 12 enteros de analizarConfig. Solo desde el hilo de la cámara. Devuelve 23 enteros:
- *   [0] código (0 = bien; OBS_ERR_REFERENCIA = muy pocos cuadros)  [1] colores aprendidos  [2] brillo medio (0 a 255)
- *   [3] 1 si el piso es muy oscuro  [4] 1 si es muy variado  [5] % descartado por poco apoyo  [6] cuadros usados
- *   [7..18] colores R,G,B de hasta 4 grupos  [19..22] % de celdas que respalda cada color. */
-JNIEXPORT jintArray JNICALL
-Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject objeto, jintArray config)
+static jintArray aprender_piso_terminar_comun(JNIEnv *env, jintArray config, const LecturaTofPiso *tof, int n_salida)
 {
-    jint salida[23];
+    jint salida[25];
     ConfigObstaculos cfg;
     InformePiso informe;
     jint datos_config[ENTEROS_CONFIG_OBSTACULOS];
     jintArray arreglo;
     int codigo, i, g;
 
-    (void)objeto;
-    for (i = 0; i < 23; i++) {
+    for (i = 0; i < 25; i++) {
         salida[i] = 0;
     }
+    ultimo_mensaje_aprender[0] = '\0';
     aprendiendo_piso = 0;
     obstaculos_config_defecto(&cfg);
     if (config != NULL && (*env)->GetArrayLength(env, config) >= ENTEROS_CONFIG_OBSTACULOS) {
@@ -597,7 +594,7 @@ Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject ob
         modelo_inicializado = 1;
     }
     memset(&informe, 0, sizeof informe);
-    codigo = obstaculos_aprender_terminar(&acumulador_piso, &cfg, &modelo_global, &informe);
+    codigo = obstaculos_aprender_terminar_con_tof(&acumulador_piso, &cfg, tof, &modelo_global, &informe);
     salida[0] = codigo;
     if (codigo == OBS_OK) {
         salida[1] = informe.grupos;
@@ -612,12 +609,51 @@ Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject ob
             salida[9 + 3 * g] = informe.color[g][2];
             salida[19 + g] = informe.peso_pct[g];
         }
+        salida[23] = informe.estado_arranque;
+        salida[24] = informe.tof_cm;
+        strncpy(ultimo_mensaje_aprender, informe.mensaje_estado, sizeof ultimo_mensaje_aprender - 1);
+        ultimo_mensaje_aprender[sizeof ultimo_mensaje_aprender - 1] = '\0';
     }
-    arreglo = (*env)->NewIntArray(env, 23);
+    arreglo = (*env)->NewIntArray(env, n_salida);
     if (arreglo != NULL) {
-        (*env)->SetIntArrayRegion(env, arreglo, 0, 23, salida);
+        (*env)->SetIntArrayRegion(env, arreglo, 0, n_salida, salida);
     }
     return arreglo;
+}
+
+/* Termina de aprender el piso con lo acumulado (sin lectura del láser; 23 enteros). Solo desde el hilo de la cámara. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminar(JNIEnv *env, jobject objeto, jintArray config)
+{
+    (void)objeto;
+    return aprender_piso_terminar_comun(env, config, NULL, 23);
+}
+
+/* Termina de aprender el piso consultando el láser (ToF) como segunda opinión si hay sombras (> 5 % descartado).
+ * Devuelve 25 enteros: [0..22] igual que aprenderPisoTerminar, [23] estado_arranque (OBS_APRENDER_*), [24] tof_cm.
+ * El mensaje de estado en español queda disponible en aprenderPisoMensaje(). Solo desde el hilo de la cámara. */
+JNIEXPORT jintArray JNICALL
+Java_com_fsi_carro_ObstaculosNativa_aprenderPisoTerminarConTof(JNIEnv *env, jobject objeto, jintArray config,
+                                                               jint tofDisponible, jint tofVivo, jint tofValido,
+                                                               jint tofMm, jint tofEdadMs)
+{
+    LecturaTofPiso tof;
+
+    (void)objeto;
+    tof.disponible = (int)tofDisponible;
+    tof.vivo = (int)tofVivo;
+    tof.valido = (int)tofValido;
+    tof.distancia_mm = (int)tofMm;
+    tof.edad_ms = (tofEdadMs < 0) ? (unsigned int)(OBS_APRENDER_TOF_FRESCO_MS + 1) : (unsigned int)tofEdadMs;
+    return aprender_piso_terminar_comun(env, config, &tof, 25);
+}
+
+/* Mensaje en español generado por la última llamada a aprenderPisoTerminar / aprenderPisoTerminarConTof. */
+JNIEXPORT jstring JNICALL
+Java_com_fsi_carro_ObstaculosNativa_aprenderPisoMensaje(JNIEnv *env, jobject objeto)
+{
+    (void)objeto;
+    return (*env)->NewStringUTF(env, ultimo_mensaje_aprender);
 }
 
 /* Pide olvidar el piso aprendido: el siguiente cuadro vuelve a aprender los colores del piso de la franja. */

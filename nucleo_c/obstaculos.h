@@ -297,6 +297,32 @@ typedef struct {
     int fila_minima;                                 /* primera fila de la zona de avance */
 } AcumuladorPiso;
 
+/* Umbral mínimo de distancia libre del láser (VL53L0X, ToF) en mm para permitir iniciar una ruta
+ * cuando aprenderPiso rechaza por porcentaje de celdas no-piso (p. ej. sombras en el piso).
+ * Constante única: no duplicar este valor en otros módulos ni en la app. */
+#define OBS_APRENDER_TOF_LIBRE_MM   600
+
+/* Antigüedad máxima (ms) de la lectura del láser para considerarla fresca al evaluar el piso
+ * (mismo criterio de frescura que el navegador). */
+#define OBS_APRENDER_TOF_FRESCO_MS  400
+
+/* Decisión de arranque al terminar de aprender el piso (InformePiso.estado_arranque). */
+#define OBS_APRENDER_OK                0   /* piso limpio: aprendido normalmente */
+#define OBS_APRENDER_OK_SOMBRAS_TOF    1   /* > 5 % no-piso, pero el láser fresco y válido ve libre >= OBS_APRENDER_TOF_LIBRE_MM */
+#define OBS_APRENDER_RECHAZA_OBJETO    2   /* > 5 % no-piso y el láser fresco y válido mide < OBS_APRENDER_TOF_LIBRE_MM */
+#define OBS_APRENDER_RECHAZA_SIN_TOF   3   /* > 5 % no-piso y no hay lectura fresca y válida del láser */
+
+#define OBS_APRENDER_MSG_MAX         160   /* capacidad del mensaje de estado en español */
+
+/* Lectura del láser (ToF) al momento de terminar de aprender el piso. */
+typedef struct {
+    int disponible;          /* 1 si el láser está activo en el carro y en la app */
+    int vivo;                /* 1 si el láser reporta estar vivo (sin error) */
+    int valido;              /* 1 si la lectura tiene eco válido */
+    int distancia_mm;        /* distancia medida en mm (válida solo si valido == 1 y > 0) */
+    unsigned int edad_ms;    /* ms transcurridos desde la lectura (fresca si <= OBS_APRENDER_TOF_FRESCO_MS) */
+} LecturaTofPiso;
+
 /* Lo que se aprendió. */
 typedef struct {
     int grupos;              /* cuántos colores quedaron */
@@ -307,6 +333,9 @@ typedef struct {
     int cuadros;             /* cuántos cuadros se usaron */
     int color[OBS_MAX_GRUPOS][3];
     int peso_pct[OBS_MAX_GRUPOS];   /* % de las celdas que respaldan cada color */
+    int estado_arranque;     /* OBS_APRENDER_OK, OBS_APRENDER_OK_SOMBRAS_TOF, OBS_APRENDER_RECHAZA_OBJETO u OBS_APRENDER_RECHAZA_SIN_TOF */
+    int tof_cm;              /* distancia medida por el láser redondeada a cm (0 si no hubo lectura fresca y válida) */
+    char mensaje_estado[OBS_APRENDER_MSG_MAX];   /* mensaje de estado en español para la app y diagnóstico */
 } InformePiso;
 
 #define OBS_APRENDER_MIN_CUADROS  3
@@ -317,8 +346,16 @@ void obstaculos_aprender_iniciar(AcumuladorPiso *acumulador);
 /* Suma un cuadro. Devuelve OBS_OK o un error (tamaño raro, configuración mala, o tamaño distinto al de los cuadros anteriores). */
 int obstaculos_aprender_cuadro(AcumuladorPiso *acumulador, const ConfigObstaculos *config, const unsigned char *rgb, int ancho, int alto);
 
-/* Agrupa lo acumulado, deja el modelo del piso con esos colores y llena el informe. Devuelve OBS_OK, OBS_ERR_CONFIG o OBS_ERR_REFERENCIA (muy pocos
- * cuadros: OBS_APRENDER_MIN_CUADROS). Con un error el modelo no cambia. */
+/* Agrupa lo acumulado, deja el modelo del piso con esos colores y llena el informe. Si la imagen supera el 5 % de
+ * celdas descartadas (o resulta muy variada), consulta `tof` (si no es NULL) como segunda opinión:
+ *  - ToF fresco y válido >= OBS_APRENDER_TOF_LIBRE_MM: permite iniciar con modelo robusto sin sombras (OBS_APRENDER_OK_SOMBRAS_TOF).
+ *  - ToF fresco y válido < OBS_APRENDER_TOF_LIBRE_MM: rechaza con la distancia real en cm (OBS_APRENDER_RECHAZA_OBJETO).
+ *  - Sin ToF fresco o válido: rechaza manteniendo el criterio conservador (OBS_APRENDER_RECHAZA_SIN_TOF).
+ * Devuelve OBS_OK, OBS_ERR_CONFIG o OBS_ERR_REFERENCIA (muy pocos cuadros). Con un error el modelo no cambia. */
+int obstaculos_aprender_terminar_con_tof(const AcumuladorPiso *acumulador, const ConfigObstaculos *config,
+                                         const LecturaTofPiso *tof, ModeloPiso *modelo, InformePiso *informe);
+
+/* Equivalente a obstaculos_aprender_terminar_con_tof sin lectura del láser (tof = NULL). */
 int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe);
 
 /* Texto corto en español de los motivos (bits OBS_MOTIVO_*), para el registro PISO_DIAG. Escribe en `texto` (capacidad `capacidad`). */

@@ -24,6 +24,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 #include "obstaculos.h"
 
@@ -1423,7 +1424,97 @@ int obstaculos_aprender_cuadro(AcumuladorPiso *acumulador, const ConfigObstaculo
     return OBS_OK;
 }
 
-int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe)
+static int tof_es_fresco_y_valido(const LecturaTofPiso *tof)
+{
+    return tof != NULL && tof->disponible && tof->vivo && tof->valido &&
+           tof->distancia_mm > 0 && tof->edad_ms <= (unsigned int)OBS_APRENDER_TOF_FRESCO_MS;
+}
+
+static int mm_a_cm_redondeado(int mm)
+{
+    int cm = (mm + 5) / 10;
+
+    return (cm < 1) ? 1 : cm;
+}
+
+/* Cuando aprenderPiso supera el 5 % de celdas descartadas por sombras pero el láser fresco y válido confirma
+ * el frente libre (>= OBS_APRENDER_TOF_LIBRE_MM), depura los grupos de piso para no contaminar el modelo con
+ * sombras: rescata el grupo dominante si todos fueron filtrados, conserva solo grupos compatibles con el
+ * dominante y recalcula cada color usando únicamente las celdas que sí parecen piso (inliers). */
+static void refinar_grupos_sin_sombras(unsigned char muestras[][3], int n, const ConfigObstaculos *config,
+                                       const GruposPiso *brutos, GruposPiso *filtrados)
+{
+    GruposPiso depurados;
+    int g, i, c, mayor = 0;
+
+    if (filtrados->grupos <= 0 && brutos->grupos > 0) {
+        int best = 0;
+
+        for (g = 1; g < brutos->grupos; g++) {
+            if (brutos->peso[g] > brutos->peso[best]) {
+                best = g;
+            }
+        }
+        for (c = 0; c < 3; c++) {
+            filtrados->color[0][c] = brutos->color[best][c];
+        }
+        filtrados->peso[0] = brutos->peso[best];
+        filtrados->grupos = 1;
+    }
+    if (filtrados->grupos <= 0) {
+        return;
+    }
+    for (g = 1; g < filtrados->grupos; g++) {
+        if (filtrados->peso[g] > filtrados->peso[mayor]) {
+            mayor = g;
+        }
+    }
+    memset(&depurados, 0, sizeof depurados);
+    for (c = 0; c < 3; c++) {
+        depurados.color[0][c] = filtrados->color[mayor][c];
+    }
+    depurados.peso[0] = filtrados->peso[mayor];
+    depurados.grupos = 1;
+    for (g = 0; g < filtrados->grupos && depurados.grupos < OBS_MAX_GRUPOS - 1; g++) {
+        if (g == mayor) {
+            continue;
+        }
+        if (compatibles(filtrados->color[g], filtrados->color[mayor])) {
+            for (c = 0; c < 3; c++) {
+                depurados.color[depurados.grupos][c] = filtrados->color[g][c];
+            }
+            depurados.peso[depurados.grupos] = filtrados->peso[g];
+            depurados.grupos++;
+        }
+    }
+    for (g = 0; g < depurados.grupos; g++) {
+        long suma[3] = { 0, 0, 0 };
+        int cuenta = 0;
+
+        for (i = 0; i < n; i++) {
+            if (centro_mas_cercano(muestras[i], depurados.color, depurados.grupos) == g) {
+                int col_i[3] = { muestras[i][0], muestras[i][1], muestras[i][2] };
+
+                if (es_piso(col_i, depurados.color[g], config->umbral_color, config->mejoras_piso)) {
+                    for (c = 0; c < 3; c++) {
+                        suma[c] += col_i[c];
+                    }
+                    cuenta++;
+                }
+            }
+        }
+        if (cuenta > 0) {
+            for (c = 0; c < 3; c++) {
+                depurados.color[g][c] = (int)((suma[c] * 2L + cuenta) / (2L * cuenta));
+            }
+            depurados.peso[g] = cuenta;
+        }
+    }
+    *filtrados = depurados;
+}
+
+int obstaculos_aprender_terminar_con_tof(const AcumuladorPiso *acumulador, const ConfigObstaculos *config,
+                                         const LecturaTofPiso *tof, ModeloPiso *modelo, InformePiso *informe)
 {
     static unsigned char muestras[MAX_CELDAS][3];   /* el color promedio de cada celda de la zona (promediado entre los cuadros) */
     static unsigned char en_inmediata[MAX_CELDAS];  /* 1 si la celda cae en la franja inmediata (filas gruesas 8 y 9) */
@@ -1431,6 +1522,7 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
     GruposPiso grupos, filtrados;
     long suma_brillo = 0;
     int n = 0, i, fila, columna, c, g, intrusos = 0, codigo;
+    int descartado_pct, rechaza_vision;
 
     if (acumulador == NULL || config == NULL || modelo == NULL || informe == NULL) {
         return OBS_ERR_IMAGEN_NULA;
@@ -1528,14 +1620,47 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
             }
         }
     }
-    grupos = filtrados;
+    memset(informe, 0, sizeof *informe);
+    descartado_pct = intrusos * 100 / n;
+    rechaza_vision = (descartado_pct > 5 || filtrados.grupos >= OBS_MAX_GRUPOS || filtrados.grupos == 0) ? 1 : 0;
+
+    if (tof_es_fresco_y_valido(tof) && tof->distancia_mm < OBS_APRENDER_TOF_LIBRE_MM) {
+        int cm = mm_a_cm_redondeado(tof->distancia_mm);
+
+        grupos = filtrados;
+        informe->estado_arranque = OBS_APRENDER_RECHAZA_OBJETO;
+        informe->tof_cm = cm;
+        snprintf(informe->mensaje_estado, sizeof informe->mensaje_estado,
+                 "Tienes un objeto a %d cm, muévelo", cm);
+    } else if (!rechaza_vision) {
+        grupos = filtrados;
+        informe->estado_arranque = OBS_APRENDER_OK;
+        informe->tof_cm = 0;
+        informe->mensaje_estado[0] = '\0';
+    } else if (tof_es_fresco_y_valido(tof)) {
+        int cm = mm_a_cm_redondeado(tof->distancia_mm);
+
+        refinar_grupos_sin_sombras(muestras, n, config, &grupos, &filtrados);
+        grupos = filtrados;
+        informe->estado_arranque = OBS_APRENDER_OK_SOMBRAS_TOF;
+        informe->tof_cm = cm;
+        snprintf(informe->mensaje_estado, sizeof informe->mensaje_estado,
+                 "Piso con sombras; el láser ve libre a %d cm; continuando con el láser como autoridad", cm);
+    } else {
+        grupos = filtrados;
+        informe->estado_arranque = OBS_APRENDER_RECHAZA_SIN_TOF;
+        informe->tof_cm = 0;
+        snprintf(informe->mensaje_estado, sizeof informe->mensaje_estado,
+                 "No se pudo confirmar el frente con el láser; despeja el frente y las sombras");
+    }
+
     modelo_desde_grupos(modelo, &grupos);
     informe->grupos = grupos.grupos;
     informe->cuadros = acumulador->cuadros;
     informe->brillo_medio = (int)(suma_brillo / (3L * n));
     informe->muy_oscuro = (informe->brillo_medio * 3 < BRILLO_OSCURO) ? 1 : 0;
-    informe->descartado_pct = intrusos * 100 / n;
-    informe->muy_variado = (informe->descartado_pct > 5 || grupos.grupos >= OBS_MAX_GRUPOS || grupos.grupos == 0) ? 1 : 0;
+    informe->descartado_pct = descartado_pct;
+    informe->muy_variado = rechaza_vision;
     for (g = 0; g < OBS_MAX_GRUPOS; g++) {
         for (c = 0; c < 3; c++) {
             informe->color[g][c] = (g < grupos.grupos) ? grupos.color[g][c] : 0;
@@ -1543,6 +1668,11 @@ int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigO
         informe->peso_pct[g] = (g < grupos.grupos) ? grupos.peso[g] * 100 / n : 0;
     }
     return OBS_OK;
+}
+
+int obstaculos_aprender_terminar(const AcumuladorPiso *acumulador, const ConfigObstaculos *config, ModeloPiso *modelo, InformePiso *informe)
+{
+    return obstaculos_aprender_terminar_con_tof(acumulador, config, NULL, modelo, informe);
 }
 
 /* Agrega un texto al final del buffer (con "+" entre motivos). */
