@@ -6,9 +6,9 @@
 
 ## Para abrir el manual
 
-- **Manual en PDF (v1.2, 134 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
+- **Manual en PDF (v1.2.1, 137 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
 - **Guía de exposición (guion de 3 a 5 minutos, preguntas probables, qué decir si algo falla):** [docs/guia_exposicion.md](docs/guia_exposicion.md)
-- **Versión y estado:** v1.2, base v3. El autónomo v3 es **SIMULADO** y está **pendiente de validar en el carro**; lo único validado en el carro físico es la v1.1 (esquive B6 del 10-nov-2026, [estado](docs/estado_20261110.md)).
+- **Versión y estado:** v1.2.1, autónomo v3 con correcciones del 26-nov (`FW:b396390`, `SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), validación física parcial (25–26 nov-2026); lo histórico de v1.1 (10-nov-2026) está en [estado](docs/estado_20261110.md) y no es respaldo seguro.
 - **Lo que el equipo todavía debe confirmar:** [docs/pendientes_confirmar.md](docs/pendientes_confirmar.md).
 
 **Institución:** Universidad de Guanajuato · División de Ingenierías · Campus Irapuato-Salamanca (DICIS)  
@@ -21,7 +21,7 @@
 - Azul Abril Cadena Campos
 
 **Accesos rápidos del repositorio:**
-- **Manual técnico completo en PDF (v1.2, 134 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
+- **Manual técnico completo en PDF (v1.2.1, 137 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
 - **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
 - **Artefactos de la v1.1 en `dist/` (la v1.2 no publica binarios nuevos):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
@@ -37,7 +37,7 @@
 **LIDIA (*Carro FSI*)** es un vehículo robótico terrestre de cuatro ruedas con tracción diferencial y rodillos tipo *mecanum*, gobernado en tiempo real por tres nodos cooperativos conectados mediante una red inalámbrica local (`CarroFSI`, 2.4 GHz):
 
 1. **Placa de control y sensores (`ESP32 DevKit`, `192.168.4.1`):** actúa como punto de acceso WiFi, procesa los comandos entrantes mediante una cola determinista de 32 ranuras en la que `STOP`/`EBRAKE` nunca se descartan, controla los cuatro motores TT a través de un puente H doble `TC1508A` (`1500 Hz`), integra un giroscopio `MPU6050` a `100 Hz` con factor de escala en partes por millón (`IMU_ESCALA` en NVS), supervisa la distancia frontal con un sensor láser `VL53L0X` (paro autónomo a `120 mm` en el firmware v1.1 del carro y `150 mm` en el firmware v3, solo compilado) y ejecuta el controlador proporcional-integral de mantenimiento de rumbo en rectas (`RUMBO`) y giro cerrado (`GIRO`).
-2. **Placa de cámara independiente (`Freenove ESP32-WROVER` con sensor `GC0308`, `192.168.4.2`):** alimentada por su propia *powerbank* USB independiente, captura imágenes en resolución `HQVGA` (`240×176` píxeles a `20 MHz`, `12.4 fps`, edad media de cuadro `137 ms`) mediante una arquitectura de doble núcleo con buzón de último cuadro, exponiendo flujo `MJPEG` (`:81/stream`), cuadro crudo `RGB565` (`:80/raw`) y rejilla compacta de celdas por `UDP :4210` (`1,244 bytes`).
+2. **Placa de cámara independiente (`Freenove ESP32-WROVER` con sensor `GC0308`, `192.168.4.2`):** **comparte la misma *powerbank* USB del DevKit**, captura imágenes en resolución `HQVGA` (`240×176` píxeles a `20 MHz`, `12.4–12.5 fps`, edad media de cuadro `137 ms`) mediante una arquitectura de doble núcleo con buzón de último cuadro, exponiendo flujo `MJPEG` (`:80/stream`), cuadro crudo `RGB565` (`:80/raw`) y rejilla compacta de celdas por `UDP :4210` (`1,244 bytes`).
 3. **Teléfono Android (`APP:0.4-6d1b213`):** presenta la interfaz de operación y ejecuta de forma nativa vía `JNI` el núcleo matemático de navegación y visión en estándar `C99` (`nucleo_c`: planificación en cuadrícula de `20 cm`, integración de pose en décimas de grado `rumbo_x10`, guiado por punto de mira a `400 mm`, esquive en tres tramos con margen de `150 mm`, clasificador cromático `YCbCr`, inferencia `EfficientDet-Lite0` en hilo propio y fusión sincronizada bajo mutex `candado_vision`).
 
 ---
@@ -76,7 +76,7 @@ Permanecen como **`NO MEDIDO`** en el vehículo físico (contando únicamente co
 - Ruta en L (`B7`) y cuadrado de `60 cm` (`B8`) con el cierre J16.
 - Calibración física de vuelta completa (`360°`) en piso para `IMU_ESCALA`.
 - Corte inducido de WiFi en plena marcha (`B9`) y serie aislada con cinta métrica del freno autónomo por láser (`TOF_PARO` a `120 mm` en v1.1 y `150 mm` en v3).
-- Obstáculo ancho (`40×20 cm`), calibración automática (`B2`), circuito externo `GPIO 2` y consumo eléctrico en amperios.
+- Obstáculo ancho (`40×20 cm`), calibración automática (`B2`), consumo eléctrico en amperios y prueba física de `RUMBO:ON` en modo Manual (`PENDIENTE`). En `GPIO 2` no hay nada conectado.
 
 ---
 

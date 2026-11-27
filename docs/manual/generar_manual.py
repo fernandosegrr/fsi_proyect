@@ -50,9 +50,9 @@ CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
 
 # Texto de versión (portada, encabezado de página y metadatos del PDF)
-VERSION_LARGA = "v1.2 (autónomo v3, pendiente de validar en el carro)"
+VERSION_LARGA = "v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
-CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2 — base v3 · autónomo v3 pendiente de validar en el carro"
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 
 # Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
 PAGINAS = {}          # clave real del encabezado -> página donde aparece
@@ -544,21 +544,23 @@ def construir_portada(story):
             Paragraph("10 de noviembre de 2026", STYLES["td"]),
         ],
         [
-            Paragraph("<b>Artefactos del cierre físico (v1.1):</b>", STYLES["td"]),
+            Paragraph("<b>Artefactos probados (25–26 nov-2026):</b>", STYLES["td"]),
             Paragraph(
-                '<font name="DejaVuMono" size="8.2">APP:0.4-6d1b213</font> · '
-                '<font name="DejaVuMono" size="8.2">FW:6d1b213-20261110</font>',
+                '<font name="DejaVuMono" size="8.2">APP:0.4-b396390</font> (+ correcciones 26-nov) · '
+                '<font name="DejaVuMono" size="8.2">FW:b396390</font> (SEG=3, TOFP=150, TOF_BLOQUEO=180) · '
+                '<font name="DejaVuMono" size="8.2">cam-v2</font>',
                 STYLES["td"],
             ),
         ],
         [
             Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
             Paragraph(
-                "<b>v1.2 — base v3.</b> Código: autónomo v3 (rama "
-                '<font name="DejaVuMono" size="8.2">feat/autonomo-v3</font>, punto de partida '
-                '<font name="DejaVuMono" size="8.2">e37f77b</font>) más la revisión de la interfaz de la app Android. '
-                "El autónomo v3 es SIMULADO y está pendiente de validar en el carro; la base validada es v1.1 "
-                '(<font name="DejaVuMono" size="8.2">bd1727b</font>, 10-nov-2026).',
+                "<b>v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
+                "Decisión de exposición: Opción 1 con condiciones (v3 + "
+                '<font name="DejaVuMono" size="8.2">FW:b396390</font> + correcciones del 26-nov en '
+                '<font name="DejaVuMono" size="8.2">navegador.c</font> y '
+                '<font name="DejaVuMono" size="8.2">ManualFragment.kt</font>; Plan B: mismo firmware en manual). '
+                "El histórico v1.1 (<font name=\"DejaVuMono\" size=\"8.2\">bd1727b</font>) no es respaldo seguro.",
                 STYLES["td"],
             ),
         ],

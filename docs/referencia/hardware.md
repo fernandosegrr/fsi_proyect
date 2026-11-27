@@ -96,14 +96,14 @@ La señal PWM se repite 1500 veces por segundo y se puede graduar en 256 pasos (
 
 Hay dos circuitos de alimentación separados a propósito, para que el ruido y el consumo de los motores no reinicien la electrónica:
 
-1. **Electrónica:** powerbank de 5 V por USB a la ESP32 DevKit; la cámara Freenove se alimenta por su propio USB (la documentación no dice si comparte la misma powerbank; **PENDIENTE** de confirmar en el montaje).
-2. **Motores:** cuatro pilas AA en serie (alrededor de 6 V nominales) al VDD/VCC del TC1508A. El driver no tiene alimentación lógica separada: VDD alimenta lógica y motores (`docs/conexiones.md` §4).
+1. **Electrónica:** powerbank de 5 V por USB a la ESP32 DevKit; la cámara Freenove **comparte la misma powerbank** del DevKit.
+2. **Motores:** cuatro pilas AA **Energizer** en serie (tipo no confirmado; las pruebas mostraron que el desgaste acorta las distancias recorridas, por lo que se recomiendan pilas alcalinas nuevas y un juego de repuesto) al VDD/VCC del TC1508A. El driver no tiene alimentación lógica separada: VDD alimenta lógica y motores (`docs/conexiones.md` §4).
 
 Consecuencias y límites:
 
 - El TC1508A admite de 2.4 a 7.2 V; 7.2 V es el máximo absoluto. Cuatro alcalinas nuevas rondan 6 V, así que hay poco margen; no se debe añadir una quinta pila (`docs/conexiones.md` §4).
 - La ESP32 se configura a 160 MHz y el WiFi a 13 dBm para reducir picos de corriente (`config.h:54-64`). El AP usa el canal 1 fijo (`config.h:61`).
-- El GPIO 2 produce un pulso de 50 ms cada 2000 ms para que la powerbank no corte la salida (`config.h:141-148` y `carro.c`). Qué hay conectado realmente a ese pin —resistencia, LED o nada— es **NO MEDIDO** y **PENDIENTE** (`docs/conexiones.md` §3).
+- El GPIO 2 produce un pulso de 50 ms cada 2000 ms para que la powerbank no corte la salida (`config.h:141-148` y `carro.c`); físicamente **no tiene nada conectado** (sin resistencia ni LED externo).
 - La corriente de arranque y de motor bloqueado de los TT no está medida (**NO MEDIDO**). Con dos motores por canal, el cálculo del documento de conexiones pide medir antes de exigir el driver al máximo (`docs/conexiones.md` §5).
 - No hay medición registrada del consumo total ni de la autonomía. Cualquier cifra de duración sería una **HIPÓTESIS**.
 
@@ -122,7 +122,7 @@ Los dos módulos comparten el mismo bus I2C de la DevKit y se alimentan a 3V3. E
 
 - Frecuencia del bus: 400 kHz; tiempo máximo por transacción: 5 ms (`config.h:162-163`).
 - Direcciones: MPU6050 en 0x68 y VL53L0X en 0x29 (`config.h:164-165`). El firmware acepta además los identificadores 0x70 y 0x72 de algunos clones del MPU6050 (`config.h:167-170`).
-- Montaje: el giroscopio va plano sobre la caja de pilas, con la flecha X hacia el frente y el eje Z hacia arriba; el láser va al frente, a 6-8 cm del piso, inclinado 5-8° hacia arriba (`docs/conexiones.md` §8).
+- Montaje: el giroscopio va plano sobre la caja de pilas, con la flecha X hacia el frente y el eje Z hacia arriba; el láser va al frente, a **3.5 cm del suelo** y **sobresale 3.5 cm del frente** (inclinación: **NO MEDIDO**; anteriormente `docs/conexiones.md` §8 indicaba 6–8 cm y 5–8° hacia arriba). El driver es un **TC1508A** con entradas rotuladas **INT1 a INT4**.
 - El sentido del ángulo se corrige con `IMU_SIGNO` (`config.h:172-174`). El valor actual es 1. Si en una prueba física el sentido sale invertido, se cambia el signo en la configuración; no se cambia el cableado.
 - Los empalmes deben ser soldados o con regleta: un SCL flojo ya dejó al giroscopio invisible aunque el LED del módulo encendiera (`docs/conexiones.md` §8).
 

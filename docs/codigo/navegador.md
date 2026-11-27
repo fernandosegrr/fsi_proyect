@@ -53,7 +53,7 @@ Contiene el contexto completo de ejecución en `nucleo_c/navegador.h:320-505`:
 - `ruta`: Arreglo de waypoints y pasos calculados a partir de la cuadrícula de 20 cm.
 - `paso_actual`: Índice del tramo de avance o giro que se está ejecutando.
 - `cal`: Puntero o copia de los parámetros de calibración cinemática (`ms/cm`, `frenado_mm`, balance).
-- `autoridad_laser`: Bandera que activa la parada prioritaria si el láser ToF reporta colisión inminente.
+- `autoridad_laser`: Bandera que activa la autoridad del láser real (`solo_laser = nav->autoridad_laser && tof_fresco(nav, ahora_ms)`). Con las correcciones del 26-nov-2026, cuando `solo_laser` está activo: solo `laser_cerca` confirma obstáculo en `ZONA_CENTRO`, quedando inhibidas por `!solo_laser` la confirmación por visión pura, la precaución visual, la cercanía 3 inmediata, los bordes laterales cercanos (`borde_izq`/`borde_der`), `costado_a_la_vista` y los chequeos de entrada por color en `tick_reincorporando`; la cámara sigue pudiendo iniciar un vistazo lateral. Además, en `esq_zona_que_bloquea` durante `NAV_FASE_PARALELO` se ignora `zona_borde_cerca` del lado del propio objeto rodeado, en `tick_detenido` `!nav->volver_a_reinc` evita saltar directo a `NAV_SIGUIENDO`, y `extender_recta_final` permite prolongar la última recta aun con `override_largo_mm > 0`. (**ADVERTENCIA:** versiones anteriores de la documentación afirmaban que el láser libre nunca borraba una sospecha visual.)
 - `giro_fw_pedir`: Bandera que indica a la app que debe transmitir un comando `GIRAR:<grados>` al ESP32.
 
 ---

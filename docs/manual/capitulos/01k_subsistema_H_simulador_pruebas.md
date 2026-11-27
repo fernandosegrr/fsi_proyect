@@ -68,29 +68,24 @@ Las compuertas son metas numéricas (función `compuertas` de `scripts/compuerta
 - **Categorías excluyentes.** En v2 las columnas contactos, ayuda y bajo_mueble se traslapaban. v3 las hizo excluyentes para que sumen las corridas (commit `6cf1850`; `docs/limites_conocidos.md`).
 - **Calibración con lo medido.** J14 y J16 son rondas de trabajo del proyecto (`docs/reporte_J14.md`). El simulador se ajustó con el carro de J14: la diferencia de empuje entre lados se eligió de 0.3 a 2.1 %, siempre el izquierdo (B4-1 se desvió a la derecha). Los cuatro desvíos medidos en B4 (5.5, 15, 18 y 20 cm en 160 cm) caen en los percentiles 9, 57, 73 y 82 de las rectas simuladas; el esquive B6-4 (unos 40 cm) cae en el 99. Reproduce la magnitud, pero solo en la cola (`docs/precision/simulador.md`; `docs/precision/calibracion_j14.txt`). La velocidad de 19.3 cm/s y los pivotes (derecha: 15 cm adelante y 16.5 de lado a 90°; izquierda: radio de unos 8.7 a 9 cm) salen de las calibraciones de octubre (`docs/calibracion.md`).
 - **Cajas negras reales.** Las de las corridas no se publican (`cajas_negras/` está en `.gitignore`). El repo solo guarda documentos que las resumen, como `docs/investigacion_autonomo/90_hallazgos.md` (H-22: las del 15-nov sugieren cerca de 30 cm/s; no se adoptó; **NO MEDIDO**).
-- **Compuertas en rojo, v3 como base.** `docs/estado_v3_pendiente_pruebas.md` declara a v3 como base de la exposición, pendiente de probar en el carro, y descarta v4 (su guardia pidió AYUDA en 31 de 40 corridas de `libre_limpio`).
-- `CONFIRMAR CON EL EQUIPO: ¿por qué v3 y no v1.1 con la revisión de UI como base de la exposición, si v3 tiene 23 compuertas en rojo y no está validada en el carro?`
+- **Decisión para la exposición: v3 con condiciones, no v1.1.** Aunque v3 dejó 23 compuertas en rojo en el banco simulado y v4, v5 y v6 se descartaron en simulación con ruido realista (ramas archivadas), se expone v3 autónomo con `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`) y las correcciones del 26-nov (Plan B: el mismo firmware v3 con el autónomo apagado). v1.1 **no** es respaldo seguro porque su paro de 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor. Condiciones operativas: pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante; encender primero la powerbank con el carro quieto 3 s para el giroscopio y luego conectar las pilas; revisar cables.
 
 ### Semillas: cuál se usa y para qué
 
 - **Monte Carlo de precisión J16** (`nucleo_c/pruebas_precision_j16.c`, función `monte_carlo`, línea 675): `160000 + índice_de_escenario × 10007 + corrida`. Es la misma en las cinco configuraciones: corridas pareadas, donde lo único que cambia entre dos configuraciones es el software.
 - **Banco autónomo v2 y v3** (`nucleo_c/pruebas_autonomo_v2.c`, línea 695): `170000 + índice × 10007 + corrida`. El azar del simulador se deriva con `semilla ^ 0x5EEDu` (línea 436).
 - Con la misma semilla el resultado se repite exacto. Una corrida se reproduce con `./pruebas_autonomo_v2 depurar <escenario> <corrida>`.
-- **`0xF51A2026`** es un valor que citaba la documentación de v1.1 como semilla fija (commits `adfbda1` y `bd1727b`, 10-nov-2026). No está en el código ni en su historial: no es una semilla real.
-- **`0xC0FFEE01`** no aparece en ningún archivo ni commit de ninguna rama o etiqueta.
-- `CONFIRMAR CON EL EQUIPO: ¿qué es 0xC0FFEE01 y dónde se usó?`
+- **`0xF51A2026`** es un valor que citaba la documentación de v1.1 como semilla fija (commits `adfbda1` y `bd1727b`, 10-nov-2026). No está en el código ni en su historial: no es una semilla real. (La semilla real de precisión J16 es `160000 + índice × 10007 + corrida`, y la del banco autónomo `170000 + índice × 10007 + corrida`.)
 
 ### Conjuntos DESARROLLO y RESERVADO
 
-Son dos juegos de escenarios y semillas. Con DESARROLLO se ajusta el software; RESERVADO se abre solo al cerrar cada etapa y no se elige ningún parámetro con sus resultados (`docs/precision/plan_v4.md`, 18-nov, en el archivo v4). **En el árbol de la v1.2 no existen como código**: el banco tiene 23 escenarios y una sola serie de semillas. Se definen en otras referencias de git, que se leen con `git show <ref>:<ruta>`:
+Son dos juegos de escenarios y semillas. Con DESARROLLO se ajusta el software; RESERVADO se abre solo al cerrar cada etapa y no se elige ningún parámetro con sus resultados (`docs/precision/plan_v4.md`, 18-nov, en el archivo v4). **En el árbol de la v1.2/v1.2.1 no existen como código**: v1.2/v1.2.1 usa el Monte Carlo simple de v3 (23 escenarios y una sola serie de semillas). Se definen en otras referencias de git, que se leen con `git show <ref>:<ruta>`:
 
 - `archive/feat-autonomo-v4-a200df4`, `docs/precision/plan_v4.md`: DESARROLLO tiene 23 familias y semillas `1200000 + índice × 10007 + repetición`. RESERVADO usa `3200000 + …`, con posiciones y patas nuevas, pasillos de otros anchos y tres escenarios más (`dos_muebles`, `mueble_con_pared`, `bloque_sin_eco`). Cada conjunto se corre con láser «normal» y «pesimista» (más pérdidas y mayor señal mínima), 40 repeticiones por familia y perfil (`AV4_PESIMISTA=1`; argumento `desarrollo` o `reservado`).
 - `freeze/v5-carbon`, `docs/precision/calibracion_v5.md`: `AV5_CONJUNTO=1` (24 escenarios, `2100000 + …`) y `=2` (27 escenarios, `4300000 + …`).
 - `freeze/v6`, `docs/precision/v6/familia_sin_eco.md`: `6100000 + …` y `8300000 + …` para una familia sin eco.
 
-En la v1.2 solo queda `docs/estado_v3_pendiente_pruebas.md`, que usa resultados de esos conjuntos (40 corridas por escenario y perfil, tomadas del archivo v4).
-
-- `CONFIRMAR CON EL EQUIPO: ¿la validación de la v1.2 usará la partición DESARROLLO y RESERVADO, o se queda como método de las ramas v4 a v6?`
+En el árbol actual solo queda `docs/estado_v3_pendiente_pruebas.md`, que usa resultados de esos conjuntos (40 corridas por escenario y perfil, tomadas del archivo v4).
 
 ## H.4 Cómo lo probamos y con qué resultado
 
