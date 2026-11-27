@@ -1,14 +1,14 @@
-# Centro de Documentación Técnica — Proyecto Carro FSI (v1.2 — base v3; autónomo v3 pendiente de validar en el carro)
+# Centro de Documentación Técnica — Proyecto Carro FSI (v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial)
 
-**Revisión pendiente del 11-nov-2026:** [esquive confirmado y resultados](diagnostico_esquive_20261111.md). Basada en v1.1; NO MEDIDA en el carro. Banquito: NO MEDIDA hasta repetir primero con caja de 20×20 cm. Esta nota es histórica: la v1.2 (base v3) la incluye y sigue pendiente de validar en el carro.
+**Nota histórica (11-nov-2026):** [esquive confirmado y resultados](diagnostico_esquive_20261111.md) (basada en v1.1; banquito sin medir en el carro). La versión vigente **v1.2.3** incluye las pruebas físicas del 25–26 nov-2026 (validación física **PARCIAL**; ver [correcciones_fisicas_20261126.md](correcciones_fisicas_20261126.md)).
 
 Bienvenido al centro de documentación del proyecto **LIDIA (*Carro FSI*)** de la materia **Fundamentos de los Sistemas de Información (FSI)** (Universidad de Guanajuato · DICIS, profesor **Dr. Horacio Rostro González**).
 
 ---
 
-## 1. Manual Técnico en PDF (v1.2)
+## 1. Manual Técnico en PDF (v1.2.3)
 
-- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`134` páginas, `12` figuras, `64` tablas, índice general interactivo, mapa de una página, glosario y «si te preguntan X, ve a la página Y»): v1.2, base v3; el autónomo v3 es `SIMULADO` y está pendiente de validar en el carro.
+- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`139` páginas, `12` figuras, `65` tablas, índice general interactivo, mapa de una página, glosario y «si te preguntan X, ve a la página Y»): v1.2.3, autónomo v3 con correcciones del 26-nov y validación física parcial (25–26 nov-2026).
 - **[guia_exposicion.md](guia_exposicion.md):** guion de 3 a 5 minutos, preguntas probables por subsistema, quién explica qué (sin nombres), qué decir si la demostración falla y qué está medido y qué simulado.
 - **[pendientes_confirmar.md](pendientes_confirmar.md):** preguntas `CONFIRMAR CON EL EQUIPO` que hay que contestar antes de exponer.
 - **[docs/manual/README.md](manual/README.md):** instrucciones para regenerar el PDF con `python docs/manual/generar_manual.py`, diagnóstico de la versión previa ([manual/diagnostico_v1.md](manual/diagnostico_v1.md)), plan editorial ([manual/plan_final.md](manual/plan_final.md)) y auditoría de afirmaciones ([manual/auditoria_afirmaciones.md](manual/auditoria_afirmaciones.md)).

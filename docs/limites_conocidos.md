@@ -2,7 +2,7 @@
 
 ## Rama `feat/autonomo-v3` (16-nov-2026): lo que cambia y lo que sigue igual
 
-**SIMULADO / NO MEDIDO en el carro.** El carro no se movió, no se instaló la APK y no se grabó firmware (solo se compilaron). `main` y el tag `v1.1` (`bd1727b`) no se tocaron. Esta rama es la base de la v1.2 (24-nov-2026), que sigue pendiente de validar en el carro. Detalle en [estado_20261116.md](estado_20261116.md); hallazgos y su gravedad en [investigacion_autonomo/90_hallazgos.md](investigacion_autonomo/90_hallazgos.md).
+**Registro histórico del 16-nov-2026 (antes de las pruebas físicas del 25–26 nov).** En aquel corte v3 estaba solo compilado y simulado; posteriormente, el 25–26 nov-2026 se realizó la validación física **PARCIAL** de v3 (`FW:b396390`) con las correcciones del 26-nov (ver [correcciones_fisicas_20261126.md](correcciones_fisicas_20261126.md) y capítulo 12.8 del manual). Detalle histórico en [estado_20261116.md](estado_20261116.md); hallazgos en [investigacion_autonomo/90_hallazgos.md](investigacion_autonomo/90_hallazgos.md).
 
 Las columnas del banco ahora son **excluyentes y suman las corridas**: ok, contacto, bajo_mueble (pasó entre las patas sin tocar), ayuda, error, sin_terminar, falso_fin, esquive_falso, otro (en ese orden de prioridad). La tabla de abajo (v2) usa las columnas viejas, que se traslapaban.
 
@@ -41,7 +41,7 @@ Las columnas del banco ahora son **excluyentes y suman las corridas**: ok, conta
 
 # (Base) Límites conocidos de v2, todavía vigentes salvo lo indicado arriba
 
-Rama `feat/autonomo-v2`, 14-nov-2026 (con las correcciones de la revisión independiente), sobre v1.1 (`bd1727b`) y `6bea71e`. **SIMULADO / NO MEDIDO en el carro.** No es v1.2. El carro no se movió, no se instaló la APK y no se grabó firmware. [Diseño y resultados](autonomo_v2_diseno.md) · [auditoría](auditoria_autonomo_v2.md) · [protocolo de prueba física](protocolo_prueba_fisica_autonomo_v2.md) · [diagnóstico anterior](diagnostico_esquive_20261111.md).
+Rama `feat/autonomo-v2`, registro histórico del 14-nov-2026 (antes de las pruebas físicas de v3 del 25–26 nov), sobre v1.1 (`bd1727b`) y `6bea71e`. [Diseño y resultados](autonomo_v2_diseno.md) · [auditoría](auditoria_autonomo_v2.md) · [protocolo de prueba física](protocolo_prueba_fisica_autonomo_v2.md) · [diagnóstico anterior](diagnostico_esquive_20261111.md).
 
 ## Lo que el simulador ya dice que no se cumple
 
