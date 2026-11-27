@@ -42,7 +42,7 @@ Además del cierre B6 en J16, el repositorio conserva en `docs/precision/calibra
 
 ## 12.2 Pruebas deterministas de software en computadora (`VERIFICADO`)
 
-En la Fase 1 y Fase 3 de este cierre se ejecutaron todas las suites automatizadas del repositorio sobre el código integrado en `main` (`cd90001`), obteniendo **100 % de casos aprobados (`0` fallos)**. Las cifras de esta tabla son las del cierre v1.1; en v1.2 (24-nov-2026, autónomo v3 más la revisión de la interfaz) salieron `1,901` casos en `24` programas del núcleo, `567` en `5` programas del firmware, `60` del servidor falso y `21` de `probar_version.py`, todos sin fallos (detalle en la página {{pag:H.4}}):
+En la Fase 1 y Fase 3 del cierre v1.1 se ejecutaron todas las suites automatizadas del repositorio sobre `cd90001` (`100 %` aprobados). En v1.2 (24-nov-2026, **calculado con v3 antes de las correcciones del 26-nov, sin recalcular**) salieron `1,901` casos en `24` programas del núcleo, `567` en `5` del firmware, `60` del servidor falso y `21` de `probar_version.py`. En la corrida actual (**v1.2.2**, tras las correcciones del 26-nov): `make -C nucleo_c test` tiene **1 fallo conocido** en `pruebas_sim_ruta` (`61 casos, 1 fallos`: «las quince cajas obligan a esquivar»; ver §12.8), mientras `pruebas_esquive_confirmado` (275, 0 fallos), `pruebas_reincorporacion_j15` (21, 0 fallos), `pruebas_precision_j16` (46, 0 fallos), `make -C pruebas_firmware test` (567 casos, 0 fallos) y `probar_version.py` (21 casos, 0 fallos) pasan sin fallos:
 
 | Suite de verificación | Comando de ejecución | Programas / Módulos | Casos verificados | Fallos |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@ Para cuantificar estadísticamente el efecto de cada mejora de software antes y 
 
 El modelo físico del simulador inyecta simultáneamente: asimetría de motores $\mathcal{N}(+0.8\text{ °/s}, 0.8^2)$, ruido de velocidad angular $\sigma = 0.6\text{ °/s}$ más perturbaciones de piso $\sigma = 1.5\text{ °/s}$, error de escala del giroscopio de `±1.5 %` (`±15,000 ppm`), deriva de sesgo térmico, variación de velocidad longitudinal de `±8 %`, deslizamiento de arranque y frenado, y ruido del sensor láser $\sigma = 12\text{ mm}$ con `2 %` de lecturas perdidas.
 
-> **Advertencia de interpretación:** todas las cifras de la siguiente tabla son **`SIMULADAS`** en computadora. Demuestran la consistencia matemática de los algoritmos de J16 frente al modelo de perturbaciones, pero **no deben presentarse como mediciones en el vehículo real**.
+> **Advertencia de interpretación:** todas las cifras de la siguiente tabla son **`SIMULADAS`** en computadora (**calculadas antes de las correcciones del 26-nov, sin recalcular**). Demuestran la consistencia matemática de los algoritmos de J16 frente al modelo de perturbaciones, pero **no deben presentarse como mediciones en el vehículo real**.
 
 | Escenario simulado (`1,000` corridas c/u) | Configuración evaluada | Mediana del error final (`mm`) | Percentil 95 (`mm`) | Error de rumbo medio (`°`) | Llegan a la meta (de `1,000`) | Toques a la caja (de `1,000`) |
 |---|---|---|---|---|---|---|
@@ -166,4 +166,13 @@ Versiones probadas: `main` `b396390`, cámara `cam-v2` (GC0308, ~12.4–12.5 fps
 | Piso limpio 1.5 m | `n=5` | `5/5` terminado, `0/5` falsos positivos, 0 paradas falsas, 0 esquives; recorrió 133–139 cm de 150 por desgaste de pilas (recalibración `ms_por_cm_x10=355` aplicada después, sin repetir corridas) | **VALIDADO EN EL CARRO** |
 
 - **Límite conocido de `aprenderPiso`:** rechaza el arranque con obstáculos a 40–80 cm (`descartadoPct > 5`, medido en 18 % > 5 % a 40 cm); el ajuste está pendiente y no se aplicó, por lo que las rutas arrancan con al menos 100 cm libres delante.
-- **Siguen `SIMULADO`, `NO MEDIDO` o `PENDIENTE`:** M8 manual, M2 patas, objeto con 0 % de eco IR, M4, M7, M9, bloques C y D (luz cambiante, ruta en L, cuadrado) y la prueba física de `RUMBO:ON` en modo Manual (**PENDIENTE**).
+- **Siguen `SIMULADO`, `NO MEDIDO` o `PENDIENTE`:** M8 manual, M2 patas, objeto con 0 % de eco IR, M4, M7, M9, bloques C y D (luz cambiante, ruta en L, cuadrado), objetos laterales fuera del haz del láser y la prueba física de `RUMBO:ON` en modo Manual (**PENDIENTE**).
+
+### FALLO CONOCIDO en `pruebas_sim_ruta` (suite de PC tras las correcciones del 26-nov)
+
+- **Qué prueba es:** `make -C nucleo_c test` → `pruebas_sim_ruta` (`61 casos, 1 fallos`: `FALLO  las quince cajas obligan a esquivar`).
+- **Qué esperaba:** esquivar las 15 posiciones de cajas (centradas y laterales) solo con visión cuando las laterales quedan fuera del haz del láser.
+- **Qué hace ahora el código:** con `autoridad_laser = 1` y ToF fresco (`solo_laser`), la coincidencia visual sola no dispara esquive: manda el láser, y la visión sola solo avisa.
+- **Por qué se hizo así:** evitó el contacto con la mochila negra (`3/3` terminado, 0 contactos) y los falsos positivos en piso limpio (`5/5` terminado, 0 falsos positivos) en las pruebas físicas del 25–26 nov.
+- **Consecuencia:** los objetos laterales fuera del haz estrecho del láser (`VL53L0X`, ~25°) quedan como **PENDIENTE** de validar en el carro, solo **SIMULADO**.
+- **Nota:** `pruebas_sim_ruta.c` no se actualizó porque no se diagnosticó si es una prueba obsoleta o una pérdida de comportamiento real.

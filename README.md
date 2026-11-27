@@ -1,14 +1,14 @@
-# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial)
+# Proyecto Carro FSI (LIDIA) — Vehículo con navegación asistida y visión (v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial)
 
 [![CI Tests](https://github.com/fernandosegrr/fsi_proyect/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandosegrr/fsi_proyect/actions)
-[![Versión 1.2.1](https://img.shields.io/badge/Versi%C3%B3n-1.2.1%20(v3%20%2B%2026--nov)-blue.svg)](docs/correcciones_fisicas_20261126.md)
+[![Versión 1.2.2](https://img.shields.io/badge/Versi%C3%B3n-1.2.2%20(v3%20%2B%2026--nov)-blue.svg)](docs/correcciones_fisicas_20261126.md)
 [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green.svg)](LICENSE)
 
 ## Para abrir el manual
 
-- **Manual en PDF (v1.2.1, 137 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
+- **Manual en PDF (v1.2.2, 138 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf)
 - **Guía de exposición (guion de 3 a 5 minutos, preguntas probables, qué decir si algo falla):** [docs/guia_exposicion.md](docs/guia_exposicion.md)
-- **Versión y estado:** v1.2.1, autónomo v3 con correcciones del 26-nov (`FW:b396390`, `SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), validación física parcial (25–26 nov-2026); lo histórico de v1.1 (10-nov-2026) está en [estado](docs/estado_20261110.md) y no es respaldo seguro.
+- **Versión y estado:** v1.2.2, autónomo v3 con correcciones del 26-nov (`FW:b396390`, `SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), validación física parcial (25–26 nov-2026); 1 fallo conocido en `pruebas_sim_ruta` (objetos laterales fuera del haz del láser; ver [docs/limites_conocidos.md](docs/limites_conocidos.md)). Lo histórico de v1.1 (10-nov-2026) está en [estado](docs/estado_20261110.md) y no es respaldo seguro.
 - **Lo que el equipo todavía debe confirmar:** [docs/pendientes_confirmar.md](docs/pendientes_confirmar.md).
 
 **Institución:** Universidad de Guanajuato · División de Ingenierías · Campus Irapuato-Salamanca (DICIS)  
@@ -21,7 +21,7 @@
 - Azul Abril Cadena Campos
 
 **Accesos rápidos del repositorio:**
-- **Manual técnico completo en PDF (v1.2.1, 137 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
+- **Manual técnico completo en PDF (v1.2.2, 138 páginas):** [docs/manual/Manual_Proyecto_Carro_FSI.pdf](docs/manual/Manual_Proyecto_Carro_FSI.pdf) (el manual de la v1.1 ya no está en el árbol: se conserva en la etiqueta `v1.1`, ruta `docs/manual/Manual_Proyecto_Carro_FSI.pdf`, solo de referencia)
 - **Centro de documentación técnica:** [docs/README.md](docs/README.md) e [índice general](docs/index.md)
 - **Artefactos de la v1.1 en `dist/` (la v1.2 no publica binarios nuevos):** [dist/carro_fsi_0.4-6d1b213.apk](dist/carro_fsi_0.4-6d1b213.apk), [dist/SHA256SUMS.txt](dist/SHA256SUMS.txt), [dist/LEEME.txt](dist/LEEME.txt) y [dist/FIRMWARE_LOCAL.txt](dist/FIRMWARE_LOCAL.txt)
 - **Estado de validación y límites conocidos:** [docs/estado_20261110.md](docs/estado_20261110.md), [docs/limites_conocidos.md](docs/limites_conocidos.md) y [docs/entrega.md](docs/entrega.md)
@@ -60,13 +60,13 @@ La **v1.2.1** incorpora las correcciones físicas del 26-nov en `nucleo_c/navega
 - **Histórico v1.1 (10-nov-2026, `FW:6d1b213-20261110`, `APP:0.4-6d1b213`):** esquive B6 (`6/6` sin contacto, `5/6` completas; `1/6` en `AYUDA`). **v1.1 no es respaldo seguro**: su paro a `120 mm` deja solo `1.5–3.5 cm` de margen.
 
 ### 2.2 VERIFICADO en software y SIMULADO en PC
-- **Suites deterministas de software en PC (`100 %` en verde, `0` fallos):**
-  - `make -C nucleo_c test`: **`24` programas y `1,901` casos de prueba** en `C99` (cifra de v1.2).
-  - `make -C pruebas_firmware test`: **`5` programas y `567` casos de prueba** + verificador de página embebida (el archivo coincide con `pagina.sha256`).
+- **Suites deterministas de software en PC:**
+  - `make -C nucleo_c test`: **`1` fallo conocido** en `pruebas_sim_ruta` (`61 casos, 1 fallos`: `FALLO  las quince cajas obligan a esquivar`, porque con `autoridad_laser=1` y ToF fresco la visión sola no dispara esquive lateral; ver [docs/limites_conocidos.md](docs/limites_conocidos.md)). Pasan con `0` fallos: `pruebas_esquive_confirmado` (`275` casos), `pruebas_reincorporacion_j15` (`21` casos), `pruebas_precision_j16` (`46` casos) y los demás ejecutables previos a `pruebas_sim_ruta`. (Cifra histórica de v1.2 antes de las correcciones del 26-nov, sin recalcular: `24` programas y `1,901` casos con `0` fallos.)
+  - `make -C pruebas_firmware test`: **`5` programas y `567` casos de prueba** + verificador de página embebida (`0` fallos; el archivo coincide con `pagina.sha256`).
   - `python probar_servidor_falso.py` (desde `pruebas_firmware/`, con `websockets` instalado): **`60` casos** de protocolo WebSocket.
-  - `python scripts/probar_version.py`: **`21` casos** del verificador criptográfico de versiones.
+  - `python scripts/probar_version.py`: **`21` casos** del verificador criptográfico de versiones (`0` fallos).
   - `python docs/verificar_enlaces.py`: **`0` enlaces rotos** en toda la documentación.
-- **Experimento Monte Carlo J16 (`SIMULADO`, [docs/precision/monte_carlo_1000.txt](docs/precision/monte_carlo_1000.txt)):** `1,000` corridas por escenario y configuración con semillas fijas (`160000 + índice del escenario × 10007 + corrida`, la misma en todas las configuraciones; corregido en v1.2: la constante `0xF51A2026` que citaba la v1.1 no existe en el código; `50,000` corridas en total):
+- **Experimento Monte Carlo J16 (`SIMULADO`, [docs/precision/monte_carlo_1000.txt](docs/precision/monte_carlo_1000.txt); calculado antes de las correcciones del 26-nov, sin recalcular):** `1,000` corridas por escenario y configuración con semillas fijas (`160000 + índice del escenario × 10007 + corrida`, la misma en todas las configuraciones; `50,000` corridas en total):
   - Recta de `150 cm`: la mediana del error lateral final baja de `137 mm` (base J14, solo por tiempo) a **`9 mm`** con `RUMBO`; las `1,000` corridas llegan a la meta, sin toques.
   - Ruta en L (`60×60 cm`): la mediana del error de posición final baja de `145 mm` a **`31 mm`** con `RUMBO` e `IMU_ESCALA`; `1,000` de `1,000` llegan, sin toques.
   - Cuadrado de `60 cm`: la mediana del error de cierre baja de `65 mm` a **`19 mm`** con `RUMBO` e `IMU_ESCALA`; `1,000` de `1,000` llegan, sin toques.
