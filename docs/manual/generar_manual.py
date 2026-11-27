@@ -50,9 +50,9 @@ CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
 
 # Texto de versión (portada, encabezado de página y metadatos del PDF)
-VERSION_LARGA = "v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+VERSION_LARGA = "v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
-CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial"
 
 # Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
 PAGINAS = {}          # clave real del encabezado -> página donde aparece
@@ -555,11 +555,13 @@ def construir_portada(story):
         [
             Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
             Paragraph(
-                "<b>v1.2.1 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
+                "<b>v1.2.2 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
                 "Decisión de exposición: Opción 1 con condiciones (v3 + "
                 '<font name="DejaVuMono" size="8.2">FW:b396390</font> + correcciones del 26-nov en '
                 '<font name="DejaVuMono" size="8.2">navegador.c</font> y '
                 '<font name="DejaVuMono" size="8.2">ManualFragment.kt</font>; Plan B: mismo firmware en manual). '
+                "Documenta 1 fallo conocido en <font name=\"DejaVuMono\" size=\"8.2\">pruebas_sim_ruta</font> "
+                "(objetos laterales fuera del haz del láser). "
                 "El histórico v1.1 (<font name=\"DejaVuMono\" size=\"8.2\">bd1727b</font>) no es respaldo seguro.",
                 STYLES["td"],
             ),

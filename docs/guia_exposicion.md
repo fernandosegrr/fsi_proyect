@@ -1,6 +1,6 @@
-# Guía de exposición — Carro FSI v1.2.1 (1 de diciembre de 2026)
+# Guía de exposición — Carro FSI v1.2.2 (1 de diciembre de 2026)
 
-- **Versión:** v1.2.1 — autónomo v3 con correcciones del 26-nov (`navegador.c` y `ManualFragment.kt`); firmware en el carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`); cámara `cam-v2`; app `0.4-b396390` + correcciones del 26-nov; validación física parcial (25–26 nov-2026).
+- **Versión:** v1.2.2 — autónomo v3 con correcciones del 26-nov (`navegador.c` y `ManualFragment.kt`); firmware en el carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`); cámara `cam-v2`; app `0.4-b396390` + correcciones del 26-nov; validación física parcial (25–26 nov-2026); 1 fallo conocido en `pruebas_sim_ruta`.
 - **Decisión para la exposición (Opción 1 con condiciones):** exponer v3 autónomo con `FW:b396390` y las dos correcciones del 26-nov. **Plan B:** el mismo firmware v3 con el autónomo apagado (modo manual o semiautónomo). **No usar v1.1 como respaldo seguro:** su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
 - **Condiciones operativas:** pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante (`aprenderPiso` rechaza a 40–80 cm); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir.
 - **Cómo usarla:** léanla completa una vez. El guion (sección 1) se dice en voz alta, las preguntas (sección 2) van por subsistema y la sección 4 es para cuando algo falle en vivo. Cada respuesta cierra con `(Manual: X.n)`, la sección del manual que la explica.
@@ -147,7 +147,7 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **R:** Repite la misma prueba miles de veces con variaciones al azar y resume media y p95; la semilla hace que el azar se repita igual. Se usan `160000 + índice de escenario × 10007 + corrida` en precisión y `170000 + índice × 10007 + corrida` en el banco autónomo. No citen `0xF51A2026` (solo aparecía en documentos de v1.1) ni `0xC0FFEE01` (no está en ningún archivo ni commit). (Manual: H.3)
 
 **P:** ¿Cuántas pruebas automáticas hay y qué cubren?  
-**R:** El 24-nov-2026, al armar la v1.2: 1,901 casos en 24 programas del núcleo en C y 567 en 5 del firmware, con sensores falsos, más 60 del servidor falso y 21 del verificador de versiones, sin fallos (**SIMULADO**). El banco (23 escenarios × 1,000 corridas) corre aparte y deja 23 compuertas en rojo para v3. (Manual: H.4)
+**R:** Tras las correcciones del 26-nov (`v1.2.2`), `make -C nucleo_c test` tiene **1 fallo conocido** en `pruebas_sim_ruta` (`61 casos, 1 fallos`: «las quince cajas obligan a esquivar», porque con ToF fresco la visión sola no dispara esquive lateral), mientras `pruebas_esquive_confirmado` (275), `pruebas_reincorporacion_j15` (21), `pruebas_precision_j16` (46), `make -C pruebas_firmware test` (567 casos en 5 programas), `probar_version.py` (21) y `verificar_enlaces.py` pasan con 0 fallos. Las cifras previas (1,901 casos en 24 programas del núcleo y banco de 23 escenarios × 1,000 corridas con 23 compuertas en rojo) fueron **calculadas con v3 antes de las correcciones del 26-nov, sin recalcular** (**SIMULADO**). (Manual: H.4)
 
 ### I · Proceso de desarrollo
 
@@ -175,7 +175,7 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **R:** Es una función con millones de números ajustados de antemano con muchas fotos etiquetadas: recibe una imagen y devuelve cajas con clase y confianza. Usamos EfficientDet-Lite0 (80 clases de COCO), de los ejemplos oficiales de TensorFlow Lite, tal cual; el repositorio no trae código ni datos de entrenamiento, y ni quién la entrenó exactamente ni la licencia Apache 2.0 en la fuente primaria están verificados (**no verificado**). Solo marca cajas con confianza de 0.6 o más y no decide sola: debe coincidir con el color. (Manual: F.3)
 
 **P:** ¿Cómo saben que funciona?  
-**R:** Por niveles, y cada resultado lleva su etiqueta. Pruebas en PC: 1,901 casos del núcleo y 567 del firmware, sin fallos (**SIMULADO**). Banco: miles de corridas con semillas fijas (**SIMULADO**). En el carro, solo la v1.1: el 10-nov, 6 de 6 corridas sin tocar la caja y 5 de 6 completas. De la v3 no hay corridas en el piso. (Manual: I.4)
+**R:** Por niveles, y cada resultado lleva su etiqueta. Pruebas en PC: firmware (567 casos), `pruebas_esquive_confirmado` (275), J15 (21) y J16 (46) sin fallos, más **1 fallo conocido** en `pruebas_sim_ruta` (cajas laterales sin láser; **SIMULADO**). En el carro, el 25–26 nov con `FW:b396390` y las correcciones del 26-nov: M5 (10/10), M8 AUTO (5/5), mochila negra (3/3 tras corrección) y bajos de 6 cm (2/2 tras corrección). (Manual: I.4)
 
 **P:** ¿Qué no funciona todavía?  
 **R:** En el banco, v3 no cumple sus metas con muebles de patas (banquito: 43 contactos en 1,000; silla: 21), con una pared pegada a la ruta (386 AYUDA en 1,000) ni con sol, sombra y reflejo (paradas en 93, 82 y 126 de 1,000); un bloque oscuro sin eco terminó en contacto 40 de 40 veces (**SIMULADO**). En el carro, la corrida 5 del 10-nov entró en AYUDA sin causa identificada. (Manual: H.4)
@@ -273,7 +273,7 @@ No existe un interruptor único de modo. Lo autónomo es una ruta en marcha.
 
 1. **Empezó como «WALL-E»:** un sketch de Arduino de un solo archivo. Separamos la lógica en C para probarla en PC sin el carro.
 2. **Giroscopio, no encoders:** los motores TT tienen holgura y las llantas patinan. El 10-nov, 21 de 23 giros quedaron a ±3° según el propio giroscopio.
-3. **Un solo código, dos plataformas:** el núcleo en C se compila con GCC en PC y con el NDK en el teléfono; 1,901 casos de prueba en 24 programas, sin fallos el 24-nov.
+3. **Un solo código, dos plataformas:** el núcleo en C se compila con GCC en PC y con el NDK en el teléfono; en v1.2.2 pasan `pruebas_esquive_confirmado` (275), J15 (21) y J16 (46), con 1 fallo conocido en `pruebas_sim_ruta` (cajas laterales).
 4. **La cámara tira cuadros viejos:** guarda solo el último y descarta el anterior, para que el retraso no se acumule; manda unos 12 cuadros por segundo.
 5. **Arranque a plena potencia:** con menos de 255 desde parado los motores solo zumbaban; por eso cada avance arranca 250 ms a tope.
 
@@ -296,9 +296,10 @@ Cada cifra de esta guía lleva una etiqueta. Este es el resumen para no sobreven
 
 **SIMULADO** (PC, banco, teléfono con carro y cámara falsos)
 
-- Banco de 23 escenarios × 1,000 corridas de v3 (16-nov-2026), con 23 compuertas en rojo; objeto con 0 % de eco IR sigue solo simulado.
+- Banco de 23 escenarios × 1,000 corridas de v3 (16-nov-2026), con 23 compuertas en rojo (**calculado con v3 antes de las correcciones del 26-nov, sin recalcular**); objeto con 0 % de eco IR sigue solo simulado.
+- Pruebas en PC tras las correcciones del 26-nov: **1 fallo conocido** en `pruebas_sim_ruta` (`61 casos, 1 fallos`: cajas laterales fuera del haz del láser), 0 fallos en `pruebas_esquive_confirmado` (275), J15 (21), J16 (46), `pruebas_firmware` (567) y `probar_version.py` (21).
 - Revisión de interfaz de la app (24-nov-2026): probada con carro y cámara falsos; cuadros lentos de 19.2 % a 3.3 % o menos.
-- Monte Carlo de precisión J16 (31-oct-2026), 1,000 corridas por escenario.
+- Monte Carlo de precisión J16 (31-oct-2026), 1,000 corridas por escenario (**calculado antes de las correcciones del 26-nov, sin recalcular**).
 
 **NO MEDIDO / PENDIENTE**
 

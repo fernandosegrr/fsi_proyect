@@ -6,7 +6,18 @@
 
 Las columnas del banco ahora son **excluyentes y suman las corridas**: ok, contacto, bajo_mueble (pasó entre las patas sin tocar), ayuda, error, sin_terminar, falso_fin, esquive_falso, otro (en ese orden de prioridad). La tabla de abajo (v2) usa las columnas viejas, que se traslapaban.
 
-| Caso (1000 corridas, SIMULADO) | v2 | v3 | Qué cambió |
+## FALLO CONOCIDO en `pruebas_sim_ruta` (tras las correcciones del 26-nov-2026)
+
+- **Qué prueba es:** `make -C nucleo_c test` → `pruebas_sim_ruta` (`61 casos, 1 fallos`: `FALLO  las quince cajas obligan a esquivar`).
+- **Qué esperaba:** esquivar las 15 posiciones de cajas (centradas y laterales) solo con visión cuando las laterales quedan fuera del haz del láser.
+- **Qué hace ahora el código:** con `autoridad_laser = 1` y ToF fresco (`solo_laser = nav->autoridad_laser && tof_fresco(nav, ahora_ms)` en `nucleo_c/navegador.c`), la coincidencia visual sola no dispara esquive en el centro (`hay = !solo_laser && ...`): manda el láser, y la visión sola solo avisa (conserva el vistazo lateral).
+- **Por qué se hizo así:** evitó el contacto con la mochila negra (`3/3` terminado, 0 contactos) y los falsos positivos en piso limpio (`5/5` terminado, 0 falsos positivos), según las pruebas físicas del 25–26 nov.
+- **Consecuencia:** los objetos laterales fuera del haz del láser (el `VL53L0X` tiene un haz estrecho de ~25°) quedan como **PENDIENTE** de validar en el carro; su comportamiento actual en simulación es solo **SIMULADO**.
+- **Nota:** `nucleo_c/pruebas_sim_ruta.c` no se actualizó porque no se diagnosticó si es una prueba obsoleta o una pérdida de comportamiento real.
+
+> **Nota sobre cifras del banco v3 y Monte Carlo abajo:** las cifras de las tablas siguientes fueron **calculadas con v3 (o v2/J16) antes de las correcciones del 26-nov, sin recalcular** (**SIMULADO**).
+
+| Caso (1000 corridas, SIMULADO; calculado con v3 antes de las correcciones del 26-nov, sin recalcular) | v2 | v3 | Qué cambió |
 |---|---|---|---|
 | Banquito 35 × 45 con patas | 765 ok, 79 contactos, 112 por debajo, 44 ayuda | **849 ok, 43 contactos**, 75 por debajo, 33 ayuda | Memoria del eco y retroceso antes de girar |
 | Silla con patas | 316 ok, 34 contactos, 618 por debajo, 32 ayuda | **435 ok, 21 contactos**, 529 por debajo, 15 ayuda | Igual |

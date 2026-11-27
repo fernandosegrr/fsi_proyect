@@ -91,10 +91,10 @@ En el árbol actual solo queda `docs/estado_v3_pendiente_pruebas.md`, que usa re
 
 | Qué se probó | Cómo | Resultado | Etiqueta |
 |---|---|---|---|
-| Núcleo en PC (v3) | `make -C nucleo_c test` | 24 ejecutables, 1,901 casos, 0 fallos, 16-nov-2026 (`docs/estado_20261116.md`) | **SIMULADO** |
-| Precisión J16 (código incluido en v1.1) | Monte Carlo, 1,000 corridas por escenario y configuración, 31-oct-2026 | Recta de 150 cm, error medio 137 mm (J14), 80 (J15) y 10 (con RUMBO). Esquive de caja 20×20: 200, 37 y 17 mm; toques 49, 9 y 0 de 1,000. 46 casos, 0 fallos (`docs/precision/monte_carlo_1000.txt`) | **SIMULADO** |
-| Simulador contra el carro | Desvíos medidos en B4 y B6-4 contra 1,000 corridas | Percentiles 9, 57, 73, 82 y 99 (`docs/precision/calibracion_j14.txt`) | **SIMULADO** |
-| Banco autónomo (v3) | 23 escenarios × 1,000, 16-nov-2026 | 23 compuertas en rojo. Banquito: 849 ok y 43 contactos (v1.1: 245 y 596). Silla: 435 ok y 21 contactos. Caja con pared al lado: 613 ok y 386 ayudas. Paradas con sol, sombra y reflejo en 93, 82 y 126 corridas (`docs/precision/autonomo_v3_comparacion.txt`) | **SIMULADO** |
+| Núcleo en PC (v3 + correcciones 26-nov) | `make -C nucleo_c test` | 24 ejecutables en la suite; `pruebas_esquive_confirmado` (275, 0 fallos), `pruebas_reincorporacion_j15` (21, 0 fallos), `pruebas_precision_j16` (46, 0 fallos); **1 fallo conocido** en `pruebas_sim_ruta` (`61 casos, 1 fallos`: «las quince cajas obligan a esquivar»). Histórico 16-nov: 1,901 casos, 0 fallos (**calculado con v3 antes de las correcciones del 26-nov, sin recalcular**) | **SIMULADO** |
+| Precisión J16 (código incluido en v1.1) | Monte Carlo, 1,000 corridas por escenario y configuración, 31-oct-2026 (**calculado antes de las correcciones del 26-nov, sin recalcular**) | Recta de 150 cm, error medio 137 mm (J14), 80 (J15) y 10 (con RUMBO). Esquive de caja 20×20: 200, 37 y 17 mm; toques 49, 9 y 0 de 1,000. 46 casos, 0 fallos (`docs/precision/monte_carlo_1000.txt`) | **SIMULADO** |
+| Simulador contra el carro | Desvíos medidos en B4 y B6-4 contra 1,000 corridas (**calculado antes de las correcciones del 26-nov, sin recalcular**) | Percentiles 9, 57, 73, 82 y 99 (`docs/precision/calibracion_j14.txt`) | **SIMULADO** |
+| Banco autónomo (v3, histórico 16-nov-2026) | 23 escenarios × 1,000 (**calculado con v3 antes de las correcciones del 26-nov, sin recalcular**) | 23 compuertas en rojo. Banquito: 849 ok y 43 contactos (v1.1: 245 y 596). Silla: 435 ok y 21 contactos. Caja con pared al lado: 613 ok y 386 ayudas. Paradas con sol, sombra y reflejo en 93, 82 y 126 corridas (`docs/precision/autonomo_v3_comparacion.txt`) | **SIMULADO** |
 | Conjuntos de 40 corridas (v3) | DESARROLLO y RESERVADO, láser normal y pesimista | `bloque_sin_eco`: contacto en 40 de 40 en reservado. Banquito con láser normal: contacto en 12 de 40 (desarrollo) y 9 de 40 (reservado) (`docs/estado_v3_pendiente_pruebas.md`) | **SIMULADO** |
 | Firmware en PC (v3) | `make -C pruebas_firmware test` | 5 ejecutables, 567 casos, 0 fallos, 16-nov-2026 | **SIMULADO** |
 | Servidor falso y versiones | `probar_servidor_falso.py`; `scripts/probar_version.py` | 60 casos y 21 pruebas, sin fallos, 16-nov-2026 | **SIMULADO** |
@@ -104,7 +104,16 @@ En el árbol actual solo queda `docs/estado_v3_pendiente_pruebas.md`, que usa re
 | ASan, UBSan y TSan sobre v3 | No se pudieron correr en Windows | Existe `.github/workflows/sanitizadores.yml`; sin resultado para v3 | **NO MEDIDO** |
 | v3 en el carro; M1 a M10 | `docs/protocolo_prueba_fisica_autonomo_v2.md` | Ninguna corrida | **PENDIENTE** |
 
-Las cifras salen de los archivos de resultados; si otro documento da cifras distintas, vale el archivo. En el Monte Carlo heredado, el error lateral tras esquivar es 18/44 mm (media/p95) en v3 contra 17/40 en v1.1 (`docs/estado_20261116.md`). El código del núcleo no cambió después del 16-nov-2026 (último commit de `nucleo_c/`: `d29133a`) y las pruebas no se repitieron para esta entrega.
+Las cifras salen de los archivos de resultados; si otro documento da cifras distintas, vale el archivo. En el Monte Carlo heredado (**calculado con v3 antes de las correcciones del 26-nov, sin recalcular**), el error lateral tras esquivar es 18/44 mm (media/p95) en v3 contra 17/40 en v1.1 (`docs/estado_20261116.md`).
+
+### FALLO CONOCIDO en `pruebas_sim_ruta`
+
+- **Qué prueba es:** `make -C nucleo_c test` → `pruebas_sim_ruta` (`61 casos, 1 fallos`: `FALLO  las quince cajas obligan a esquivar`).
+- **Qué esperaba:** esquivar las 15 posiciones de cajas (centradas y laterales) solo con visión cuando las laterales quedan fuera del haz del láser.
+- **Qué hace ahora el código:** con ToF fresco (`solo_laser`), la coincidencia visual sola no dispara esquive: manda el láser, y la visión sola solo avisa.
+- **Por qué se hizo así:** evitó el contacto con la mochila negra (`3/3` terminado, 0 contactos) y los falsos positivos en piso limpio (`5/5` terminado, 0 falsos positivos) en las pruebas físicas del 25–26 nov.
+- **Consecuencia:** los objetos laterales fuera del haz estrecho del láser (`VL53L0X`, ~25°) son **PENDIENTE** de validar en el carro; en simulación el caso es solo **SIMULADO**.
+- **Nota:** `pruebas_sim_ruta.c` no se actualizó porque no se diagnosticó si es una prueba obsoleta o una pérdida de comportamiento real.
 
 ## H.5 Límites conocidos
 
