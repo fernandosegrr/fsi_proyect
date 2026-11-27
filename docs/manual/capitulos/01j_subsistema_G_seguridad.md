@@ -72,17 +72,14 @@ Si el proceso muere, Android cierra el socket y el carro frena al instante por `
 ## G.3 Cómo lo hicimos
 
 - **El freno de emergencia está en el carro y usa el láser, no la cámara.** Se descartó frenar solo con visión: la luz del salón cambia y el video llega unos 320 ms tarde (`docs/historia.md` §3, `docs/latencia.md`).
-- **De 120 a 150 mm en v3.** El modelo pide `P = 95 + 10·e` mm en crucero (`e`: distancia del sensor al frente, en cm) y de 115 a 135 mm más `10·e` con el pulso de arranque (250 ms a PWM 255, unos 9.5 cm). Con 150 mm se cubre `e` de 2.5 a 4.5 cm según el sesgo, y `TOF_BLOQUEO_MM` sube a 180 mm para guardar la histéresis de 30 mm. `e` y el frenado **NO SE MIDIERON**: es una recomendación de modelo (`firmware_carro/config.h`, `10_seguridad_funcional.md` §6.2). Se revierte con `-DTOF_PARO_MM=120 -DTOF_BLOQUEO_MM=150`.
-- **`TOF_BLOQUEO_MM`, desde `SEG=2`.** Antes, cada reintento de `FORWARD` daba un pulso de 250 ms a plena potencia contra el obstáculo; ahora, con el frente confirmado más cerca, el avance no arranca (`firmware_carro/config.h`).
+- **De 120 a 150 mm en v3 (grabado en `FW:b396390`).** El modelo pide `P = 95 + 10·e` mm en crucero (`e`: distancia del sensor al frente, medida en **3.5 cm**) y de 115 a 135 mm más `10·e` con el pulso de arranque (250 ms a PWM 255, unos 9.5 cm). Con 120 mm (v1.1) solo quedaban 1.5 a 3.5 cm de margen y podía golpear el sensor (por eso v1.1 **no** es respaldo seguro). Con 150 mm (`TOFP=150`) y `TOF_BLOQUEO=180` en v3, las pruebas M5 (`n=10`) dieron 10/10 sin contacto, `TOF_PARO` media 144.7 mm, margen del chasis 8.0–10.0 cm (media 9.1 cm) y desde la punta del láser 4.5–6.5 cm (media 5.6 cm) (**VALIDADO EN EL CARRO**).
+- **`TOF_BLOQUEO_MM`, desde `SEG=2`.** Antes, cada reintento de `FORWARD` daba un pulso de 250 ms a plena potencia contra el obstáculo; ahora, con el frente confirmado más cerca de 180 mm, el avance no arranca (`firmware_carro/config.h`). En M6 (`n=3` por distancia), a 20 y 18 cm la primera corrida avanzó 355–415 ms sin tocar y frenó a 9–10 cm, y las otras bloquearon al instante (6–19 ms); a 16 cm, 3/3 bloqueo instantáneo.
 - **Dos lecturas seguidas, no una**, para que un pico suelto no frene (`docs/sensores.md`). En v3, un «sin eco» aislado no rompe la racha (`TOF_PERDIDAS_TOLERADAS` = 1): una pata delgada da «sin eco» entre dos lecturas cercanas.
-- **Watchdog de 1,000 ms con latido de 250 ms**: relación de 4 a 1, tolera perder tres latidos. `PING` no renueva el reloj: si lo hiciera, el carro seguiría andando con el botón suelto, porque la página manda `PING` cada 800 ms (`firmware_carro/carro.c`).
+- **Watchdog de 1,000 ms con latido de 250 ms**: relación de 4 a 1, tolera perder tres latidos. Sobre por qué 1,000 ms para `TIEMPO_WATCHDOG_MS`: no registrado por el equipo (la constante está desde el 10-oct). `PING` no renueva el reloj: si lo hiciera, el carro seguiría andando con el botón suelto, porque la página manda `PING` cada 800 ms (`firmware_carro/carro.c`).
+- **Paro por láser solo en AUTO:** porque el modo manual es manual (no se registró otra razón; el cálculo de que a velocidad MANUAL 120 mm no alcanzaría es análisis del repo).
 - **Supervisión extra en la app (J16, 31-oct).** La conexión no corta por silencio (`readTimeout(0)` en `Enlace.kt`): si el WiFi cae sin cerrar el socket, la app no se entera sola. De ahí salen `SILENCIO_SENS_MS`, `WD:<n>` y el corte del latido tras `TOF_PARO` (`docs/estado_20261110.md` §2.3).
 - **AYUDA en vez de ERROR** (15-oct, commit `1699d6f`): si no puede esquivar, el carro queda quieto y una persona toma el control.
 - **No se hizo:** rechazar `FORWARD` con el láser caído y poner resistencias pull-down de unos 10 kΩ en los pines del driver (solo propuestas, `10_seguridad_funcional.md` §6.3). La parada por «flanco incierto» de la v4 se descartó (subsistema I).
-
-CONFIRMAR CON EL EQUIPO: ¿por qué se eligió 1,000 ms para `TIEMPO_WATCHDOG_MS`? La constante está desde el primer firmware modular (10-oct) y el repo solo la justifica después.
-
-CONFIRMAR CON EL EQUIPO: ¿el freno por láser se limitó al perfil AUTO porque a velocidad MANUAL 120 mm no alcanzaría? El repo da esa cuenta, pero no dice que fuera la razón.
 
 ## G.4 Cómo lo probamos y con qué resultado
 
@@ -115,9 +112,7 @@ CONFIRMAR CON EL EQUIPO: ¿el freno por láser se limitó al perfil AUTO porque 
 - **Dónde no hay freno.** El láser no frena en MANUAL, en reversa, parado ni en giro (`docs/sensores.md`), y no hay sensor trasero. El watchdog de 1,000 ms tampoco vigila un giro por ángulo, que tiene su propio límite: 500 ms más 15 ms por grado (1,850 ms para 90°).
 - **Un `loop()` colgado** deja los motores sin vigilancia hasta 5 s (unos 96 cm en AUTO, modelo **SIMULADO**). Al reiniciar, los pines del driver quedan flotantes según la hoja del ESP32; que bajen a cero no se midió. Si se pierde la tierra común, las entradas del driver flotan y los motores pueden quedar encendidos: solo corta el interruptor del portapilas (`docs/seguridad.md` §1.3).
 - **«Continuar» tras una AYUDA sin mover el carro.** Después de una AYUDA por giro (causas 16 a 19), la v3 ignora los cuadros del centro hasta el siguiente giro y solo queda el freno láser del firmware. Se corrigió solo en v6 (`docs/progreso_v6.md`, rama `feat/autonomo-v6`). Regla: mover el carro con la cruceta antes de «Continuar».
-- **Firmware en el carro.** El último grabado es el v1.1 (10-nov): sin `SEG=2` ni `SEG=3`, un texto desconocido renueva el watchdog y `FORWARD` no se bloquea cerca de un obstáculo.
-
-CONFIRMAR CON EL EQUIPO: ¿se grabará `SEG=3` antes del 1-dic-2026 o el carro llegará con el firmware v1.1?
+- **Firmware en el carro.** Ya está grabado el firmware v3 `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`). La decisión para la exposición es Opción 1 con condiciones (v3 autónomo con `FW:b396390` y las dos correcciones del 26-nov; Plan B: el mismo firmware v3 con el autónomo apagado). **v1.1 no es respaldo seguro**: su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
 
 ## G.6 Términos clave
 

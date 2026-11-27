@@ -2374,6 +2374,7 @@ static int laser_tras_el_destino(const Navegador *nav, int mm)
 static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoObstaculos *obs)
 {
     int z, bloqueado = 0, inmediato = 0, cerc3_chico = 0, causa_normal = 0, firma = 0, otra_causa = 0;
+    int solo_laser = nav->autoridad_laser && tof_fresco(nav, ahora_ms);
     int autoridad = tof_fresco(nav, ahora_ms) && nav->tof_valida && nav->tof_mm > 0;
     int laser_cerca = (autoridad && nav->tof_mm <= OBSTACULO_LASER_MM && !laser_tras_el_destino(nav, nav->tof_mm)) || nav->tof_paro_activo;
     int solo_central[OBS_ZONAS] = { 0, 0, 0 };
@@ -2417,25 +2418,27 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
         /* V2: la coincidencia cuenta desde el segundo cuadro seguido (una caja inventada por la red sobre una mancha de color suele durar un solo cuadro), salvo
          * en el CENTRO con cercanía 3, donde cuenta desde el primero (revisión: ver NAV_COINCIDENCIA_CUADROS_FRENAR). A los lados no: ahí lo resuelve el vistazo
          * con el láser, y frenar por un cuadro lo interrumpía. Mientras el carro rodea o vuelve a la línea vale siempre desde el primero. */
-        hay = fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || (z == ZONA_CENTRO && obs->zona[z].cercania >= 3) || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
+        hay = !solo_laser && fuentes == 3 && (nav->coinc_seguidas[z] >= NAV_COINCIDENCIA_CUADROS_FRENAR || (z == ZONA_CENTRO && obs->zona[z].cercania >= 3) || nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO ||
                                nav->estado == NAV_DETENIDO_OBSTACULO);
         coincidencia |= hay;
         /* PRECAUCIÓN (avanzar a ratos). V2: una sola fuente a un LADO ya no la pide si hay vistazo (lo resuelve el láser sin frenar), y en el CENTRO solo cuando lo
          * visto está cerca (cercanía 2 o 3): ahí el láser ya está mirando y no ve nada, así que puede ser algo bajo y conviene dar tiempo a la otra fuente. */
-        if (fuentes == 3 && (!autoridad || nav->tof_mm > NAV_TOF_LIBRE_MM)) {
-            nav->precaucion = 1;
-        } else if (fuentes && !autoridad) {
-            int modo = (nav->rumbo_fw && nav->usa_giroscopio && nav->usa_tof) ? nav->precaucion_modo : NAV_PRECAUCION_SIEMPRE;
-
-            if (modo == NAV_PRECAUCION_SIEMPRE || (modo == NAV_PRECAUCION_COLOR_CERCA && z == ZONA_CENTRO && (fuentes & 1) && obs->zona[z].cercania >= 2)) {
+        if (!solo_laser) {
+            if (fuentes == 3 && (!autoridad || nav->tof_mm > NAV_TOF_LIBRE_MM)) {
                 nav->precaucion = 1;
+            } else if (fuentes && !autoridad) {
+                int modo = (nav->rumbo_fw && nav->usa_giroscopio && nav->usa_tof) ? nav->precaucion_modo : NAV_PRECAUCION_SIEMPRE;
+
+                if (modo == NAV_PRECAUCION_SIEMPRE || (modo == NAV_PRECAUCION_COLOR_CERCA && z == ZONA_CENTRO && (fuentes & 1) && obs->zona[z].cercania >= 2)) {
+                    nav->precaucion = 1;
+                }
             }
         }
         int celdas = obs->zona[z].celdas;
-        if (fuentes == 3 && obs->zona[z].cercania >= 3) inmediato = 1;   /* con cercanía 3 frena con este mismo cuadro; con cercanía 2 hacen falta dos seguidos */
+        if (!solo_laser && fuentes == 3 && obs->zona[z].cercania >= 3) inmediato = 1;   /* con cercanía 3 frena con este mismo cuadro; con cercanía 2 hacen falta dos seguidos */
 
-        if (autoridad && z == ZONA_CENTRO) {
-            hay = hay || laser_cerca; /* el laser puede confirmar, nunca borrar una sospecha visual */
+        if ((autoridad || nav->tof_paro_activo) && z == ZONA_CENTRO) {
+            hay = hay || laser_cerca; /* con autoridad_laser: solo el láser confirma el centro; sin ella: puede confirmar sin borrar */
             nav->fijo_ignorar[z] = 0;  /* el láser nunca se descarta como un fantasma de color */
         }
         if (nav->vistazo_confirmado != 0 && nav->estado == NAV_DETENIDO_OBSTACULO && z == ((nav->vistazo_confirmado < 0) ? ZONA_IZQUIERDA : ZONA_DERECHA)) {
@@ -2609,8 +2612,8 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                 }
             }
         }
-        /* Las columnas 0 y 9 en las filas 7 a 9 se evalúan solo durante esquive y reincorporación (si esa zona no está ignorada como fantasma fijo). */
-        if (nav->fuentes_vision[ZONA_IZQUIERDA] == 3 && !nav->fijo_ignorar[ZONA_IZQUIERDA] && (borde_izq[0] + borde_izq[1] + borde_izq[2] >= 2)) {
+        /* Las columnas 0 y 9 en las filas 7 a 9 se evalúan solo durante esquive y reincorporación (si esa zona no está ignorada como fantasma fijo y no rige autoridad_laser). */
+        if (!solo_laser && nav->fuentes_vision[ZONA_IZQUIERDA] == 3 && !nav->fijo_ignorar[ZONA_IZQUIERDA] && (borde_izq[0] + borde_izq[1] + borde_izq[2] >= 2)) {
             nav->zona_borde_cerca[ZONA_IZQUIERDA] = 1;
             nav->zona_hay[ZONA_IZQUIERDA] = 1;
             nav->zona_frena[ZONA_IZQUIERDA] = 1;
@@ -2621,7 +2624,7 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                 nav->zona_cerc_frena[ZONA_IZQUIERDA] = 3;
             }
         }
-        if (nav->fuentes_vision[ZONA_DERECHA] == 3 && !nav->fijo_ignorar[ZONA_DERECHA] && (borde_der[0] + borde_der[1] + borde_der[2] >= 2)) {
+        if (!solo_laser && nav->fuentes_vision[ZONA_DERECHA] == 3 && !nav->fijo_ignorar[ZONA_DERECHA] && (borde_der[0] + borde_der[1] + borde_der[2] >= 2)) {
             nav->zona_borde_cerca[ZONA_DERECHA] = 1;
             nav->zona_hay[ZONA_DERECHA] = 1;
             nav->zona_frena[ZONA_DERECHA] = 1;
@@ -2685,11 +2688,11 @@ static void registrar_cuadro(Navegador *nav, uint32_t ahora_ms, const ResultadoO
                 nav->vistazo_cerc[lado_i] = cerc;
                 nav->vistazo_lateral_mm[lado_i] = (int)((long)lejos_mm * seno_mil(grados) / (seno_mil(90 - grados) > 100 ? seno_mil(90 - grados) : 100));
                 nav->vistazo_grados_lado[lado_i] = (tuerce < NAV_VISTAZO_GRADOS) ? NAV_VISTAZO_GRADOS : ((tuerce > NAV_VISTAZO_GRADOS_MAX) ? NAV_VISTAZO_GRADOS_MAX : tuerce);
-                una = nav->fuentes_vision[zl] != 3 && !nav->fijo_ignorar[zl] &&
+                una = (solo_laser || nav->fuentes_vision[zl] != 3) && !nav->fijo_ignorar[zl] &&
                       (n >= NAV_VISTAZO_CELDAS_MIN || (n >= NAV_VISTAZO_CELDAS_RACHA && racha_max >= NAV_VISTAZO_RACHA));
             }
             nav->vistazo_solo_red[lado_i] = 0;
-            if (!una && (nav->fuentes_vision[zl] & 2) && nav->fuentes_vision[zl] != 3 && !nav->fijo_ignorar[zl] && nav->color_cercania[zl] >= 1) {
+            if (!una && (nav->fuentes_vision[zl] & 2) && (solo_laser || nav->fuentes_vision[zl] != 3) && !nav->fijo_ignorar[zl] && nav->color_cercania[zl] >= 1) {
                 una = 1;                                   /* solo la red (una caja suya en ese lado, sin celdas de color): también merece el vistazo */
                 nav->vistazo_solo_red[lado_i] = 1;
                 if (nav->vistazo_cerc[lado_i] < nav->color_cercania[zl]) nav->vistazo_cerc[lado_i] = nav->color_cercania[zl];
@@ -2818,14 +2821,17 @@ static int esq_ignorando(const Navegador *nav, uint32_t ahora_ms)
  * Devuelve la zona que bloquea o -1. */
 static int esq_zona_que_bloquea(const Navegador *nav)
 {
+    int zona_objeto = (nav->lado > 0) ? ZONA_IZQUIERDA : ((nav->lado < 0) ? ZONA_DERECHA : -1);
+    int en_paralelo = (nav->estado == NAV_ESQUIVANDO && nav->fase == NAV_FASE_PARALELO);
+
     if (nav->zona_frena[ZONA_CENTRO] && nav->zona_cerc_frena[ZONA_CENTRO] >= NAV_ESQ_CERCANIA_BLOQUEA) {
         return ZONA_CENTRO;
     }
     if (nav->estado == NAV_ESQUIVANDO || nav->estado == NAV_REINCORPORANDO) {
-        if (nav->zona_borde_cerca[ZONA_IZQUIERDA]) {
+        if (nav->zona_borde_cerca[ZONA_IZQUIERDA] && !(en_paralelo && zona_objeto == ZONA_IZQUIERDA)) {
             return ZONA_IZQUIERDA;
         }
-        if (nav->zona_borde_cerca[ZONA_DERECHA]) {
+        if (nav->zona_borde_cerca[ZONA_DERECHA] && !(en_paralelo && zona_objeto == ZONA_DERECHA)) {
             return ZONA_DERECHA;
         }
     }
@@ -3813,7 +3819,7 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
         nav->esquivadas_obstaculo = 0;   /* V2: este obstáculo quedó atrás y verificado: el siguiente tiene su propio presupuesto */
         /* (revisión) Aquí se daban por libres 30 cm «justo detrás» al entrar a la línea, sin que el chasis los hubiera pisado: si la cuenta del paso salía corta, una
          * reversa podía dar contra lo que se acababa de rodear. Se quitó: atras_conocido_mm solo cuenta lo avanzado en recta (en el banco no cambió ningún resultado). */
-        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM >= nav->ruta_largo_original_mm) {
+        if (nav->extension_ruta_mm > 0 && s + NAV_OVERRIDE_TOL_MM >= nav->ruta_largo_original_mm) {
             /* El rodeo obligó a prolongar la última recta y el carro ya entró a la línea más allá del destino dibujado: la ruta termina aquí. */
             diag_escribir(nav, "REINC_DIAG fin tras_el_destino s=%ld destino=%ld: el rodeo termino mas alla del final dibujado", s, nav->ruta_largo_original_mm);
             nav->desde_ayuda = 0;
@@ -3821,7 +3827,7 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
             nav->estado = NAV_TERMINADO;
             return NAV_CMD_STOP;
         }
-        if (nav->override_largo_mm == 0 && nav->extension_ruta_mm > 0) {
+        if (nav->extension_ruta_mm > 0) {
             /* V2: la última recta se había prolongado por si el rodeo terminaba más allá del destino, pero el carro volvió a la línea ANTES del destino dibujado:
              * la prolongación se quita y la ruta termina donde el usuario la dibujó (antes seguía hasta el final prolongado, hasta 60 cm de más). */
             int de_mas = nav->extension_ruta_mm / MM_POR_CELDA;
@@ -3829,7 +3835,10 @@ static ComandoNav reinc_terminar(Navegador *nav, uint32_t ahora_ms)
             if (de_mas > 0 && nav->n_puntos - de_mas >= 2) {
                 nav->n_puntos -= de_mas;
                 nav->extension_ruta_mm = 0;
-                nav->ruta_largo_mm = distancia_hasta_tramo(nav, nav->n_puntos - 1);
+                nav->ruta_largo_mm = (nav->override_largo_mm > 0) ? nav->ruta_largo_original_mm : distancia_hasta_tramo(nav, nav->n_puntos - 1);
+                if (nav->override_largo_mm > 0) {
+                    nav->override_largo_mm = (int)nav->ruta_largo_original_mm;
+                }
                 if (nav->reinc_indice_obj > nav->n_puntos - 1) {
                     nav->reinc_indice_obj = nav->n_puntos - 1;
                 }
@@ -3892,7 +3901,7 @@ static int cercania_que_freno(const Navegador *nav)
 static int extender_recta_final(Navegador *nav, long hasta)
 {
     int n = nav->n_puntos, dc, df;
-    if (n < 2 || nav->override_largo_mm) return 0;
+    if (n < 2) return 0;
     dc = nav->ruta[n - 1].columna - nav->ruta[n - 2].columna;
     df = nav->ruta[n - 1].fila - nav->ruta[n - 2].fila;
     while (hasta + NAV_REINC_ADELANTE_CM * 10 > distancia_hasta_tramo(nav, nav->n_puntos - 1) &&
@@ -3904,6 +3913,9 @@ static int extender_recta_final(Navegador *nav, long hasta)
         nav->extension_ruta_mm += MM_POR_CELDA;
     }
     nav->ruta_largo_mm = distancia_hasta_tramo(nav, nav->n_puntos - 1);
+    if (nav->override_largo_mm > 0 && nav->ruta_largo_mm > nav->override_largo_mm) {
+        nav->override_largo_mm = (int)nav->ruta_largo_mm;
+    }
     return hasta <= nav->ruta_largo_mm - NAV_PARALELO_FIN_MM;
 }
 
@@ -3929,7 +3941,7 @@ static long calcular_fin_obstaculo(Navegador *nav, int cercania)
     if (k + 1 >= nav->n_puntos - 1) {
         limite -= NAV_PARALELO_FIN_MM;
     }
-    if (hasta > limite && k + 1 == nav->n_puntos - 1 && nav->override_largo_mm == 0) {
+    if (hasta > limite && k + 1 == nav->n_puntos - 1) {
         extender_recta_final(nav, hasta);
         limite = distancia_hasta_tramo(nav, nav->n_puntos - 1) - NAV_PARALELO_FIN_MM;
     }
@@ -4008,7 +4020,8 @@ static long costado_a_la_vista(Navegador *nav, uint32_t ahora_ms, long hecho_mm)
     int tramo, ultima;
     long s, desvio, objetivo, limite;
 
-    if (!(nav->borde_lejos[lado_linea] >= NAV_FLANCO_CELDAS_MIN || (nav->fuentes_vision[zona_linea] & 2)) ||
+    if ((nav->autoridad_laser && tof_fresco(nav, ahora_ms)) ||
+        !(nav->borde_lejos[lado_linea] >= NAV_FLANCO_CELDAS_MIN || (nav->fuentes_vision[zona_linea] & 2)) ||
         (uint32_t)(ahora_ms - nav->t_ultimo_cuadro_ms) > (uint32_t)NAV_MAX_HUECO_VIDEO_MS) {
         return -1;
     }
@@ -4246,8 +4259,8 @@ static ComandoNav tick_detenido(Navegador *nav, uint32_t ahora_ms)
         planificar(nav);
         return NAV_CMD_STOP;
     }
-    /* Una medición cercana O consenso visual fresco autoriza; el desacuerdo no bloquea. */
-    if (!esquive_sigue_decidido(nav) && !nav->tof_paro_activo && !tof_dice_cerca(nav, ahora_ms) && !nav->zona_frena[ZONA_CENTRO] &&
+    /* Una medición cercana O consenso visual fresco autoriza; el desacuerdo no bloquea. Si venía de PARALELO o REINCORPORANDO (volver_a_reinc), no salta directo a SIGUIENDO. */
+    if (!esquive_sigue_decidido(nav) && !nav->volver_a_reinc && !nav->tof_paro_activo && !tof_dice_cerca(nav, ahora_ms) && !nav->zona_frena[ZONA_CENTRO] &&
         !nav->zona_frena[ZONA_IZQUIERDA] && !nav->zona_frena[ZONA_DERECHA] && !nav->cierre_reintento) {
         if (libre_confirmado(nav, ahora_ms)) {
             nav->estado = NAV_SIGUIENDO;
@@ -4923,10 +4936,13 @@ static ComandoNav reinc_abortar_entrada(Navegador *nav, uint32_t ahora_ms)
 static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
 {
     int fase = nav->reinc_fase, siguiente, giro;
+    int solo_laser = nav->autoridad_laser && tof_fresco(nav, ahora_ms);
     int z, borde_visible = 0;
-    for (z = 0; z < OBS_ZONAS; z++) {
-        if (nav->fuentes_vision[z] == 3 && nav->zona_cercania[z] >= 2 &&
-            ahora_ms - nav->t_ultimo_cuadro_ms <= NAV_MAX_HUECO_VIDEO_MS) borde_visible = 1;
+    if (!solo_laser) {
+        for (z = 0; z < OBS_ZONAS; z++) {
+            if (nav->fuentes_vision[z] == 3 && nav->zona_cercania[z] >= 2 &&
+                ahora_ms - nav->t_ultimo_cuadro_ms <= NAV_MAX_HUECO_VIDEO_MS) borde_visible = 1;
+        }
     }
 
     /* Ya se avanzo el tramo exploratorio. Ver otra superficie cercana al
@@ -5032,7 +5048,7 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
             diag_escribir(nav, "BORDE_DIAG entrada_ocupada centro_confirmado=1");
             return reinc_abortar_entrada(nav, ahora_ms);
         }
-        if (nav->obstaculo_pendiente && !nav->reinc_pasar_primero && nav->cmd_actual == NAV_CMD_FORWARD && nav->frames_recibidos >= 2 &&
+        if (!solo_laser && nav->obstaculo_pendiente && !nav->reinc_pasar_primero && nav->cmd_actual == NAV_CMD_FORWARD && nav->frames_recibidos >= 2 &&
             entrada_ocupada_por_color(nav, ahora_ms, 0) >= 0) {
             int zo = entrada_ocupada_por_color(nav, ahora_ms, 0);
 
@@ -5102,7 +5118,7 @@ static ComandoNav tick_reincorporando(Navegador *nav, uint32_t ahora_ms)
                 (uint32_t)(ahora_ms - nav->esq_t_giro_fin_ms) < (uint32_t)nav->latencia_visual_ms + (uint32_t)NAV_MIRADA_MAX_MS) {
                 return NAV_CMD_STOP;
             }
-            zo = entrada_ocupada_por_color(nav, ahora_ms, 1);
+            zo = solo_laser ? -1 : entrada_ocupada_por_color(nav, ahora_ms, 1);
             if (zo >= 0) {
                 int zona_adelante = (nav->reinc_giro1 < 0) ? ZONA_DERECHA : ZONA_IZQUIERDA;
 

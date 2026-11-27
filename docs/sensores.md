@@ -23,7 +23,7 @@ Direcciones: MPU6050 = 0x68 (AD0 a GND; si AD0 va a 3V3 sería 0x69), VL53L0X = 
 
 ## Montaje
 
-Giroscopio plano sobre la caja de pilas, flecha X al frente, eje Z hacia arriba; **girar a la izquierda = ángulo positivo**. Si la prueba física da el signo contrario: `IMU_SIGNO` en `config.h`. Láser al frente, a 6-8 cm del piso, inclinado 5-8° hacia arriba.
+Giroscopio plano sobre la caja de pilas, flecha X al frente, eje Z hacia arriba; **girar a la izquierda = ángulo positivo**. Si la prueba física da el signo contrario: `IMU_SIGNO` en `config.h`. Láser VL53L0X al frente, a **3.5 cm del suelo** y **sobresale 3.5 cm del frente** del chasis (inclinación: **NO MEDIDO**; anteriormente este documento indicaba 6–8 cm y 5–8° hacia arriba).
 
 ## Parámetros (todos en `firmware_carro/config.h`)
 

@@ -6,23 +6,24 @@ El hardware es lo físico del carro: una placa ESP32 DevKit (el «cerebro», con
 
 ## A.2 Cómo funciona, paso a paso
 
-1. **Energía.** Hay tres fuentes que solo comparten la tierra (GND). La powerbank #1 alimenta la ESP32 por USB y, con el regulador de 3.3 V de la placa, al MPU6050 y al VL53L0X. Un portapilas de 4 pilas AA (unos 6 V) alimenta solo el VDD del TC1508A. La powerbank #2 alimenta la cámara (`README.md`, `docs/manual/capitulos/02_arquitectura.md` §2.2).
+1. **Energía.** Hay dos fuentes separadas que comparten la tierra (GND): una *powerbank* única alimenta por USB tanto a la ESP32 DevKit (y con su regulador de 3.3 V al MPU6050 y al VL53L0X) como a la placa de cámara Freenove; un portapilas de 4 pilas AA Energizer (tipo no confirmado; las pruebas mostraron que el desgaste acorta las distancias recorridas, por lo que se recomiendan alcalinas nuevas y un juego de repuesto) alimenta solo el VDD del TC1508A.
 
 ```
-  Powerbank #1 ──USB──▶ ┌──────────────┐ ──3V3──▶ MPU6050 + VL53L0X
-                        │ ESP32 DevKit │          (SDA 21, SCL 22)
-                        └──────┬───────┘
-                               │ PWM: GPIO 27, 26, 25, 33
-                               ▼
-  4 pilas AA ──(+) a VDD──▶ ┌─────────┐ ──▶ 2 motores TT izquierdos (OUTA, OUTB)
-  (~6 V)                    │ TC1508A │ ──▶ 2 motores TT derechos   (OUTC, OUTD)
-                            └────┬────┘
-  GND común: (-) de las pilas ───┴─── GND del driver ─── GND de la ESP32
-
-  Powerbank #2 ──USB──▶ cámara Freenove (se une al resto solo por WiFi)
+  Powerbank ───┬──USB──▶ ┌──────────────┐ ──3V3──▶ MPU6050 + VL53L0X
+               │         │ ESP32 DevKit │          (SDA 21, SCL 22)
+               │         └──────┬───────┘
+               │                │ PWM: GPIO 27, 26, 25, 33
+               │                ▼
+               │  4 pilas AA ──(+) a VDD──▶ ┌─────────┐ ──▶ 2 motores TT izquierdos (OUTA, OUTB)
+               │  (Energizer)               │ TC1508A │ ──▶ 2 motores TT derechos   (OUTC, OUTD)
+               │                            │ INT1..4 │
+               │                            └────┬────┘
+               │  GND común: (-) de las pilas ───┴─── GND del driver ─── GND de la ESP32
+               │
+               └──USB──▶ cámara Freenove (se une al resto solo por WiFi)
 ```
 
-2. **Órdenes y driver.** El firmware escribe PWM (encender y apagar la señal muy rápido; el porcentaje encendido marca la potencia) en cuatro pines, de 0 a 255, a 1,500 Hz y 8 bits. El TC1508A es un puente H doble: dos canales con entradas A y B. PWM en una entrada y 0 en la otra gira el motor en un sentido; 0 y 0 lo deja suelto («rueda libre», según la hoja de la familia TC1508S; no se verificó en el módulo, `docs/investigacion_autonomo/04_motores_cinematica.md` §1.1). Cada canal alimenta dos motores TT en paralelo (`docs/conexiones.md` §5).
+2. **Órdenes y driver.** El firmware escribe PWM (encender y apagar la señal muy rápido; el porcentaje encendido marca la potencia) en cuatro pines, de 0 a 255, a 1,500 Hz y 8 bits. El **TC1508A** (entradas rotuladas **INT1 a INT4** en el módulo) es un puente H doble: dos canales con entradas A y B. PWM en una entrada y 0 en la otra gira el motor en un sentido; 0 y 0 lo deja suelto («rueda libre», según la hoja del driver; no se verificó en el módulo, `docs/investigacion_autonomo/04_motores_cinematica.md` §1.1). Cada canal alimenta dos motores TT en paralelo (`docs/conexiones.md` §5).
 3. **Pines.** «A» y «B» son nombres de patitas, no sentidos de giro: el motor izquierdo avanza por GPIO 26 y el derecho por GPIO 25 (`config.h`).
 
 | GPIO | Constante | Para qué |
@@ -50,21 +51,15 @@ En `FORWARD` y `REVERSE` el 255 dura 250 ms; después el lado izquierdo baja a 2
 
 ## A.3 Cómo lo hicimos
 
-- **Tracción diferencial con ruedas mecanum.** Con dos canales no hay más: tres movimientos independientes necesitan al menos tres señales, y con el cableado por diagonales saldrían avance y movimiento lateral, pero no giro (análisis del repo, inferencia, `04_motores_cinematica.md` §1.3).
-- CONFIRMAR CON EL EQUIPO: ¿Por qué se usaron ruedas mecanum si con este driver de dos canales el carro no puede moverse de lado?
+- **Tracción diferencial con ruedas mecanum.** Según el equipo, se eligieron ruedas mecanum por agarre en terrenos con fricción donde otras ruedas costaban; con este driver de dos canales (TC1508A, entradas rotuladas INT1 a INT4) no hay movimiento lateral y no se usa (análisis del repo, inferencia, `04_motores_cinematica.md` §1.3).
 - **Pivote con un solo lado.** Se probó girar con lados opuestos y «el carro no se mueve por falta de par»; la causa no se diagnosticó (`docs/calibracion.md` y `docs/bitacora.md`, citados en `04_motores_cinematica.md` §1.3). Costo: giro asimétrico.
 - **Sin encoders, con giroscopio.** Los engranes plásticos de los TT tienen holgura y las llantas patinan; un encoder mide el eje del motor, no el patinaje, y el giroscopio mide el giro real del chasis (`docs/exposicion.md`, pregunta 1). La distancia se sigue estimando por tiempo.
-- **Tres fuentes de energía.** Los motores dan picos de corriente y ruido inductivo, y la electrónica se reinicia (brownout) si su tensión baja demasiado (`docs/seguridad.md` §1.1); además el TC1508A no tiene alimentación lógica aparte (`docs/conexiones.md` §4). Reglas: el (+) de las pilas va solo a VDD, las tierras van unidas y no se agrega una quinta pila (cuatro AA dan unos 6 V y el driver admite 7.2 V como máximo). Esas corrientes no se midieron (**NO MEDIDO**). La ESP32 va a 160 MHz y el WiFi a 13 dBm para reducir picos que algunas powerbanks leen como cortocircuito (`config.h`).
-- CONFIRMAR CON EL EQUIPO: ¿La cámara usa una segunda powerbank (`README.md`, capítulo 2) o comparte la del DevKit (`docs/seguridad.md`, `docs/referencia/hardware.md`)?
-- CONFIRMAR CON EL EQUIPO: ¿Qué pilas AA se usan en la demostración, alcalinas (unos 6 V) o NiMH (unos 4.8 V), y por qué cuatro?
-- **PWM de 1,500 Hz.** `config.h` dice que da más par bajo carga que 5,000 Hz, a costa de algo de zumbido; no encontramos la medición.
-- CONFIRMAR CON EL EQUIPO: ¿Se comparó 1,500 Hz con 5,000 Hz en el carro?
+- **Fuentes de energía.** Los motores dan picos de corriente y ruido inductivo, y la electrónica se reinicia (brownout) si su tensión baja demasiado (`docs/seguridad.md` §1.1); además el TC1508A no tiene alimentación lógica aparte (`docs/conexiones.md` §4). La cámara **comparte la *powerbank* del DevKit**, mientras el portapilas lleva **4 pilas AA Energizer** (tipo no confirmado; como el desgaste acorta las distancias recorridas, para la exposición se recomiendan alcalinas nuevas y un juego de repuesto). Reglas: el (+) de las pilas va solo a VDD, las tierras van unidas y no se agrega una quinta pila (el driver admite 7.2 V como máximo). Esas corrientes no se midieron (**NO MEDIDO**). La ESP32 va a 160 MHz y el WiFi a 13 dBm para reducir picos que algunas powerbanks leen como cortocircuito (`config.h`).
+- **PWM de 1,500 Hz.** `config.h` dice que da más par bajo carga que 5,000 Hz, a costa de algo de zumbido; sobre si se comparó 1,500 Hz contra 5,000 Hz en el carro, no hay registro (el equipo cree que no).
 - **Arranque pleno, perfiles y balance.** Con menos de 255 desde parado los motores solo zumbaban: cada arranque va a 255 por 250 ms. MANUAL usa 255 y AUTO 210 (menos recorrido mientras llega el STOP). El lado izquierdo es el más rápido y se le baja la potencia: con 255/255 el carro se desvió 14.5 cm a la derecha en 150 cm, con 248 se pasó 16 cm a la izquierda y con 252 quedó a 3 cm (`config.h`). El factor (988 en MANUAL, 986 en AUTO, en milésimas) lo cambia la app (subsistema B).
 - **STOP deja las ruedas libres.** El driver permitiría freno activo, pero cambiarlo invalidaría las calibraciones sin medición (`docs/reporte_J16.md`, `docs/investigacion_autonomo/10_seguridad_funcional.md`). Consecuencia: inercia (A.5).
-- **Montaje de los sensores.** El giroscopio va plano sobre la caja de pilas, flecha X al frente y eje Z arriba, para que girar a la izquierda dé ángulo positivo (`IMU_SIGNO` = 1). El láser va al frente, de 6 a 8 cm del piso y de 5 a 8° hacia arriba, para no ver el piso (`docs/sensores.md`, `docs/validacion_sensores.md`). Los empalmes van soldados o con regleta: un SCL flojo dejó al giroscopio invisible el 18-oct (`docs/conexiones.md` §8).
-- CONFIRMAR CON EL EQUIPO: ¿A qué altura, con qué inclinación y a cuántos mm del frente del carro está montado el láser? (`docs/sensores.md` dice 6 a 8 cm y de 5 a 8° hacia arriba; el capítulo 3 dice horizontal; el simulador usa 55 mm.)
-- CONFIRMAR CON EL EQUIPO: ¿Qué hay conectado al GPIO 2 (resistencia, LED o nada) y la powerbank realmente necesita el pulso?
-- CONFIRMAR CON EL EQUIPO: ¿Qué marcado trae el driver (TC1508A o TC1508S) y cómo se rotulan sus entradas (IN1 a IN4, INT1 a INT4 o INA a IND)?
+- **Montaje de los sensores y GPIO 2.** El giroscopio va plano sobre la caja de pilas, flecha X al frente y eje Z arriba, para que girar a la izquierda dé ángulo positivo (`IMU_SIGNO` = 1). El láser VL53L0X va montado al frente a **3.5 cm del suelo** y **sobresale 3.5 cm del frente** (inclinación: **NO MEDIDO**; documentos anteriores decían 6–8 cm y 5–8°). Los empalmes van soldados o con regleta: un cable SCL flojo dejó al giroscopio sin lectura el 18-oct y volvió a romperse brevemente el 25-nov antes de repararse (`docs/conexiones.md` §8). En **GPIO 2 no hay nada conectado** (sin resistencia ni LED externo).
+- **Driver:** **TC1508A**, con entradas rotuladas **INT1 a INT4** en el módulo.
 
 ## A.4 Cómo lo probamos y con qué resultado
 

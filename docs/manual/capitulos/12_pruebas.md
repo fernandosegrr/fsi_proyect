@@ -82,7 +82,7 @@ El modelo físico del simulador inyecta simultáneamente: asimetría de motores 
 
 El archivo trae diez escenarios (`recta_100`, `recta_150`, `recta_200`, `giro_45`, `giro_90`, `giro_180`, `ruta_L`, `cuadrado`, `esquive_20x20` y `esquive_ancha`); aquí se muestran cinco. La mediana es la columna `p50` de `error_mm` (error lateral en rectas y esquives; posición final en rutas con giros) y el error de rumbo es la media de `rumbo_x10` (décimas de grado, valor absoluto). «J15 actual» y «J16 con `RUMBO`» son las configuraciones `ANTES: J15 actual` y `DESPUES con RUMBO (firmware nuevo)` del archivo.
 
-CONFIRMAR CON EL EQUIPO: las cifras de esta tabla en el manual v1.1 (`94 mm -> 8 mm`, `64 -> 36`, `142 -> 42`, `128 -> 38`, con porcentajes de éxito) no aparecen en `docs/precision/monte_carlo_1000.txt`; ¿de qué corrida o documento salieron?
+> **Nota:** las cifras de esta tabla en el manual v1.1 (`94 mm -> 8 mm`, `64 -> 36`, `142 -> 42`, `128 -> 38`, con porcentajes de éxito) quedaron **no localizadas; reemplazadas por `docs/precision/monte_carlo_1000.txt`**.
 
 ## 12.4 Escenarios y funciones NO MEDIDOS en el carro físico
 
@@ -143,3 +143,27 @@ Rama `feat/autonomo-v3`. Las columnas del banco ahora son **excluyentes y suman 
 Verificación de software de la rama: `make -C nucleo_c test` 1901 casos y `make -C pruebas_firmware test` sin fallos, el núcleo también con `-ftrapv` (desbordes enteros) y el analizador estático de GCC sin avisos; servidor falso 60 casos; `scripts/probar_version.py` 21 casos; la app y los dos firmwares compilan (no se instalaron ni se grabaron). **No se pudieron correr ASan, UBSan ni TSan** (el compilador de Windows de este equipo no trae sus bibliotecas y no hay WSL). Revisión independiente de seguridad (un subagente que no vio cómo se hizo el cambio): sin hallazgos críticos ni altos; dos medios y cuatro menores, corregidos o documentados.
 
 Compuertas del encargo contra el banco: **siguen rojas** (23 líneas; v2 tenía 19): muebles con patas, paradas momentáneas con sol, sombra y reflejo (8–13 % de las corridas), la caja con pared a un lado (613 ok, 387 ayudas) y, por comparar contra v2, una ayuda de más en la caja corrida de lado, una en el banquito y nueve en la silla (las ayudas «finales» bajan: 44 → 33 y 32 → 15, y los contactos se reducen a la mitad o más). Error lateral final del Monte Carlo heredado: 18/44 mm contra 17/40 de v1.1 (SIMULADO); con un margen de paso menor (180 mm) se iguala, pero produce 2 contactos en el objeto largo: no se aplica.
+
+## 12.8 Pruebas físicas del 25–26 de noviembre de 2026 (v3 + correcciones del 26-nov)
+
+Versiones probadas: `main` `b396390`, cámara `cam-v2` (GC0308, ~12.4–12.5 fps HQVGA), carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), app `0.4-b396390` (`versionCode` 3) más las dos correcciones de código del 26-nov (`navegador.c` y `ManualFragment.kt`). Operó el carro: Jaime.
+
+> **Regla de rigor:** las corridas posteriores a las correcciones del 26-nov se presentan como **con las correcciones del 26-nov; mismos escenarios donde ocurrió la falla; `n` pequeño**, no como validación independiente completa.
+
+| Prueba | Condición y `n` | Resultado agregado | Etiqueta |
+|---|---|---|---|
+| Línea base recta 2 m con `IMU+RUMBO` | `n=3` (tras reparar cable SCL roto; 2 previas sin IMU derivaron +43 cm) | `3/3` OK, 186 cm, 28.5 cm/s, deriva 0 / 11 / 0 cm, 0 falsos positivos | **VALIDADO EN EL CARRO** |
+| M8 velocidad en AUTO | `n=5` | `5/5` completas, 140 cm en 4.82–4.91 s, media 28.7 cm/s, deriva 0 cm en `5/5` | **VALIDADO EN EL CARRO** |
+| M8 velocidad en MANUAL | Sin corridas por límite de seguridad | Sin medición | **NO MEDIDO** |
+| M5 frenado láser (`TOFP=150`) | `n=10` | `10/10` sin contacto; `TOF_PARO` media 144.7 mm; margen del chasis 8.0–10.0 cm (media 9.1 cm), de la punta del láser 4.5–6.5 cm (media 5.6 cm) | **VALIDADO EN EL CARRO** |
+| M6 bloqueo en arranque (`TOF_BLOQUEO=180`) | `n=3` por distancia (20, 18 y 16 cm) | A 20 y 18 cm: primera corrida avanzó 355–415 ms sin tocar y frenó a 9–10 cm, las otras bloqueo instantáneo (6–19 ms); a 16 cm `3/3` bloqueo instantáneo. Sesgo positivo del VL53L0X de +40 a +51 mm contra la punta del láser (+67 a +102 mm con tela negra mate) | **VALIDADO EN EL CARRO** |
+| M1 deriva del giroscopio | `n=1` de 10 min quieto + 32.3 s acumulados en AUTO | 0.0° en 0, 1, 2, 5 y 10 min quieto; 0.0° tras 32.3 s en AUTO; muestreo 10.0 Hz | **VALIDADO EN EL CARRO** |
+| M2 patas | Omitido por el dueño | Sin medición en el carro; sigue en banco | **NO MEDIDO** / **SIMULADO** |
+| M3 pared lateral a 30 cm | `n=20` por ángulo | 0°: 100 % libre; ~20°: 85 % libre; ~31°, ~43° y ~61°: 0 % libre (detectada) | **VALIDADO EN EL CARRO** |
+| Objeto negro mate (mochila 42×14 cm), estático | 20–80 cm, `n=100` | `100/100` con eco sólido (0 % sin eco). El caso de 0 % de eco sigue solo en banco | **VALIDADO EN EL CARRO** (eco); **SIMULADO** (0 % eco) |
+| Objeto negro mate (mochila 42×14 cm), dinámico | `main` original (`n=3`) vs. corrección 26-nov (`n=3`) | Original: r1 terminó sin tocar, r2 AYUDA causa 14, r3 fallo grave con contacto. Con corrección: `3/3` terminado, 0 contactos, 0 AYUDA, reincorporación a 1–2 cm de la línea | **VALIDADO EN EL CARRO** (correcciones 26-nov; mismo escenario; `n` pequeño) |
+| Objetos bajos (2 cm y 6 cm) | Estático a 40 cm (`n=20`); dinámico a 90 cm (`n=3` c/u) | Láser vio ambos en `20/20` a 40 cm (`aprenderPiso` rechaza a 40 cm: 18 % > 5 %). Dinámico 2 cm: `3/3` terminado, 0 contactos. Dinámico 6 cm: r1 AYUDA causa 2 sin contacto (antes de corrección); r2 y r3 terminados, 0 contactos (con corrección) | **VALIDADO EN EL CARRO** (correcciones 26-nov; mismo escenario; `n` pequeño) |
+| Piso limpio 1.5 m | `n=5` | `5/5` terminado, `0/5` falsos positivos, 0 paradas falsas, 0 esquives; recorrió 133–139 cm de 150 por desgaste de pilas (recalibración `ms_por_cm_x10=355` aplicada después, sin repetir corridas) | **VALIDADO EN EL CARRO** |
+
+- **Límite conocido de `aprenderPiso`:** rechaza el arranque con obstáculos a 40–80 cm (`descartadoPct > 5`, medido en 18 % > 5 % a 40 cm); el ajuste está pendiente y no se aplicó, por lo que las rutas arrancan con al menos 100 cm libres delante.
+- **Siguen `SIMULADO`, `NO MEDIDO` o `PENDIENTE`:** M8 manual, M2 patas, objeto con 0 % de eco IR, M4, M7, M9, bloques C y D (luz cambiante, ruta en L, cuadrado) y la prueba física de `RUMBO:ON` en modo Manual (**PENDIENTE**).

@@ -128,7 +128,10 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
         val ctx = requireContext()
         SesionCarro.entrar(ctx, SesionNativa.USUARIO_MANUAL)
         val logica = SesionCarro.logica
+        logica.usarGiroscopio = ajustes.usarGiroscopio
+        logica.usarRumbo = ajustes.usarRumbo
         logica.pedirPerfil(ajustes.perfilDeManual)
+        logica.rumbo(logica.rumboActivo)
         logica.alPong = { ms ->
             sumaPong += ms
             cuentaPong++
@@ -149,8 +152,9 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
         refresco.cancelar()
         SesionCarro.dejarDeEscuchar(alCambiar)
         SesionVideo.dejarDeEscuchar(alCambiar)
-        // Al irse de la pantalla el carro se detiene (STOP) y se sueltan las pantallas de la sesión.
+        // Al irse de la pantalla el carro se detiene (STOP), se apaga RUMBO y se sueltan las pantallas de la sesión.
         SesionCarro.logica.parar()
+        SesionCarro.logica.rumbo(false)
         SesionCarro.logica.alPong = null
         cerrarDeteccion()
         cerrarVideo()
@@ -284,6 +288,9 @@ class ManualFragment : Fragment(R.layout.fragment_manual) {
                 MotionEvent.ACTION_DOWN -> {
                     v.isPressed = true
                     Movimiento.escala(v, true)
+                    if (comando == "FORWARD") {
+                        SesionCarro.logica.rumbo(SesionCarro.logica.rumboActivo)
+                    }
                     SesionCarro.logica.presionar(comando)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {

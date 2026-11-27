@@ -68,13 +68,11 @@ Lo probado y descartado entre el 18 y el 24 de noviembre:
 | v5-carbon-fix: retención de 200 ms | Nueva ronda ciega: contactos de 228 a 74 y de 362 a 83; solo G7 cumplió. G1 falló por una parada de más en `falso_sombra` (6 a 7) y G3 por 41 contactos en `bloque_sin_eco` (tope: 29) | Tag `freeze/v5-carbon-fix`; rama `feat/autonomo-v5-carbon-fix` |
 | v6: tres banderas sobre v5-fix | G1 y G7 no cumplen en las 12 matrices; en piso limpio con ruido calibrado es peor que v3 (2 AYUDA en 360 corridas contra 0). Ganó en `pared_al_frente` con láser pesimista | Tag `freeze/v6`; rama `feat/autonomo-v6` |
 
-- **Por qué v3 queda como base.** Ninguna versión nueva cumplió las compuertas a ciegas. Cubrir objetos oscuros sin eco y muebles de patas cuesta más AYUDA y paradas falsas en piso limpio, y ahí v3 salió mejor que v5-fix y v6 (`docs/progreso_v6.md` §6, rama `feat/autonomo-v6`). El reporte de v4 deja la decisión por escrito; para v5 y v6, la rama de v6 parte de la «base segura v3».
+- **Por qué v3 queda como base.** Ninguna versión nueva cumplió las compuertas a ciegas. Cubrir objetos oscuros sin eco y muebles de patas cuesta más AYUDA y paradas falsas en piso limpio, y ahí v3 salió mejor que v5-fix y v6 (`docs/progreso_v6.md` §6, rama `feat/autonomo-v6`). El reporte de v4 deja la decisión por escrito; contra v5-carbon y v5-carbon-fix no hay decisión escrita aparte: se decidió tras la evaluación ciega y el reporte de v6 con ruido calibrado.
 - **Revisión de la interfaz (v1.2).** Se pidió revisar los parpadeos de la app. La rama `fix/ui-android-parpadeos` salió de la punta de v6; su único commit (`21c1b2d`) pasó a `release/v1.2` con `git cherry-pick -x` (`6c849ce`). Solo cambia interfaz y texto: no toca `nucleo_c/`, el firmware ni la cámara. `docs/revision_ui_android.md` lista 12 hallazgos (P1 a P12) y 8 observaciones sin cambio (N1 a N8).
 - **Las compuertas G1 a G7 de este capítulo no tienen relación con el subsistema G (seguridad).**
-
-CONFIRMAR CON EL EQUIPO: ¿hay una decisión escrita de no usar v5-carbon ni v5-carbon-fix, o se tomó al ver la evaluación ciega?
-
-CONFIRMAR CON EL EQUIPO: ¿qué versión de la app se usó en las 7 rectas del 15-nov? La caja negra no la anota y los documentos la llaman «v3» y «versión anterior».
+- **Versión de la app en las 7 rectas del 15-nov:** no registrado por el equipo (la caja negra no la anota).
+- **Operación en pruebas físicas:** Jaime operó el carro en las pruebas físicas (y lo operará en la demostración).
 
 ## I.4 Cómo lo probamos y con qué resultado
 

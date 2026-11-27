@@ -1,8 +1,10 @@
-# Guía de exposición — Carro FSI v1.2 (1 de diciembre de 2026)
+# Guía de exposición — Carro FSI v1.2.1 (1 de diciembre de 2026)
 
-- **Versión:** v1.2 — base v3; autónomo v3 **SIMULADO**, pendiente de validar en el carro; lo validado en el carro es v1.1, 10-nov-2026.
+- **Versión:** v1.2.1 — autónomo v3 con correcciones del 26-nov (`navegador.c` y `ManualFragment.kt`); firmware en el carro `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`); cámara `cam-v2`; app `0.4-b396390` + correcciones del 26-nov; validación física parcial (25–26 nov-2026).
+- **Decisión para la exposición (Opción 1 con condiciones):** exponer v3 autónomo con `FW:b396390` y las dos correcciones del 26-nov. **Plan B:** el mismo firmware v3 con el autónomo apagado (modo manual o semiautónomo). **No usar v1.1 como respaldo seguro:** su paro a 120 mm deja solo 1.5 a 3.5 cm de margen y puede golpear el sensor.
+- **Condiciones operativas:** pilas AA alcalinas nuevas y un juego de repuesto; arrancar cada ruta con al menos 100 cm de piso libre delante (`aprenderPiso` rechaza a 40–80 cm); encender primero la *powerbank* con el carro quieto 3 s para calibrar el giroscopio y luego conectar las pilas; revisar cables antes de salir.
 - **Cómo usarla:** léanla completa una vez. El guion (sección 1) se dice en voz alta, las preguntas (sección 2) van por subsistema y la sección 4 es para cuando algo falle en vivo. Cada respuesta cierra con `(Manual: X.n)`, la sección del manual que la explica.
-- **Manual:** [`manual/Manual_Proyecto_Carro_FSI.pdf`](manual/Manual_Proyecto_Carro_FSI.pdf). Lo que el equipo debe confirmar está en [`pendientes_confirmar.md`](pendientes_confirmar.md).
+- **Manual:** [`manual/Manual_Proyecto_Carro_FSI.pdf`](manual/Manual_Proyecto_Carro_FSI.pdf). Lo que sigue abierto está en [`pendientes_confirmar.md`](pendientes_confirmar.md).
 - **Etiquetas:** **VALIDADO EN EL CARRO**, **SIMULADO**, **NO MEDIDO** y **PENDIENTE** significan lo mismo que en el manual; la sección 5 las resume.
 
 ## 1. Guion de 3 a 5 minutos
@@ -31,9 +33,7 @@ El láser VL53L0X mide la distancia al frente y confirma un obstáculo a menos d
 
 **2:30 · Cómo se protege (1)**
 
-El freno de emergencia es del láser, no de la cámara, porque el video llega unos 320 milisegundos tarde y la luz lo engaña. Si dos lecturas seguidas marcan menos de 120 milímetros, la ESP32 corta los motores sin esperar al teléfono. Eso es lo que tiene grabado hoy el firmware v1.1. El v3 lo sube a 150, pero solo está compilado.
-
-*Si graban el firmware v3 antes de exponer, cambien este bloque: el paro pasa a 150 milímetros.*
+El freno de emergencia es del láser, no de la cámara, porque el video llega unos 320 milisegundos tarde y la luz lo engaña. Si dos lecturas seguidas marcan menos de 150 milímetros, la ESP32 corta los motores sin esperar al teléfono, y no deja arrancar bajo 180 milímetros. Eso es lo que tiene grabado el carro hoy (`FW:b396390`, `SEG=3`), medido en 10 de 10 frenados sin contacto.
 
 **3:00 · Cómo se protege (2)**
 
@@ -41,11 +41,11 @@ Si pasa un segundo sin órdenes, el carro apaga los motores solo; la app repite 
 
 **3:30 · Cómo lo probamos**
 
-Probamos en tres niveles. Pruebas automáticas en PC: 1,901 casos del núcleo y 567 del firmware, sin fallos en la corrida del 24 de noviembre. Un simulador que repite mil corridas por escenario con semillas fijas. Y el carro real, pero solo con la v1.1: el 10 de noviembre esquivó seis veces una caja de 20 por 20 centímetros sin tocarla, y terminó cinco de seis.
+Probamos en tres niveles. Pruebas automáticas en PC y un simulador que repite mil corridas por escenario con semillas fijas. Y en el carro real el 25 y 26 de noviembre con `FW:b396390`: medimos velocidad en AUTO (28.7 cm/s, `n=5`), frenado láser (10/10 sin contacto), deriva del giroscopio (0.0° en 10 min) y, tras las correcciones del 26-nov, mochila negra (3/3 sin contacto) y objeto bajo de 6 cm (2/2 tras el ajuste).
 
 **4:00 · Lo que NO hemos probado**
 
-Lo importante: el autónomo v3 es simulado. Nunca ha corrido en el piso. En el simulador todavía no cumple sus metas con muebles de patas, con una pared pegada a la ruta ni con manchas de sol. Tampoco hemos medido la distancia real de frenado del láser, ni cortado el WiFi con el carro en marcha, ni probado la interfaz nueva con el carro real.
+Lo importante: las corridas buenas tras las correcciones son con `n` pequeño (`n=3`) en los mismos escenarios donde falló, no una validación independiente. Siguen pendientes o sin medir: patas reales (M2), objeto con 0 % de eco IR, velocidad en Manual (M8), bloques de luz cambiante, ruta en L y cuadrado en piso, y `RUMBO:ON` en modo Manual.
 
 **4:30 · Cierre**
 
@@ -58,14 +58,10 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 ### A · Hardware
 
 **P:** Si las ruedas son mecanum, ¿por qué el carro no se mueve de lado?  
-**R:** El driver TC1508A tiene solo dos canales: las ruedas de cada lado reciben la misma señal, así que el carro es una tracción diferencial, como un tanque. Para ir de lado habría que controlar las diagonales por separado. El repositorio no dice por qué se eligieron ruedas mecanum. (Manual: A.2)
-
-> CONFIRMAR CON EL EQUIPO: ¿Por qué ruedas mecanum si con un driver de dos canales no hay movimiento lateral?
+**R:** Según el equipo, se usaron ruedas mecanum por agarre en terrenos con fricción donde otras ruedas costaban. El driver TC1508A (entradas INT1 a INT4) tiene solo dos canales: las ruedas de cada lado reciben la misma señal, así que el carro es una tracción diferencial y no usa movimiento lateral. (Manual: A.2)
 
 **P:** ¿Por qué hay fuentes de energía separadas para los motores y la electrónica?  
-**R:** Los motores TT dan picos de corriente y ruido, y la ESP32 se reinicia si su tensión baja demasiado; por eso las 4 pilas AA alimentan solo el driver y comparten la tierra. Es una razón de diseño: corrientes y tensiones bajo carga **NO MEDIDO**. El README cuenta tres fuentes (la cámara con powerbank propia); `exposicion.md`, dos. (Manual: A.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿La cámara lleva su propia powerbank o comparte la del DevKit?
+**R:** Los motores TT dan picos de corriente y ruido, y la ESP32 se reinicia si su tensión baja demasiado; por eso las 4 pilas AA Energizer alimentan solo el driver y comparten la tierra, mientras que la cámara **comparte la *powerbank* del DevKit**. Corrientes y tensiones bajo carga: **NO MEDIDO**. (Manual: A.3)
 
 **P:** ¿Por qué un giroscopio y no encoders en las ruedas?  
 **R:** Los engranes de plástico de los motores TT tienen holgura y las llantas patinan: un encoder mide el eje del motor, no el patinaje; el giroscopio MPU6050 mide cuánto gira el chasis. A cambio, la distancia sigue siendo por tiempo, y los ángulos de las pruebas los midió el propio giroscopio, sin cinta (**NO MEDIDO**). (Manual: A.3)
@@ -82,9 +78,7 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **R:** No se salta la fila: todo entra a una cola de 32 lugares que se vacía en orden. Su prioridad es que, con la cola llena, no se descarta; se tira primero un `PING` viejo. En PC, 100,000 comandos con dos hilos no perdieron ningún `STOP` (**SIMULADO**). (Manual: B.2)
 
 **P:** ¿Qué firmware tiene el carro hoy y qué cambia en el v3?  
-**R:** El grabado es el v1.1 (`FW:6d1b213-20261110`, 10-nov): paro láser a 120 mm. El v3 (`SEG=3`) sube el paro a 150 mm, no deja arrancar con el frente a menos de 180 mm y tolera un «sin eco» suelto. Solo está compilado y probado en PC (**SIMULADO**); los 150 mm salen de un modelo, no de una medición. (Manual: B.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿Se grabará el firmware v3 (`SEG=3`) antes del 1 de diciembre o llega el v1.1?
+**R:** Ya tiene grabado el firmware v3 `FW:b396390` (`SEG=3`, `TOFP=150`, `TOF_BLOQUEO=180`), que sube el paro a 150 mm, bloquea el arranque bajo 180 mm y tolera un «sin eco» suelto. En M5 (`n=10`) frenó 10/10 sin contacto (margen del chasis 8.0–10.0 cm). v1.1 (120 mm) **no** es respaldo seguro porque deja solo 1.5–3.5 cm de margen. (Manual: B.3)
 
 ### C · Cámara
 
@@ -125,10 +119,10 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **R:** No sabe qué es cada cosa. Aprende cómo se ve el piso libre (1 s, con el carro quieto) y marca las celdas de 10×10 píxeles cuyo color ya no se parece. Si una zona (izquierda, centro o derecha) junta 7 celdas hay un posible obstáculo; que lo sea lo decide la fusión con la red y el láser. Un objeto del color del piso no se ve por color. (Manual: F.2)
 
 **P:** ¿Por qué piden color Y red, y quién manda si el láser no está de acuerdo?  
-**R:** Cada uno se equivoca distinto: el color con juntas de baldosa y sombras, la red con cajas inventadas; juntos filtran a ambos, aunque con sol o sombra fallan a la vez. El láser confirma un obstáculo a 400 mm o menos, pero si está libre o sin eco no borra lo que ven color y red. Si solo una de las dos ve el obstáculo y el láser no, el carro no frena. (Manual: F.3)
+**R:** Cada uno se equivoca distinto: el color con juntas de baldosa y sombras, la red con cajas inventadas; juntos filtran a ambos, aunque con sol o sombra fallan a la vez. Con las correcciones del 26-nov (`solo_laser`), cuando `autoridad_laser` está activo y el ToF está fresco, **el láser manda en el centro**: solo él confirma obstáculo en el centro y las reglas de visión pura no disparan esquive ni bloquean la reincorporación; la cámara sigue pudiendo iniciar un vistazo lateral. (**ADVERTENCIA:** antes de esa corrección se explicaba que el láser libre no borraba la sospecha visual.) (Manual: F.3)
 
 **P:** ¿Cómo calculan la distancia con una sola cámara?  
-**R:** No la calculan en centímetros: usan qué tan abajo llega el obstáculo en la imagen y lo reparten en tres bandas de cercanía. El «corredor» sí convierte filas en centímetros, pero está apagado: altura, inclinación y campo de visión de la cámara son valores de partida sin medir (**NO MEDIDO**). La distancia medida la da el láser. (Manual: F.2)
+**R:** No la calculan en centímetros: usan qué tan abajo llega el obstáculo en la imagen y lo reparten en tres bandas de cercanía. El «corredor» sí convierte filas en centímetros, pero está apagado: la altura de la cámara se midió en **9 cm** (simulador 11.5 cm, corredor 10 cm), mientras inclinación y campo de visión siguen **NO MEDIDO**. La distancia medida la da el láser. (Manual: F.2)
 
 ### G · Seguridad
 
@@ -160,10 +154,8 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **P:** ¿Cómo lo hicieron y qué versiones hubo?  
 **R:** Empezó como «WALL-E», un sketch de Arduino de un solo archivo. Se separó la lógica en C99 probada en PC y vinieron v1.0 (27-oct, probada en pista), v1.1 (10-nov, validada en el carro), v2 y v3 (simuladas), v4 a v6 (probadas en el banco y descartadas) y v1.2 (24-nov) = v3 + revisión de interfaz. (Manual: I.2)
 
-**P:** ¿Por qué la v1.2 usa la v3 y no la v6 ni la v1.1?  
-**R:** Ninguna versión nueva cumplió las compuertas a ciegas, y en piso limpio v3 salió mejor que v5-fix y v6; todo en simulador. Frente a la v1.1, v3 mejora con muebles de patas en el banco (banquito: 849 ok contra 245), pero tiene 23 compuertas en rojo y no está validada en el carro; por qué se prefirió a la v1.1 no está escrito. (Manual: I.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿Por qué v3 y no v1.1 con la revisión de UI como base de la exposición?
+**P:** ¿Por qué la v1.2.1 usa la v3 y no la v6 ni la v1.1?  
+**R:** v4, v5 y v6 se descartaron en simulación con ruido realista (23 compuertas en rojo; ramas archivadas). Frente a v1.1, v1.1 **no** es respaldo seguro porque su paro a 120 mm deja solo 1.5–3.5 cm de margen y puede golpear el sensor. Por eso la decisión es Opción 1 con condiciones: exponer v3 autónomo con `FW:b396390` (`SEG=3`, 150/180 mm) y las dos correcciones del 26-nov (Plan B: mismo firmware en manual). (Manual: I.3)
 
 **P:** ¿Qué salió mal en el camino?  
 **R:** El esquive de v1.0 (27-oct) no hizo un rodeo limpio; se corrigió en J15 y J16 y se validó el 10-nov. En v5, un banco sin ruido dio «G1 cumple» y no se sostuvo al calibrarlo con las 7 cajas negras del 15-nov. Y la prueba en el teléfono encontró un cierre de la app (Manual en horizontal) que la lectura del código no vio. (Manual: I.3)
@@ -171,22 +163,16 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 ### Preguntas de fondo
 
 **P:** ¿Por qué una red propia y no el WiFi de la escuela?  
-**R:** Así el teléfono, la cámara y el carro se hablan sin router externo ni internet; procesar video en la nube o en una PC se descartó por depender de internet y por latencias de más de 300 ms. El canal es fijo para que la cámara no busque canal tras una caída. Ningún texto compara con el WiFi de la escuela. (Manual: B.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿Hubo otra razón para crear una red propia además de no depender de un router externo?
+**R:** Así el teléfono, la cámara y el carro se hablan sin router externo ni internet (no hubo otra razón registrada además de no depender de un router externo); procesar video en la nube o en una PC se descartó por latencias de más de 300 ms. El canal es fijo para que la cámara no busque canal tras una caída. (Manual: B.3)
 
 **P:** ¿Por qué láser y cámara?  
 **R:** Se complementan. La cámara ve ancho y lejos, pero llega unos 320 ms tarde y la luz la engaña; el láser mide milímetros desde el propio carro, pero es un solo haz de unos 25° y puede no dar eco con objetos oscuros, mates, transparentes o patas finas. Por eso el freno de emergencia es del láser y la cámara ayuda a elegir por dónde rodear. (Manual: G.3)
 
 **P:** ¿Por qué C y JNI?  
-**R:** El mismo código en C99 se compila con GCC en la PC y con el NDK en el teléfono: así lo probamos con simulaciones de miles de rutas, sin emulador ni carro. JNI es el puente por el que Kotlin llama a esas funciones (`puente.c`, 145 funciones). No medimos si es más rápido que Kotlin (**NO MEDIDO**). (Manual: E.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿Por qué C99 y no Kotlin o C++ para el navegador, y se probó otra opción?
+**R:** Se eligió C porque se vio C en clase (FSI). Además (análisis del repo), el mismo código en C99 se compila con GCC en la PC y con el NDK en el teléfono para probar miles de rutas sin emulador ni carro. JNI es el puente por el que Kotlin llama a esas funciones (`puente.c`, 145 funciones). No medimos si es más rápido que Kotlin (**NO MEDIDO**). (Manual: E.3)
 
 **P:** ¿Qué es una red neuronal aquí y quién la entrenó?  
-**R:** Es una función con millones de números ajustados de antemano con muchas fotos etiquetadas: recibe una imagen y devuelve cajas con clase y confianza. Usamos EfficientDet-Lite0 (80 clases de COCO), de los ejemplos oficiales de TensorFlow Lite, tal cual; el repositorio no trae código ni datos de entrenamiento. Solo marca cajas con confianza de 0.6 o más y no decide sola: debe coincidir con el color. (Manual: F.3)
-
-> CONFIRMAR CON EL EQUIPO: ¿Quién entrenó ese archivo y alguien verificó su licencia Apache 2.0 en la ficha oficial?
+**R:** Es una función con millones de números ajustados de antemano con muchas fotos etiquetadas: recibe una imagen y devuelve cajas con clase y confianza. Usamos EfficientDet-Lite0 (80 clases de COCO), de los ejemplos oficiales de TensorFlow Lite, tal cual; el repositorio no trae código ni datos de entrenamiento, y ni quién la entrenó exactamente ni la licencia Apache 2.0 en la fuente primaria están verificados (**no verificado**). Solo marca cajas con confianza de 0.6 o más y no decide sola: debe coincidir con el color. (Manual: F.3)
 
 **P:** ¿Cómo saben que funciona?  
 **R:** Por niveles, y cada resultado lleva su etiqueta. Pruebas en PC: 1,901 casos del núcleo y 567 del firmware, sin fallos (**SIMULADO**). Banco: miles de corridas con semillas fijas (**SIMULADO**). En el carro, solo la v1.1: el 10-nov, 6 de 6 corridas sin tocar la caja y 5 de 6 completas. De la v3 no hay corridas en el piso. (Manual: I.4)
@@ -197,29 +183,49 @@ Respuestas cortas y honestas. Cifras de pruebas en PC: las de la corrida del 24-
 **P:** ¿Qué haría falta para mejorarlo?  
 **R:** Primero medir en el carro con el protocolo ya escrito: M8, M1, M5 y M6 con el firmware actual; luego M2, M3, M4, M7, M9 y M10, y los bloques A y B. Después, decidir si se graba `SEG=3`. De diseño siguen sin hacerse un tope global de continuaciones tras AYUDA, leer el estado de la medición del láser y detectar atascos. (Manual: H.2)
 
-**P:** ¿Qué parte hizo cada quien?  
-**R:** El repositorio no lo dice: los 269 commits anteriores a la v1.2 salen con una sola cuenta y la documentación no reparte el trabajo. No contesten con nombres que no puedan respaldar: cada persona dice qué parte hizo y la explica con su capítulo del manual (sección 3). Si algo lo hizo una herramienta de IA, díganlo (sección 6). (Manual: I.2)
-
-> CONFIRMAR CON EL EQUIPO: ¿Quién hizo qué parte?
+**P:** ¿Qué explica cada integrante en la exposición?  
+**R:** Presentación general: todos. Cada quien explica su especialidad (sección 3) y todos deben entender la visión general del sistema. (Manual: 1.5)
 
 **P:** ¿Usaron herramientas de inteligencia artificial?  
-**R:** El repositorio muestra agentes de código: 168 de los 269 commits anteriores a la v1.2 traen la línea `Co-Authored-By` de Claude. Hay que decirlo tal cual y poder explicar qué decidió y revisó el equipo. Los hechos y lo que solo el equipo puede contestar están en la sección 6. (Manual: I.2, y sección 6 de esta guía)
+**R:** «Nos asistimos de herramientas de inteligencia artificial para la programación. Entendemos el funcionamiento del sistema y la guiamos para construir lo que queríamos.» El curso no exige declararlo, pero lo permite, y por eso el equipo lo declara (sección 6). (Manual: I.2)
 
-## 3. Quién explica qué
+## 3. Quién explica qué en la exposición
 
-Pueden repartirse más de un subsistema por persona. Escriban el nombre en la última columna.
+Principio de la guía: **todos deben entender todo; cada quien se especializa en lo suyo** (presentación general: todos).
 
-| Subsistema | Qué cubre | Responsable |
+| Subsistema | Qué cubre | Quién lo explica en la exposición |
 |---|---|---|
-| [A · Hardware](manual/capitulos/01d_subsistema_A_hardware.md) | ESP32 DevKit, driver TC1508A, motores TT, ruedas mecanum, giroscopio, láser, energía |   |
-| [B · Firmware](manual/capitulos/01e_subsistema_B_firmware.md) | Programa del carro: red `CarroFSI`, órdenes, `GIRAR` y `RUMBO`, paro por láser, watchdogs |   |
-| [C · Cámara](manual/capitulos/01f_subsistema_C_camara.md) | Freenove ESP32-WROVER y sensor GC0308, tres modos de video, recuperación |   |
-| [D · App Android](manual/capitulos/01g_subsistema_D_app_android.md) | Pantallas, sesiones con carro y cámara, rutas, PARO y AYUDA, caja negra, revisión de interfaz |   |
-| [E · Núcleo en C](manual/capitulos/01h_subsistema_E_nucleo_c.md) | Navegador de ocho estados, pose, calibración, puente JNI |   |
-| [F · Visión](manual/capitulos/01i_subsistema_F_vision.md) | Color del piso, red EfficientDet-Lite0, fusión con el láser, corredor |   |
-| [G · Seguridad](manual/capitulos/01j_subsistema_G_seguridad.md) | Capas de paro, watchdogs, AYUDA, qué pasa si falla el WiFi o la app |   |
-| [H · Simulador y pruebas](manual/capitulos/01k_subsistema_H_simulador_pruebas.md) | Carro virtual, banco Monte Carlo, pruebas en PC, protocolo físico |   |
-| [I · Proceso](manual/capitulos/01l_subsistema_I_proceso.md) | Versiones v1.0 a v1.2, lo descartado, evidencia y etiquetas |   |
+| [A · Hardware](manual/capitulos/01d_subsistema_A_hardware.md) | ESP32 DevKit, driver TC1508A (`INT1`–`INT4`), motores TT, ruedas mecanum, giroscopio, láser, energía | Jaime Fernando Guerrero Segoviano |
+| [B · Firmware](manual/capitulos/01e_subsistema_B_firmware.md) | Programa del carro: órdenes, `GIRAR` y `RUMBO`, paro por láser (`SEG=3`), watchdogs | Jaime Fernando Guerrero Segoviano |
+| [C · Cámara](manual/capitulos/01f_subsistema_C_camara.md) | Freenove ESP32-WROVER y sensor GC0308, tres modos de video, recuperación, **red propia `CarroFSI`** | Melanie Contreras Solis |
+| [D · App Android](manual/capitulos/01g_subsistema_D_app_android.md) | Pantallas, sesiones con carro y cámara, rutas, PARO y AYUDA, caja negra, revisión de interfaz | Vitto Eduardo Rangel Fortuna |
+| [E · Núcleo en C](manual/capitulos/01h_subsistema_E_nucleo_c.md) | Navegador de ocho estados, pose, calibración, puente JNI, correcciones del 26-nov | Jaime Fernando Guerrero Segoviano |
+| [F · Visión](manual/capitulos/01i_subsistema_F_vision.md) | Color del piso, red EfficientDet-Lite0, fusión con el láser (`solo_laser`), corredor | Jaime Fernando Guerrero Segoviano |
+| [G · Seguridad](manual/capitulos/01j_subsistema_G_seguridad.md) | Capas de paro, watchdogs, AYUDA, qué pasa si falla el WiFi o la app | Azul Abril Cadena Campos |
+| [H · Simulador y pruebas](manual/capitulos/01k_subsistema_H_simulador_pruebas.md) | Carro virtual, banco Monte Carlo, pruebas en PC, protocolo físico | Jaime Fernando Guerrero Segoviano |
+| [I · Proceso](manual/capitulos/01l_subsistema_I_proceso.md) | Versiones v1.0 a v1.2.1, lo descartado, evidencia y etiquetas | Jaime Fernando Guerrero Segoviano |
+
+*Nota sobre operación:* **Jaime Fernando Guerrero Segoviano** armó e integró el sistema del carro, operó el carro en las pruebas físicas y lo opera en la demostración.
+
+### Lo que todos deben saber (10 puntos)
+
+1. Tres nodos en red local propia (`CarroFSI`, 2.4 GHz): carro (`ESP32 DevKit`), cámara (`ESP32-WROVER`) y teléfono Android.
+2. La cámara comparte la *powerbank* del DevKit; los motores van aparte con 4 pilas AA Energizer vía `TC1508A` (`INT1`–`INT4`).
+3. Sin *encoders*: distancia por tiempo (`ms_por_cm`) y giros/rumbo con el giroscopio `MPU6050`.
+4. Láser `VL53L0X` (3.5 cm del suelo, sobresale 3.5 cm): frena en el carro a 150 mm (`FW:b396390`, `SEG=3`) y bloquea arranque bajo 180 mm.
+5. Núcleo en `C99`: mismo código en PC (pruebas/simulador) y teléfono (JNI), respondiendo cada 50 ms.
+6. Visión: color del piso + `EfficientDet-Lite0`; con las correcciones del 26-nov, cuando el ToF está fresco manda el láser real en el centro.
+7. Si no puede esquivar con seguridad, pasa a `AYUDA`, detiene el carro y cede la cruceta al operador.
+8. Watchdog de comandos apaga motores a los 1,000 ms sin latido (250 ms); watchdog de hardware reinicia a los 5,000 ms.
+9. Exposición: Opción 1 con condiciones (v3 + `FW:b396390` + correcciones del 26-nov; Plan B: mismo firmware en manual); v1.1 no es respaldo seguro.
+10. Etiquetas honestas en todo: las corridas buenas del 26-nov son `n=3` en los mismos escenarios donde falló, y `RUMBO:ON` en Manual sigue pendiente.
+
+### Su especialidad (3 preguntas más probables por integrante)
+
+- **Jaime Fernando Guerrero Segoviano (A, B, E, F, H, I; operación):** (1) ¿Qué cambió en `navegador.c` el 26-nov (`solo_laser` y `PARALELO`) y por qué? (2) ¿Por qué v3 con `SEG=3` (150/180 mm) y no v1.1 (120 mm) ni v4–v6? (3) ¿Qué se midió el 25–26 nov (M1, M3, M5, M6, M8 AUTO, mochila, bajos) y qué falta (M2, `RUMBO:ON` Manual, C y D)?
+- **Vitto Eduardo Rangel Fortuna (D · App Android):** (1) ¿Qué decide Kotlin frente al núcleo en C por JNI? (2) ¿Qué vigila la app (`SENS`, video, `WD`, `TOF_PARO`) y qué hace `ManualFragment` con `RUMBO`? (3) ¿Qué cambió en la revisión de interfaz y qué guarda la caja negra?
+- **Melanie Contreras Solis (C · Cámara y red `CarroFSI`):** (1) ¿Por qué una placa aparte para la cámara y por qué RGB565 HQVGA con `frame2jpg`? (2) ¿Cómo funciona `CarroFSI` (canal 1, `.1` y `.2`, DHCP `.10–.20`) y cómo evita acumular retraso (~320 ms)? (3) ¿Qué hace `recuperacion.c` ante caídas de WiFi, servidor o captura?
+- **Azul Abril Cadena Campos (G · Seguridad):** (1) ¿En qué orden actúan las capas de paro desde el láser hasta el portapilas? (2) ¿Por qué el freno láser solo actúa en AUTO y cómo funciona `TOF_BLOQUEO=180`? (3) ¿Qué pasa si cae el WiFi, se congela la app o se pulsa «Continuar» tras `AYUDA` sin mover el carro?
 
 ## 4. Qué decir si algo falla en la demostración
 
@@ -275,64 +281,42 @@ No existe un interruptor único de modo. Lo autónomo es una ruta en marcha.
 
 Cada cifra de esta guía lleva una etiqueta. Este es el resumen para no sobrevender.
 
-**VALIDADO EN EL CARRO** (solo v1.1; [`estado_20261110.md`](estado_20261110.md) y [`pruebas_fisicas_20261110.csv`](pruebas_fisicas_20261110.csv))
+**VALIDADO EN EL CARRO** (25–26 nov-2026 con `FW:b396390`, `cam-v2` y app `0.4-b396390` + correcciones del 26-nov; más histórico v1.1 del 10-nov)
 
-- 10-nov-2026, B0: firmware `FW:6d1b213-20261110` y app `APP:0.4-6d1b213` conectados por WiFi; giroscopio y láser listos, `RUMBO=1`, escala del giroscopio en 0.
-- 10-nov-2026, B6: recta de 200 cm con una caja de 20×20 cm a unos 100 cm, 6 corridas. 6 de 6 sin tocar la caja; 5 de 6 completas (punto 10 de 10), con error lateral aproximado de ~10, ~10, ~5, ~0 y ~0 cm, medido a ojo.
-- La corrida 5 entró en AYUDA en el punto 4 de 10, sin causa identificada, y no terminó sola.
-- 23 giros de esas corridas: error de −3° a +5°; 21 de 23 dentro de ±3°, según el propio giroscopio (cuenta hecha con los datos del CSV).
-- Hay otras observaciones en el carro con firmware anterior y siete rectas del 15-nov (v1.1, app sin versión anotada). No cuentan aquí como validación de la v1.2.
+- **Línea base recta 2 m (`IMU+RUMBO`):** `n=3`, `3/3` OK, 186 cm, 28.5 cm/s, deriva 0/11/0 cm, 0 falsos positivos (2 corridas previas sin IMU por cable SCL roto derivaron +43 cm).
+- **M8 AUTO:** `n=5`, `5/5`, 140 cm en 4.82–4.91 s, media 28.7 cm/s, deriva 0 cm en `5/5`.
+- **M5 frenado (`TOFP=150`):** `n=10`, `10/10` sin contacto, `TOF_PARO` media 144.7 mm, margen del chasis 8.0–10.0 cm (media 9.1), punta del láser 4.5–6.5 cm (media 5.6).
+- **M6 bloqueo (`TOF_BLOQUEO=180`):** `n=3` por distancia; a 20 y 18 cm la primera avanzó 355–415 ms sin tocar y frenó a 9–10 cm, las otras bloqueo instantáneo (6–19 ms); a 16 cm `3/3` bloqueo instantáneo. Sesgo positivo del VL53L0X: +40 a +51 mm (+67 a +102 mm con tela negra mate).
+- **M1 deriva del giroscopio:** `n=1` de 10 min quieto, 0.0° en 0, 1, 2, 5 y 10 min; tras 32.3 s en AUTO, 0.0°. Muestreo 10.0 Hz.
+- **M3 pared lateral a 30 cm (`n=20`/ángulo):** 0° 100 % libre; ~20° 85 % libre; ~31°, ~43° y ~61° 0 % libre (detectada).
+- **Mochila negra mate (42×14 cm):** estático 20–80 cm (`n=100`), `100/100` con eco sólido. Dinámico con `main` original (`n=3`): r1 terminó sin tocar, r2 AYUDA causa 14, r3 fallo grave con contacto. Dinámico **con las correcciones del 26-nov** (mismo escenario, `n` pequeño `n=3`): `3/3` terminado, 0 contactos, 0 AYUDA, reincorporación a 1–2 cm de la línea.
+- **Objetos bajos (2 y 6 cm):** láser los vio en `20/20` a 40 cm (`aprenderPiso` rechaza a 40 cm: 18 % > 5 %). Dinámicos a 90 cm: 2 cm `n=3`, `3/3` terminado, 0 contactos; 6 cm `n=3`: r1 AYUDA causa 2 sin contacto (antes de la corrección), r2 y r3 terminados con 0 contactos (con la corrección del 26-nov).
+- **Piso limpio 1.5 m:** `n=5`, `5/5` terminado, `0/5` falsos positivos, 0 paradas falsas, 0 esquives; recorrió 133–139 cm de 150 por desgaste de pilas (recalibración `ms_por_cm_x10=355` aplicada después, sin repetirlas).
+- **Histórico v1.1 (10-nov-2026):** B6 (`n=6`, 6/6 sin contacto, 5/6 completas). No es respaldo seguro por paro a 120 mm.
 
-**SIMULADO** (PC, banco, solo compilado, teléfono con carro y cámara falsos)
+**SIMULADO** (PC, banco, teléfono con carro y cámara falsos)
 
-- Todo el autónomo v3 y sus cifras: banco de 23 escenarios × 1,000 corridas (16-nov-2026), con 23 compuertas en rojo.
-- Pruebas en PC del 24-nov-2026 (v1.2): 1,901 casos del núcleo y 567 del firmware, 60 del servidor falso y 21 del verificador de versiones, 0 fallos.
-- Firmware `SEG=3` (paro a 150 mm): solo compilado, nunca grabado. La v1.2 (app y firmware) solo se compiló.
-- Revisión de interfaz de la app (24-nov-2026, [`revision_ui_android.md`](revision_ui_android.md)): probada en un teléfono con carro y cámara falsos, no con el carro real; cuadros lentos de 19.2 % a 3.3 % o menos.
+- Banco de 23 escenarios × 1,000 corridas de v3 (16-nov-2026), con 23 compuertas en rojo; objeto con 0 % de eco IR sigue solo simulado.
+- Revisión de interfaz de la app (24-nov-2026): probada con carro y cámara falsos; cuadros lentos de 19.2 % a 3.3 % o menos.
 - Monte Carlo de precisión J16 (31-oct-2026), 1,000 corridas por escenario.
 
-**NO MEDIDO** (no hay medición)
+**NO MEDIDO / PENDIENTE**
 
-- Distancia de frenado del paro láser y distancia del sensor al frente (M5, M6).
-- Corte de WiFi en marcha (B9).
-- Si el láser ve patas reales, objetos oscuros o sol (M2).
-- Velocidad real en AUTO (¿19.3 o unos 30 cm/s?, M8) y latencia de extremo a extremo (M9).
-- Ángulo físico y escala del giroscopio con cinta, y cuánto mejora `RUMBO`.
-- Corrientes, tensión de las pilas y autonomía.
-
-**PENDIENTE** (el repositorio lo documenta como falta)
-
-- Protocolo físico de la v3 ([`protocolo_prueba_fisica_autonomo_v2.md`](protocolo_prueba_fisica_autonomo_v2.md)): M1 a M10 y bloques A, B1, B2, C y D. Nada se ha ejecutado.
-- Grabar `SEG=3` en el carro.
-- La interfaz nueva con el carro y la cámara reales (lista de 10 minutos en `revision_ui_android.md`).
-- Los modos de video raw y celdas con la cámara real.
+- M8 en Manual (límite de seguridad), M2 (patas reales), objeto con 0 % de eco IR, M4, M7, M9, corte de WiFi en marcha (B9), bloques C y D (luz cambiante, ruta en L, cuadrado), prueba física de `RUMBO:ON` en modo Manual (**PENDIENTE**), inclinación/FOV de cámara e inclinación del láser, corrientes y autonomía.
 
 ## 6. Uso de herramientas de IA en el desarrollo
 
-**REVISAR Y AJUSTAR POR EL EQUIPO ANTES DE EXPONER**
+Declaración del equipo:
 
-Lo que muestra el repositorio (revisado con `git log` el 24-nov-2026):
+> «Nos asistimos de herramientas de inteligencia artificial para la programación. Entendemos el funcionamiento del sistema y la guiamos para construir lo que queríamos.»
 
-- Antes de la v1.2 el historial tenía 269 commits en todas las ramas y etiquetas; los de la v1.2 se suman a esos. Los 269 tienen el mismo nombre de autor, `fernandosegrr`: una sola cuenta de GitHub.
-- De esos 269, 168 llevan un trailer `Co-Authored-By`: 149 de «Claude Sonnet 5.5», 10 de «Claude Opus 5.5» y 9 de «Claude Fable 5.2». Los commits de la v1.2 también lo llevan.
-- Existe la rama remota `copilot/fsi-proyect`. Sus commits también salen con ese mismo autor y todos están ya en `main`.
-- `docs/bitacora.md` (línea 359) y `docs/validacion_sensores.md` (líneas 41 y 62) mencionan a Claude: la regla «Claude no mueve el carro» y pruebas del 20-oct «hechas por Claude con la app por adb». Los dos textos no coinciden del todo.
-- El repositorio muestra agentes de código usados para escribir y revisar código, documentación y pruebas.
+El curso no exige declararlo, pero lo permite, y por eso el equipo lo declara.
 
-Qué significa para la exposición:
+Lo que muestra el repositorio:
 
-- Se puede decir con verdad que se usaron herramientas de IA en el desarrollo y que el historial lo registra.
-- No se puede decir que todo lo escribió el equipo a mano, ni que lo hizo todo la IA: el historial no separa lo que decidió una persona de lo que propuso la herramienta.
-- Una sola cuenta de autor no prueba quién hizo qué. No la usen para repartir el trabajo.
-- Los resultados del carro (10-nov) y las pruebas en PC se respaldan con archivos y fechas, sin importar quién escribió el código. Explicar el código sí depende de cada persona: cada quien debe poder explicar su parte sin ayuda (sección 3).
-- Si el profesor pregunta cuánto hizo la IA, contesten con lo que saben y con lo que muestra el repositorio. No lo minimicen ni lo adornen.
-
-Pendiente del equipo:
-
-- CONFIRMAR CON EL EQUIPO: ¿Qué decidió y revisó el equipo, y qué propuso o escribió una herramienta de IA?
-- CONFIRMAR CON EL EQUIPO: ¿El curso o el profesor piden declarar el uso de IA, y de qué forma?
-- CONFIRMAR CON EL EQUIPO: ¿Quién entiende y puede explicar cada parte del sistema sin ayuda?
-- CONFIRMAR CON EL EQUIPO: ¿Quién operó el carro y anotó los resultados en las pruebas físicas?
+- En el historial de git, una sola cuenta (`fernandosegrr`) concentra los commits y muchos llevan `Co-Authored-By` de agentes de código usados para escribir y revisar código, documentación y pruebas.
+- Los resultados del carro y las pruebas en PC se respaldan con archivos, fechas y salidas reales; explicar cada subsistema en la exposición corresponde a cada integrante (sección 3).
+- Operó el carro en las pruebas físicas y lo opera en la demostración: **Jaime Fernando Guerrero Segoviano**.
 
 ## 7. Lo que aún no validamos
 

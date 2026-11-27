@@ -48,14 +48,15 @@ ancho en píxeles de x cm a esa distancia = x · A(v) / altura
 A(v) ≤ 0  →  horizonte: de ahí para arriba no hay piso
 ```
 
-   Valores de partida (`corredor.h`): carro de 18 cm, cámara a 10 cm del piso, inclinada 20°, campo de 60°, margen de 3 cm por lado. Una caja es DENTRO si cruza la huella (±9 cm), BORDE si solo cruza el margen (±12 cm; en la duda, frena) y FUERA si no lo toca (solo avisa). Con esos valores, el cálculo con las fórmulas de `corredor.c` (hecho para este capítulo) da 11 cm para un borde de abajo en la fila 176, 15 cm en la 141, 20 cm en la 111 y 37 cm en la 71 (la fila mínima). Nadie midió esos valores (**NO MEDIDO**) y `docs/obstaculos.md` anota que una mochila se vio desde ~80 cm: no coinciden.
-6. **Fusión con el láser** (`fusion.c`, `navegador.c`). Por zona, `hay_obstaculo = color && red`: el color marca la zona y una caja de la red (≥ 0.6, de menos de 300 ms) la cruza. La cercanía es la mayor de las dos y una fuente sola es solo un aviso. El navegador pide 2 cuadros seguidos (1 en el centro con cercanía 3). El láser manda milímetros cada 100 ms y confirma si es fresco (≤ 400 ms), válido y ≤ 400 mm (`OBSTACULO_LASER_MM`). Puede confirmar, nunca borrar una sospecha visual. «Sin eco» (lectura inválida o láser caído) pone en cero sus contadores y nunca cuenta como libre: libre son 3 lecturas válidas > 800 mm.
+   Valores de partida (`corredor.h`): carro de 18 cm, cámara a 10 cm del piso, inclinada 20°, campo de 60°, margen de 3 cm por lado (el simulador usaba 11.5 cm, 12° y 56°). En el carro físico la altura real de la cámara es **9 cm del suelo**; su inclinación y campo de visión siguen **NO MEDIDOS**. Con esos valores de partida, el cálculo con las fórmulas de `corredor.c` (hecho para este capítulo) da 11 cm para un borde de abajo en la fila 176, 15 cm en la 141, 20 cm en la 111 y 37 cm en la 71 (la fila mínima), y `docs/obstaculos.md` anota que una mochila se vio desde ~80 cm: no coinciden.
+6. **Fusión con el láser** (`fusion.c`, `navegador.c`). Por zona, `hay_obstaculo = color && red`: el color marca la zona y una caja de la red (≥ 0.6, de menos de 300 ms) la cruza. La cercanía es la mayor de las dos y una fuente sola es solo un aviso. El láser manda milímetros cada 100 ms y confirma si es fresco (≤ 400 ms), válido y ≤ 400 mm (`OBSTACULO_LASER_MM`).
+   > **ADVERTENCIA (actualizado con las correcciones del 26-nov-2026):** La versión anterior indicaba que un láser libre o sin eco nunca borraba una sospecha visual. Con `autoridad_laser = 1` y ToF fresco (`solo_laser` en `nucleo_c/navegador.c`), **el láser manda en el centro**: solo `laser_cerca` confirma obstáculo en `ZONA_CENTRO`, y las reglas de visión pura (coincidencia visual, precaución, cercanía 3 inmediata, bordes laterales `borde_izq`/`borde_der`, `costado_a_la_vista` y chequeos por color en `tick_reincorporando`) quedan inhibidas por `!solo_laser`. La cámara conserva la capacidad de disparar el vistazo lateral.
 
-| Láser | Cámara | Qué pasa |
+| Láser (`solo_laser` activo) | Cámara | Qué pasa |
 |---|---|---|
-| ≤ 400 mm | libre | Frena: manda el láser |
-| libre o sin eco | color Y red | Cuenta como obstáculo; el láser no veta |
-| libre o sin eco | una sola fuente | No frena; a un lado, vistazo del láser |
+| ≤ 400 mm (`laser_cerca`) | cualquiera | Frena y confirma centro: manda el láser |
+| libre o sin eco (ToF fresco) | color Y red | No frena en el centro ni bloquea reincorporación; puede disparar vistazo lateral |
+| libre o sin eco (ToF fresco) | una sola fuente | No frena; a un lado, vistazo del láser |
 | caído más de 600 ms en ruta | cualquiera | Causa 19: STOP y ayuda |
 
    Si discrepan, solo se anota en el registro (`CONTRADICCION_LASER_CAMARA`).
@@ -68,11 +69,9 @@ A(v) ≤ 0  →  horizonte: de ahí para arriba no hay piso
 - **K = 3 en la app.** En J14, con piso real, la franja de referencia de 80 % tomaba el borde del propio carro y se descartaba 8 %; con 60 % y K = 3 quedó en 0 % (`ConfigVision.kt`).
 - **Señal de bordes, descartada.** Ve una libreta del color del piso, pero en 5 escenas sin objetos da 115 celdas falsas contra 0 (`docs/obstaculos.md`).
 - **TensorFlow Lite directo.** MediaPipe y Task Vision no dejan medir cada etapa, y el `.tflite` de MediaPipe (13.8 MB) no trae postproceso (`docs/bitacora.md`, Trabajo 8). Lite1 y Lite2 tardan 1.8 y 2.7 veces lo de Lite0; GPU y NNAPI fueron más lentas que la CPU (`docs/modelo_objetos.md`).
-- **Origen y licencia del modelo.** Es el EfficientDet-Lite0 de los ejemplos oficiales de TensorFlow Lite, usado tal cual: el repositorio no tiene script ni datos de entrenamiento. Según `docs/modelo_objetos.md` se entrenó con COCO 2017 y su ficha pública lo da con Apache 2.0; `docs/bitacora.md` aclara que no se comprobó el archivo de licencia dentro del `.tflite`, y `docs/licencias/` no lo incluye.
-- CONFIRMAR CON EL EQUIPO: ¿quién entrenó exactamente ese archivo y alguien verificó su licencia Apache 2.0 en la ficha oficial?
-- **Valores por defecto** (`UMBRAL_COLOR` 40, `MIN_CELDAS` 7, fila mínima 44 %): salen de un ajuste en vivo con el carro real (`docs/obstaculos.md`).
-- CONFIRMAR CON EL EQUIPO: ¿en qué fecha y con qué versión se hizo ese ajuste en vivo?
-- CONFIRMAR CON EL EQUIPO: ¿cuáles son la altura, la inclinación y el campo de visión reales de la cámara? El simulador usa 11.5 cm, 12° y 56° (`mundo_v2.h`); el corredor, 10 cm, 20° y 60°.
+- **Origen y licencia del modelo.** Es el EfficientDet-Lite0 de los ejemplos oficiales de TensorFlow Lite, usado tal cual: el repositorio no tiene script ni datos de entrenamiento. Según `docs/modelo_objetos.md` se entrenó con COCO 2017 y su ficha pública lo da con Apache 2.0; `docs/bitacora.md` aclara que no se comprobó el archivo de licencia dentro del `.tflite`, y `docs/licencias/` no lo incluye (quién lo entrenó y la licencia Apache 2.0 en la fuente primaria quedan como **no verificado**).
+- **Valores por defecto** (`UMBRAL_COLOR` 40, `MIN_CELDAS` 7, fila mínima 44 %): salen de un ajuste en vivo con el carro real (`docs/obstaculos.md`); fecha y versión de ese ajuste: no registrado por el equipo.
+- **Geometría real de la cámara:** altura medida **9 cm del suelo** (el simulador usaba 11.5 cm y `corredor.h` 10 cm); inclinación y campo de visión: **NO MEDIDO**.
 
 ## F.4 Cómo lo probamos y con qué resultado
 
@@ -88,10 +87,11 @@ A(v) ≤ 0  →  horizonte: de ahí para arriba no hay piso
 
 Lo que NO se ha medido:
 
-- La altura, la inclinación y el campo de visión de la cámara, y con ellos el corredor.
-- Si la red reconoce objetos en el piso del carro (la sección 8 de `docs/modelo_objetos.md` está vacía) y si el láser da eco con objetos oscuros, mates, transparentes o patas reales.
-- Sol, sombras, reflejos y cambios de luz con el carro en marcha; el retraso entre un obstáculo y el STOP (`docs/prueba_obstaculos.md`, sin tabla); cualquier cifra del autónomo v3, base de la v1.2, en el piso (**PENDIENTE**).
-- CONFIRMAR CON EL EQUIPO: ¿en la prueba B6 estaba encendido el modelo de objetos? El documento solo dice «todo habilitado».
+- La inclinación y el campo de visión de la cámara (la altura real ya se midió en 9 cm), y con ellos el corredor.
+- Si la red reconoce objetos en el piso del carro (la sección 8 de `docs/modelo_objetos.md` está vacía) y si el láser ve patas reales (M2, **NO MEDIDO**).
+- Sol, sombras, reflejos y cambios de luz con el carro en marcha (bloques C y D, **PENDIENTE**), objeto con 0 % de eco IR (**SIMULADO**) y latencia de extremo a extremo (M9, **NO MEDIDO**).
+- Sobre si en la prueba B6 (10-nov) estaba encendido el modelo de objetos: no registrado por el equipo.
+- **Límite conocido de `aprenderPiso`:** rechaza el arranque con obstáculos a 40–80 cm (`descartadoPct > 5`, medido en 18 % > 5 % a 40 cm); el ajuste está pendiente y no se aplicó, por lo que las rutas deben arrancar con al menos 100 cm libres delante.
 
 ## F.5 Límites conocidos
 
@@ -111,7 +111,7 @@ Lo que NO se ha medido:
 - **`fila_minima` y `MIN_CELDAS`**: desde qué fila se mira (44 % del alto) y cuántas celdas «no piso» hacen falta (7).
 - **EfficientDet-Lite0**: red neuronal de detección de objetos, entrenada con COCO; su resultado vale 300 ms (`vigencia_ms`).
 - **fusión**: regla por zona `hay_obstaculo = color && red`; una fuente sola es un aviso.
-- **autoridad del láser**: el VL53L0X fresco y válido a ≤ 400 mm confirma; nunca borra lo que ve la cámara.
+- **autoridad del láser**: con `autoridad_laser = 1` y ToF fresco (`solo_laser`), solo `laser_cerca` confirma obstáculo en el centro; las reglas de visión pura en el centro y en reincorporación quedan inhibidas, aunque la cámara sigue pudiendo iniciar un vistazo lateral.
 - **«sin eco»**: lectura inválida o fuera de alcance del láser; no cuenta como libre.
 - **vistazo**: el carro tuerce 10 a 16° para apuntar el láser a lo que la cámara vio de lado; dos ecos a ≤ 650 mm confirman.
 - **corredor**: huella del carro proyectada con perspectiva en la imagen; apagado por defecto.
@@ -120,7 +120,7 @@ Lo que NO se ha medido:
 ## F.7 Preguntas probables del profesor
 
 1. **¿Cómo sabe el carro qué es piso y qué es obstáculo?** No sabe qué es cada cosa. Aprende cómo se ve el piso libre (1 s con el carro quieto) y marca las celdas de 10x10 píxeles cuyo color ya no se parece. Si una zona junta 7 celdas hay un posible obstáculo; que lo sea lo decide la fusión.
-2. **¿Qué es la red neuronal, quién la entrenó y con qué licencia?** Es EfficientDet-Lite0: recibe una imagen y devuelve cajas con clase y confianza. Nosotros no la entrenamos: es el archivo de los ejemplos oficiales de TensorFlow Lite, entrenado con COCO 2017. Su ficha pública dice Apache 2.0, pero no verificamos la licencia dentro del `.tflite`; quién la entrenó exactamente lo debe confirmar el equipo.
-3. **¿Por qué piden color Y red, y qué pasa si el láser no está de acuerdo?** Cada uno se equivoca distinto: el color con juntas de baldosa y sombras, la red con cajas inventadas. Pedir los dos en la misma zona filtra a ambos, aunque con sol o sombra fallan juntos. El láser confirma si ve algo a ≤ 400 mm; si está libre o sin eco, no borra a la cámara. Con una sola fuente de visión, el carro no frena.
+2. **¿Qué es la red neuronal, quién la entrenó y con qué licencia?** Es EfficientDet-Lite0: recibe una imagen y devuelve cajas con clase y confianza. Nosotros no la entrenamos: es el archivo de los ejemplos oficiales de TensorFlow Lite, entrenado con COCO 2017. Su ficha pública menciona Apache 2.0, pero ni quien la entrenó exactamente ni la licencia en la fuente primaria están verificados en el repo (**no verificado**).
+3. **¿Por qué piden color Y red, y qué pasa si el láser no está de acuerdo?** Cada uno se equivoca distinto: el color con juntas de baldosa y sombras, la red con cajas inventadas. Pedir los dos en la misma zona filtra a ambos, aunque con sol o sombra fallan juntos. Con las correcciones del 26-nov (`solo_laser`), cuando el láser tiene datos frescos, solo él confirma en el centro y las sospechas solo visuales no disparan esquive ni bloquean la reincorporación; la cámara sigue pudiendo pedir vistazo lateral.
 4. **¿Cómo calculan la distancia con una sola cámara?** No la calculan en centímetros: usan qué tan abajo llega el obstáculo y lo reparten en tres bandas. El corredor sí convierte filas en centímetros, pero está apagado porque la altura, la inclinación y el campo de visión son valores de partida sin medir. La distancia medida la da el láser.
 5. **¿Qué probaron en el carro?** En v1.1, el 10-nov-2026, esquivar una caja de 20x20 cm: 6 de 6 sin tocarla y 5 de 6 terminadas. El 15-nov, 7 rectas con la app v2: 6 terminadas y 1 con el video perdido. El autónomo v3 solo está simulado y falta validarlo; tampoco medimos patas reales, objetos oscuros ni cambios de luz.

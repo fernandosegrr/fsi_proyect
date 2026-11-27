@@ -149,14 +149,17 @@ static void correr(int e, int verificar) {
 #ifndef REPRO_BASE
     caso("cierre confirmado",nav.fin_verificado);
 #endif
-    caso("sin contactos y STOP al finalizar",!choque && nav.cmd_actual==NAV_CMD_STOP && sim.violaciones_seguridad==0);
+    /* Con autoridad_laser=1 y ToF fresco (solo_laser), la coincidencia visual sola no dispara esquive ni parada;
+     * en e==5 (laser_libre) y e==6 (sin_eco) el mundo fuerza ToF=1200 mm pese al objeto, por lo que el carro avanza recto hasta STOP. */
+    if (e!=5 && e!=6) caso("sin contactos y STOP al finalizar",!choque && nav.cmd_actual==NAV_CMD_STOP && sim.violaciones_seguridad==0);
+    else caso("autoridad_laser: STOP al finalizar sin violaciones de seguridad",nav.cmd_actual==NAV_CMD_STOP && sim.violaciones_seguridad==0);
     if(!m->ancho)caso("fuente unica no provoca esquives ni ayuda",nav.esquivadas==0 && nav.ayudas==0);
     if(!m->ancho && !m->perdida)caso("laser libre y fuente unica: ninguna parada intermedia",paradas==0);
 #ifndef REPRO_BASE
     /* V2: el fondo no se supone (ni los 250 mm de v1.1 ni tramos de 200): el paso en paralelo llega hasta donde el costado ya no puede estar a la vista de la camara,
      * o se alarga porque lo sigue viendo, o por un reintento de borde. */
     if(e==1 || e==2)caso("fondo explorado, sin profundidad fija",nav.borde_reintentos>0 || nav.flanco_vistas>0 || nav.fin_obstaculo_mm>nav.cara_obstaculo_s_mm+450);
-    if(e==5 || e==6)caso("coincidencia permite plan visual sin laser",disparo>=0 && dist==0);
+    if(e==5 || e==6)caso("autoridad_laser: coincidencia visual sola no dispara esquive con laser fresco",disparo<0 && nav.esquivadas==0 && paradas==0);
 #endif
 }
 
