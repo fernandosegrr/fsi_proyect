@@ -251,6 +251,7 @@ class ModoSemiautonomo(
                 "detector_objetos=${fuente?.modelo != null}",
             "config_vision=${fuente?.cuadroTomado?.config?.joinToString(",") ?: ""}",
             "camara_stats=${fuente?.textoCamaraCarro ?: ""}",
+            "aprender_piso=estado:${fuente?.informePiso?.estadoArranque ?: -1} desc_pct:${fuente?.informePiso?.descartadoPct ?: -1} tof_cm:${fuente?.informePiso?.tofCm ?: 0} msg:${fuente?.informePiso?.mensajeEstado ?: ""}",
             "telefono=${android.os.Build.MODEL} android=${android.os.Build.VERSION.RELEASE}"))
         ObstaculosNativa.telemetriaActiva(fuente != null)
         mensaje = ""

@@ -474,6 +474,62 @@ static void probar_v3(void) {
     preparar_politica();
     caso("v3 por defecto la memoria del eco esta encendida y retrocede con ecos de 350 mm o menos",nav.memoria_eco==1 && nav.eco_retroceder_mm==NAV_ECO_RETROCEDE_MM);
 }
+
+/* A3: tras aprender piso con sombras aceptado por ToF >= 600 mm, con ToF fresco la visión sola sigue sin disparar esquive. */
+static void probar_sombras_autoridad_laser(void) {
+    static unsigned char img[240 * 176 * 3];
+    static AcumuladorPiso acum;
+    ConfigObstaculos cfg;
+    ModeloPiso mod;
+    InformePiso inf;
+    LecturaTofPiso tof;
+    ResultadoObstaculos cuadro;
+    Punto ruta[11];
+    CalibracionCarro cal;
+    int i, x, y, t, paradas = 0, antes = NAV_CMD_STOP;
+
+    obstaculos_config_defecto(&cfg);
+    cfg.grupos_piso = 3;
+    obstaculos_aprender_iniciar(&acum);
+    for (i = 0; i < 6; i++) {
+        for (y = 0; y < 176; y++) {
+            for (x = 0; x < 240; x++) {
+                int en_sombra = (y >= 88 && y < 136 && x >= 45 && x < 195);
+                img[(y * 240 + x) * 3] = en_sombra ? 45 : 185;
+                img[(y * 240 + x) * 3 + 1] = en_sombra ? 43 : 180;
+                img[(y * 240 + x) * 3 + 2] = en_sombra ? 40 : 172;
+            }
+        }
+        obstaculos_aprender_cuadro(&acum, &cfg, img, 240, 176);
+    }
+    tof.disponible = 1; tof.vivo = 1; tof.valido = 1; tof.distancia_mm = 900; tof.edad_ms = 50;
+    obstaculos_modelo_iniciar(&mod);
+    obstaculos_aprender_terminar_con_tof(&acum, &cfg, &tof, &mod, &inf);
+    caso("sim sombras: aprenderPiso acepta arranque con ToF libre >= 600 mm", inf.estado_arranque == OBS_APRENDER_OK_SOMBRAS_TOF && mod.valido);
+
+    cfg.piso_fijo = 1;
+    obstaculos_analizar_modelo(&cfg, &mod, img, 240, 176, 1, 100, &cuadro);
+    cuadro.fuentes_vision[ZONA_CENTRO] = cuadro.zona[ZONA_CENTRO].hay_obstaculo ? 1 : 0;
+
+    cal_defecto(&cal); cal.ms_por_cm_x10 = 518;
+    navegador_iniciar(&nav); navegador_poner_calibracion(&nav, &cal);
+    navegador_poner_giroscopio(&nav, 1); navegador_poner_sensor_distancia(&nav, 1);
+    navegador_poner_autoridad_laser(&nav, 1); navegador_poner_requiere_camara(&nav, 1); navegador_poner_pedir_ayuda(&nav, 1);
+    for (i = 0; i < 11; i++) { ruta[i].columna = 5; ruta[i].fila = 10 - i; }
+    navegador_cargar_ruta(&nav, ruta, 11); navegador_comenzar(&nav, 0);
+    sim_iniciar(&sim, 5, 10, 0); sim.real = cal; sim.fw_giroscopio = 1;
+    sim.tof_activo = 1; sim.laser_externo = 1; sim.laser_externo_mm = 1200; sim.tof_sin_eco = 0;
+    sim.periodo_cuadro_ms = 100; sim.vision_externa = &cuadro;
+
+    for (t = 0; t < 30000; t += NAV_TICK_MS) {
+        sim_correr(&sim, &nav, NAV_TICK_MS);
+        if (antes == NAV_CMD_FORWARD && nav.cmd_actual == NAV_CMD_STOP && nav.estado != NAV_TERMINADO && !nav.fin_pendiente) paradas++;
+        antes = nav.cmd_actual;
+        if (nav.estado == NAV_TERMINADO || nav.estado == NAV_AYUDA || nav.estado == NAV_ERROR) break;
+    }
+    caso("sim sombras: con ToF fresco la vision sola sigue sin disparar esquive ni paradas",
+         cuadro.zona[ZONA_CENTRO].hay_obstaculo == 1 && nav.estado == NAV_TERMINADO && nav.esquivadas == 0 && nav.ayudas == 0 && paradas == 0);
+}
 #endif
 
 int main(int argc,char **argv) {
@@ -485,6 +541,7 @@ int main(int argc,char **argv) {
 #ifdef NAV_V3
         probar_v3();
 #endif
+        probar_sombras_autoridad_laser();
     }
 #endif
     if(!informe)printf("%d casos, %d fallos\n",casos,fallos);

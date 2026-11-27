@@ -271,6 +271,7 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         camara.forzarVideoCarro = true
         camara.usuarioVideo = SesionNativa.USUARIO_DETECCION
         camara.fovX10 = calibracion.fovCalibradoX10()
+        camara.proveedorTof = { SesionCarro.logica.lecturaTofActual() }
         camara.abrir()
         semi.camara = camara
 
@@ -386,21 +387,28 @@ class EjecutarRutaFragment : Fragment(R.layout.fragment_ejecutar) {
         }
     }
 
-    /** El piso ya se aprendió: si salió bien pasa a «Listo para salir»; si se descartó más del 5 % o falló, dice qué hacer en vez de seguir con un piso mal aprendido. */
+    /** El piso ya se aprendió: evalúa la decisión del núcleo (con el láser como segunda opinión si hubo sombras) y pasa a «Listo para salir» o indica qué hacer. */
     private fun evaluarPiso() {
         val informe = camara.informePiso
         if (camara.errorAprender.isNotEmpty() || informe == null) {
             pisoFijoRuta = false
             fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_error), getString(R.string.ejecutar_piso_error_hacer)))
-        } else if (informe.muyVariado || informe.descartadoPct > 5) {
+        } else if (informe.estadoArranque == ObstaculosNativa.APR_ESTADO_RECHAZA_OBJETO) {
             pisoFijoRuta = false
-            fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_variado), getString(R.string.ejecutar_piso_variado_hacer)))
+            fallarPreparacion(Mensaje(informe.mensajeEstado, getString(R.string.ejecutar_piso_objeto_hacer)))
+        } else if (informe.estadoArranque == ObstaculosNativa.APR_ESTADO_RECHAZA_SIN_TOF) {
+            pisoFijoRuta = false
+            val detalle = informe.mensajeEstado.ifEmpty { getString(R.string.ejecutar_piso_sin_tof_hacer) }
+            fallarPreparacion(Mensaje(getString(R.string.ejecutar_piso_variado), detalle))
         } else {
             pisoFijoRuta = true
             fase = Fase.CONFIRMAR
             faseDesdeMs = SystemClock.elapsedRealtime()   // desde aquí cuenta CONFIRMAR_MAX_MS
             val avisoDesp = calibracion.avisoDesplazamientoSinMedir()
-            if (calibracionRechazada) {
+            if (informe.estadoArranque == ObstaculosNativa.APR_ESTADO_OK_SOMBRAS_TOF && informe.mensajeEstado.isNotEmpty()) {
+                aviso.mostrar(Nivel.AVISO, informe.mensajeEstado, getString(R.string.ejecutar_confirmar_ayuda))
+                avisoDelFlujo = true
+            } else if (calibracionRechazada) {
                 val m = Mensajes.calibracionRechazada()
                 aviso.mostrar(Nivel.AVISO, m.quePaso, m.queHacer)
                 avisoDelFlujo = true

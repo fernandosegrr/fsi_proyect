@@ -100,6 +100,8 @@
     <string name="ejecutar_cancelar_salida">Cancelar la salida</string>
     <string name="ejecutar_piso_variado">Hay algo frente al carro, despéjalo</string>
     <string name="ejecutar_piso_variado_hacer">El piso se ve muy variado: quita los objetos que haya delante del carro y las sombras fuertes, y toca «Iniciar ruta» otra vez.</string>
+    <string name="ejecutar_piso_objeto_hacer">Retira el objeto del frente del carro y toca «Iniciar ruta» otra vez.</string>
+    <string name="ejecutar_piso_sin_tof_hacer">No se pudo confirmar el frente con el láser: despeja el frente y las sombras, y toca «Iniciar ruta» otra vez.</string>
     <string name="ejecutar_piso_error">No se pudo aprender el piso</string>
     <string name="ejecutar_piso_error_hacer">Revisa que la cámara muestre imagen y que el carro esté quieto, y toca «Iniciar ruta» otra vez.</string>
     <string name="ejecutar_sin_conexion">El carro no está conectado</string>
