@@ -1,15 +1,15 @@
-# Centro de Documentación Técnica — Proyecto Carro FSI (v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial)
+# Centro de Documentación Técnica — Proyecto Carro FSI (v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado)
 
-**Nota histórica (11-nov-2026):** [esquive confirmado y resultados](diagnostico_esquive_20261111.md) (basada en v1.1; banquito sin medir en el carro). La versión vigente **v1.2.3** incluye las pruebas físicas del 25–26 nov-2026 (validación física **PARCIAL**; ver [correcciones_fisicas_20261126.md](correcciones_fisicas_20261126.md)).
+**Nota histórica (11-nov-2026):** [esquive confirmado y resultados](diagnostico_esquive_20261111.md) (basada en v1.1; banquito sin medir en el carro). La versión vigente **v1.2.4** incluye las pruebas físicas del 25–26 nov-2026 (validación física **PARCIAL**; ver [correcciones_fisicas_20261126.md](correcciones_fisicas_20261126.md)) y el reparto de exposición actualizado.
 
 Bienvenido al centro de documentación del proyecto **LIDIA (*Carro FSI*)** de la materia **Fundamentos de los Sistemas de Información (FSI)** (Universidad de Guanajuato · DICIS, profesor **Dr. Horacio Rostro González**).
 
 ---
 
-## 1. Manual Técnico en PDF (v1.2.3)
+## 1. Manual Técnico en PDF (v1.2.4)
 
-- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`139` páginas, `12` figuras, `65` tablas, índice general interactivo, mapa de una página, glosario y «si te preguntan X, ve a la página Y»): v1.2.3, autónomo v3 con correcciones del 26-nov y validación física parcial (25–26 nov-2026).
-- **[guia_exposicion.md](guia_exposicion.md):** guion de 3 a 5 minutos, preguntas probables por subsistema, quién explica qué (sin nombres), qué decir si la demostración falla y qué está medido y qué simulado.
+- **[Manual_Proyecto_Carro_FSI.pdf](manual/Manual_Proyecto_Carro_FSI.pdf)** (`139` páginas, `12` figuras, `65` tablas, índice general interactivo, mapa de una página, glosario y «si te preguntan X, ve a la página Y»): v1.2.4, autónomo v3 con correcciones del 26-nov, validación física parcial (25–26 nov-2026) y reparto de exposición actualizado.
+- **[guia_exposicion.md](guia_exposicion.md):** guion de 3 a 5 minutos, reparto de 10 diapositivas, preguntas probables agrupadas por integrante, qué decir si la demostración falla y qué está medido y qué simulado.
 - **[pendientes_confirmar.md](pendientes_confirmar.md):** preguntas `CONFIRMAR CON EL EQUIPO` que hay que contestar antes de exponer.
 - **[docs/manual/README.md](manual/README.md):** instrucciones para regenerar el PDF con `python docs/manual/generar_manual.py`, diagnóstico de la versión previa ([manual/diagnostico_v1.md](manual/diagnostico_v1.md)), plan editorial ([manual/plan_final.md](manual/plan_final.md)) y auditoría de afirmaciones ([manual/auditoria_afirmaciones.md](manual/auditoria_afirmaciones.md)).
 - **[docs/figuras/README.md](figuras/README.md):** catálogo y generador reproducible (`docs/figuras/generar_figuras_v2.py`) de los diagramas y láminas del manual.

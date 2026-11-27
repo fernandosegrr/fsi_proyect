@@ -50,9 +50,9 @@ CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
 
 # Texto de versión (portada, encabezado de página y metadatos del PDF)
-VERSION_LARGA = "v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+VERSION_LARGA = "v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado"
 TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
-CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial"
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.4 — v3 + 26-nov; validación parcial; reparto actualizado"
 
 # Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
 PAGINAS = {}          # clave real del encabezado -> página donde aparece
@@ -555,7 +555,7 @@ def construir_portada(story):
         [
             Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
             Paragraph(
-                "<b>v1.2.3 — autónomo v3 con correcciones del 26-nov; validación física parcial.</b> "
+                "<b>v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado.</b> "
                 "Decisión de exposición: Opción 1 con condiciones (v3 + "
                 '<font name="DejaVuMono" size="8.2">FW:b396390</font> + correcciones del 26-nov en '
                 '<font name="DejaVuMono" size="8.2">navegador.c</font> y '
