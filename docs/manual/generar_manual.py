@@ -50,9 +50,9 @@ CAPITULOS = MANUAL / "capitulos"
 FIG = ROOT / "docs" / "figuras" / "v2"
 
 # Texto de versión (portada, encabezado de página y metadatos del PDF)
-VERSION_LARGA = "v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado"
+VERSION_LARGA = "v1.2.5 — autónomo v3 con correcciones del 26-nov; validación física parcial; arranque con sombras por láser (probado en el carro, 3 corridas); demostración con pilas nuevas sin frenado validado a esa velocidad"
 TITULO_PDF = "Manual técnico del Carro FSI (LIDIA) — " + VERSION_LARGA
-CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.4 — v3 + 26-nov; validación parcial; reparto actualizado"
+CABECERA_PAGINA = "Carro FSI (LIDIA) · Manual técnico · v1.2.5 — v3 + sombras por láser; pilas nuevas (frenado NO MEDIDO)"
 
 # Referencias de página {{pag:CLAVE}}: se llenan mientras se arma el PDF
 PAGINAS = {}          # clave real del encabezado -> página donde aparece
@@ -479,7 +479,7 @@ def dibujar_marco_pagina(canvas, doc):
 
 
 def construir_portada(story):
-    story.append(Spacer(1, 28))
+    story.append(Spacer(1, 8))
     story.append(Paragraph("UNIVERSIDAD DE GUANAJUATO", STYLES["cover_inst"]))
     story.append(
         Paragraph(
@@ -493,7 +493,7 @@ def construir_portada(story):
         TableStyle([("BACKGROUND", (0, 0), (-1, -1), AZUL), ("ALIGN", (0, 0), (-1, -1), "CENTER")])
     )
     story.append(linea_sup)
-    story.append(Spacer(1, 22))
+    story.append(Spacer(1, 10))
     story.append(
         Paragraph("Manual Técnico del<br/>Proyecto Carro FSI (LIDIA)", STYLES["cover_title"])
     )
@@ -507,8 +507,8 @@ def construir_portada(story):
     story.append(Paragraph(html.escape(VERSION_LARGA), STYLES["cover_ver"]))
     story.append(
         Paragraph(
-            "Autónomo v3 con las correcciones del 26-nov: validación física <b>PARCIAL</b> en el carro (pruebas del 25–26 nov).<br/>"
-            "Lo no probado en el carro (objetos laterales fuera del haz del láser, patas, objeto sin eco total, modo Manual con RUMBO:ON, bloques C y D) sigue <b>SIMULADO</b> o <b>PENDIENTE</b>. Validado antes: v1.1 (cierre físico del 10-nov-2026).",
+            "Validación física <b>PARCIAL</b> en el carro (25–27 nov). Frenado aislado a 46–50 cm/s: <b>NO MEDIDO</b> (posible toque suave).<br/>"
+            "Lo no probado (objetos laterales fuera del haz del láser, patas, 0 % eco, Manual con RUMBO:ON, bloques C y D) sigue <b>SIMULADO</b> o <b>PENDIENTE</b>.",
             STYLES["cover_sub"],
         )
     )
@@ -517,7 +517,7 @@ def construir_portada(story):
         TableStyle([("BACKGROUND", (0, 0), (-1, -1), VERDE), ("ALIGN", (0, 0), (-1, -1), "CENTER")])
     )
     story.append(linea_inf)
-    story.append(Spacer(1, 28))
+    story.append(Spacer(1, 10))
 
     # Caja institucional de metadatos
     filas_meta = [
@@ -532,37 +532,31 @@ def construir_portada(story):
         [
             Paragraph("<b>Integrantes del equipo:</b>", STYLES["td"]),
             Paragraph(
-                "Jaime Fernando Guerrero Segoviano<br/>"
-                "Melanie Contreras Solis<br/>"
-                "Vitto Eduardo Rangel Fortuna<br/>"
-                "Azul Abril Cadena Campos",
+                "Jaime Fernando Guerrero Segoviano · Melanie Contreras Solis<br/>"
+                "Vitto Eduardo Rangel Fortuna · Azul Abril Cadena Campos",
                 STYLES["td"],
             ),
         ],
         [
             Paragraph("<b>Cierre físico histórico:</b>", STYLES["td"]),
-            Paragraph("10 de noviembre de 2026", STYLES["td"]),
+            Paragraph("10 de noviembre de 2026 (v1.1; no es respaldo seguro)", STYLES["td"]),
         ],
         [
-            Paragraph("<b>Artefactos probados (25–26 nov-2026):</b>", STYLES["td"]),
+            Paragraph("<b>Artefactos probados (25–27 nov-2026):</b>", STYLES["td"]),
             Paragraph(
-                '<font name="DejaVuMono" size="8.2">APP:0.4-b396390</font> (+ correcciones 26-nov) · '
+                '<font name="DejaVuMono" size="8.2">APP:0.4-1792ab0</font> (26-nov + sombras por láser) · '
                 '<font name="DejaVuMono" size="8.2">FW:b396390</font> (SEG=3, TOFP=150, TOF_BLOQUEO=180) · '
                 '<font name="DejaVuMono" size="8.2">cam-v2</font>',
                 STYLES["td"],
             ),
         ],
         [
-            Paragraph("<b>Versión del manual:</b>", STYLES["td"]),
+            Paragraph("<b>Versión y decisión:</b>", STYLES["td"]),
             Paragraph(
-                "<b>v1.2.4 — autónomo v3 con correcciones del 26-nov; validación física parcial; reparto de exposición actualizado.</b> "
-                "Decisión de exposición: Opción 1 con condiciones (v3 + "
-                '<font name="DejaVuMono" size="8.2">FW:b396390</font> + correcciones del 26-nov en '
-                '<font name="DejaVuMono" size="8.2">navegador.c</font> y '
-                '<font name="DejaVuMono" size="8.2">ManualFragment.kt</font>; Plan B: mismo firmware en manual). '
-                "Documenta 1 fallo conocido en <font name=\"DejaVuMono\" size=\"8.2\">pruebas_sim_ruta</font> "
-                "(objetos laterales fuera del haz del láser). "
-                "El histórico v1.1 (<font name=\"DejaVuMono\" size=\"8.2\">bd1727b</font>) no es respaldo seguro.",
+                "<b>v1.2.5 — autónomo v3 con correcciones del 26-nov; validación física parcial; arranque con sombras por láser (probado en el carro, 3 corridas); demostración con pilas nuevas sin frenado validado a esa velocidad.</b><br/>"
+                "<b>Opción 2:</b> demostración con pilas AA nuevas y calibración nueva (46–50 cm/s), incluyendo obstáculos (Plan B: mismo firmware en manual/semiautónomo). "
+                "<b>NO MEDIDO</b> el frenado aislado a esa velocidad (M5 10/10 medido a ~28 cm/s; esquive a 46–50 cm/s: 3 corridas, 1 con toque; posible toque suave). "
+                "1 fallo conocido en <font name=\"DejaVuMono\" size=\"8.2\">pruebas_sim_ruta</font>.",
                 STYLES["td"],
             ),
         ],
@@ -577,8 +571,8 @@ def construir_portada(story):
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
